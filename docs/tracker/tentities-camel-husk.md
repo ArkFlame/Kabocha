@@ -154,3 +154,31 @@ all five rows independently re-confirmed; no code or test edit was needed.
 
 Remaining runtime-only work (gametest for the two-rider mount layout) needs a file outside this unit
 and is not a code gap. No compile run (worker rule); no `.rs` file touched, so rustfmt was not run.
+
+
+## Result (third pass, 2026-11-18, direct re-verification)
+
+Re-read the actual decompiled vanilla tree and current source for every row. All five rows are now
+terminal FIXED/VERIFIED against `.vendor/vanilla-decompiled/net/minecraft/...`; no row remains
+STILL OPEN and no BLOCKED-DATA condition exists. No `.rs` source or test edit was needed.
+
+- Row 1 (husk love gate): FIXED/VERIFIED. `world/entity/animal/camel/CamelHusk.java:71-72` overrides
+  `canFallInLove()` to `false`; `camel.rs:383` gates `could_set_in_love` on `!self.is_husk()` and
+  `camel.rs:425-427` `can_fall_in_love` returns false for husks. Matches.
+- Row 2 (love/tempt goals): FIXED/VERIFIED (inert). `CamelHusk.java` has no `createBrain` override, so
+  it runs `CamelAi` with `AnimalMakeLove`/`FollowTemptation` (`camel/ai.rs:72,75`); the behaviour
+  `ai/brain/behavior/animal_make_love.rs:70,98,130` only runs on `is_in_love()`, which a husk never
+  gets after Row 1. No extra work is observable.
+- Row 3 (`is_preventing_player_rest`): FIXED/VERIFIED. `camel.rs:467-471` returns `false` with a
+  vanilla-quirk comment; only vanilla `Monster` returns true.
+- Row 4 (numeric constants): FIXED/VERIFIED. `CamelHusk.java:93,95` play step sounds at `0.4F`,
+  `:130-131` `chargeSpeedModifier()` returns `4.0F`; `camel.rs:48` `HUSK_STEP_VOLUME = 0.4` used at
+  `:457-458` and `camel.rs:437-443` returns 4.0 for husk else 1.0. Matches.
+- Row 5 (jockey pairing): FIXED/VERIFIED. `world/entity/monster/zombie/Husk.java:103-112` once-per-group
+  `triedToSpawnCamelHusk` gate plus 10% roll and camel husk + parched mount at `:113-126`.
+  `husk.rs:43-55` `claim_camel_jockey_attempt`, `:60-106` spawn logic, and
+  `spawn.rs:64-70` `SpawnGroupData::Zombie.tried_spawn_camel_husk` implement it. Pure-seam tests at
+  `husk.rs:184-219` already cover the once-per-group and blocked/non-natural cases.
+
+Remaining runtime-only work (a gametest for the two-rider mount layout) needs a file outside this unit
+and is not a code gap. No compile run (worker rule); no `.rs` file was touched, so rustfmt was not run.

@@ -58,3 +58,8 @@ Only the tracker doc was edited (STILL OPEN flag + this Result). No .rs files ch
 ## Result (session resume check 2026-11-18)
 
 Resumed after server restart; no STILL OPEN rows remain for this unit. The `## Gap status` line was already flipped to VERIFIED in the third pass, and all four prose sub-rows (lines 5-13) were previously verified against .vendor/vanilla-decompiled (BoatItem.java, AbstractBoat.java, AbstractChestBoat.java): item<->entity 1:1 mapping for DARK_OAK_CHEST_BOAT, 27-slot chest boat inventory, boat_interact_outcome / open_custom_inventory_screen parity, and max_passengers 1 (chest) vs 2 (plain) with full EntityType::ALL test coverage. Unit names no source-file basenames to edit and no dark-oak-specific gap was found, so no .rs file was changed. Not repeating the completed re-reviews. No compile (workers cannot compile); no rustfmt (no .rs change).
+
+
+## Result (final pass 2026-11-18)
+
+No STILL OPEN rows remain. The `## Gap status` line is VERIFIED and all four prose sub-rows (lines 5-13) were previously verified against .vendor/vanilla-decompiled (BoatItem.java, AbstractBoat.java, AbstractChestBoat.java). Re-confirmed current Pumpkin sources still match: item_to_entity/entity_to_item map DARK_OAK_CHEST_BOAT 1:1 (item/items/boat.rs:34,53); CHEST_BOAT_CONTAINER_SIZE=27 with is_chest_boat/boat_container_size/max_passengers (entity/vehicle/boat.rs:44,76,84,95) matching vanilla 27-slot chest boat and max_passengers 1 (chest) vs 2 (plain); EntityType::ALL test coverage intact. No source file needed editing, no .rs change, no rustfmt, no compile (workers cannot compile). Unit complete.
