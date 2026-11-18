@@ -1302,6 +1302,7 @@ interface event {
 
     record block-fade-event-data {
         block-pos: block-pos,
+        new-state-id: u16,
         cancelled: bool
     }
 
