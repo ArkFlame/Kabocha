@@ -1374,8 +1374,9 @@ impl DynamicBlockRegistry {
             self.states.push(state);
             self.state_owners.push(index);
         }
-        DYNAMIC_BLOCK_COUNT.store(self.blocks.len() as u32, Ordering::Release);
-        DYNAMIC_STATE_COUNT.store(self.states.len() as u32, Ordering::Release);
+        // Monotonic: a registry instance that is not the global one must not lower the shared counts.
+        DYNAMIC_BLOCK_COUNT.fetch_max(self.blocks.len() as u32, Ordering::AcqRel);
+        DYNAMIC_STATE_COUNT.fetch_max(self.states.len() as u32, Ordering::AcqRel);
         Ok(block)
     }
 
