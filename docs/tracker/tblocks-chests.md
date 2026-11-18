@@ -215,3 +215,44 @@ Every row is resolved in the current tree; no source file needed a change.
 
 No source files changed this pass; only this Result section was appended to the
 unit doc. All four rows are closed; none remain STILL OPEN.
+
+## Result (third pass, 2026-11-18, definitive)
+
+Re-verified all four rows against decompiled vanilla present under
+.vendor/vanilla-decompiled/net/minecraft/. No cargo/git/shell was run by this
+worker. Every row now has a terminal status; none remain STILL OPEN.
+
+- Row 1 (partner half detached on non-player removal): FIXED, in tree.
+  Vanilla ChestBlock.updateShape
+  (.vendor/vanilla-decompiled/net/minecraft/world/level/block/ChestBlock.java:187-197)
+  flips a lone half back to ChestType.SINGLE when its connected neighbour changes,
+  while affectNeighborsAfterRemoval (:265-267) only updates comparators. Pumpkin's
+  chest_state_for_neighbor_update (chests.rs:623, wired at 670/854/926) is a faithful
+  port of that hook and runs on every state change, so break/explosion/setblock are
+  covered. No code change needed.
+- Row 2 (blocked-chest predicate): FIXED, in tree.
+  Vanilla isBlockedChestByBlock
+  (.vendor/vanilla-decompiled/net/minecraft/world/level/block/ChestBlock.java:368-370)
+  tests the block above with isRedstoneConductor (a collision-full block). Pumpkin's
+  has_block_on_top uses state.is_full_cube() (chests.rs:1109), matching it. No change.
+- Row 3 (lid event viewer count truncated to u8): VERIFIED (matches vanilla).
+  Vanilla ChestBlockEntity.signalOpenCount
+  (.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/ChestBlockEntity.java:232-234)
+  passes the int current, but ClientboundBlockEventPacket.write
+  (.vendor/vanilla-decompiled/net/minecraft/network/protocol/game/ClientboundBlockEventPacket.java:35-39,
+  output.writeByte(this.b0/b1)) puts only the low 8 bits on the wire. Pumpkin's
+  new as u8 (in on_viewer_count_update of chest_like_block_entity.rs and
+  ender_chest.rs) plus the protocol's write_u8 (block_event.rs:52) produce
+  byte-identical output, so no widening is correct. Added a one-line comment at both
+  cast sites documenting the vanilla wire quirk to prevent re-litigation.
+- Row 4 (double-chest menu title): FIXED, in tree.
+  Vanilla MENU_PROVIDER_COMBINER.getDisplayName
+  (.vendor/vanilla-decompiled/net/minecraft/world/level/block/ChestBlock.java:130-135)
+  uses the first (RIGHT) half's custom name, else the second (LEFT) half's, else
+  container.chestDouble. Pumpkin's chest_display_name (chests.rs:81) resolves both
+  halves (chests.rs:491-493); unit test chest_menu_title_matches_vanilla
+  (chests.rs:1144) present. No change.
+
+All four rows resolved; no row remains STILL OPEN. Only documenting comments were
+added to chest_like_block_entity.rs and ender_chest.rs; no functional code change
+was needed.

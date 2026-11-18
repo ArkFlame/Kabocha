@@ -340,7 +340,9 @@ macro_rules! impl_viewer_count_listener_for_chest {
                 old: u16,
                 new: u16,
             ) {
-                // Trigger block animation
+                // Trigger block animation. Vanilla's ClientboundBlockEventPacket writes
+                // the int viewer count with output.writeByte, so only the low 8 bits reach
+                // the client; the u8 cast matches that wire format exactly.
                 world.add_synced_block_event(*position, Self::LID_ANIMATION_EVENT_TYPE, new as u8);
 
                 // Update neighbors for redstone signal when viewer count changes

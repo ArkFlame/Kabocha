@@ -82,6 +82,7 @@ impl ViewerCountListener for EnderChestBlockEntity {
     }
 
     fn on_viewer_count_update(&self, world: &Arc<World>, position: &BlockPos, _old: u16, new: u16) {
+        // Vanilla sends the int viewer count as one byte on the wire; match the truncation.
         world.add_synced_block_event(*position, Self::LID_ANIMATION_EVENT_TYPE, new as u8);
     }
 }

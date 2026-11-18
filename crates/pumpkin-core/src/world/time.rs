@@ -283,7 +283,8 @@ impl LevelTime {
                 partial_tick,
                 rate,
             ),
-            &CSetTime::new(self.time_of_day as _), // TODO do we need to tell bedrock that time is frozen?
+            // Bedrock CSetTime carries day time (0..23999), not absolute time.
+            &CSetTime::new(self.query_daytime() as _),
         );
     }
 
