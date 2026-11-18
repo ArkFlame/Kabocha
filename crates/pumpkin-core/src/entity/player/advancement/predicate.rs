@@ -956,7 +956,9 @@ impl EntityDistance {
 
 /// Snapshot of the target entity fields vanilla's entity sub-predicates read.
 ///
-/// `None` means the caller did not collect that part, so a predicate that checks it is skipped.
+/// `distance` and `stepping_block` are `None` when the caller cannot supply them;
+/// `stepping_block` is also `None` for an entity that is not on the ground, which is how
+/// vanilla fails every `SteppingOnPredicate`.
 #[derive(Clone, Default)]
 pub struct EntityState {
     pub distance: Option<EntityDistance>,
@@ -1164,12 +1166,9 @@ impl EntityPredicate {
             }
         }
         self.equipment.iter().all(|(slot, predicate)| {
-            state
-                .equipment
-                .iter()
-                .any(|(equipped_slot, item)| {
-                    equipped_slot == slot && predicate.matches(item, 1, &[])
-                })
+            state.equipment.iter().any(|(equipped_slot, item)| {
+                equipped_slot == slot && predicate.matches(item, 1, &[])
+            })
         })
     }
 
@@ -1268,7 +1267,6 @@ impl EntityPredicate {
                 slots
                     .iter()
                     .map(|(slot, pred)| (slot.clone(), ItemPredicate::from_value(pred)))
-                    .collect::<Vec<(String, ItemPredicate)>>()
                     .collect()
             })
             .unwrap_or_default();
@@ -4015,24 +4013,17 @@ mod tests {
             distance: None,
             is_baby: None,
             effects: vec![active(&StatusEffect::SPEED)],
-            equipment: vec![(
-                "head".to_string(),
-                "minecraft:leather_helmet".to_string(),
-            )]),
+            equipment: vec![("head".to_string(), "minecraft:leather_helmet".to_string())],
             stepping_block: None,
         };
         assert!(!pred.matches_entity("minecraft:cow", &state));
         let mut amplified = state.clone();
-        if let Some(effect) = amplified.effects.first_mut()
-        {
+        if let Some(effect) = amplified.effects.first_mut() {
             effect.amplifier = 1;
         }
         assert!(pred.matches_entity("minecraft:cow", &amplified));
         let mut wrong_head = amplified.clone();
-        wrong_head.equipment = vec![(
-            "head".to_string(),
-            "minecraft:diamond_helmet".to_string(),
-        )]);
+        wrong_head.equipment = vec![("head".to_string(), "minecraft:diamond_helmet".to_string())];
         assert!(!pred.matches_entity("minecraft:cow", &wrong_head));
     }
 }
