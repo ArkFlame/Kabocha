@@ -4,7 +4,6 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 
 - **items/Mace** [partial/AUDITED] The reviewed source has changed. The previous assessment needs a new review. The reviewed source has changed.
 
-## Result
 ## Result (third pass, final)
 
 Row `items/Mace` (the only row): VERIFIED. Re-reviewed mace.rs and the whole smash path directly against the decompiled vanilla class at `.vendor/vanilla-decompiled/net/minecraft/world/item/MaceItem.java` (26.3, Paper-patched).

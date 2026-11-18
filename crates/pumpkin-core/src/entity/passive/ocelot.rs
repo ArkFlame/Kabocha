@@ -17,7 +17,7 @@ use crate::entity::{
         fleeing::{self, Flee},
         hunting::{self, Hunt},
     },
-    ai::goal::swim::SwimGoal,
+    ai::goal::{swim::SwimGoal, tempt::TemptGoal},
     ai::target_match::TargetMatch,
     mob::{Mob, MobEntity},
     passive::animal::Animal,
@@ -38,6 +38,16 @@ fn is_wary(mob: &dyn Mob) -> bool {
     mob.cast_any()
         .downcast_ref::<OcelotEntity>()
         .is_some_and(|ocelot| !ocelot.is_trusting())
+}
+
+/// Vanilla `Ocelot.removeWhenFarAway`, including Paper's name and leash guards.
+const fn should_despawn_ocelot(
+    is_trusting: bool,
+    tick_count: i32,
+    has_custom_name: bool,
+    is_leashed: bool,
+) -> bool {
+    !is_trusting && tick_count > DESPAWN_AFTER_TICKS && !has_custom_name && !is_leashed
 }
 
 /// Represents an Ocelot, a shy passive mob found in jungles.
@@ -194,7 +204,11 @@ impl Mob for OcelotEntity {
             .load()
             .squared_distance_to_vec(&player.get_entity().pos.load());
 
-        if !self.is_trusting() && is_food && dist_sqr < 9.0 {
+        if !self.is_trusting()
+            && is_food
+            && dist_sqr < 9.0
+            && self.mob_entity.goals_selector.is_running::<TemptGoal>()
+        {
             item_stack.decrement_unless_creative(player.gamemode.load(), 1);
 
             let mut rng = rand::rng();
@@ -225,8 +239,13 @@ impl Mob for OcelotEntity {
     }
 
     fn remove_when_far_away(&self, _distance_sq: f64) -> bool {
-        !self.is_trusting()
-            && self.get_entity().tick_count.load(Ordering::Relaxed) > DESPAWN_AFTER_TICKS
+        let entity = self.get_entity();
+        should_despawn_ocelot(
+            self.is_trusting(),
+            entity.tick_count.load(Ordering::Relaxed),
+            entity.custom_name.load().is_some(),
+            entity.is_leashed(),
+        )
     }
 }
 
@@ -242,5 +261,14 @@ mod tests {
     #[test]
     fn ambient_sound_interval_matches_vanilla() {
         assert_eq!(OCELOT_AMBIENT_SOUND_INTERVAL, 900);
+    }
+
+    #[test]
+    fn despawn_respects_trust_name_and_leash() {
+        assert!(should_despawn_ocelot(false, 2401, false, false));
+        assert!(!should_despawn_ocelot(false, 2400, false, false));
+        assert!(!should_despawn_ocelot(true, 9999, false, false));
+        assert!(!should_despawn_ocelot(false, 9999, true, false));
+        assert!(!should_despawn_ocelot(false, 9999, false, true));
     }
 }

@@ -5,7 +5,7 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tblocks-sculk-sensor-3d13ba** [partial/OWN-OPEN] own audit: 4 open, 10 fixed, 6 verified, 0 blocked-data (docs/tracker/tblocks-sculk-sensor-3d13ba.md) docs/tracker/tblocks-sculk-sensor-3d13ba.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+All rows closed FIXED / VERIFIED against decompiled vanilla; see `## Result (third pass)` below. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
 
 ## Result (third pass)
 

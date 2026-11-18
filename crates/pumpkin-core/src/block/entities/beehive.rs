@@ -145,6 +145,15 @@ const fn adopts_flower(hive_has_flower: bool, coin_flip: bool) -> bool {
     !hive_has_flower || coin_flip
 }
 
+/// Vanilla `Bee.dropOffNectar`: a released forager loses its nectar and pollination timers.
+fn clear_carried_nectar(entity_data: &mut NbtCompound) {
+    if entity_data.get_bool("HasNectar").unwrap_or(false) {
+        entity_data.put_bool("HasNectar", false);
+        entity_data.put_int("TicksSincePollination", 0);
+        entity_data.put_int("CropsGrownSincePollination", 0);
+    }
+}
+
 /// Vanilla `BeehiveBlockEntity.releaseOccupant`: a released bee inherits the hive's flower
 /// only when it has none and the 90% roll passed (`roll_passed`).
 const fn inherits_flower(bee_has_flower: bool, hive_has_flower: bool, roll_passed: bool) -> bool {
@@ -225,13 +234,8 @@ impl BeehiveBlockEntity {
         player: Option<Arc<dyn EntityBase>>,
         entity_data: &mut NbtCompound,
     ) {
-        // Vanilla HONEY_DELIVERED release calls Bee.dropOffNectar, which resets the
-        // no-nectar timer; without this a released forager would re-enter immediately.
-        if entity_data.get_bool("HasNectar").unwrap_or(false) {
-            entity_data.put_bool("HasNectar", false);
-            entity_data.put_int("TicksSincePollination", 0);
-            entity_data.put_int("CropsGrownSincePollination", 0);
-        }
+        // Without dropOffNectar a released forager would re-enter the hive immediately.
+        clear_carried_nectar(entity_data);
         // Vanilla BeehiveBlockEntity.releaseOccupant gives a bee with no remembered
         // flower the hive's flower with 90% chance.
         let bee_has_flower = entity_data.get_compound("flower_pos").is_some()
@@ -381,6 +385,23 @@ mod tests {
         assert!(adopts_flower(false, true));
         assert!(adopts_flower(true, true));
         assert!(!adopts_flower(true, false));
+    }
+
+    #[test]
+    fn released_forager_loses_nectar_and_pollination_timers() {
+        let mut carrying = NbtCompound::new();
+        carrying.put_bool("HasNectar", true);
+        carrying.put_int("TicksSincePollination", 2400);
+        carrying.put_int("CropsGrownSincePollination", 4);
+        clear_carried_nectar(&mut carrying);
+        assert_eq!(carrying.get_bool("HasNectar"), Some(false));
+        assert_eq!(carrying.get_int("TicksSincePollination"), Some(0));
+        assert_eq!(carrying.get_int("CropsGrownSincePollination"), Some(0));
+
+        let mut empty = NbtCompound::new();
+        empty.put_int("TicksSincePollination", 120);
+        clear_carried_nectar(&mut empty);
+        assert_eq!(empty.get_int("TicksSincePollination"), Some(120));
     }
 
     #[test]
