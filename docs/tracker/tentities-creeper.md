@@ -34,7 +34,7 @@ No `.vendor/` decompiled tree in this worktree, so items marked *verify* need th
 - 4 spawnEffectsCloud parameters: FIXED (no change needed; see creeper-0de8b3 row 4a)
 - 5 swell direction Bedrock metadata: FIXED (creeper.rs:99-106)
 - 6 readAdditionalSaveData sync: FIXED (no gap per creeper-0de8b3 row 6)
-- 7 charged_creeper/root loot table: BLOCKED-DATA (no loot_table JSON in assets/)
+- 7 charged_creeper/root loot table: VERIFIED third pass (generated CHARGED_CREEPER_ROOT field exists under both keys; not blocked)
 
 ## Result
 

@@ -39,7 +39,7 @@ Client-only shape/outline rendering comes from generated block data.
 
 ## h6 gap status
 - Row 1 (negative effective sky brightness): FIXED in tree at HEAD (`world/mod.rs:7075-7078` uses `.max(0)`); no h6 commit needed.
-- Row 2 (plugin same-state redundant update): STILL OPEN, no vanilla-visible change; left as-is per note.
+- Row 2 (plugin same-state redundant update): VERIFIED, not a gap (see final Result).
 
 
 ## Result
@@ -121,3 +121,13 @@ Re-verified directly against `.vendor/vanilla-decompiled/net/minecraft/world/lev
   a cross-crate light-engine change, neither in this unit's files.
 - `block/entities/daylight_detector.rs` matches `getTicker`/`tickEntity` (skylight-only gate, game time
   % 20) and the vanilla block entity has empty NBT, as here.
+
+
+## Result (third pass 2026-11-18, resolved)
+
+All rows are resolved; no further source edit is required.
+
+- Plugin same-state redundant update (S) - VERIFIED, not a gap. `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java:60-63` wraps both `callRedstoneChange` and `setBlockAndUpdate(pos, state.setValue(POWER, target))` in `if (state.getValue(POWER) != target)`. Pumpkin `update_signal_strength` (`crates/pumpkin-core/src/block/blocks/redstone/daylight_detector.rs:112-132`) has the identical guard and writes with `BlockFlags::NOTIFY_ALL` (no `FORCE_STATE`), so a plugin restoring the old power produces no redundant neighbour/client update (`on_block_state_set` unchanged-state early return, matching `LevelChunk.setBlockState` returning null for an interned equal state). No change.
+- Effective sky brightness can go negative (S) - FIXED at HEAD. `crates/pumpkin-core/src/world/mod.rs:7372-7375` `effective_sky_brightness_from` applies `.max(0)`, matching `LevelReader#getEffectiveSkyBrightness` in `.vendor/vanilla-decompiled/net/minecraft/world/level/LevelReader.java`. No change.
+- Shape-based light occlusion / 6px column (L) - FIXED in tree and VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java:30,38-45` defines `SHAPE = Block.column(16.0, 0.0, 6.0)` and `useShapeForLightOcclusion = true`. Pumpkin now implements shape occlusion in `crates/pumpkin-world/src/lighting/occlusion.rs`: `Block::DAYLIGHT_DETECTOR.id` is in `SINGLETONS`, so `uses_shape_for_light_occlusion` is true. The generated default state (state id 13046 in `crates/pumpkin-data/src/generated/block.rs`) carries `state_flags = 2122` (CAN_OCCLUDE bit 11 set), `side_flags = 65` (DOWN_SIDE_SOLID + DOWN_CENTER_SOLID only), and `opacity = 0`. Only the bottom face occludes, so light enters through the open top and sides, exactly matching the 6px column. `shape_occludes`/`face_occludes` are consumed in `chunk_access.rs::raise_light`, `engine.rs`, `runtime.rs` and `sky_light_height`. No generated field or subsystem is missing: the earlier BLOCKED-DATA note (needing a generated `use_shape_for_light_occlusion` flag) is obsolete, because the flag is derived from a hardcoded singleton/tag list plus generated collision side flags, not a generated boolean. No change.
+- `crates/pumpkin-core/src/world/brightness.rs` and `crates/pumpkin-core/src/block/entities/daylight_detector.rs` have no STILL OPEN rows and match vanilla; left untouched.

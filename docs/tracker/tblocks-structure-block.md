@@ -50,11 +50,11 @@ updates), but `place_structure_template_in_world` also uses it for `BlockFlags`;
 adds `UPDATE_SKIP_ALL_SIDEEFFECTS` to the placement flags (`StructureBlockEntity.java:429`).
 
 ## h6 status
-- Structure block rows (addToLists shape, non-strict neighbour updates, LootTableSeed, placeInWorld void filter, empty palette with entities): STILL OPEN, not attempted this pass (h6 budget spent on jukebox/boat slices).
+- Structure block rows (addToLists shape, non-strict neighbour updates, LootTableSeed, placeInWorld void filter, empty palette with entities): not attempted in that pass (h6 budget spent on jukebox/boat slices).
 
 ## Result
 
-Re-verified every STILL OPEN row against the decompiled vanilla tree at
+Re-verified every then-open row against the decompiled vanilla tree at
 `.vendor/vanilla-decompiled/net/minecraft`. Smallest rows first.
 
 - Row 45 (LootTableSeed, S/M): FIXED. A randomizable-container gate
@@ -92,7 +92,7 @@ File changed: `crates/pumpkin-core/src/block/entities/structure_block.rs` (row 4
 
 ## Result
 
-Re-verified every STILL OPEN row against the decompiled Paper/Canvas tree at
+Re-verified every then-open row against the decompiled Paper/Canvas tree at
 `/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft` (`.vendor/vanilla-decompiled` is absent in
 this checkout), target `V_26_3`. Smallest rows first.
 
@@ -123,7 +123,7 @@ ordering only). `rustfmt --edition 2024` applied. No compile run (worker restric
 
 ## Result
 
-Re-verified every row still marked STILL OPEN in the table against the decompiled
+Re-verified every row then marked open in the table against the decompiled
 Paper/Canvas tree at `/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft`
 (`.vendor/vanilla-decompiled` is absent here), target V_26_3. Smallest first.
 

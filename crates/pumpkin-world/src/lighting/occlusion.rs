@@ -94,3 +94,28 @@ pub fn sky_ceiling_of(state_id: BlockStateId, y: i32) -> Option<i32> {
 pub fn shape_occludes(from: BlockStateId, to: BlockStateId, dir: BlockDirection) -> bool {
     face_occludes(from, dir) || face_occludes(to, dir.opposite())
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::{face_occludes, uses_shape_for_light_occlusion};
+    use pumpkin_data::{Block, BlockDirection};
+
+    /// Vanilla `DaylightDetectorBlock`: `SHAPE = Block.column(16, 0, 6)` and
+    /// `useShapeForLightOcclusion = true`, so only the bottom face blocks light.
+    #[test]
+    fn daylight_detector_occludes_only_its_bottom_face() {
+        let detector = Block::DAYLIGHT_DETECTOR.default_state;
+        assert!(uses_shape_for_light_occlusion(&detector));
+        assert!(face_occludes(detector.id, BlockDirection::Down));
+        assert!(!face_occludes(detector.id, BlockDirection::Up));
+        for face in [
+            BlockDirection::North,
+            BlockDirection::South,
+            BlockDirection::West,
+            BlockDirection::East,
+        ] {
+            assert!(!face_occludes(detector.id, face));
+        }
+    }
+}

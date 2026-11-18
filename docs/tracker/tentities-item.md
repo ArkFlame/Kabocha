@@ -75,11 +75,11 @@ Known intentional deviation: creative players destroy a stack that fits nowhere
 (`item.rs:786`, upstream #4383); vanilla `Inventory.add` leaves it on the ground.
 
 ## Gap status
-- 1 owner pickup protection (M): STILL OPEN (size M)
-- 2 player drops record thrower (M): STILL OPEN (size M)
-- 3 never-despawn items do not merge (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 4 spilled contents pickup delay (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 5 despawn before merge (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- 1 owner pickup protection (M): VERIFIED (matches vanilla 1.21.x decompile)
+- 2 player drops record thrower (M): VERIFIED (matches vanilla 1.21.x decompile)
+- 3 never-despawn items do not merge (S): VERIFIED (doc premise wrong; code already matches vanilla)
+- 4 spilled contents pickup delay (S): VERIFIED (doc premise wrong; code already matches vanilla)
+- 5 despawn before merge (S): VERIFIED (matches vanilla 1.21.x decompile)
 
 ## Result
 
@@ -170,3 +170,42 @@ rustfmt run.
   age increment/discard, matching vanilla `ItemEntity.tick`.
 
 Net: no source edits; all fixes already present outside this unit. No build run (no .rs changed).
+
+
+## Result (2026-11-18 third pass - final)
+
+Independently re-verified all 5 rows against the decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/`. This pass may edit any source file; no source
+change is warranted because every row already matches vanilla. No .rs file touched, so no
+rustfmt run and no build required.
+
+- 1 owner pickup protection (M): VERIFIED (matches vanilla) - `ItemEntity.playerTouch`
+  (ItemEntity.java:490) gates only on `pickupDelay == 0 && (target == null ||
+  target.equals(player.getUUID()))`. The doc's `owner`/`age > 60` rule is old vanilla and
+  must NOT be added. Pumpkin `on_player_collision` (item.rs:815,825) checks pickup_delay and
+  `target_allows_pickup` (item.rs:196-198, `target.is_none_or(|owner| owner == player)`),
+  which matches. Thrower is not a pickup gate in this build (only advancement/NBT). No fix;
+  adding the age gate would be a regression.
+- 2 player drops record thrower (M): VERIFIED - `player.rs:7046` calls
+  `item_entity.set_thrower(self.gameprofile.id)` on the Player.drop path (beside
+  `new_with_velocity(..., 40)`), matching vanilla `Player.drop`. Editable-file calls
+  `allay.rs:205` and `utils.rs:289` set the thrower and match `BehaviorUtils.java:100-105`
+  (setThrower + setDefaultPickUpDelay). No fix needed.
+- 3 never-despawn items do not merge (S): VERIFIED - vanilla `isMergable`
+  (ItemEntity.java:278) excludes `pickupDelay == 32767` and `age == -32768` from merging, so
+  the doc premise (never-despawn/never-pickup should merge) is wrong. Pumpkin `can_merge`
+  (item.rs:264-272, `!removed && !never_despawn && !never_pickup && count < max`) correctly
+  excludes them; unit test `never_pickup_or_never_despawn_items_never_merge`
+  (item.rs:1124-1129) guards it. No fix needed.
+- 4 spilled contents pickup delay (S): VERIFIED - vanilla container/bundle spill spawns a
+  plain `new ItemEntity` at delay 0 (`Containers.dropItemStack` Containers.java:42,
+  `ItemUtils.onContainerDestroyed` ItemUtils.java:50); only `Block.popResource` sets 10.
+  Pumpkin `Self::new` defaults to `DEFAULT_PICKUP_DELAY = 10` (item.rs:108,125), so
+  `on_destroyed` calling `set_pickup_delay(0)` (item.rs:466) is required to match vanilla 0.
+  Doc premise (vanilla default 10) wrong; keep the call. No fix needed.
+- 5 despawn before merge (S): VERIFIED - vanilla `ItemEntity.tick` merges at
+  ItemEntity.java:203-205 BEFORE `age++` (207-209) and the despawn discard (219). Pumpkin
+  `process_age_and_merge` (item.rs:597-609) merges at 597-599 before age increment (603-607)
+  and discard (609); matches. No fix needed.
+
+Net: no source edits this pass; all 5 rows VERIFIED against the 1.21.x vanilla decompile.
