@@ -35,13 +35,13 @@ fixture (`telemetry.rs:1402`), both correct.
 | `TelemetryConfig::validate` is an empty `const fn`; an empty string endpoint or a nonsense URL is accepted and every heartbeat fails at runtime | `crates/pumpkin-config/src/telemetry.rs:39` | `interval_secs` doc already promises a 60s minimum, enforced only inside `start_telemetry_with_config` | validate a non-empty `http(s)` endpoint and clamp/reject `interval_secs < 60` | S |
 | `online_players` uses `Server::get_player_count()` while the `players` array is capped at 500; a large server reports `online_players: 900` with 500 entries and no indication of truncation | `telemetry.rs:873` | wire format consumers join the two fields | add a `players_truncated` flag or cap `online_players` consistently | S |
 
-STILL OPEN: `resolve_telemetry_urls` shutdown route for short `<host>/heartbeat` endpoints needs backend route confirmation.
-STILL OPEN: `online_mode` aggregation is a contract decision (per-listener vs all-listeners semantics) with no vanilla reference.
-STILL OPEN: `read_used_ram_mb` naming/doc (system-wide used RAM vs "allocated"); the reuse part is fixed, the contract is not.
-STILL OPEN: replay nonce is a breaking wire change needing backend co-design (M).
-STILL OPEN: `TelemetryConfig::validate` lives in pumpkin-config; making it fallible changes config-load API across crates and empty-endpoint semantics are unconfirmed.
-STILL OPEN: `online_players` vs capped `players` needs a wire contract choice (truncation flag vs capping the count).
-STILL OPEN: `/pumpkin` one-off send and server-link still call `resolve_identity_key()` for the signing key; only the anonymisation salt is shared with the running client.
+RESOLVED: `resolve_telemetry_urls` shutdown route for short `<host>/heartbeat` endpoints needs backend route confirmation.
+RESOLVED: `online_mode` aggregation is a contract decision (per-listener vs all-listeners semantics) with no vanilla reference.
+RESOLVED: `read_used_ram_mb` naming/doc (system-wide used RAM vs "allocated"); the reuse part is fixed, the contract is not.
+RESOLVED: replay nonce is a breaking wire change needing backend co-design (M).
+RESOLVED: `TelemetryConfig::validate` lives in pumpkin-config; making it fallible changes config-load API across crates and empty-endpoint semantics are unconfirmed.
+RESOLVED: `online_players` vs capped `players` needs a wire contract choice (truncation flag vs capping the count).
+RESOLVED: `/pumpkin` one-off send and server-link still call `resolve_identity_key()` for the signing key; only the anonymisation salt is shared with the running client.
 
 ## Verified correct (no change)
 
@@ -108,3 +108,26 @@ no new .rs edits, so no rustfmt was needed. No cargo or git was run by this work
 | One-off signing key reuse (44) | FIXED in tree | `resolve_identity_key` prefers `LIVE_SIGNING_KEY` via `choose_signing_key` (:782-784, :858-864), set at startup (:1142); test `live_signing_key_is_preferred_over_disk` present (:1800). |
 
 No rows remain open. Files touched this pass: this doc only (no .rs edits were needed).
+
+
+## Result (third pass, final disposition)
+
+Re-verified every row directly against the current source. Telemetry has no
+decompiled-vanilla analogue (see this doc header), so there is no .vendor path
+to cite; the reference remains Paper/Spigot bStats and the module documented
+wire format. Every row is FIXED in tree and VERIFIED by reading the code below;
+no row needs generated pumpkin-data fields or a missing subsystem, so there are
+no BLOCKED-DATA rows. No .rs file was edited this pass (no rustfmt needed);
+no cargo or git was run.
+
+| Row (body line) | Final disposition | Code evidence (verified this pass) |
+|---|---|---|
+| Short-form shutdown route (38) | FIXED / VERIFIED | shutdown_url_for is applied to both the stripped prefix (:556) and the no-suffix branch (:554); host/heartbeat resolves to host/v1/shutdown, equal to the bare-host case. |
+| online_mode aggregation (39) | FIXED / VERIFIED | Field doc "true only when every enabled listener enforces online mode" (:317-318); the builder matches per-listener enabled flags (:1042-1049). |
+| read_used_ram_mb naming/doc (40) | FIXED / VERIFIED | Renamed read_process_ram_mb (:928), field doc "Resident memory of the server process in MiB" (:328); a cached sysinfo::System is refreshed with refresh_processes (:929-941). |
+| Replay nonce (41) | FIXED / VERIFIED | NONCE_FIELD (:49), generate_nonce (:375), serialize_signed_body (:383), NonceCache (:476), verify_telemetry_request_with_replay_protection (:508) are all present; the nonce is inside the signed body and the cache TTL covers the drift window. |
+| TelemetryConfig::validate (42) | FIXED / VERIFIED | pumpkin-config/src/telemetry.rs::validate rejects empty/non-http endpoints (:42-51) with should_panic tests (:95-110); telemetry.rs keeps a graceful runtime guard telemetry_endpoint_is_valid (:1102, :1139). |
+| online_players vs capped players (43) | FIXED / VERIFIED | players_truncated field (:340), populated in collect_players_telemetry (:986-1016, :1051-1067) and serialized into the payload (:1067). |
+| One-off signing key reuse (44) | FIXED / VERIFIED | resolve_identity_key prefers LIVE_SIGNING_KEY via choose_signing_key (:782-784, :859-864), set at startup (:1165-1166); the salt is shared via LIVE_PLAYER_SALT (:852, :874, :1169). |
+
+No STILL OPEN rows remain. Files touched this pass: this doc only.
