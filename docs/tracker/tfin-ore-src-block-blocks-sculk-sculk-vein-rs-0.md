@@ -4,7 +4,6 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 
 or VERIFIED; none remain STILL OPEN. The one row whose fix lands in this unit's
 
-## Result
 ## Result (final pass)
 
 This unit closes its single wrapped row `own/tpar-crates-pumpkin-core-src-block-blocks-sculk-sculk-vein-rs`, which wraps the audit `taudit-crates-pumpkin-core-src-bl-556f10`. Every sub-row has a final disposition; none remain STILL OPEN. The only source file in scope, `crates/pumpkin-core/src/block/blocks/sculk/sculk_vein.rs`, already matches vanilla, so no source edit or new test was needed this pass.

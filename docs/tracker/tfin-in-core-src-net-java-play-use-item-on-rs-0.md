@@ -27,10 +27,10 @@ already present in `use_item_on.rs` and `predicate.rs`; no `.rs` file needed cha
      `crates/pumpkin-core/src/entity/player/advancement/predicate.rs:661-671` matches each named
      `state_key`/`state_value` by lookup, as vanilla `StatePropertiesPredicate.matches` does
      (`.vendor/vanilla-decompiled/net/minecraft/advancements/predicates/StatePropertiesPredicate.java:34-46`).
+  6. Enabled-feature gate: BLOCKED-DATA (exact missing field below).
   7. `ITEM_USED` stat: VERIFIED. `use_item_on.rs:192-194` awards `StatisticCategory::Used` only
      when the item's use consumes the action or a block was placed, matching vanilla's
      item self-award paths.
-  6. Enabled-feature gate: BLOCKED-DATA (exact missing field below).
 
 - **Enabled-feature gate / `isItemEnabled(level.enabledFeatures())`: BLOCKED-DATA.** Vanilla
   `ServerPlayerGameMode#useItemOn`
