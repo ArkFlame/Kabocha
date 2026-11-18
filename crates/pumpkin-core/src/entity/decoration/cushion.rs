@@ -188,15 +188,15 @@ impl CushionEntity {
         // cushion still breaks, so a surviving rider must not block the break.
 
         let world = entity.world.load();
-        // Vanilla `BlockAttachedEntity` drop path: break sound and drop only
-        // happen under `doEntityDrops`, and a creative attacker gets no item.
+        // Vanilla `Cushion.dropItem` plays the break sound before the
+        // `doEntityDrops` check, so it is heard even with drops disabled.
+        // Painting differs: its break sound sits inside the check.
+        world.play_sound(
+            Sound::EntityCushionBreak,
+            SoundCategory::Blocks,
+            &entity.pos.load(),
+        );
         if world.level_info.load().game_rules.entity_drops {
-            world.play_sound(
-                Sound::EntityCushionBreak,
-                SoundCategory::Blocks,
-                &entity.pos.load(),
-            );
-
             let is_creative = caused_by.is_some_and(|c| {
                 c.cast_any()
                     .downcast_ref::<Player>()

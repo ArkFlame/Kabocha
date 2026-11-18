@@ -57,3 +57,16 @@ Unit scope: `crates/pumpkin-core/src/entity/mob/mod.rs` (the file in this unit's
 - The two other vanilla `checkSpawnRules` call sites (`SpawnUtil.trySpawnMob`, `BaseSpawner`) live in `entity/spawn_util.rs` and `block/entities/mob_spawner.rs`, files outside this unit; not touched. All other audit rows are already marked FIXED and were not re-opened.
 
 Commands: none (no `.rs` file changed, so no rustfmt needed). Cargo/git intentionally not run per worker contract.
+
+## Result
+
+Unit scope: the three spawn files named in this unit (`entity/spawn_util.rs`, `block/entities/mob_spawner.rs`, `world/natural_spawner.rs`); the two other vanilla `checkSpawnRules` call sites handed off by the previous Result were verified here.
+
+- `entity/spawn_util.rs` `try_spawn_mob` (row 18 follow-up): verified against decompiled vanilla `SpawnUtil.trySpawnMob` at `net/minecraft/util/SpawnUtil.java:75-82`, which gates the created mob on `mob.checkSpawnRules(level, spawnReason) && mob.checkSpawnObstruction(level)`; for a `PathfinderMob` (e.g. Iron Golem, a caller via `entity/passive/villager/golem.rs`) `checkSpawnRules` is `getWalkTargetValue(blockPos) >= 0.0` (`PathfinderMob.java:31-33`). Pumpkin checked only `check_spawn_obstruction`, so the walk-target rule never ran here. Added the `get_walk_target_value(block_pos) < 0.0` gate before the obstruction check, matching the existing pattern in `natural_spawner.rs`. FIXED for path-aware mobs.
+- `block/entities/mob_spawner.rs` (row 18 follow-up): vanilla `BaseSpawner` at `net/minecraft/world/level/BaseSpawner.java:247-251` checks `mob.checkSpawnRules(level, SPAWNER) && mob.checkSpawnObstruction(level)` before `finalizeSpawn`. Pumpkin ran only the entity-type `check_spawn_rules` dispatch plus `is_space_empty`, omitting the per-mob walk-target rule. Added the same `get_walk_target_value(block_pos) < 0.0` gate on the freshly created mob before `finalize_spawn`. FIXED for path-aware mobs.
+- `world/natural_spawner.rs`: re-verified. Both spawn paths already gate on `get_walk_target_value(block_pos) >= 0.0` (`:720-725` chunk generation, `:928-939` natural) in addition to the entity-type `check_spawn_rules` dispatch. No change needed.
+- LEFT OPEN: the generic entity-type spawn-placement half of `mob.checkSpawnRules` is still absent from `spawn_util.rs::try_spawn_mob` for non-path-aware mobs (Warden via sculk shrieker, Creaking via creaking heart). Adding it requires a `spawn_reason` parameter plus edits to the three callers (`sculk_shrieker.rs`, `creaking_heart.rs`, `golem.rs`), all files outside this unit. Reason: cross-file refactor beyond unit scope.
+- No pure unit-test seam: both gates are one-line comparisons on a freshly created `Mob` needing a live `World`, so no isolated test was added.
+- Compile-pitfall re-read: no new imports (both traits already in scope), no helper placement, no struct initializers, no clones, no `.as_any()`, no unwrap/expect/panic, no println, no em dashes, no new lint-sensitive docs; closure param type is inferred from `Option<&dyn Mob>` / `Arc<T: Mob>`.
+
+Files changed: `crates/pumpkin-core/src/entity/spawn_util.rs`, `crates/pumpkin-core/src/block/entities/mob_spawner.rs`. Commands: none run (rustfmt/cargo/git intentionally not run per worker contract).
