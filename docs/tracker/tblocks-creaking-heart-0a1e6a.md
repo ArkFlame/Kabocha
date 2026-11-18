@@ -158,3 +158,27 @@ observable behaviour is enough; the algorithm may differ) this is not required, 
 
 Files changed this pass: crates/pumpkin-core/src/entity/mob/creaking.rs (knockback override + test).
 No generated data / WIT / cross-crate edit. Not compiled in this role; orchestrator batch check.
+
+
+## Result (final verification pass, cross-file edits enabled)
+
+Re-checked all six rows against `.vendor/vanilla-decompiled/net/minecraft/`. Every fix from earlier
+passes is present in the source files; no further code change was needed. All rows are terminal.
+
+| row | terminal outcome | evidence (.vendor path + Pumpkin code) |
+|---|---|---|
+| 1 heart spawn/despawn loop | VERIFIED (fixed in an earlier pass) | `world/level/block/entity/CreakingHeartBlockEntity.java:73-136` -> `block/entities/creaking_heart.rs:93-105,155-244` (`try_spawn_creaking` + `try_despawn_creaking`: hostile/spawn-mobs gates, player<=32, 34-block tear-down, persistence, missing-entity clear). |
+| 2 `is_protector` UUID match | VERIFIED (already correct) | `CreakingHeartBlockEntity.java:333-335` (`map(c -> c == creaking).orElse(false)`) -> `block/entities/creaking_heart.rs:129-133` `is_some_and(|uuid| uuid == creaking_uuid)`; test `unbound_heart_protects_no_creaking` (:405). |
+| 3 mob 34-block teardown | VERIFIED (fixed) | `world/entity/monster/creaking/Creaking.java:241-258` mob side only checks `isProtector` then sets health 0 (`entity/mob/creaking.rs:603-614`); the 34-block rule lives heart-side (`CreakingHeartBlockEntity.java:130`, `entities/creaking_heart.rs:246-251`, `CREAKING_TOO_FAR_DISTANCE=34.0`); test `creaking_too_far_boundary` (:415). |
+| 4 creaking wander/melee goals | FIXED (observable parity complete) | `world/entity/monster/creaking/CreakingAi.java:30-85` + `Creaking.java:135,166,190,195,222-225,454-458,499-519,601-611` reproduced in `entity/mob/creaking.rs`: `creaking_is_active` gate on ActiveTargetGoal (:79-83,194-199); MeleeAttackGoal(1.0,false) interval 40 gated by canMove (:173-180); WanderAroundGoal(0.3) gated by canMove (:181-187); `mob_is_pushable` (:493-495); `mob_knockback` returns `!can_move()` (:497-509); ENTITY_ACTION game events (:580, :activate/deactivate); 32-block home restriction (:108-109, :253-269). Tests `dormant_creaking_disables_target_gate`, `frozen_creaking_disables_goal_gate`, `frozen_creaking_ignores_knockback` (:701-752). Full vanilla Brain/Activity behaviour-tree internals are not reproduced, but AGENTS.md accepts same observable behaviour with a different algorithm. |
+| 5 hurt particle / `setChanged` | VERIFIED (no-op, client-only) | `CreakingHeartBlockEntity.java:228-250` `creakingHurt` only emits client particles and seeds an emitter/sound replay; no `setChanged`, no server divergence. Server-observable parts (resin clumps, `RESIN_PLACE` sound, `BLOCK_PLACE` game event) already in `entities/creaking_heart.rs:253-277`. |
+| 6 piston push | VERIFIED (already correct) | `world/level/block/piston/PistonBaseBlock.java:243-285` `isPushable` returns `!state.hasBlockEntity()` (:284); `block/blocks/piston/piston.rs:98` uses the equivalent `!has_block_block_entity(block)`, and CREAKING_HEART carries a block entity, so it is already unpushable. |
+
+Also re-verified comparator rounding: `CreakingHeartBlockEntity.java:337-348` is
+`SIGNAL_MAX - (int)floor(clamp(distance,0,32)/32*15)`, matching `blocks/creaking_heart.rs:125-149`, and the
+`onStacksDropped` experience (20-24 XP, natural hearts only, Silk Touch/creative excluded) at
+`world/level/block/CreakingHeartBlock.java` matching `blocks/creaking_heart.rs:151-170`.
+
+No generated `pumpkin-data` field, WIT change or cross-crate refactor is required. No source file was
+changed in this pass (all fixes were already present and verified). No STILL OPEN rows remain. Not compiled
+in this role; orchestrator batch check.

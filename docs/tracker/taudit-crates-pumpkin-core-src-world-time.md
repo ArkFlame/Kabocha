@@ -207,3 +207,23 @@ Verification detail:
 
 No `STILL OPEN` rows remain. No new unit test added: every pure seam already has
 a failing-without-fix test, so another would duplicate them.
+
+## Result (third pass, cross-file verification)
+
+Verified the unit's carried row against decompiled vanilla; no STILL OPEN rows
+remain and the prior pass left no source edit pending, so no source edits were
+needed in this pass. All paths below are under
+`.vendor/vanilla-decompiled/net/minecraft/`.
+
+| # | Verdict | Vanilla evidence |
+|---|---------|------------------|
+| 5 | FIXED / VERIFIED | Environment-attribute timeline tracks are implemented in `world/environment.rs` and wired through `World`; the clock-name registry, `/time set <timemarker>` and `of <clock>` live in `world/time.rs` and `command/commands/time.rs`. Matches `world/timeline/Timelines.java`, `util/KeyframeTrackSampler.java`, `world/attribute/EnvironmentAttributeSystem.java` and `world/attribute/WeatherAttributes.java`. |
+
+Verification detail:
+- `world/timeline/Timelines.java` `bootstrap` confirms the generated keyframe tables used by `environment.rs`: SKY_LIGHT_LEVEL 133/1.0, 11867/1.0, 13670/0.26666668, 22330/0.26666668; MONSTERS_BURN 12542/false, 23460/true; BEES_STAY_IN_HIVE 12542/true, 23460/false; CREAKING_ACTIVE and EYEBLOSSOM_OPEN 12600/true, 23401/false; CAT_WAKING_UP_GIFT_CHANCE 362/0.0, 23667/0.7; nightStart 12600 / nightEnd 23401; villager and baby activity tracks. `is_night()` in `time.rs` uses that same 12600..23401 window, with the skip gated on `advance_time && is_dark_outside()` in `world/mod.rs` (outside unit).
+- `world/attribute/WeatherAttributes.java` `addLayer` confirms `apply_weather_sky_light` in `environment.rs`: thunder is scaled by rain, rain = rain - thunder, RAIN alpha-blends toward 4.0 with 0.3125, THUNDER toward 4.0 with 0.52734375; bit-exact tests cover steady and transition weather.
+- `world/clock/ClockTimeMarker.java` `resolveTimeToMoveTo`/`durationToNext` matches `resolve_time_to_move_to` and `SleepWakeMarker::resolve` in `time.rs` (a non-periodic marker moves to its absolute tick).
+- `world/clock/WorldClocks.java` registers OVERWORLD before THE_END, so `default_clock_id` (overworld 0, the_end 1) is correct. Both `minecraft:world_clock` and `minecraft:timeline` are loaded by `data/datapack/dynamic_registry_loader.rs`, and `get_dynamic_registry_raw_id`/`get_dynamic_registry_entry_data` are generic lookups.
+- `java/client/play/set_time.rs` `CUpdateTime` codec (VarLong total ticks, f32 partial tick, f32 rate, VarInt clock id for 26.1+; legacy day time + doDaylightCycle for older clients) matches vanilla `ClientboundSetTimePacket`; round-trip tests exist. `send_game_time_sync` carries the per-player day-time override and the frozen flag, and `world_clocks` persistence has a round-trip test.
+
+No new unit test: every pure seam in `time.rs`, `environment.rs` and `set_time.rs` already has a failing-without-fix test, so another would duplicate them. No source edits made, so rustfmt was not needed.

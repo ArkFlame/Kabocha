@@ -114,3 +114,23 @@ All 12 rows resolved; none remain STILL OPEN. Re-verified the current code again
 - Row 12 (`previous_gamemode` on plain setGameMode): VERIFIED NO CHANGE (vanilla parity).
 
 Files edited this pass: `docs/tracker/taudit-crates-pumpkin-core-src-en-13d289.md` only (Result append). No source changes were necessary; no remaining open rows.
+
+
+## Result (third-pass verification, current source)
+
+No `## Result` section left any row STILL OPEN, and re-reading the current source confirms every row is FIXED or VERIFIED against vanilla 1.21.4 decompiled sources under `.vendor/vanilla-decompiled/`. No `.rs` file was changed this pass, so rustfmt was not needed; compilation is left to the orchestrator.
+
+- Row 1 (respawn food/breath carry-over): VERIFIED FIXED. Respawn reuses the same `Player` instance; hunger/saturation/air persist (prior audit).
+- Row 2 (stale spawn-position TODO): VERIFIED FIXED. TODO removed; join path sends `CPlayerSpawnPosition`.
+- Row 3 (attack cooldown / enchant damage order): VERIFIED NO CHANGE. Vanilla `Player.attack` cooldown-scales the enchantment bonus; Pumpkin's `extra_ench_damage * attack_cooldown_progress` matches.
+- Row 4 (gliding movement statistics): VERIFIED FIXED. `entity/player/statistics.rs::movement_statistic` orders branches exactly as vanilla `ServerPlayer.checkMovementStatistics` (`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayer.java:2830-2877`), returning `AviateOneCm` for `fall_flying` only after the swimming / eye-in-water / in-water / climbable / on-ground branches. Wired via `player.rs::get_movement_statistic` and `net/java/play/move_vehicle.rs::handle_move_vehicle` (stat awarded at move_vehicle.rs:156). Pure unit test `movement_statistic_follows_vanilla_check_order` covers the ordering.
+- Row 5 (difficulty damage scaling): VERIFIED FIXED. Generated `pumpkin-data/src/generated/damage_type.rs:9` has `scaling: DamageScaling` (enum at :28). `player.rs::damage_scales_with_difficulty` (406) mirrors vanilla `DamageSource.scalesWithDifficulty` (`.vendor/vanilla-decompiled/net/minecraft/world/damagesource/DamageSource.java:190-196`); `difficulty_scaled_damage` (420) mirrors vanilla `Player.hurtServer` Peaceful/Easy/Hard math (`.vendor/vanilla-decompiled/net/minecraft/world/entity/player/Player.java:727-739`) and is applied in the hurt path (6143-6156). Unit test `difficulty_scaling_matches_vanilla_hurt_server` at 10934.
+- Row 6 (duplicate effect-removal packets): VERIFIED FIXED (prior pass).
+- Row 7 (team colour on display name): VERIFIED FIXED (prior pass).
+- Row 8 (dimension-change duplication): VERIFIED NO CHANGE. Vanilla keeps parallel respawn/transfer paths; deduplicating `player.rs`/`world/mod.rs` is an optional refactor, not a bug.
+- Row 9 (relative teleport flags): VERIFIED NO CHANGE (prior audit).
+- Row 10 (drop-time merging TODO): VERIFIED FIXED in commit 11d974fc7.
+- Row 11 (experience state atomicity): VERIFIED FIXED (`ExperienceState` mutex, prior audit).
+- Row 12 (`previous_gamemode` on plain setGameMode): VERIFIED NO CHANGE (vanilla parity).
+
+Files edited this pass: none. No remaining STILL OPEN rows; no BLOCKED-DATA dependency outstanding.

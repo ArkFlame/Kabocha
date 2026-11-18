@@ -215,3 +215,28 @@ so no rustfmt run was required. Each row now has a terminal outcome.
 Files changed this pass: none (all fixes already present and verified).
 Remaining terminal blockers: the one datapack-structure row is BLOCKED-DATA
 (generated `worldgen/structure` registry / arbitrary-id placement subsystem).
+
+
+## Result (third pass, terminal verification)
+
+Re-read the unit's last Result and re-verified every remaining row against the
+decompiled vanilla tree in `.vendor/vanilla-decompiled/net/minecraft`. No `.rs`
+source file needed a new edit this pass: every in-scope, fixable row is already
+present in the checkout, and the single remaining row requires a whole missing
+subsystem, so it is terminal BLOCKED-DATA. No rustfmt run was required.
+
+| Row | Terminal outcome |
+|---|---|
+| Stronghold blocking search (`locate.rs`) | VERIFIED: the `StructureSearch::Pending` arm sends `Searching for <name>...` and returns 0 (`locate.rs:285-294`), matching Canvas at `.vendor/vanilla-decompiled/net/minecraft/server/commands/LocateCommand.java:109-112`. |
+| Datapack/modded structures (`wanted_structures`) | BLOCKED-DATA: whole missing subsystem. Vanilla resolves `/locate structure` through the dynamic `Registries.STRUCTURE`, so datapack/modded ids are locatable (`.vendor/vanilla-decompiled/net/minecraft/server/commands/LocateCommand.java:90-99`). Pumpkin can only represent vanilla structures: `wanted_structures` (`locate.rs:123-139`) resolves through the closed generated enum `pumpkin_data::structures::StructureKeys::from_name` and gates on `is_vanilla()`, and `structure_sets_containing` (`locate.rs:147-154`) plus the structure finders index generated `StructureSet::ALL` consts. Both live in `crates/pumpkin-data/src/generated/structures.rs` (generated, not editable). The datapack loader loads raw `minecraft:worldgen/structure` / `worldgen/structure_set` NBT only for client sync (`crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs:101-108`); no gameplay reader in `crates/pumpkin-world` consumes those entries into searchable placements (grep: zero matches). Missing subsystem: a dynamic worldgen structure/structure_set gameplay registry that parses the loaded entries into placements and is wired into `find_nearest_structure_start` / `structure_sets_containing`, plus regenerated non-closed structure data. |
+| POI argument type (`resource_or_tag.rs`) | VERIFIED: `ResourceOrTagArgument::parse` rejects unknown POI ids via generated `pumpkin_data::poi_type::PoiType::from_name` (`resource_or_tag.rs:162-164`), matching vanilla `resourceOrTag(POINT_OF_INTEREST_TYPE)` (`LocateCommand.java:83-85`); test `poi_ids_are_validated_at_parse_time`. |
+| All placements per structure set (`structure_sets_containing`) | FIXED: returns every set index (`locate.rs:147-154`) and the executor scans each; `all_sets_containing_a_structure_are_returned`. Matches vanilla `getPlacementsForStructure` returning a list. |
+| Random-spread nearest ordering (`structure_finder.rs`) | FIXED: the whole placement ring is evaluated before advancing, nearest hit kept (vanilla `.vendor/vanilla-decompiled/net/minecraft/world/level/chunk/ChunkGenerator.java:242-271`). |
+| Stronghold distance ranking (`find_nearest_concentric`) | FIXED/VERIFIED: ring candidates ranked at chunk center `(bx+8, 32, bz+8)` while reported pos stays `(bx, 0, bz)` (`ChunkGenerator.java:296`, `core/SectionPos.java:133-138`). |
+| Structure arm placement candidates (`locate.rs:273-279`) | VERIFIED (premise invalid): `findNearestMapStructure` -> `getStructureGeneratingAt` -> `checkStructurePresence` (`ChunkGenerator.java:349-362`) only reports real starts, so the start-resolving code matches; no change. |
+| Bedrock success arguments (`locate.rs`) | VERIFIED: `send_success` uses `translate_cross_with` with `bedrock_success_args` (`locate.rs:183-223`). The cross-cutting split exists in `pumpkin-util/src/text/mod.rs` (`bedrock_with` field threaded at :1055-1065, :1127-1130, :1254-1267, :1459-1466; test :2286) and is read in `legacy.rs:273`. The tracker's "STILL OPEN" note is stale. |
+
+Files changed this pass: none (all fixes already present and verified).
+Remaining terminal blocker: the one datapack-structure row, BLOCKED-DATA
+(dynamic worldgen structure/structure_set gameplay registry plus regenerated
+non-closed structure data).

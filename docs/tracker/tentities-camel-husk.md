@@ -182,3 +182,19 @@ STILL OPEN and no BLOCKED-DATA condition exists. No `.rs` source or test edit wa
 
 Remaining runtime-only work (a gametest for the two-rider mount layout) needs a file outside this unit
 and is not a code gap. No compile run (worker rule); no `.rs` file was touched, so rustfmt was not run.
+
+
+## Result (third pass, direct re-verification 2026-11-18)
+
+Independently re-read every row against the decompiled vanilla tree and the current Pumpkin source.
+All five rows are terminal FIXED/VERIFIED; no row is STILL OPEN, no BLOCKED-DATA condition exists, and no
+source or test edit was needed (the fixes from earlier passes are present and correct). No compile run
+(worker rule); no .rs file touched, so rustfmt was not run.
+
+- Row 1 (husk love gate): FIXED/VERIFIED. .vendor/vanilla-decompiled/net/minecraft/world/entity/animal/camel/CamelHusk.java:70-73 overrides canFallInLove() to false and :60-63 canMate() to false. camel.rs:383 gates could_set_in_love on !self.is_husk(), camel.rs:425-427 can_fall_in_love returns false for husks, camel.rs:429-431 can_mate refuses husks. Matches.
+- Row 2 (love/tempt goals): FIXED/VERIFIED (inert). CamelHusk.java has no createBrain override, so vanilla runs CamelAi with AnimalMakeLove/FollowTemptation; Pumpkin camel/ai.rs:72,75 matches. animal_make_love.rs:97-99,130 only runs on is_in_love(), which a husk never gets after Row 1.
+- Row 3 (is_preventing_player_rest): FIXED/VERIFIED. Only world/entity/monster/Monster.java:140 (and ZombifiedPiglin.java:249) return true; CamelHusk inherits false. camel.rs:467-471 returns false. Matches.
+- Row 4 (numeric constants): FIXED/VERIFIED. CamelHusk.java:90-97 plays step sounds at 0.4F, :129-132 chargeSpeedModifier() returns 4.0F. camel.rs:48 HUSK_STEP_VOLUME = 0.4 used at :457-458, camel.rs:437-443 returns 4.0 for husk else 1.0. Matches.
+- Row 5 (jockey pairing): FIXED/VERIFIED. world/entity/monster/zombie/Husk.java:93-133 gates on HuskGroupData.triedToSpawnCamelHusk (10% roll at :112, camel husk + parched spawn/mount at :113-126). Pumpkin husk.rs:43-55 claim_camel_jockey_attempt, :60-108 spawn logic, spawn.rs:64-70 SpawnGroupData::Zombie.tried_spawn_camel_husk, initialized at zombie/mod.rs:263-267 (false), :659-663 (true for conversion), strider.rs:340-344 (false). Pure-seam tests at husk.rs:178-220. Matches.
+
+Remaining runtime-only work (gametest for the two-rider mount layout) needs a file outside this unit and is not a code gap. No new test added because the pure seam is already covered.

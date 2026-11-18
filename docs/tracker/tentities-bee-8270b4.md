@@ -227,3 +227,37 @@ the orchestrator runs rustfmt and the build.
 
 No STILL OPEN rows remain; no generated-data or whole-subsystem blocker. No unwrap/expect/panic
 added; the new test is a pure helper over static generated tag data.
+
+
+
+## Result (final verification, 2026-11-18)
+
+Re-checked all six gaps against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/bee/Bee.java`
+and `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java`
+(MC 26.3), and re-read the current source. No STILL OPEN rows existed on entry and none remain;
+no source file needed an edit this pass.
+
+- **Gap 1 (hive behaviour): VERIFIED, no change.** `Bee.java:360-369`, `Bee.java:1051-1130`;
+  `bee.rs` persists `hive_pos`, decrements `CannotEnterHiveTicks` and the hive cooldowns;
+  `beehive.rs::add_occupant`/`tick_occupants` respawn from the front face after 600/2400 ticks;
+  `goal/hive.rs` registers EnterHive/LocateHive/GoToHive.
+- **Gap 2 (flower memory/pollination): VERIFIED, no change.** `Bee.java:360-369`, `:693-697`,
+  `:1129-1188`; `bee.rs` stores `flower_pos`, resets `TicksSincePollination` on nectar gain and
+  gates `wants_to_enter_hive` on `is_pollinating`; `pollinate_flower.rs` uses
+  `MINECRAFT_BEE_ATTRACTIVE`, a +/-5 Manhattan search, strict `>400`, the 20% hover roll, once-only
+  nectar in `stop()`, and waterlogged/lower-sunflower filtering.
+- **Gap 3 (crop growth): VERIFIED, no change.** `Bee.java:978-1030` confirms `BeeGrowCropGoal.tick`
+  branches only on `CropBlock`, `StemBlock`, `SweetBerryBushBlock` and cave vines. No
+  `PitcherCropBlock` branch exists (`PitcherCropBlock extends DoublePlantBlock`), so
+  `grow_crop.rs::is_growable_block` correctly excludes `PITCHER_CROP`; the 30% gate, 1-in-30 roll,
+  `isHiveValid` gate and age+1 growth all match.
+- **Gap 4 (hive exit/TicksSincePollination): VERIFIED, no change.** `Bee.java:491-495`; counter
+  increments while nectar-free, resets on gain, tired-at-3600 return driven by hive goals.
+- **Gap 5 (goal priorities): VERIFIED, no change.** `Bee.java:registerGoals`; `bee.rs` registers
+  0 attack, 1 enter-hive, 2 breed, 3 tempt/validate, 4 pollinate, 5 follow/locate/go-hive,
+  6 go-to-flower, 7 grow-crop, 8 wander, 9 float.
+- **Gap 6 (spawn cluster/rain): VERIFIED, no change.** `Bee.java` has no per-species override;
+  rain avoidance lives in `pollinate_flower.rs::can_start`.
+
+No code edits, no new unwrap/expect/panic, no generated-data or subsystem blocker. Files: none
+changed this pass (verification only).

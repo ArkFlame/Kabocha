@@ -1613,4 +1613,31 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn sequence_runs_children_then_limit_count_clamps() {
+        let mut count = NbtCompound::new();
+        count.put_string("function", "minecraft:set_count".to_string());
+        count.put("count", NbtTag::Int(40));
+
+        let mut limit = NbtCompound::new();
+        limit.put("max", NbtTag::Int(5));
+        let mut limit_fn = NbtCompound::new();
+        limit_fn.put_string("function", "minecraft:limit_count".to_string());
+        limit_fn.put("limit", NbtTag::Compound(limit));
+
+        let mut sequence = NbtCompound::new();
+        sequence.put_string("function", "minecraft:sequence".to_string());
+        sequence.put(
+            "functions",
+            NbtTag::List(vec![
+                NbtTag::Compound(count),
+                NbtTag::Compound(limit_fn),
+            ]),
+        );
+
+        let mut stack = ItemStack::new(1, &Item::STONE);
+        apply_item_modifier(&mut stack, &NbtTag::Compound(sequence));
+        assert_eq!(stack.item_count, 5);
+    }
 }
