@@ -795,6 +795,53 @@ impl GameTestHelper {
         })
     }
 
+    /// Sets the velocity of the first entity_name inside the relative box.
+    pub async fn set_entity_velocity(
+        &self,
+        entity_name: &str,
+        relative_min: &BlockPos,
+        relative_max: &BlockPos,
+        velocity: Vector3<f64>,
+    ) -> GameTestResult<()> {
+        let abs_a = self.absolute_pos(relative_min);
+        let abs_b = self.absolute_pos(relative_max);
+        let min = Vector3::new(
+            f64::from(abs_a.0.x.min(abs_b.0.x)),
+            f64::from(abs_a.0.y.min(abs_b.0.y)),
+            f64::from(abs_a.0.z.min(abs_b.0.z)),
+        );
+        let max = Vector3::new(
+            f64::from(abs_a.0.x.max(abs_b.0.x)),
+            f64::from(abs_a.0.y.max(abs_b.0.y)),
+            f64::from(abs_a.0.z.max(abs_b.0.z)),
+        );
+        self.world
+            .set_entity_velocity(entity_name, min, max, velocity)
+            .await
+    }
+
+    /// Remaining fire ticks of the first entity_name inside the relative box.
+    pub async fn entity_fire_ticks(
+        &self,
+        entity_name: &str,
+        relative_min: &BlockPos,
+        relative_max: &BlockPos,
+    ) -> GameTestResult<Option<i32>> {
+        let abs_a = self.absolute_pos(relative_min);
+        let abs_b = self.absolute_pos(relative_max);
+        let min = Vector3::new(
+            f64::from(abs_a.0.x.min(abs_b.0.x)),
+            f64::from(abs_a.0.y.min(abs_b.0.y)),
+            f64::from(abs_a.0.z.min(abs_b.0.z)),
+        );
+        let max = Vector3::new(
+            f64::from(abs_a.0.x.max(abs_b.0.x)),
+            f64::from(abs_a.0.y.max(abs_b.0.y)),
+            f64::from(abs_a.0.z.max(abs_b.0.z)),
+        );
+        self.world.entity_fire_ticks(entity_name, min, max).await
+    }
+
     pub async fn assert_item_entity_present(
         &self,
         item_name: &str,

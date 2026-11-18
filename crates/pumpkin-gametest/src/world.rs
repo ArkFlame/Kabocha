@@ -113,6 +113,32 @@ pub trait GameTestWorld: Send + Sync {
         Ok(0)
     }
 
+    /// Sets the velocity of the first entity matching `entity_name` inside
+    /// `[min, max)`. Gametests use this to drive an entity fast enough that its
+    /// per-tick movement sweep crosses blocks it does not end inside.
+    async fn set_entity_velocity(
+        &self,
+        _entity_name: &str,
+        _min: Vector3<f64>,
+        _max: Vector3<f64>,
+        _velocity: Vector3<f64>,
+    ) -> GameTestResult<()> {
+        Err(GameTestError::World(
+            "setting entity velocity is not supported by this GameTestWorld".to_string(),
+        ))
+    }
+
+    /// Remaining fire ticks of the first entity matching `entity_name` inside
+    /// `[min, max)`, or `None` when no such entity is present.
+    async fn entity_fire_ticks(
+        &self,
+        _entity_name: &str,
+        _min: Vector3<f64>,
+        _max: Vector3<f64>,
+    ) -> GameTestResult<Option<i32>> {
+        Ok(None)
+    }
+
     async fn item_count_in_box(
         &self,
         _item_name: &str,
