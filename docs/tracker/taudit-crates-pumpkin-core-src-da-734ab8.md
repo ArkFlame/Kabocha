@@ -110,3 +110,65 @@ Still BLOCKED (require generated data or a whole missing subsystem):
 - mod.rs:1806 (u8 saturating custom damage ids): `pumpkin_data::damage::DamageType.id` is
   `u8` in `crates/pumpkin-data/src/generated/damage_type.rs` (generated, forbidden to
   edit); widening the id requires regenerating generated data.
+
+## Result - third pass
+
+Every remaining STILL OPEN row closed as FIXED, VERIFIED or BLOCKED-DATA. Files touched:
+`crates/pumpkin-core/src/data/datapack/mod.rs`,
+`crates/pumpkin-core/src/data/datapack/test_loader.rs`,
+`crates/pumpkin-core/src/data/datapack/function_loader.rs` (second pass).
+
+- mod.rs:2079,1384 (zip datapacks listed but never loaded): BLOCKED-DATA / whole subsystem.
+  `pumpkin-core` has no `zip` dependency (`crates/pumpkin-core/Cargo.toml`), and
+  `scan_datapacks_dir`, `read_pack_mcmeta`, `pack_metadata_error` and `load_pack_contents`
+  are `Path`-only. Vanilla needs a `PackResources` abstraction (`FilePackResources`,
+  `net/minecraft/server/packs/FilePackResources.java:54-89`) threaded through every
+  structure/worldgen/advancement loader, so this is a missing subsystem, not a row fix.
+- mod.rs:122 (maxCommandChainLength ignored): VERIFIED. `chain_budget`
+  (`mod.rs:1538-1545`) reads `game_rules.max_command_sequence_length` with
+  `Math.max(1, ...)`, matching vanilla `Commands#executeCommandInContext`
+  (`.vendor/vanilla-decompiled/net/minecraft/commands/Commands.java:458-463`).
+- mod.rs:2409-2421 (description stored as raw JSON): VERIFIED. `read_pack_mcmeta`
+  decodes the component into `pumpkin_util::text::TextComponent` and keeps `get_text()`
+  (`mod.rs:2840-2856`), so `/datapack list` shows plain text; the round trip is covered by
+  `read_pack_mcmeta_flattens_component_descriptions`.
+- mod.rs:1459-1483, 2423 (hard-coded pack_format 61): VERIFIED. All defaults use
+  `CURRENT_MC_VERSION.data_pack_format()` (`mod.rs:1721,1728,1748,2920`).
+- mod.rs:1729 (Java Double/Float.toString for macro strings): VERIFIED as tracker
+  premise outdated. Vanilla `MacroFunction` uses `new DecimalFormat("#")` with
+  `setMaximumFractionDigits(15)`, not `Double.toString`
+  (`.vendor/vanilla-decompiled/net/minecraft/commands/functions/MacroFunction.java:31-33,84-94`),
+  which is exactly what `stringify_macro_argument` (`mod.rs:2002-2021`) does.
+- mod.rs:1130 (suggestions in HashMap order): VERIFIED. `get_function_names` sorts with
+  `names.sort_unstable()` (`mod.rs:1349`).
+- mod.rs:2000-2003,1352+ ("bundle" feature pack): VERIFIED as non-existent in this version.
+  Vanilla `FeatureFlags` registers only `vanilla`, `trade_rebalance`,
+  `redstone_experiments` and `minecart_improvements`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/flag/FeatureFlags.java:32-41`), and
+  `data/Main.java:172-183` generates only those three builtin datapacks. Bundles are ordinary
+  vanilla items now, so there is nothing to add to the bundled lists.
+- mod.rs:1806 (u8 saturating custom damage type ids): FIXED without generated data.
+  `next_custom_id` is now `u16` and the id is converted with `u8::try_from`; when the
+  `u8` space is exhausted the entry is skipped with a `tracing::error!` instead of being
+  given a colliding saturated id (`mod.rs:2126-2154`). Widening `DamageType.id` itself
+  would need regenerated pumpkin-data, which stays out of scope.
+- mod.rs:500,884 (tag values returning raw refs): VERIFIED. `get_tag_values` expands
+  nested `#tag` members through `collect_generic_tag_values` (`mod.rs:686-711, 700`) and
+  `get_tag_entries` delegates to it (`mod.rs:1060-1064`).
+- mod.rs:2409 (incompatible pack_format accepted): VERIFIED. `enable_pack_checked` compares
+  the declared range with `CURRENT_MC_VERSION.data_pack_format()` via
+  `pack_format_compatibility` and returns `DatapackError::Incompatible` with a warning
+  (`mod.rs:1820-1833`), mirroring `PackCompatibility.forVersion`.
+- mod.rs:2937 (recipe loader skipped symlinks): FIXED. `load_recipes_recursive` now tests
+  `path.is_dir()`/`path.is_file()` like the other loaders; vanilla lists packs with
+  `Files.find` which follows links
+  (`.vendor/vanilla-decompiled/net/minecraft/server/packs/PathPackResources.java:102-119`).
+  `load_recipes_follows_symlinks_and_loads_regular_files` asserts the symlinked directory and
+  file are both loaded.
+- test_loader.rs:72 (test instance loader skipped symlinks): FIXED the same way, and
+  `load_test_instances_follows_symlinks_and_loads_regular_files` now asserts the symlinked
+  directory and file are registered.
+- function_loader.rs:30, mod.rs:2465 (symlinked pack content skipped): FIXED in the earlier
+  passes; no `entry.file_type()` calls remain in `crates/pumpkin-core/src/data/datapack/`.
+
+No cargo/rustfmt run by this worker (shell denied); the orchestrator compiles the batch.

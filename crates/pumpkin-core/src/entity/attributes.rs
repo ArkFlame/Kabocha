@@ -536,6 +536,36 @@ mod tests {
     }
 
     #[test]
+    fn apply_sets_base_and_adds_modifiers_without_clearing() {
+        // Vanilla `AttributeInstance.apply` sets the base value and adds the packed modifiers,
+        // so a modifier missing from the tag stays on the live instance.
+        let mut instance = AttributeInstance::new(10.0);
+        instance.add_or_replace_permanent_modifier(Modifier {
+            id: "kept".to_string(),
+            amount: 1.0,
+            operation: ModifierOperation::Add,
+        });
+
+        let mut packed = NbtCompound::new();
+        packed.put_double("base", 5.0);
+        instance.apply(&packed);
+        assert!((instance.base_value - 5.0).abs() < f64::EPSILON);
+        assert_eq!(instance.modifiers.len(), 1);
+        assert_eq!(instance.modifiers[0].id, "kept");
+
+        // `base` is optional in the packed codec and defaults to 0.0.
+        let mut modifier = NbtCompound::new();
+        modifier.put_string("id", "added".to_string());
+        modifier.put_double("amount", 2.0);
+        modifier.put_string("operation", "add_value".to_string());
+        let mut without_base = NbtCompound::new();
+        without_base.put_list("modifiers", vec![NbtTag::Compound(modifier)]);
+        instance.apply(&without_base);
+        assert!(instance.base_value.abs() < f64::EPSILON);
+        assert_eq!(instance.modifiers.len(), 2);
+    }
+
+    #[test]
     fn sanitized_value_clamps_to_ranged_attribute_bounds() {
         // ARMOR has bounds 0.0..=30.0
         let mut armor = AttributeInstance::new(10.0);
