@@ -389,22 +389,13 @@ impl JavaClient {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let previous = self
+        let mut tail = self
             .deferred_packet_tail
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .take();
-        let chained = async move {
-            if let Some(previous) = previous {
-                let _ = previous.await;
-            }
-            task.await;
-        };
-        let handle = server.spawn_task(chained);
-        *self
-            .deferred_packet_tail
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(handle);
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let previous = tail.take();
+        // The spawn happens under the lock so two packets cannot both observe an empty tail.
+        *tail = Some(server.spawn_task(chain_after(previous, task)));
     }
 
     /// Queues the chunks and reports which were sent and why the others were not.
