@@ -71,3 +71,17 @@ Terminal states, all verified against `.vendor/vanilla-decompiled/net/minecraft/
 - Row 16 (gametest): BLOCKED-DATA. Exact missing subsystem: `crates/pumpkin-gametest/src/world.rs` `GameTestWorld` exposes only block-state mutation, spawn_entity/spawn_item, entity_count_in_box, set_entity_velocity, entity_fire_ticks and execute_command; there is no API to equip a mace, trigger a player melee attack, read entity health/damage taken, or read fall-damage/impulse grace. Implementing it means extending the GameTestWorld trait and both its in-memory and server adapters. No generated pumpkin-data field is missing.
 
 No STILL OPEN rows remain.
+
+
+## Result (final pass, complete)
+
+No source file required a fix this pass. Every rule was re-verified against .vendor/vanilla-decompiled/net/minecraft/world/item/MaceItem.java and .vendor/vanilla-decompiled/net/minecraft/world/entity/Mob.java. All six rows are terminal; no STILL OPEN rows remain.
+
+- Row 11 (mob smash): FIXED + VERIFIED. crates/pumpkin-core/src/entity/mob/mod.rs try_attack applies the base smash curve plus the Density term (EnchantmentHelper::modify_fall_based_damage) and mirrors hurtEnemy impact grace, sound, smash knockback and fall reset. Vanilla Mob.doHurtTarget calls weaponItem.getItem().getAttackDensityBonus (Mob.java:1609) then weaponItem.hurtEnemy (Mob.java:1615); MaceItem.getAttackDamageBonus adds Density scaled by fallDistance (MaceItem.java:118-120). spawn_extra_particles_on_fall is ServerPlayer-only (MaceItem.java:72-74), so its absence on mobs is correct.
+- Row 12 (mace detection): VERIFIED. crates/pumpkin-core/src/item/items/mace.rs MaceItem::is_mace resolves the behaviour through the item registry (mace.rs:13-17), with unit test mace_behaviour_is_identified_by_registry_class.
+- Row 13 (smash eligibility): VERIFIED. combat.rs smash_fall_ready is fall_distance > 1.5 && !fall_flying, matching MaceItem.canSmashAttack (MaceItem.java:160-162); no on-ground gate.
+- Row 14 (velocity pin): VERIFIED (no change). player.rs pins y=0.01 unconditionally within the smash branch, matching the unconditional setDeltaMovement in MaceItem.hurtEnemy (MaceItem.java:65) before the onGround branch (MaceItem.java:71).
+- Row 15 (knockback): VERIFIED (no change). combat.rs mace_smash_knockback_power is (3.5 - dist3D) * 0.7 * heavy * (1 - resistance) with a fixed 0.7 vertical push and the MaceItem.knockback predicate filters, matching MaceItem.java:126-158.
+- Row 16 (gametest): BLOCKED-DATA. Missing subsystem, not a missing generated field: crates/pumpkin-gametest/src/world.rs GameTestWorld exposes only block-state mutation, spawn_entity/spawn_item, entity_count_in_box, set_entity_velocity, entity_fire_ticks and execute_command. It has no API to equip a mace, trigger a player melee attack, read entity health/damage taken, or read fall-damage/impulse grace, so the drop-onto-cow scenario cannot be asserted. Implementing it means extending the GameTestWorld trait and both its in-memory and server adapters. No pumpkin-data generated field is missing. The deterministic smash rules are already covered by pure-unit seams in combat.rs (mace_smash_damage_curve_matches_vanilla_branches, smash_knockback_power_uses_full_3d_distance, smash_needs_a_fall_over_one_and_a_half_blocks_and_no_glide) and mace.rs.
+
+Verified against a fresh read of the decompiled source this pass; code was type-checked by inspection against sibling patterns, not compiled (worker shell/build tools are denied).

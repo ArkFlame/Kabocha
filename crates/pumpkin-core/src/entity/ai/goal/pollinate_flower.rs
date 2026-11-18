@@ -126,7 +126,8 @@ impl Goal for PollinateFlowerGoal {
         }
         self.next_scan_tick = now + SCAN_INTERVAL_TICKS;
         let bee_pos = mob.get_entity().block_pos.load();
-        if world.is_raining_at(&bee_pos) {
+        // Vanilla `BeePollinateGoal.canBeeUse` uses `Level.isRaining()` (world-wide).
+        if world.is_raining() {
             return false;
         }
         self.flower = nearest_flower(bee_pos, |pos| Self::is_flower_at(&world, pos));
@@ -145,7 +146,7 @@ impl Goal for PollinateFlowerGoal {
         }
         let world = mob.get_entity().world.load();
         // Vanilla `BeePollinateGoal.canBeeContinueToUse` stops when it starts raining.
-        if world.is_raining_at(&mob.get_entity().block_pos.load()) {
+        if world.is_raining() {
             return false;
         }
         // Vanilla `BeePollinateGoal.canBeeContinueToUse`: after 400 ticks the bee keeps

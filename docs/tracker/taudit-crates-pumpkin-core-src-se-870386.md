@@ -65,7 +65,7 @@ Newly noted, not changed:
 | `ticker.rs:66-71` | `checkShouldSprintThisTick()` also decrements `remainingSprintTicks` | fork decrements in `end_sprint_tick_work`; equivalent for the loop, `is_sprinting()` just stays true through the sprint work | none needed | - |
 
 ## Status (code-verified sweep)
-FIXED: OVERLOADED_THRESHOLD_NANOS is 1s (server/ticker.rs:17-18). STILL OPEN: game-test freeze gate ordering and sprint redundancy not re-read.
+FIXED: OVERLOADED_THRESHOLD_NANOS is 1s (server/ticker.rs:17-18). VERIFIED: game-test freeze gate ordering and sprint redundancy (superseded by the final Result below).
 
 
 ## Result
@@ -295,3 +295,67 @@ No STILL OPEN rows remain. No new unit test: the pure seams (`EmptyTickClock`,
 `apply_overload_skip`, `advances_tick_count`) are already unit-tested; the two
 behaviour rows need runtime scenarios. No compile/test run (unit rules); rustfmt
 is run by the orchestrator. No source files changed this pass.
+
+## Result (final pass, terminal)
+
+Every row is now in a terminal state. No source file required a change in this
+pass: the working tree already carries each fix, and each was re-verified here
+against `.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java`
+(a Folia/Canvas tree; classic vanilla behaviour is cited where the supplied
+tree comments it out).
+
+- FIXED (M) tick_count-at-start - vanilla runs `this.tickCount++` at the top of
+  `tickServer` before `tickRateManager.tick()`/`tickChildren`
+  (MinecraftServer.java:1705-1708, the classic increment is commented out in
+  this Folia tree). Pumpkin increments `server.tick_count` at the top of
+  `Ticker::run` under `super::advances_tick_count` (ticker.rs:140-142); the
+  `+ 1` patch in `sync_game_time` and the increment in `update_tick_times` are
+  gone (server/mod.rs:2067-2084), and tick start/end events read the 1-based
+  counter directly (ticker.rs:186,216). grep confirms a single
+  `server.tick_count.fetch_add`.
+
+- VERIFIED try/catch crash report - vanilla wraps the tick in `catch
+  (Throwable)`, builds a `CrashReport`, saves
+  `crash-reports/crash-<date>-server.txt` and calls `onServerCrash`
+  (MinecraftServer.java:1413-1424 and 1707-1713). Pumpkin global panic hook
+  (`crates/pumpkin/src/main.rs:83,311-324,393-395`) sets `CRASH_REPORT` and
+  stops the server; graceful shutdown (`crates/pumpkin-core/src/lib.rs:601-613`)
+  prints/saves the report and sets exit code 1. `catch_unwind` in ticker.rs
+  would be redundant since vanilla stops rather than continues; report text is
+  fork API.
+
+- VERIFIED pause-when-empty - `ticker.rs:105-113,147-160` matches vanilla
+  `tickServer` 1608-1639: `emptyTicks++`/reset (`EmptyTickClock::observe`),
+  threshold `seconds*20`, one-shot
+  `LOGGER.info("Server empty for {} seconds, pausing")` (Pumpkin `info!`,
+  149-152) + `autoSave()`/`autosave_if_due(true)`, scheduler heartbeat and
+  connection ticking while paused. Default 60s in `net/management/hub.rs:22,52`;
+  runtime setter `handlers.rs:956-973`.
+
+- VERIFIED sprint gate (`ticker.rs:95`, `is_sprinting() && runs_normally()`) -
+  vanilla gates sprint on `!isPaused() && isSprinting() &&
+  checkShouldSprintThisTick()` (MinecraftServer.java:1360).
+
+- VERIFIED game-test gate (`ticker.rs:174-177`) - runs after `server.tick()`
+  under `runs_normally()`, next to vanilla `GameTestTicker.SINGLETON.tick()`
+  (MinecraftServer.java:1929-1930); `|| sprinting` is redundant but harmless.
+
+- VERIFIED overload warning gate (`ticker.rs:258-263`) - `behind_nanos >
+  threshold` and `since_warning >= interval` match classic vanilla. The
+  supplied Folia/Canvas tree replaced the classic gate with `tickSchedule`
+  (`lastOverloadWarningNanos = nextTickTimeNanos`, MinecraftServer.java:1385),
+  so the classic `>=` detail cannot be re-derived here; keep `>=` with the
+  `[1, 6]` test (ticker.rs:386-402). That test arithmetic was re-derived by
+  hand: tick 6 is exactly 15s and warns under `>=`.
+
+- VERIFIED non-gaps - `OVERLOADED_THRESHOLD_NANOS` 1s, the sprint decrement in
+  `end_sprint_tick_work`, and the nanosecond `ServerTickEndEvent` payload are
+  kept as recorded (fork API / equivalent behaviour).
+
+No BLOCKED-DATA rows: no missing generated `pumpkin-data` field or missing
+subsystem is involved. No new unit test: the pure seams (`EmptyTickClock`,
+`apply_overload_skip`, `advances_tick_count`) are already unit-tested; the two
+behaviour rows need runtime scenarios. No compile/test run (unit rules); the
+test-only `.expect` at ticker.rs:357 is allowed by `lib.rs:2`
+(`cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))`).
+
