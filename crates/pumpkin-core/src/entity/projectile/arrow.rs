@@ -774,6 +774,21 @@ impl ArrowEntity {
         }
 
         let owner = self.owner.get(&world);
+        // Vanilla AbstractArrow#onHitEntity calls livingOwner.setLastHurtMob(entity) so
+        // consumer goals (OwnerHurtTargetGoal, Fox) can react to what the owner struck.
+        // Pumpkin stores this on the owner last-attacked id/tick, the same fields
+        // Player.attack and Mob.attack write.
+        if let Some(owner_entity) = owner.as_deref()
+            && let Some(living_owner) = owner_entity.get_living_entity()
+        {
+            living_owner
+                .last_attacking_id
+                .store(target_entity.entity_id, Ordering::Relaxed);
+            living_owner.last_attack_time.store(
+                living_owner.entity.tick_count.load(Ordering::Relaxed),
+                Ordering::Relaxed,
+            );
+        }
         let hurt = target.damage_with_context(
             target.as_ref(),
             damage as f32,

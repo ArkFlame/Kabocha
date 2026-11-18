@@ -2,7 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: mod.rs
 
-FIXED: close_admission holds player_join_lock (server/mod.rs:1375-1381). STILL OPEN: spawn_world WorldInitEvent and get_tps rows not re-read.
+All rows closed in FINAL PASS: close_admission holds player_join_lock; spawn_world fires WorldInitEvent + WorldLoadEvent; get_tps caps at target rate. All re-verified in the Result section below; no source edit was needed.
 
 ## Result
 FINAL PASS: all rows in this unit are closed. The fixes were already present in code
