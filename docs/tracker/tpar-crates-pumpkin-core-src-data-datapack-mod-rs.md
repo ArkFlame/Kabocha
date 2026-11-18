@@ -6,7 +6,6 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/taudit-crates-pumpkin-core-src-da-734ab8** [partial/OWN-OPEN] own audit: 14 open, 1 fixed, 0 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-da-734ab8.md) docs/tracker/taudit-crates-pumpkin-core-src-da-734ab8.md
 - **own/taudit-crates-pumpkin-core-src-data-datap** [partial/OWN-OPEN] own audit: 6 open, 1 fixed, 0 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-data-datap.md) docs/tracker/taudit-crates-pumpkin-core-src-data-datap.md
 
-## Result
 ## Result (final pass, per-row terminal results)
 
 All STILL OPEN rows across the three audit docs are terminal. Each row was re-checked
