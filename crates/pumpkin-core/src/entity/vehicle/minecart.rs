@@ -57,8 +57,8 @@ const fn get_exits(
         // Vanilla stores ascending exits with the low end one block BELOW (Direction.below()),
         // so the high end sits at y=0 and the low end at y=-1 relative to the rail block.
         RailShape::AscendingEast => (Vector3::new(-1.0, -1.0, 0.0), Vector3::new(1.0, 0.0, 0.0)),
-        RailShape::AscendingWest => (Vector3::new(1.0, -1.0, 0.0), Vector3::new(-1.0, 0.0, 0.0)),
-        RailShape::AscendingNorth => (Vector3::new(0.0, -1.0, 1.0), Vector3::new(0.0, 0.0, -1.0)),
+        RailShape::AscendingWest => (Vector3::new(-1.0, 0.0, 0.0), Vector3::new(1.0, -1.0, 0.0)),
+        RailShape::AscendingNorth => (Vector3::new(0.0, 0.0, -1.0), Vector3::new(0.0, -1.0, 1.0)),
         RailShape::AscendingSouth => (Vector3::new(0.0, -1.0, -1.0), Vector3::new(0.0, 0.0, 1.0)),
         RailShape::SouthEast => (Vector3::new(0.0, 0.0, 1.0), Vector3::new(1.0, 0.0, 0.0)),
         RailShape::SouthWest => (Vector3::new(0.0, 0.0, 1.0), Vector3::new(-1.0, 0.0, 0.0)),
