@@ -1344,7 +1344,7 @@ Audit notes under `docs/tracker/` and `docs/TODO_2.md` record each vanilla gap. 
 - `taudit-crates-pumpkin-core-src-en-eaae88`: - Row 4 (safe_armor_disallowed): FIXED. Replaced the whole-JSON substring heuristic with a structural walk of the inverted `minecraft:entity_properties` / equipment `piglin_safe_armor` loot-condition 
 - `taudit-crates-pumpkin-core-src-en-eaae88`: - Row 7 (PlacedBlock item stack): predicate.rs side already FIXED (PlacedBlockPredicate::matches takes item_count + enchantments; test `item_count_bounds_use_actual_stack_count`). Remaining: trigger.r
 - `taudit-crates-pumpkin-core-src-en-eaae88`: - Row 8 (item condition count): predicate.rs side already FIXED (matches_item_condition takes count; same test). Remaining: trigger.rs passes hardcoded 1, outside predicate.rs.
-- `taudit-crates-pumpkin-core-src-en-eaae88`: - Row 13 (effects_changed distance): predicate.rs side already FIXED (matches_effects_changed_condition takes source_distance and tests cover it). Remaining: caller must pass the real distance, outsid
+- `taudit-crates-pumpkin-core-src-en-eaae88`: - Row 13 (effects_changed distance): predicate.rs side already FIXED (matches_effects_changed_condition takes source_distance and tests cover it). Remaining: caller must pass the real distance, outside
 - `taudit-crates-pumpkin-core-src-en-eaae88`: - Row 10 (lightning_strike): FIXED THIS PASS. Vanilla `LightningStrikeTrigger` uses a full `EntityPredicate` for `bystander`; the field was a bare `Option<String>` so tag/array/compound bystander pred
 - `taudit-crates-pumpkin-core-src-en-f12c04`: - `record_movement` merge (row 22, S): FIXED. Verified against decompiled `Entity.addMovementThisTick` (`Entity.java:1538-1547`): vanilla removes the two oldest and prepends `new Movement(first.from, 
 - `taudit-crates-pumpkin-core-src-en-f50f1a`: - Row 23 (blocked-hit play-dead roll): FIXED. Vanilla evaluates the roll before super.hurtServer
@@ -1848,7 +1848,7 @@ Audit notes under `docs/tracker/` and `docs/TODO_2.md` record each vanilla gap. 
 - `tblocks-vault-226f3e`: - Gap 1 (ejecting/display state machine): FIXED. `use_with_item` now enters UNLOCKING and
 - `tblocks-vault-226f3e`: - Gap 2 (loot stored for reload): FIXED. `VaultBlockEntity` now owns `items_to_eject`, written to
 - `tblocks-vault-226f3e`: - Gap 3 remainder (periodic 20-tick ACTIVE display cycle): FIXED. `blocks/vault.rs::on_scheduled_tick`
-- `tci-github-failures`: - Spelling (typos v1.52.2): FIXED. Word-boundary scan of every text file outside the typos.toml extend-exclude paths found zero remaining `branche` or `outsid` words (already resolved by earlier passe
+- `tci-github-failures`: - Spelling (typos v1.52.2): FIXED. Word-boundary scan of every text file outside the typos.toml extend-exclude paths found zero remaining `branch` or `outside` words (already resolved by earlier passe
 - `tcommands-sweep`: | enchant | FIXED (UNVERIFIED) | Description promises mobs holding weapons; `enchant_target` returns `commands.enchant.failed` for non-players. Needs living-entity main-hand access. |
 - `tcommands-sweep`: | effect give | FIXED (UNVERIFIED) | `should_skip` uses `amplifier >= new`; vanilla `MobEffectInstance.update` also compares duration on equal amplifier. Verify against decompiled source. |
 - `tcommands-sweep`: | fill | FIXED (UNVERIFIED) | `outline`/`hollow` counting and `destroy` affected-count semantics unverified against vanilla `FillCommand`. |

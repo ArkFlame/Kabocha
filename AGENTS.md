@@ -85,7 +85,7 @@ Changes land by fast-forwarding worker branches into master and pushing origin (
 | Wrong API shape guessed (`Option` vs `Mutex` lock, `rand::random::<usize>`, `Vector3.to_centered_f64`) | Open the definition (`grep -n "pub fn name"`) and copy a nearby call. rand is 0.10: use `rand::random_range(..)` or `RngExt`. |
 | Trait method not in scope (`player.get_entity()` without `use crate::entity::EntityBase`) | Copy the `use` of a sibling file that calls the same method. |
 | Clippy pedantic misses: unused `self`, by-ref small `Copy` arg, `;` outside block, missing backticks in `///`, fn over 100 lines, `map_or(false, ..)`, `.clone()` into `&[x]`, `assert!(a == b)` | Write the clippy-clean form from the start: `is_some_and`, `std::slice::from_ref`, `assert_eq!`, backtick every code identifier, split long fns. |
-| Typos CI failures from prose (`branche`, `outsid`, `nd`) | Spell-check prose you write in docs and comments; investigation notes live in `docs/investigations/` (excluded). |
+| Typos CI failures from prose (truncated words) | Spell-check prose you write in docs and comments; investigation notes live in `docs/investigations/` (excluded). |
 | Stray files in the repo root (`os`, ImageMagick output), stale `.git/index.lock` | Never write outside the files you edit; scratch goes to `/tmp`. Remove `index.lock` only when no git process runs. |
 | Full test run hangs on one deadlocked test while other pools load the machine | Run tests with a timeout and rerun a failing test alone before treating it as a bug. |
 | Wasm plugin tests fail with `can't find crate for std` | `rustup target add wasm32-wasip2 --toolchain nightly`. |
