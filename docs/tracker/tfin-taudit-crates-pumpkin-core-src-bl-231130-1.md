@@ -9,7 +9,8 @@ Verified every STILL OPEN row from the "Remaining gaps" table against decompiled
 
 ## Result
 All three STILL OPEN rows are closed. The fixes were already present in the working tree; this
-pass verified them against decompiled vanilla and made no source edits.
+pass verified them against decompiled vanilla and only tightened the patch lookup in
+`assemble_cooking_result` to compare values (`*id == *component`).
 
 - `furnace_like_block_entity.rs:867-876` (Bedrock `StoredXPInt`) -- VERIFIED. `bedrock_block_actor_data`
   (:966-971) passes `stored_experience(&recipes)` into `build_furnace_actor`, which writes
