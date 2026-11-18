@@ -5,7 +5,7 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 - Gap 1 (JSON streamed to NBT bypassing codecs, L): VERIFIED - client decode via NbtOps is numeric-type-generic; no generated field or cross-crate codec schema needed for correct behaviour (see Result).
 - Gap 2 (plural directory aliases, S): FIXED - DYNAMIC_REGISTRIES lists only singular paths (see Result).
 - New small note (duplicated I/O for item_modifier/slot_source/etc.): FIXED - dedicated loaders in datapack/mod.rs, ids absent from DYNAMIC_REGISTRIES (see Result).
-Re-verified every STILL OPEN / open note against `.vendor/vanilla-decompiled/net/minecraft/`:
+Re-verified every open note against `.vendor/vanilla-decompiled/net/minecraft/`:
 
 ## Result
 Re-verified all three rows against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. No source edits were needed: `dynamic_registry_loader.rs` already carries every in-scope fix.

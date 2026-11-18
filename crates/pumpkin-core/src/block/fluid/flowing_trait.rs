@@ -142,10 +142,11 @@ pub trait FlowingFluid: Send + Sync {
     ) {
         let below_pos = block_pos.down();
         let below_block = world.get_block(&below_pos);
-        // Water is in `#minecraft:washed_away_by_fluids`, so `can_hold_fluid` already
-        // treats it as a hole for lava; lava's `spread_to` then turns that water to
-        // stone rather than replacing the block. No fluid-specific clause is needed.
-        let is_hole = physics::can_hold_fluid(below_block, fluid);
+        // Mirrors vanilla `FlowingFluid.isWaterHole`: a block below holding the same fluid is a
+        // hole even when it is absent from `#washed_away_by_fluids` (bubble columns). Tagged
+        // blocks such as water still come through `can_hold_fluid`, so lava keeps its stone path.
+        let is_hole = self.has_fluid_at(fluid, world.get_block_state_id(&below_pos))
+            || physics::can_hold_fluid(below_block, fluid);
 
         // Try to flow down first
         if is_hole {
