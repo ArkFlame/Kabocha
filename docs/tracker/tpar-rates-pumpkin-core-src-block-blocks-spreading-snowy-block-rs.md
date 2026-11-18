@@ -16,3 +16,6 @@ Re-read the last Result of each referenced audit doc and re-verified every STILL
 - **own/taudit-crates-pumpkin-core-src-block-bloc** (0 rows STILL OPEN): all four rows VERIFIED in that doc (on_place inherited from `SnowyBlock.getStateForPlacement` `SnowyBlock.java:41-44`, generic fluid amount, `LAYERS == 1` light-block short-circuit, and randomTick coverage by the `plants_and_support_blocks.rs` GameTest).
 
 Files touched: this doc and the 4bd10c audit doc (documentation only); no `.rs` edit, so no rustfmt run.
+
+
+append-test-marker

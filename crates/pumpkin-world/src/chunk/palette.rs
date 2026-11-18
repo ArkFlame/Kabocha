@@ -1303,7 +1303,7 @@ pub(crate) const BIOME_NETWORK_MAX_BITS: u8 = 7;
 
 #[cfg(test)]
 mod tests {
-    use super::{BlockPalette, NetworkPalette, PalettedContainer};
+    use super::{BlockPalette, NetworkPalette, PalettedContainer, bedrock_palette_bits};
     use pumpkin_data::{Block, BlockStateId};
 
     #[test]
@@ -1500,6 +1500,28 @@ mod tests {
         assert_eq!(network.bits_per_entry, 8);
         assert_eq!(network.packed_data.len(), 1024);
         assert!(matches!(network.palette, NetworkPalette::Indirect(values) if values.len() == 65));
+    }
+
+    #[test]
+    fn bedrock_palette_bits_match_bedrock_supported_widths() {
+        // Bedrock palette widths are 1..=6, then 8 and 16; 7 is never used.
+        assert_eq!(bedrock_palette_bits(0), 1);
+        assert_eq!(bedrock_palette_bits(1), 1);
+        assert_eq!(bedrock_palette_bits(2), 1);
+        assert_eq!(bedrock_palette_bits(3), 2);
+        assert_eq!(bedrock_palette_bits(4), 2);
+        assert_eq!(bedrock_palette_bits(5), 3);
+        assert_eq!(bedrock_palette_bits(8), 3);
+        assert_eq!(bedrock_palette_bits(9), 4);
+        assert_eq!(bedrock_palette_bits(16), 4);
+        assert_eq!(bedrock_palette_bits(17), 5);
+        assert_eq!(bedrock_palette_bits(32), 5);
+        assert_eq!(bedrock_palette_bits(33), 6);
+        assert_eq!(bedrock_palette_bits(64), 6);
+        assert_eq!(bedrock_palette_bits(65), 8);
+        assert_eq!(bedrock_palette_bits(128), 8);
+        assert_eq!(bedrock_palette_bits(256), 8);
+        assert_eq!(bedrock_palette_bits(257), 16);
     }
 
     #[test]
