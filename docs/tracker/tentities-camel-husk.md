@@ -198,3 +198,19 @@ source or test edit was needed (the fixes from earlier passes are present and co
 - Row 5 (jockey pairing): FIXED/VERIFIED. world/entity/monster/zombie/Husk.java:93-133 gates on HuskGroupData.triedToSpawnCamelHusk (10% roll at :112, camel husk + parched spawn/mount at :113-126). Pumpkin husk.rs:43-55 claim_camel_jockey_attempt, :60-108 spawn logic, spawn.rs:64-70 SpawnGroupData::Zombie.tried_spawn_camel_husk, initialized at zombie/mod.rs:263-267 (false), :659-663 (true for conversion), strider.rs:340-344 (false). Pure-seam tests at husk.rs:178-220. Matches.
 
 Remaining runtime-only work (gametest for the two-rider mount layout) needs a file outside this unit and is not a code gap. No new test added because the pure seam is already covered.
+
+
+## Result (FINAL PASS, 2026-11-18, direct re-verification)
+
+Read the current decompiled vanilla tree under `.vendor/vanilla-decompiled/net/minecraft/` and the current
+Pumpkin source directly for every row. All five rows are terminal FIXED/VERIFIED; no row is STILL OPEN, no
+BLOCKED-DATA condition exists, and no source or test edit was needed (the fixes from earlier passes are
+present and correct). No compile run (worker rule); no `.rs` file touched, so rustfmt was not run.
+
+- Row 1 (husk love gate): FIXED/VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/camel/CamelHusk.java:61-63` overrides `canMate()` to false and `:70-73` `canFallInLove()` to false. Pumpkin `camel.rs:383` gates `could_set_in_love` on `!self.is_husk()`, `:425-427` `can_fall_in_love()` returns false for husks, `:429-431` `can_mate()` refuses husks. Matches.
+- Row 2 (love/tempt goals): FIXED/VERIFIED (inert). `CamelHusk.java` has no `createBrain` override, so vanilla runs `CamelAi` with `AnimalMakeLove`/`FollowTemptation`; Pumpkin `camel/ai.rs:72,75` matches. `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/behavior/AnimalMakeLove.java` only runs while in love; Pumpkin `animal_make_love.rs:70-71,98,130-135` requires `is_in_love()` and `can_mate()`, which a husk never satisfies after Row 1. No extra work observable.
+- Row 3 (`is_preventing_player_rest`): FIXED/VERIFIED. Only vanilla `world/entity/monster/Monster.java` returns true; `CamelHusk` inherits false. `camel.rs:467-471` returns `false` with a vanilla-quirk comment. Matches.
+- Row 4 (numeric constants): FIXED/VERIFIED. `CamelHusk.java:90-97` plays step sounds at `0.4F`, `:129-132` `chargeSpeedModifier()` returns `4.0F`. Pumpkin `camel.rs:48` `HUSK_STEP_VOLUME = 0.4` used at `:457-458`, `:437-443` returns 4.0 for husk else 1.0. Matches.
+- Row 5 (jockey pairing): FIXED/VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/zombie/Husk.java:103-130` initializes `HuskGroupData.triedToSpawnCamelHusk = spawnReason != NATURAL`, gates on `!triedToSpawnCamelHusk` plus a `noCollision` space check, sets the flag before the 10% roll (`:112`), then spawns and mounts camel husk + parched (`:113-126`). Pumpkin `husk.rs:43-55` `claim_camel_jockey_attempt` (skip if tried / non-natural / blocked, set tried, return true), `:77-106` spawn logic with `CAMEL_HUSK_JOCKEY_CHANCE = 0.1` (`:40`), and `spawn.rs:64-70` `SpawnGroupData::Zombie.tried_spawn_camel_husk` implement the same once-per-group rule. Pure-seam tests at `husk.rs:178-220` cover once-per-group and non-natural/blocked cases. Matches.
+
+Remaining runtime-only work (a gametest exercising the two-rider mount layout end to end) needs a file outside this unit and is a test-coverage task, not a code gap. No new test added because the pure seam is already covered. No code changes required for this unit; all edits from earlier passes stand.

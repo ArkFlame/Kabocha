@@ -332,45 +332,46 @@ new fixes this pass, zero rows left open.
 
 Status: PASS fixed=0 open=0 files=docs/tracker/tentities-bamboo-chest-raft.md
 
+
 ## Result (2026-11-18 final pass, terminal verification)
 
 Re-verified every gap-table row (#1-#6) and the paddle handler against decompiled vanilla at
-`.vendor/vanilla-decompiled/net/minecraft/`and the current Pumpkin source. All rows already
+`.vendor/vanilla-decompiled/net/minecraft/` and the current Pumpkin source. All rows already
 carry a terminal status; none remain STILL OPEN. No source edit was required: each fix is present
-and correct, and no generated`pumpkin-data`field or missing subsystem is involved.
+and correct, and no generated `pumpkin-data` field or missing subsystem is involved.
 
-- #1 (canBeCollidedWith) VERIFIED.`boat.rs:643``is_collidable`returns`true`unconditionally,
-  matching vanilla`world/entity/vehicle/boat/AbstractBoat.java:129-131`, which overrides
- `Entity.canBeCollidedWith`to return`true`(the gap-table Fix cell was stale).
-- #2 (interact alive guard) FIXED / VERIFIED.`AbstractBoat::interact`rejects a dead boat.
-- #3 (bubble column) FIXED / VERIFIED.`boat.rs``tick_bubble_column`(429),
- `on_above_bubble_column`(647),`on_inside_bubble_column`(700),
- `bubble_column_vertical_velocity`(976), called from`tick`. Matches vanilla
- `world/entity/vehicle/boat/AbstractBoat.java:165-184`(onAboveBubbleColumn),`:351-385`
-  (tickBubbleColumn),`:399-407`(handleBubbleColumnEffect). Unit test present.
-- #4 (chest contents vs gamerule) FIXED / VERIFIED.`scatter_chest_contents`(272) runs from
- `on_removed`and from`damage_with_context`before the entity_drops gate via`claim_drops`.
-  Matches vanilla`world/entity/vehicle/boat/AbstractChestBoat.java:71-77`(remove ->
+- #1 (canBeCollidedWith) VERIFIED. `boat.rs:643` `is_collidable` returns `true` unconditionally,
+  matching vanilla `world/entity/vehicle/boat/AbstractBoat.java:129-131`, which overrides
+  `Entity.canBeCollidedWith` to return `true` (the gap-table Fix cell was stale).
+- #2 (interact alive guard) FIXED / VERIFIED. `AbstractBoat::interact` rejects a dead boat.
+- #3 (bubble column) FIXED / VERIFIED. `boat.rs` `tick_bubble_column` (429),
+  `on_above_bubble_column` (647), `on_inside_bubble_column` (700),
+  `bubble_column_vertical_velocity` (976), called from `tick`. Matches vanilla
+  `world/entity/vehicle/boat/AbstractBoat.java:165-184` (onAboveBubbleColumn), `:351-385`
+  (tickBubbleColumn), `:399-407` (handleBubbleColumnEffect). Unit test present.
+- #4 (chest contents vs gamerule) FIXED / VERIFIED. `scatter_chest_contents` (272) runs from
+  `on_removed` and from `damage_with_context` before the entity_drops gate via `claim_drops`.
+  Matches vanilla `world/entity/vehicle/boat/AbstractChestBoat.java:71-77` (remove ->
   Containers.dropContents regardless of doEntityDrops).
-- #5 (double boat drop) FIXED / VERIFIED.`vehicle.rs:27``has_entity_loot_table`returns
- `entity_type.boat.is_none()`, skipping the`minecraft:entities/<type>`roll; the only drop is
-  hardcoded in`boat.rs`. Matches vanilla`world/entity/vehicle/boat/AbstractBoat.java:862`
-  (getDropItem) and`AbstractChestBoat.java:65-68`(destroy).
+- #5 (double boat drop) FIXED / VERIFIED. `vehicle.rs:27` `has_entity_loot_table` returns
+  `entity_type.boat.is_none()`, skipping the `minecraft:entities/<type>` roll; the only drop is
+  hardcoded in `boat.rs`. Matches vanilla `world/entity/vehicle/boat/AbstractBoat.java:862`
+  (getDropItem) and `AbstractChestBoat.java:65-68` (destroy).
 - #6 (fluid current push) VERIFIED (authorised-on-divergence row; no divergence observed).
- `boat.rs``tick`(599-603) applies`base_tick`(fluid push) to empty and mob-ridden boats and
- `base_tick_without_fluid_push`only to player-steered boats, whose velocity is zeroed (612-618).
-  Matches vanilla`world/entity/Entity.java``baseTick`pushing every boat; the server push is
+  `boat.rs` `tick` (599-603) applies `base_tick` (fluid push) to empty and mob-ridden boats and
+  `base_tick_without_fluid_push` only to player-steered boats, whose velocity is zeroed (612-618).
+  Matches vanilla `world/entity/Entity.java` `baseTick` pushing every boat; the server push is
   unobservable for a client-authoritative boat. No change.
 - Paddle handler (`net/java/play/paddle_boat.rs`) FIXED / VERIFIED (parity). Checks the immediate
   vehicle (`get_vehicle`), that its controlling passenger is the sender by unique entity id,
-  downcasts to`BoatEntity`, then calls`set_paddle_state`. Matches vanilla
- `server/network/ServerGamePacketListenerImpl.java:2464-2469`(handlePaddleBoat),
- `world/entity/Entity.java:6661-6663`(getControlledVehicle) and
- `world/entity/vehicle/boat/AbstractBoat.java:845-847`(getControllingPassenger), with Pumpkin
- `boat.rs:526`(get_controlling_passenger) and`boat.rs:853`(set_paddle_state).
+  downcasts to `BoatEntity`, then calls `set_paddle_state`. Matches vanilla
+  `server/network/ServerGamePacketListenerImpl.java:2464-2469` (handlePaddleBoat),
+  `world/entity/Entity.java:6661-6663` (getControlledVehicle) and
+  `world/entity/vehicle/boat/AbstractBoat.java:845-847` (getControllingPassenger), with Pumpkin
+  `boat.rs:526` (get_controlling_passenger) and `boat.rs:853` (set_paddle_state).
   Network glue, no pure-logic seam for a unit test.
 
-No generated`pumpkin-data`field or missing subsystem is involved. No source edits: zero new
+No generated `pumpkin-data` field or missing subsystem is involved. No source edits: zero new
 fixes this pass, zero rows left open.
 
 Status: PASS fixed=0 open=0 files=docs/tracker/tentities-bamboo-chest-raft.md
