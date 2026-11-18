@@ -193,3 +193,48 @@ New evidence re-confirming the prior verdicts:
 No STILL OPEN row has a small, type-safe fix confined to dynamic_registry_loader.rs,
 dynamic_registry_manager.rs, known_packs.rs or packet.rs. No rustfmt run because no .rs file
 was modified.
+
+## Result (sweep 2026-11-18, direct decompiled-source read of all three source files)
+
+Re-read all four named files end to end and verified each STILL OPEN row directly against the
+26.3 decompiled tree at `.vendor/vanilla-decompiled/net/minecraft/resources/`. No .rs file was
+changed: no remaining row has a small, type-safe fix inside this unit's files. `packet.rs` is
+`plugin/api/events/server/packet.rs` (plugin `PacketSentEvent` definitions), unrelated to every
+gap.
+
+- Gap 1 (codec validation of datapack entries): LEFT OPEN, needs generated per-element codec
+  data. `RegistryLoadTask.PendingRegistration.loadFromResource` (RegistryLoadTask.java:98-109)
+  parses each entry via `data.elementCodec().parse(RegistryOps<JsonElement>, json)` and records
+  `Either.right(error)` on failure; `json_to_registry_nbt_bytes`
+  (dynamic_registry_loader.rs:191-205) emits structurally valid NBT with no schema, so a
+  "decode NBT" stopgap cannot detect a schema-invalid entry (e.g. a painting_variant without
+  `asset_id`). Rejecting such entries needs the DIRECT/NETWORK codecs, generated data only.
+
+- Gap 2 (override semantics): RESOLVED, no code change (verified in source this pass).
+  `FileToIdConverter.listMatchingResources` (FileToIdConverter.java:44-46) delegates to
+  `ResourceManager.listResources` and returns `Map<Identifier, Resource>` — one resource per id,
+  highest-priority pack winning (contrast `listMatchingResourceStacks`, :48-50). Entries are
+  registered in sorted-key order (ResourceManagerRegistryLoadTask.java:63-65). A datapack file
+  sharing a vanilla id therefore replaces it outright while keeping its resource key and raw
+  id. `merge_dynamic_registry_entries` (dynamic_registry_loader.rs:344-401) already replaces
+  overrides in place (keeping entry_id/index) and appends only new ids sorted by entry_id;
+  `merge_preserves_and_appends` (:533-569) locks this in. No new test needed.
+
+- Gap 3 (cross-entry validation): LEFT OPEN, needs generated reference/validator schema.
+  `RegistryOps.create(JsonOps.INSTANCE, context)` (ResourceManagerRegistryLoadTask.java:47)
+  resolves holder references while decoding and `RegistryLoadTask.validateRegistry`
+  (RegistryLoadTask.java:86-95) fails the whole reload on a dangling reference or validator
+  error (`nonEmpty`). Pumpkin has no map of which JSON fields are cross-registry references
+  (dimension_type->biome, enchantment->damage_type, ...) or which registries are `nonEmpty`, so
+  this requires generated codec metadata outside these files.
+
+- Gap 4 (reload cost): LEFT OPEN, cross-crate API change and not observable parity.
+  The per-join path is already Arc-backed: `get_synced_registries`
+  (dynamic_registry_manager.rs:271-293) Arc-clones `SyncedRegistry.entries`, so
+  `known_packs.rs:9-15` reuses entry storage across joins without deep copies. The remaining
+  clones in `get_registry_entries`/`get_all_entry_ids`/`get_entry_data` are lookup helpers whose
+  return types are consumed in other files; changing them to borrowed slices is a cross-crate
+  refactor, deferred.
+
+No STILL OPEN row is fixable with a small change confined to dynamic_registry_loader.rs,
+dynamic_registry_manager.rs, known_packs.rs or packet.rs. No rustfmt run: no .rs file modified.
