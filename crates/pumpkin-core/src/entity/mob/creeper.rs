@@ -277,6 +277,12 @@ impl Mob for CreeperEntity {
         caller: &dyn EntityBase,
         lightning: &crate::entity::lightning::LightningBoltEntity,
     ) {
+        // Vanilla `Creeper.thunderHit` runs `super.thunderHit` before the Paper CreeperPowerEvent,
+        // so base lightning damage/fire applies even when the event is later cancelled.
+        self.mob_entity
+            .living_entity
+            .on_lightning_strike(caller, lightning);
+
         let entity = &self.mob_entity.living_entity.entity;
         let mut event = crate::plugin::api::events::entity::creeper_power::CreeperPowerEvent::new(
             entity.entity_id,
@@ -289,9 +295,6 @@ impl Mob for CreeperEntity {
         if !event.cancelled {
             self.set_charged(true);
         }
-        self.mob_entity
-            .living_entity
-            .on_lightning_strike(caller, lightning);
     }
 
     fn mob_tick(&self, caller: &dyn EntityBase) {

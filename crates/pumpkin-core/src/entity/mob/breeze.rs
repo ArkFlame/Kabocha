@@ -136,6 +136,11 @@ impl Mob for BreezeEntity {
         30.0
     }
 
+    /// Vanilla `Breeze.getHeadRotSpeed`: the head turns toward a target at 25 degrees per tick.
+    fn get_max_look_yaw_change(&self) -> f32 {
+        25.0
+    }
+
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
     }
@@ -189,7 +194,9 @@ impl Mob for BreezeEntity {
 
 #[cfg(test)]
 mod tests {
-    use super::advance_whirl_countdown;
+    use super::*;
+    use crate::entity::ai::test_support::world;
+    use pumpkin_util::math::vector3::Vector3;
     use std::cell::Cell;
 
     #[test]
@@ -211,5 +218,19 @@ mod tests {
         );
         // Randomness is drawn only when a new interval starts (ticks 1 and 5 of 8).
         assert_eq!(rolls.get(), 2);
+    }
+
+    #[tokio::test]
+    async fn head_rot_speed_matches_vanilla_breeze() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let breeze = BreezeEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::BREEZE,
+        ));
+        assert_eq!(breeze.get_max_look_yaw_change(), 25.0);
+        world.level.shutdown().await;
+        Ok(())
     }
 }

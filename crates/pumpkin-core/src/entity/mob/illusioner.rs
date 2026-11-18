@@ -217,7 +217,7 @@ impl Raider for IllusionerEntity {
     }
 
     fn get_celebrate_sound(&self) -> Sound {
-        Sound::EntityEvokerCelebrate
+        Sound::EntityIllusionerAmbient
     }
 }
 
@@ -328,6 +328,16 @@ impl Goal for IllusionerMirrorSpellGoal {
             illusioner
                 .illusions_until_tick
                 .store(tick + ILLUSION_LIFETIME, Ordering::Relaxed);
+            // Vanilla: performSpellCasting adds INVISIBILITY for 1200 ticks.
+            illusioner.mob_entity.living_entity.add_effect(Effect {
+                effect_type: &StatusEffect::INVISIBILITY,
+                duration: ILLUSION_LIFETIME,
+                amplifier: 0,
+                ambient: false,
+                show_particles: true,
+                show_icon: true,
+                blend: false,
+            });
             illusioner
                 .mob_entity
                 .living_entity
@@ -376,7 +386,8 @@ impl Goal for IllusionerBlindnessSpellGoal {
         }
         let entity = &illusioner.mob_entity.living_entity.entity;
         let difficulty = entity.world.load().level_info.load().difficulty;
-        if !matches!(difficulty, Difficulty::Normal | Difficulty::Hard) {
+        // Vanilla: getCurrentDifficultyAt().isHarderThan(Difficulty.NORMAL.ordinal()) - Hard only.
+        if difficulty != Difficulty::Hard {
             return false;
         }
         illusioner
@@ -400,6 +411,9 @@ impl Goal for IllusionerBlindnessSpellGoal {
                 .living_entity
                 .entity
                 .play_sound(Sound::EntityIllusionerPrepareBlindness);
+            if let Some(target) = illusioner.mob_entity.get_target() {
+                self.last_target_id = target.get_entity().entity_id;
+            }
         }
     }
 
@@ -425,7 +439,6 @@ impl Goal for IllusionerBlindnessSpellGoal {
                     blend: false,
                 });
             }
-            self.last_target_id = target.get_entity().entity_id;
         }
     }
 
