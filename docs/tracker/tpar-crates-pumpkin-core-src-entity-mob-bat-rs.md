@@ -6,7 +6,7 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-bat** [partial/OWN-OPEN] own audit: 3 open, 5 fixed, 0 verified, 0 blocked-data (docs/tracker/tentities-bat.md) docs/tracker/tentities-bat.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+See the final `## Result (third pass, final)` section below; all rows are closed.
 
 
 ## Result (third pass, final)

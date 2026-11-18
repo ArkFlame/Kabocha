@@ -7,7 +7,7 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/taudit-crates-pumpkin-core-src-entity-dec** [partial/OWN-OPEN] own audit: 8 open, 12 fixed, 0 verified, 0 blocked-data (docs/tracker/taudit-crates-pumpkin-core-src-entity-dec.md) docs/tracker/taudit-crates-pumpkin-core-src-entity-dec.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field. See the final Result section below for all row statuses.
 
 
 ## Result (THIRD PASS final - 2026-11-18)
