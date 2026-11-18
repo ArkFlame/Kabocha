@@ -18,3 +18,19 @@ All rows closed against decompiled vanilla at `.vendor/vanilla-decompiled/net/mi
 - Row 6 VERIFIED: vanilla clamps `explosion_power` with `Mth.clamp(..., 0.0F, 128.0F)` at `PrimedTnt.java:188`; Pumpkin uses `.clamp(0.0, 128.0)` at `entity/tnt.rs:169`, so the "unclamped" premise is false.
 - Row 7 FIXED (earlier pass): `TNTBlock::prepare` fires `ExplosionPrimeEvent` with `tnt.power()` and applies a plugin-modified radius back with `set_power` (`block/blocks/tnt.rs:97-116`), matching `PrimedTnt.explode` using `event.getRadius()`/`event.getFire()` at `PrimedTnt.java:153-167`.
 - Row 8 VERIFIED: vanilla gates detonation on `GameRules.TNT_EXPLODES` inside `PrimedTnt.explode` (`PrimedTnt.java:151`); Pumpkin checks it at `entity/tnt.rs:212`, so the "ignition-only" premise is false.
+
+
+## Result (final pass)
+
+Fresh verification of the live sources against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/item/PrimedTnt.java` and `.vendor/vanilla-decompiled/net/minecraft/world/level/block/TntBlock.java` (Paper/CraftBukkit, protocol V_26_3). Every row ends closed; no source change was needed because each fix is already present and correctly wired. No placeholder `STILL OPEN until closed` line existed to replace.
+
+- Row 1 FIXED: `entity/tnt.rs:182` gates gravity on `!entity.has_no_gravity()`, matching `PrimedTnt.tick` -> `applyGravity` (PrimedTnt.java:107-110).
+- Row 2 FIXED: `entity/tnt.rs:68-70` replaces the stale TODOs with the `usedPortal`/`block_state` reasoning.
+- Row 3 FIXED: `used_portal` (`tnt.rs:75,147-150`) set via the `on_changed_dimension` hook (`entity/mod.rs:321`) called from `World::transfer_entity` (`world/mod.rs:6640`), `tick_portal` at `tnt.rs:178`, and `UsedPortalDamageCalculator` passed through `explode_from_with_calculator` at `tnt.rs:217-224`. Matches `PrimedTnt.USED_PORTAL_DAMAGE_CALCULATOR` (PrimedTnt.java:50-62) selected in `explode` (PrimedTnt.java:162) after `postChangeDimension` (PrimedTnt.java:239-244). The `ignoreExplosion` premise is false: decompiled `PrimedTnt` declares no such override, so no cross-dimension chain immunity exists.
+- Row 4 FIXED: `fuse_from_nbt` (`tnt.rs:63-66`) falls back to `DEFAULT_FUSE` (80), matching `input.getShortOr("fuse", (short)80)` (PrimedTnt.java:186); covered by `missing_fuse_tag_uses_default_fuse` and `stored_fuse_is_read_and_negative_is_clamped` (`tnt.rs:288-300`).
+- Row 5 VERIFIED: `EntityReference.store`/`read` (PrimedTnt.java:181,189) matches `owner.write_nbt`/`read_nbt` (`tnt.rs:160,171`; `owner.rs:86-98`).
+- Row 6 VERIFIED: `Mth.clamp(getFloatOr("explosion_power", 4.0F), 0.0F, 128.0F)` (PrimedTnt.java:188) matches `.clamp(0.0, 128.0)` (`tnt.rs:169`).
+- Row 7 FIXED: `TNTBlock::prepare` (`block/blocks/tnt.rs:97-116`) fires `ExplosionPrimeEvent` with `tnt.power()` and feeds back `prime_event.radius` via `set_power`, matching `event.getRadius()`/`getFire()` (PrimedTnt.java:153-167).
+- Row 8 VERIFIED: vanilla gates detonation on `GameRules.TNT_EXPLODES` inside `PrimedTnt.explode` (PrimedTnt.java:151); Pumpkin checks at `tnt.rs:212`, so the ignition-only premise is false.
+
+No `.rs` file was edited this pass, so no rustfmt run and no new unit test (all pure seams are already covered; the portal damage calculator needs a live `World`/`Explosion`). Compilation is deferred to the orchestrator batch check.
