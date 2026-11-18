@@ -25,7 +25,7 @@ Remaining gaps:
 
 
 ## Status (h3 sweep)
-- Row 1 (no occlusion test for `#occludes_vibrations`): STILL OPEN (no occlusion check found in sculk_sensor.rs; not changed).
+- Row 1 (no occlusion test for `#occludes_vibrations`): FIXED and VERIFIED - `world/game_event.rs::is_occluded` (`:139-152`), called by `SculkSensorBlock::on_vibration` (`sculk_sensor.rs:100`), matches decompiled `VibrationSystem.java:270-283` (h3 sweep note was stale; fix was already present).
 - Row 2 (comparator output only while Active): FIXED (UNVERIFIED): `get_comparator_output` returns 0 unless the phase is Active (`sculk_sensor.rs:309-313`).
 
 
