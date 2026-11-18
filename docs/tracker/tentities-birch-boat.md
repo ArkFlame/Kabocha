@@ -300,3 +300,54 @@ and contains no boat code, so no source edit was applicable here.
 No `.rs` file changed, so no rustfmt and no unit test (no source seam in
 `place_on_water.rs` for any boat row). Risk: none, verification/docs only.
 All previously STILL OPEN rows now have a terminal status in `## Gap status`.
+
+
+## Result (FINAL PASS - all rows closed 2026-11-18)
+
+Definitive disposition of all seven rows, verified directly against decompiled
+vanilla at `.vendor/vanilla-decompiled/net/minecraft/` (MC 26.3); every vanilla
+path cited below is relative to that directory. This section supersedes the
+earlier re-review Results. The only source file in this unit,
+`item/items/place_on_water.rs`, implements `PlaceOnWaterBlockItem` for
+LILY_PAD/FROGSPAWN only (`ids()`, line 25) and contains no boat code, so no
+source edit applies here. Every row is now terminal (FIXED in Pumpkin or
+VERIFIED as already matching vanilla); no generated `pumpkin-data` field or
+missing subsystem is involved, so there are no BLOCKED-DATA rows.
+
+- 1 FIXED: `tick_underwater` gates the bubble counter on
+  `BoatStatus::is_underwater()` (from `boat/physics.rs`), matching vanilla
+  `Boat.updateBubbleTime` and its `!isUnderWater()` bubble guard
+  (`world/entity/vehicle/boat/AbstractBoat.java:174,857,873`). No change.
+- 2 VERIFIED (not a gap): chest-boat destroy writes no container component.
+  `VehicleEntity.destroy` (`world/entity/vehicle/VehicleEntity.java:94-101`)
+  sets only `CUSTOM_NAME` on the drop stack; `AbstractChestBoat.destroy`
+  (`world/entity/vehicle/boat/AbstractChestBoat.java:65-68`) scatters the 27
+  slots via `chestVehicleDestroyed`. Pumpkin's named-drop plus
+  `scatter_chest_contents` path already matches. No change.
+- 3 VERIFIED (not a gap): boat placement reads no container component.
+  `BoatItem.getBoat` (`world/item/BoatItem.java:93-104`) calls only
+  `EntityType.createDefaultStackConfig(...).apply(boat)`; base
+  `Entity.applyImplicitComponent` (`world/entity/Entity.java:7239-7249`) handles
+  only `CUSTOM_NAME` and `CUSTOM_DATA`, and no boat class overrides it. Boat
+  placement lives in `item/items/boat.rs`, not this unit's `place_on_water.rs`.
+  No change.
+- 4 FIXED: server-side leash contract is present in `boat.rs` (drop_leash,
+  tick_leash, get_leash_holder, support_quad_leash). Vanilla
+  `AbstractBoat implements Leashable` (`world/entity/vehicle/boat/AbstractBoat.java:54`,
+  leash data :428-435, `supportQuadLeash()` :443-449). `getLeashOffset` (:438-440)
+  is render-only; no server hook is needed. No change.
+- 5 VERIFIED (not a gap): there is no server-side paddle path in vanilla.
+  `AbstractBoat.tick` calls `controlBoat()` only inside `isClientSide()`
+  (`world/entity/vehicle/boat/AbstractBoat.java:268-269`). Buoyancy/friction,
+  `move_boat` and `VehicleMoveEvent` already live in Pumpkin's `boat/physics.rs`.
+  No change.
+- 6 FIXED: `damage_with_context` early-outs on `is_removed()` then
+  `is_invulnerable_to()`, mirroring vanilla `VehicleEntity.hurtServer`
+  (`world/entity/vehicle/VehicleEntity.java:35-42`). No change.
+- 7 FIXED: `interact` returns the `add_passenger` result, matching vanilla's
+  consume-action gate in `AbstractBoat.interact`
+  (`world/entity/vehicle/boat/AbstractBoat.java:784`). No change.
+
+No `.rs` file changed, so no rustfmt was run and no unit test was added (no
+test seam exists in `place_on_water.rs` for any boat behaviour). Risk: none,
+verification/docs only. All rows are closed.
