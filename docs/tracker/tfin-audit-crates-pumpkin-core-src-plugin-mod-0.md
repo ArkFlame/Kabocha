@@ -2,16 +2,14 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-Re-checked the only STILL OPEN row against the Paper reference recorded above
-Re-checked every row. The `Gapwave2-2 status (h3)` STILL OPEN markers are stale:
-Re-verified all three rows against the current source; no STILL OPEN markers remain.
-No source edit needed this pass (all fixes and tests present); only stale STILL OPEN
+Historical pass notes: earlier passes re-checked the rows against the Paper reference,
+found the h3 status markers stale, and re-verified all three rows against the source.
 
 ## Result
 FINAL PASS - all three rows re-verified against the current source and decompiled
 vanilla where a counterpart exists. Vanilla has no plugin/event system, so Paper
 CommandMap.unregister / HandlerList.bake()+fire() / ComplexEventListener are the
-behavioural reference for the event rows. No STILL OPEN markers remain.
+behavioural reference for the event rows. Every row is closed below.
 
 | Row | Result |
 |---|---|
