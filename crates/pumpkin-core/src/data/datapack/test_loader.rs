@@ -124,7 +124,7 @@ pub fn to_registry_entry(entry_id: String, instance: &TestInstance) -> RegistryE
     // TestData.CODEC encodes dimension with optionalFieldOf(Level.OVERWORLD); DFU still writes
     // defaulted optional fields during encode, so the canonical payload carries the id. Pumpkin's
     // model has no dimension field and every test runs in the default overworld.
-    nbt.put_string("dimension", "minecraft:overworld");
+    nbt.put_string("dimension", "minecraft:overworld".to_string());
     if let Some(function) = &instance.function {
         nbt.put_string("function", function.clone());
     }
