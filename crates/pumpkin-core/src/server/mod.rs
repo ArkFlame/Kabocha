@@ -14,6 +14,7 @@ use crate::plugin::server::server_broadcast::ServerBroadcastEvent;
 use crate::server::tick_rate_manager::ServerTickRateManager;
 use crate::world::WorldPortal;
 use crate::world::custom_bossbar::CustomBossbars;
+use crate::world::scoreboard::Scoreboard;
 use crate::world::weather::{SharedWeatherData, WeatherData, WeatherSetup};
 use crate::world::weather_profile::{
     DEFAULT_WEATHER_PROFILE, WeatherCycle, WeatherProfile, WeatherProfiles, WorldWeatherSettings,
@@ -205,6 +206,8 @@ pub struct Server {
 
     // world stuff which maybe should be put into a struct
     pub level_info: Arc<ArcSwap<LevelData>>,
+    /// The single scoreboard shared by every world, matching vanilla's server-wide scoreboard.
+    pub scoreboard: Arc<std::sync::Mutex<Scoreboard>>,
     /// The weather cycle every world follows.
     pub weather_data: SharedWeatherData,
     /// Weather profiles, loaded from `<world>/weather_profiles` and registered by plugins.
@@ -436,6 +439,7 @@ impl Server {
             player_idle_timeout: AtomicI32::new(0),
             mojang_public_keys: ArcSwap::from_pointee(Vec::new()),
             world_info_writer: Arc::new(AnvilLevelInfo),
+            scoreboard: Arc::new(std::sync::Mutex::new(Scoreboard::default())),
             weather_data,
             weather_profiles,
             level_info,
@@ -518,7 +522,7 @@ impl Server {
             );
             let config = Arc::new(server.advanced_config.world.clone());
             let level = into_level(dim.clone(), &config, world_path.clone(), seed);
-            let world = Arc::new(World::load(
+            let mut world = World::load(
                 level.clone(),
                 server.level_info.clone(),
                 dim.clone(),
@@ -528,7 +532,9 @@ impl Server {
                     ..WeatherSetup::default()
                 },
                 Arc::downgrade(&server),
-            ));
+            );
+            world.scoreboard = server.scoreboard.clone();
+            let world = Arc::new(world);
             let portal: Arc<dyn WorldPortalExt> = Arc::new(WorldPortal(world.clone()));
             level.world_portal.store(Arc::new(Some(portal)));
             worlds_vec.push(world);
@@ -652,13 +658,10 @@ impl Server {
         use pumpkin_world::world_info::data_files::{minecraft_data_dir, read_saved_data};
 
         if let Some(data) = read_saved_data(world_path, SCOREBOARD_FILE) {
-            for world in self.worlds.load().iter() {
-                world
-                    .scoreboard
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .load_saved_nbt(&data);
-            }
+            self.scoreboard
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .load_saved_nbt(&data);
         }
 
         if let Some(data) = read_saved_data(world_path, SCHEDULED_EVENTS_FILE) {
@@ -904,7 +907,7 @@ impl Server {
                 Arc::new(std::sync::Mutex::new(data))
             }
         };
-        let world: World = World::load(
+        let mut world: World = World::load(
             level.clone(),
             l_info,
             dimension,
@@ -916,6 +919,7 @@ impl Server {
             },
             weak,
         );
+        world.scoreboard = self.scoreboard.clone();
         let world = Arc::new(world);
         let portal: Arc<dyn WorldPortalExt> = Arc::new(WorldPortal(world.clone()));
         level.world_portal.store(Arc::new(Some(portal)));

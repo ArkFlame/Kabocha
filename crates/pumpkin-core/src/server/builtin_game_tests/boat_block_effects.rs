@@ -274,3 +274,60 @@ pub(super) async fn test_chest_boat_scatters_27_slots_on_break(
         .then_succeed();
     Ok(())
 }
+
+/// Breaking an acacia chest boat scatters its stored slots and drops the acacia chest boat
+/// item itself. Vanilla `AbstractChestBoat.destroy` runs both `destroy(level, dropItem)` and
+/// `chestVehicleDestroyed`; the creative instabuild gate is covered by the pure
+/// `drops_item_when_destroyed` unit test because gametests have no player entity.
+pub(super) async fn test_acacia_chest_boat_contents_and_item_drop(
+    helper: GameTestHelper,
+) -> GameTestResult<()> {
+    build_stone_floor(&helper, 5, 5).await?;
+
+    // Entity inventories have no gametest helper, so fill three slots through summon NBT.
+    let mut items = String::from("Items:[");
+    for slot in 0..3 {
+        if slot > 0 {
+            items.push(',');
+        }
+        items.push_str(&format!("{{Slot:{slot}b,id:\"minecraft:diamond\"}}"));
+    }
+    items.push(']');
+    let summon = format!("summon minecraft:acacia_chest_boat ~2 ~2 ~2 {{{items}}}");
+    helper
+        .execute_command(&BlockPos::new(0, 0, 0), &summon)
+        .await?;
+
+    let break_pos = BlockPos::new(2, 2, 2);
+    helper
+        .start_sequence()
+        .then_execute(move |helper| async move {
+            helper
+                .assert_entity_present("minecraft:acacia_chest_boat")
+                .await
+        })
+        .then_execute(move |helper| async move {
+            helper
+                .execute_command(
+                    &break_pos,
+                    "damage @e[type=minecraft:acacia_chest_boat,distance=..4,limit=1] 100",
+                )
+                .await
+                .map(|_| ())
+        })
+        .then_wait_until(move |helper| async move {
+            helper
+                .assert_entity_not_present("minecraft:acacia_chest_boat")
+                .await?;
+            // AbstractChestBoat.chestVehicleDestroyed drops every filled slot.
+            helper
+                .assert_item_entity_count("minecraft:diamond", &break_pos, 3.0, 3)
+                .await?;
+            // AbstractBoat.destroy spawns the matching chest-boat item on a survival break.
+            helper
+                .assert_item_entity_present("minecraft:acacia_chest_boat", &break_pos, 3.0)
+                .await
+        })
+        .then_succeed();
+    Ok(())
+}
