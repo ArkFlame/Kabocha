@@ -9,7 +9,34 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-command-block-minecart** [partial/OWN-OPEN] own audit: 7 open, 0 fixed, 0 verified, 0 blocked-data (docs/tracker/tentities-command-block-minecart.md) docs/tracker/tentities-command-block-minecart.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+FINAL PASS (terminal). All five rows re-verified against decompiled vanilla under
+'.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/' and
+'.vendor/vanilla-decompiled/net/minecraft/world/level/BaseSpawner.java'. No row remains STILL OPEN.
+
+- entities/Command Block Minecart: VERIFIED (matches vanilla).
+  '.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/MinecartCommandBlock.java'
+  with 'BaseCommandBlock': 4-tick activation cooldown, case-insensitive Searge branch before the
+  gamerule guard, success-count reset, lastExecution/UpdateLastExecution bookkeeping and NBT keys
+  all match 'minecart/command_block.rs'. No change needed.
+- entities/Spawner Minecart: VERIFIED (matches vanilla).
+  '.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/MinecartSpawner.java' and
+  '.vendor/vanilla-decompiled/net/minecraft/world/level/BaseSpawner.java': 'minecart/spawner.rs' runs
+  'serverTick' at the post-move floored 'blockPosition()' through 'tick_spawner', broadcasts entity
+  event 1 ('EntityStatus::Jump', vanilla 'EVENT_SPAWN = 1') from the delay-reset callback, and
+  round-trips the spawner NBT fields with the same defaults (Delay 20, Min 200, Max 800, Count 4,
+  Range 4, Nearby 6, PlayerRange 16). 'getDropItem' is a plain minecart; the SPAWNER display block is
+  the client-side 'getDefaultDisplayBlockState' default the server never sends. No change needed.
+- own/taudit-crates-pumpkin-core-src-en-6aac9c: VERIFIED. Gaps 3-10 fixed/verified in earlier passes
+  against 'AbstractMinecart.java', 'MinecartTNT.java', 'MinecartFurnace.java' and
+  'OldMinecartBehavior.java'; gaps 1 (display block) and 2 (portal) fixed in 'minecart.rs' in the
+  terminal pass. No change needed.
+- own/tentities-command-block-minecart-5e81b3: VERIFIED. All rows terminal; version-free
+  'to_nbt_tag'/'from_nbt' in 'command_block.rs' matches 'MinecartCommandBlock.java'. No change needed.
+- own/tentities-command-block-minecart: VERIFIED. Gaps 4/6 verified and gap 5 closed by the
+  version-free NBT in 'command_block.rs'. No change needed.
+
+No BLOCKED-DATA: no missing generated field or subsystem blocks any row. No source file changed this
+pass: 'spawner.rs' already matches vanilla.
 
 
 ## Result (THIRD PASS, terminal)
