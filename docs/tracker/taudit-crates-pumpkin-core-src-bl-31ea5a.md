@@ -172,3 +172,58 @@ client-only concern.
 No .rs files touched, so no rustfmt run. Cannot compile in this CODER role.
 
 Status: PASS fixed=0 open=0 files=none
+
+
+## Result
+
+Audit pass 6 (2026-11-18). Re-verified the three rows marked STILL OPEN plus the two
+ALREADY FIXED (UNVERIFIED) rows directly against the decompiled vanilla sources. No `.rs`
+source changes were needed.
+
+- `entities/jukebox.rs` tick particle order/payload (STILL OPEN): verified correct, no change.
+  `JukeboxSongPlayer.tick` (JukeboxSongPlayer.java:64-77) emits JUKEBOX_PLAY + particles while
+  `ticksSinceSongStarted % 20 == 0` BEFORE the increment; `spawnMusicParticles` (83-89) sends
+  count 0, offset `(nextInt(4)/24.0, 0, 0)`, speed 1.0 at bottom-center +1.2Y. Pumpkin's `tick`
+  (102-133) and `note_particle_hue` (479-481) match exactly. `JukeboxSong.hasFinished` uses
+  `ticksElapsed >= lengthInTicks()+20` (JukeboxSong.java:50-52), matching `song_length_ticks`
+  and the `ticks >= song_length` stop check.
+- `entities/jukebox.rs` `chunk_data_nbt`/`write_nbt` ticks (STILL OPEN): verified already fixed.
+  `JukeboxBlockEntity.saveAdditional` (JukeboxBlockEntity.java:129-138) writes the ticks key only
+  while `getSong() != null`; Pumpkin gates it on `song_length_ticks > 0` (line 94) and
+  `chunk_data_nbt` reuses `write_nbt` (147-152). Tests cover both branches (passes 3-5).
+- `blocks/jukebox.rs:192` `on_state_replaced` delegation (STILL OPEN): verified correct, no change.
+  `JukeboxBlock.affectNeighborsAfterRemoval` (JukeboxBlock.java:79-82) only calls
+  `Containers.updateNeighboursAfterDestroy`; the record drop lives in
+  `JukeboxBlockEntity.preRemoveSideEffects -> popOutTheItem` (JukeboxBlockEntity.java:193-196),
+  mapped to `JukeboxBlockEntity::on_block_replaced`. No double drop. `popOutTheItem`'s
+  `offsetRandomXZ(random, 0.7F)` (line 94) matches Pumpkin's `random_range(-0.35..0.35)` (184-186).
+- Re-confirmed the two ALREADY FIXED (UNVERIFIED) rows: `set_record` calls `stop_playing` (231)
+  and `can_transfer_to` checks empty-or-fitting-partial (423-429). Both correct.
+
+Out of scope (not a tracker STILL OPEN row, one-line reason): Bedrock block-actor data dropping
+item components (`build_jukebox_actor` 455-476) needs Bedrock component-serialization format work
+and is a client-only concern.
+
+No .rs files touched, so no rustfmt run. Cannot compile in this CODER role.
+
+Status: PASS fixed=0 open=0 files=none
+
+## Result
+
+Audit pass 7 (2026-11-18). Final verification of all rows marked STILL OPEN and ALREADY FIXED (UNVERIFIED) against decompiled vanilla sources in `.vendor/vanilla-decompiled/net/minecraft/`. No `.rs` source changes were needed - all behaviour matches vanilla exactly.
+
+- `entities/jukebox.rs` tick particle order/payload (was STILL OPEN): verified correct, no change. `JukeboxSongPlayer.tick` (JukeboxSongPlayer.java:64-77) emits JUKEBOX_PLAY + particles while `ticksSinceSongStarted % 20 == 0` BEFORE the increment; `spawnMusicParticles` (lines 83-89) sends count 0, offset `(nextInt(4)/24.0, 0, 0)`, speed 1.0 at `pos+0.5,+1.2,+0.5`. Pumpkin's `tick` (102-133) and `note_particle_hue` (479-481) match exactly. `JukeboxSong.hasFinished` uses `ticksElapsed >= lengthInTicks()+20` (JukeboxSong.java:50-52), matching `song_length_ticks` and the `ticks >= song_length` stop check.
+
+- `entities/jukebox.rs` `chunk_data_nbt`/`write_nbt` ticks (was STILL OPEN): already fixed. `JukeboxBlockEntity.saveAdditional` (JukeboxBlockEntity.java:129-138) writes the ticks key only while `getSong() != null`; Pumpkin gates it on `song_length_ticks > 0` (line 94) and `chunk_data_nbt` reuses `write_nbt` (147-152). Tests `write_nbt_omits_ticks_since_song_started_when_stopped`, `write_nbt_writes_ticks_since_song_started_while_playing` and `chunk_data_nbt_omits_ticks_when_stopped` cover both branches (passes 3-5).
+
+- `blocks/jukebox.rs:192` `on_state_replaced` delegation (was STILL OPEN): verified correct, no code change. Vanilla `JukeboxBlock.affectNeighborsAfterRemoval` (JukeboxBlock.java:79-82) only calls `Containers.updateNeighboursAfterDestroy`; the record drop lives in `preRemoveSideEffects -> popOutTheItem` (JukeboxBlockEntity.java:193-196), mapped to `JukeboxBlockEntity::on_block_replaced`. No double drop. `popOutTheItem's `offsetRandomXZ(random, 0.7F)` (line 94) matches Pumpkin's `random_range(-0.35..0.35)` (184-186).
+
+- Re-confirmed the two ALREADY FIXED (UNVERIFIED) rows: `set_record` calls `stop_playing` (line 231) and `can_transfer_to` checks empty-or-fitting-partial (423-429). Both correct.
+
+- Also closed the two pass-2 prose items that were never formally resolved: `set_stack` (356-402) matches `JukeboxBlockEntity.setTheItem` (HAS_RECORD derived from `!stack.is_empty()`, playback starts only when a `JukeboxPlayable` song is present, `stop_playing` called only in else branch, no unconditional stop sound) and `Clearable::clear` (443-450) mirrors `setTheItem(EMPTY)` -> `jukeboxSongPlayer.stop` (stops song and empties record, no behaviour gap reproduced).
+
+Left open (out of scope, one-line reason): Bedrock block-actor data dropping item components (`build_jukebox_actor` 455-476) needs Bedrock component-serialization format work and is a client-only concern.
+
+No `.rs` files touched, so no rustfmt run. Cannot compile in this CODER role.
+
+Status: PASS fixed=0 open=0 files=none

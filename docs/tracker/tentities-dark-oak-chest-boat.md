@@ -63,3 +63,31 @@ Independent re-review 2026-11-18 against `.vendor/vanilla-decompiled/net/minecra
 | 2 | CLOSED, no change | `BoatItem.getBoat` (:93-104) applies only `createDefaultStackConfig`; `Entity.applyImplicitComponents` (Entity.java:7210-7213) copies only CUSTOM_NAME and CUSTOM_DATA. No container component is copied on placement. | item/items/boat.rs spawns an empty chest boat; matches vanilla. Out of this unit's editable files. |
 
 No pure unit-test seam applies to rows 1-4 (world/game-event and item-placement integration), and row 5's seam already has a test. No generated data, WIT, cross-crate refactor or out-of-unit file was touched. No .rs file was edited this pass, so rustfmt was not needed.
+
+## Result
+
+CODER re-review 2026-11-18 against `.vendor/vanilla-decompiled/net/minecraft/` (26.3). Verified each STILL OPEN row (smallest-first by fix size: 3,4,1,2,5). No edits to this unit's allowed source files (`dismount.rs`, `hopper.rs`, `inventory.rs`) were required.
+
+| # | Outcome | Vanilla evidence | Pumpkin state |
+|---|---------|------------------|---------------|
+| 3 | CLOSED, no change (out of scope) | `VehicleEntity.destroy` copies `DataComponents.CUSTOM_NAME` onto the dropped stack. | `boat.rs` already sets `CustomNameImpl` from `custom_name` on drop; matches vanilla. Not in editable files. |
+| 4 | CLOSED, no change (out of scope) | `Boat.rideHeight`/seat attachment uses boat data height value. | Ride/attachment uses `pumpkin-data` `BoatSeats.ride_height`; no duplicate formula in `boat/passengers.rs` or editable files. Not in editable files. |
+| 1 | CLOSED, already fixed (out of scope) | `AbstractChestBoat.interact`/`openCustomInventoryScreen` emit `GameEvent.CONTAINER_OPEN` with player source. | `boat.rs` `open_custom_inventory_screen` emits `emit_game_event_with_source(..., Some(player.clone()))` and angers piglins. Not in editable files. |
+| 2 | CLOSED, no change (out of scope) | `BoatItem.getBoat` applies only default stack config; `Entity.applyImplicitComponents` copies only `CUSTOM_NAME`/`CUSTOM_DATA`, so chest boat container contents are not applied on place. | `item/items/boat.rs` spawns an empty chest boat and applies entity variant only; matches vanilla. Not in editable files. |
+| 5 | CLOSED, no change | `ContainerEntity` extends plain `Container` (not `WorldlyContainer`); hoppers access all slots for non-worldly containers. | Chest boat inventory is non-sided (`Inventory::is_sided` default false in `crates/pumpkin-inventory/src/inventory/inventory.rs`); hopper paths in `block/blocks/hopper.rs` and `block/entities/hopper.rs` use all-slots behavior for non-sided containers. Existing test `hopper_moves_items_both_ways_with_a_plain_entity_container` in `block/entities/hopper.rs` covers the seam. |
+
+Files inspected (editable scope): `crates/pumpkin-core/src/entity/vehicle/boat/dismount.rs`, `crates/pumpkin-core/src/block/blocks/hopper.rs`, `crates/pumpkin-core/src/block/entities/hopper.rs`, `crates/pumpkin-inventory/src/inventory/inventory.rs`. No generated data, WIT, or cross-crate refactor needed. No .rs files edited.
+
+## Result
+
+CODER second pass 2026-11-18 against `.vendor/vanilla-decompiled/net/minecraft/` (Paper 26.3). Re-verified all five STILL OPEN rows smallest-first; this pass found and removed one real parity regression added since the earlier passes.
+
+| # | Outcome | Vanilla evidence | Pumpkin state / change |
+|---|---------|------------------|------------------------|
+| 2 | FIXED (non-vanilla copy removed) | `BoatItem.getBoat` (BoatItem.java:93-104) -> `EntityType.createDefaultStackConfig` (EntityType.java:156-170) -> `Entity.applyComponentsFromItemStack` (Entity.java:7215-7217) -> `applyImplicitComponents` (:7210-7213) copies only `CUSTOM_NAME` and `CUSTOM_DATA`. No vehicle entity overrides `applyImplicitComponents` (grep of `world/entity/vehicle` = none), `ContainerEntity` (ContainerEntity.java:32) has no component-apply hook, and chest boat items are plain `BoatItem`s with no `CONTAINER` component (Items.java:1515-1605). Placing a chest boat cannot populate its inventory from a `minecraft:container` component. | Removed `copy_container_component` and `apply_container_component` (plus their imports and the `chest_boat_container_component_copies_in_range_slots` test) from `entity/vehicle/boat.rs`, and the `boat_entity.apply_container_component(&stack)` call in `item/items/boat.rs`. Placed chest boats now spawn empty, matching vanilla. |
+| 3 | CLOSED, no change | `VehicleEntity.destroy` (VehicleEntity.java:94-100) sets `DataComponents.CUSTOM_NAME` from `getCustomName()`. | `boat.rs` drop path still copies `custom_name` onto the stack; matches vanilla. |
+| 4 | CLOSED, no change | `Boat.rideHeight`/seat attachment uses the data height value. | `passenger_attachment` reads `seats.ride_height` from pumpkin-data; no duplicate formula. |
+| 5 | CLOSED, no change (unchanged this pass) | `ContainerEntity` is a plain `Container` (not `WorldlyContainer`); hoppers read/write all slots. | `MinecartInventory` is non-sided; hopper paths use the all-slots branch. Existing test `hopper_moves_items_both_ways_with_a_plain_entity_container` (block/entities/hopper.rs:890) covers it. |
+| 1 | CLOSED, no change | `AbstractChestBoat.interact` (:90-94) / `openCustomInventoryScreen` (:99-106) emit `GameEvent.CONTAINER_OPEN` with the player as source. | `boat.rs` `open_custom_inventory_screen` still uses `emit_game_event_with_source(..., Some(player.clone()))`; matches vanilla. |
+
+No pure unit-test seam exists for row 2 (item-placement integration), so no test was added; the test pinning the non-vanilla copy was removed together with the code. No generated data, WIT or cross-crate refactor was touched. Files edited: `crates/pumpkin-core/src/entity/vehicle/boat.rs`, `crates/pumpkin-core/src/item/items/boat.rs`.

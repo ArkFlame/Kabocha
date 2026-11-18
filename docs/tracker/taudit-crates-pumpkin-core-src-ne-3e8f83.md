@@ -87,3 +87,21 @@ in `player_action.rs` and matches vanilla:
 No source change needed, no test added (all logic lives in the async packet handler with no pure
 seam; a helper would be a discouraged formula-mirroring test). No generated data, WIT or
 cross-crate changes. `player_action.rs` was not touched this pass.
+
+
+## Result (fresh verification pass)
+
+No row in the "Remaining gaps" table is marked STILL OPEN, so there was nothing left to fix. Re-verified all four rows against decompiled vanilla
+`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayerGameMode.java`
+(`handleBlockBreakAction` lines 192-330, `abortDestroyBlock` lines 332-350). Every fix is already present in
+`crates/pumpkin-core/src/net/java/play/player_action.rs` and matches vanilla:
+
+| file:line | result | vanilla evidence |
+|---|---|---|
+| `player_action.rs:31` (height guard) | FIXED, present | `pos.getY() > maxY` + `ClientboundBlockUpdatePacket` (line 202) -> `position.0.y > world.get_top_y()` + `CBlockUpdate` at source lines 38-45 |
+| `player_action.rs:36` (spawn protection / `cannot_mine_block` ordering) | FIXED, present | `isUnderSpawnProtection` + message (lines 207-211) and `blockActionRestricted` before damage events (line 243) -> spawn-protection block at 47-61, `cannot_mine_block` at 63-73, both before the interaction events at 75-108 |
+| `player_action.rs:143` (abort other dig) | FIXED, present | `ClientboundBlockUpdatePacket(destroyPos)` before overwriting `destroyPos` (line 288) -> `set_block_breaking(old, Stop)` + `sync_block_state_to_client` at 168-183 |
+| `player_action.rs:190` (`CancelledDigging`) | FIXED, present | `abortDestroyBlock`: clear state, stop mismatched + reported pos (lines 332-346) -> `reset_mining()`, `BlockPos::ZERO`, two `Stop`s + resync at 231-252 |
+
+No source change needed. No test added: all four fixes live inside the async packet handler with no pure seam, so a helper test would be a discouraged
+formula-mirroring test. No generated data, WIT, or cross-crate changes. `player_action.rs` was not touched this pass.

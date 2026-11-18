@@ -90,3 +90,28 @@ Re-verified all STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraf
 - Row 3 STILL OPEN, out of scope: dead `compass_target` field/methods live in `entity/player.rs`.
 - Row 4 verified, no change needed in scope: it is a note, not a gap; RECOVERY_COMPASS kept under CompassItem for shared hooks as documented.
 - Row 5 STILL OPEN, out of scope: a gametest needs a new test file, not an allowed file. No pure unit-test seam in either in-scope file (`use_on_block` needs Player/Server/World; `execute` needs CommandContext), so no smallest pure unit test could be added.
+
+## Result
+
+Verified all STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/` this pass. Added one pure unit test in an in-scope file. No compile check (shell/cargo restricted for this worker).
+
+- In scope `pumpkin-command/src/argument_types/coordinates/block_pos.rs`: confirmed `is_valid_block_pos` (x/z `[-30M, 30M)`, y `[-20M, 20M)`) exactly matches vanilla `Level.isInSpawnableBounds` (Level.java:1107-1123: `isInWorldBoundsHorizontal` x/z >= -30M and < 30M, `isOutsideSpawnableHeight` y < -20M or >= 20M). Added the smallest pure boundary unit test (`spawnable_bounds_match_vanilla_is_in_spawnable_bounds`) covering the inclusive lower and exclusive upper edges on all three axes; no unwrap/expect/panic, `assert!` only. This is the pure seam prior passes overlooked; `use_on_block` and `execute` still have no pure seam.
+- In scope `setworldspawn.rs` `execute`: matches `SetWorldSpawnCommand.java:22-28` (self `BlockPos.containing` -> `floored_v`; both `pos` variants `getSpawnablePos` -> `get_spawnable_pos`; rotation `(pitch, yaw) = (rot.x, rot.y)` matches vanilla `yaw=Vec2.y, pitch=Vec2.x`). No change.
+- In scope `compass.rs` `use_on_block` (:25-76): matches `CompassItem.useOn` (CompassItem.java:46-69). The `item.item.id == COMPASS.id` guard keeps a recovery compass (vanilla plain `Item`) from acquiring a `LODESTONE_TRACKER`. No change.
+- Row 1 STILL OPEN, out of scope: lodestone tracker tick lives in `entity/player.rs`. Re-verified `LodestoneTracker.tick` (LodestoneTracker.java:26-42): returns `this` on dimension mismatch, `new LodestoneTracker(Optional.empty(), true)` (tracked stays true) when the lodestone is gone; the doc's "tracked: false on missing world" wording is inaccurate. Body marks it FIXED (UNVERIFIED); left for the player.rs owner.
+- Row 2 STILL OPEN, out of scope: `isFoil` glint needs `ItemBehaviour::is_foil` (`item/mod.rs`) plus cross-crate `ItemStack::has_foil` (pumpkin-data). Re-verified `CompassItem.isFoil` (CompassItem.java:30-32) returns `has(LODESTONE_TRACKER) || super.isFoil`. Cannot add from compass.rs.
+- Row 3 STILL OPEN, out of scope: dead `compass_target` field/methods live in `entity/player.rs`.
+- Row 4 verified, no change needed in scope: a note, not a gap; `RECOVERY_COMPASS` kept under `CompassItem` for shared hooks as documented.
+- Row 5 STILL OPEN, out of scope for a gametest (new file); the pure seam that does exist (`is_valid_block_pos`) is now covered by the added unit test.
+
+## Result
+
+SECOND PASS. Verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/` (`CompassItem.java`, `LodestoneTracker.java`, `SetWorldSpawnCommand.java`, `Level.java`). No .rs file changed this pass: the actionable rows are already correctly implemented in the shared checkout by other units, and no further edit was safe. No compile check (shell/cargo restricted for this worker).
+
+- FIXED (verified in checkout, other unit): Row 1 `entity/player.rs` `should_unlink_lodestone_tracker` + `tick_inventory_item_components` now match decompiled `LodestoneTracker.tick` (LodestoneTracker.java:26-42): returns unchanged on dimension mismatch; unlinks with `new LodestoneTracker(Optional.empty(), true)` (tracked stays true) only for out-of-bounds or a loaded chunk whose lodestone is gone; never loads chunks. The doc's original "tracked: false on missing world" wording is inaccurate for this vanilla source. Pure unit test `lodestone_tracker_unlinks_only_when_target_lodestone_is_gone` (player.rs:10847) present.
+- FIXED (verified in checkout, other unit): Row 2 `pumpkin-data/src/item_stack/mod.rs:248` `has_foil` now returns `has_enchantments() || (item.id == COMPASS.id && has_data_component(LodestoneTracker))` with a glint override, matching `CompassItem.isFoil` (CompassItem.java:30-32: component presence, not `tracked()`). Pure unit test `compass_foil_comes_from_lodestone_tracker_or_enchantments` (item_stack/mod.rs:1102) present.
+- Verified, no change: top "Fixed in this worktree" respawn fix is present — `world/mod.rs:5435-5447` sends world spawn (`spawn_x/y/z` from `default_world.level_info`, :5232-5242) in `CPlayerSpawnPosition`, not the player respawn point.
+- Verified, no change: in-scope `setworldspawn.rs` (`get_spawnable_pos` for both `pos` variants, `floored_v` self path) and `compass.rs` `use_on_block` still match vanilla; in-scope `block_pos.rs` boundary test present.
+- Row 3 STILL OPEN (one-line reason): `compass_target` / `set_compass_target` / `get_compass_target` are a live plugin API exported in WIT v0.1 and v0.2 (`player.wit`) and called by `pumpkin-wasm-host-v0_1`/`v0_2` (`player.rs:2050,2066`/`2110,2126`); deleting them needs a breaking WIT change plus codegen, both hosts, SDK and a PLUGIN_API_VERSION bump. Not pumpkin-data generated fields, so left open rather than BLOCKED.
+- Row 4 verified, no change needed: note only; `RECOVERY_COMPASS` kept under `CompassItem` for shared hooks.
+- Row 5 STILL OPEN: pure seams now covered (`is_valid_block_pos`, lodestone unlink helper, `has_foil`); the remaining respawn-packet / lodestone-break assertions need a `pumpkin-gametest` in a new file, not a pure unit-test seam.

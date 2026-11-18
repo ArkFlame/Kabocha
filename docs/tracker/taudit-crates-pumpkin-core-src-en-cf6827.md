@@ -69,3 +69,60 @@ Re-checked every STILL OPEN / BLOCKED-DATA row against the current tree. All eig
 8. Equipment drops: VERIFIED (drop_stack_at at stand pos +1.0 for every slot).
 
 No .rs file changed in this pass, so rustfmt was not required. Build/tests not run (orchestrator compiles once after all workers finish).
+
+
+## Result (decompiled-vanilla re-verification)
+
+Re-checked every STILL OPEN / BLOCKED-DATA row against decompiled
+`net/minecraft/world/entity/decoration/ArmorStand.java` (now present under
+`.vendor/vanilla-decompiled/`) and the current Pumpkin code. All eight rows are
+already resolved; no source file changed this pass.
+
+1. Flags synced: FIXED. `set_bit_field` (armor_stand.rs:162-168) and NBT load
+   (armor_stand.rs:678-681) call `sync_flags()`, which writes `DATA_CLIENT_FLAGS`
+   (armor_stand.rs:248-254). Decompiled `defineSynchedData` (Java:139-148) uses one
+   BYTE accessor `DATA_CLIENT_FLAGS` with bit flags (Small=1, ShowArms=4,
+   NoBasePlate=8, Marker=16); the generated const exists (tracked_data.rs:2791).
+   `Entity::set_synced_data` marks data dirty for the end-of-tick tracker broadcast
+   (entity/mod.rs:4884-4891), so all four flags reach clients.
+2. Pose synced: FIXED. `new()` and `unpack_rotation()` call `sync_pose()`
+   (armor_stand.rs:217-244), writing the six pose entries DATA_HEAD_POSE..
+   DATA_RIGHT_LEG_POSE as `Vector3<f32>`; decompiled `defineSynchedData`
+   (Java:142-147) defines exactly those six. Constants exist
+   (tracked_data.rs:2811..2843) and `Vector3<f32>` implements `MetadataSerializer`
+   (entity_metadata.rs:419), so this type-checks.
+3. Clicked-slot hitboxes: VERIFIED, no code change. Decompiled `getClickedSlot`
+   (Java:257-275) matches `clicked_slot` (armor_stand.rs:550-574) exactly: feet
+   0.1..0.1+(small?0.8:0.45), chest 0.9+(small?0.3:0.0)..0.9+(small?1.0:0.7),
+   legs 0.4..0.4+(small?1.0:0.8), head >=1.6, and division by
+   `getScale()*getAgeScale()` equals the existing `/0.5` for small stands.
+   Regression tests present (armor_stand.rs:898-911, 1020-1031).
+4. PlayerArmorStandManipulateEvent: FIXED. `swap_item` fires it via `fire_blocking`
+   (armor_stand.rs:406-420) after the disabled-slot checks. Decompiled `swapItem`
+   (Java:281-305) fires the Bukkit/Paper event after the same removal/insertion
+   checks and returns `true` untouched on cancellation; Pumpkin returns `true`
+   without mutating either stack. The BLOCKED/WIT concern does not apply (pure
+   Rust event, already wired).
+5. ENTITY_DIE on destroy paths: FIXED. Decompiled `kill` (Java:591-600) does
+   `remove` then `gameEvent(ENTITY_DIE)`. Pumpkin emits `EntityDie` in `kill()`
+   (armor_stand.rs:697-704), in the explosion branch (armor_stand.rs:747-753),
+   and in the `cause_damage` break branch (armor_stand.rs:346-352); all other
+   paths route through `kill()`.
+6. ENTITY_DAMAGE on survivable damage: FIXED. Decompiled wobble branch
+   (Java:413-416) and `causeDamage` surviving branch (Java:483-486) emit
+   `gameEvent(ENTITY_DAMAGE, source.getEntity())`. Pumpkin emits `EntityDamage`
+   with the damaging entity in both branches (armor_stand.rs:355, 811), with burn
+   callers passing `cause.or(source)` (armor_stand.rs:716, 759, 769).
+7. Break particle block state: VERIFIED, no code change. Decompiled
+   `showBreakingParticles` (Java:451-466) uses `OAK_PLANKS.defaultBlockState()`,
+   `getY(0.6667)` (== `height/1.5`), width/height/4 spread, count 10, speed 0.05;
+   `spawn_break_particles` (armor_stand.rs:323-338) matches.
+8. Equipment drops: VERIFIED, no code change. `broken_by_anything`
+   (armor_stand.rs:296-320) iterates all eight slots and uses `drop_stack_at` at
+   pos+1.0, matching decompiled `brokenByAnything`. Cosmetic random offsets are
+   supplied by `drop_stack_at`; parity is sufficient.
+
+No new pure unit test added: the only pure seam (`clicked_slot`, flag/stack
+helpers) is already covered, and sync/event behaviour needs a live world/server.
+Rustfmt not required (no .rs change). Build/tests not run (worker rule:
+orchestrator compiles once after all workers finish).

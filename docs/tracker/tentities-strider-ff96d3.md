@@ -41,3 +41,13 @@ Reviewed after `065a8148a` (sync ride boost time and expire boost).
 - `strider.rs` passenger attachment (line 24, S): verified decompiled `getPassengerAttachmentPoint` (lines 190-199) returns `super` on the server. No override needed.
 - Tests: no new pure unit test; `play_eating_sound` needs a live entity. Row 23's boost test already exists in `item_steerable.rs`.
 - Not compiled by this worker (per unit rules); orchestrator batch-checks.
+
+## Result
+
+- Row 19 (hot-block suffocation, M): re-verified against decompiled `Strider.tick` (lines 306-321). `strider.rs::mob_tick` already matches: inside/on warm-block tag or lava height, warm-strider vehicle downcast through `cast_any`, `!is_no_ai` guard, flip-only `StriderTemperatureChangeEvent` via `fire_blocking`. No code change needed.
+- Row 20 (navigation hook, M): verified vanilla `StriderPathNavigation extends GroundPathNavigation` with a `WalkNodeEvaluator` (lines 523-538), not amphibious. Pumpkin overrides `is_stable_destination` (lava) and `get_walk_target_value` (10 / NEG_INFINITY / 0), both wired through the `Mob` trait into wander targets (`ai/util/*random_pos.rs`) and goal checks (`goal_utils.rs`). Constructor sets water malus -1.0 (vanilla line 96). No code change needed.
+- Row 21 (jockey spawn, M): re-verified vanilla `finalizeSpawn`/`spawnJockey` (lines 451-487). Pumpkin already implements 1/30 zombified piglin when monsters spawn (0.05 baby odds, fungus in hand, guaranteed saddle drop), 1/10 baby strider jockey, and jockey group baby chance 0.0 vs 0.5 otherwise. No code change needed.
+- Row 24 (passenger attachment, S): vanilla `getPassengerAttachmentPoint` (lines 190-199) returns `super` on the server; the extra offset is client-only walk bob. Pumpkin is server-side, so no override is required. No code change.
+- Row 25 (eating sound, M): re-verified vanilla `mobInteract` (lines 427-439) plays `STRIDER_EAT` when fed. `Animal::play_eating_sound` override in `strider.rs` plays `EntityStriderEat`. No code change needed.
+- Rows 22/23 (pathfinding maluses, boost timing): constructor maluses match vanilla (WATER -1, LAVA 0, FIRE_IN_NEIGHBOR/DangerFire 0, FIRE/DamageFire 0); `tick_boost` compares the pre-increment `fetch_add` value with its unit test. No code change.
+- All STILL OPEN rows were already implemented in earlier passes; no new source edit or pure unit test was required this pass (the boost test exists in `item_steerable.rs`). Not compiled by this worker; orchestrator batch-checks.

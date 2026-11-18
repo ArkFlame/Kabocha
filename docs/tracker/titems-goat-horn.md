@@ -190,3 +190,65 @@ every fixable behaviour.
 carries pure unit tests for the duration/custom/use-result seams; no new seam
 exists for the two open client/registry rows. Worker shell is denied, so the
 tests could not be run here; the orchestrator compiles once after all workers.
+
+## Result (re-review, both editable files in scope)
+
+Re-verified both remaining STILL OPEN rows against decompiled vanilla
+`InstrumentItem.java`, `InstrumentComponent.java` and `Instrument.java`. Both
+are editable-file-adjacent now (`basic.rs` was added to this unit) but neither
+has a fix that lives wholly inside `basic.rs` / `goat_horn.rs`.
+
+- Row 1 (TOOT_HORN use animation): STILL OPEN. Vanilla `getUseAnimation`
+  returns `ItemUseAnimation.TOOT_HORN` (`InstrumentItem.java:65-68`). No
+  use-animation hook exists in `ItemBehaviour` (`item/mod.rs`), no `TootHorn`
+  variant in the generated `SwingAnimationType`, and no third-person animation
+  packet path. All three are outside this unit; client-visible only.
+- Row 3 (datapack/custom instruments): STILL OPEN. Inline datapack instruments
+  are already decoded into `InstrumentImpl::from_custom` by the network codec
+  (`pumpkin-protocol/src/codec/data_component.rs:2859-2888`) and resolved for
+  sound/range/duration in `basic.rs` + `goat_horn.rs`, matching vanilla's
+  `Instrument.DIRECT_CODEC` holder. The remaining case, a registry-referenced
+  datapack instrument whose id exceeds the 8 builtins, resolves to the default
+  ponder horn (`data_component.rs:2889-2897`); fixing it needs a runtime
+  `INSTRUMENT` registry and datapack codec in `pumpkin-protocol` + generated
+  data (outside this unit). `basic.rs` alone cannot resolve a registry id.
+
+No source edit made: rows 2, 4, 5 remain fixed; rows 1 and 3 require framework,
+protocol-codec, generated-data or client-packet changes outside this unit. The
+pure seams (duration / custom / use-result) are already covered by the three
+existing unit tests in `goat_horn.rs` and the two in `basic.rs`; no new pure
+seam exists for the two open rows. Worker shell is denied, so tests were not run
+here; the orchestrator compiles once after all workers finish.
+
+
+## Result (second pass, expanded scope)
+
+Re-verified both remaining STILL OPEN rows against decompiled vanilla
+`InstrumentItem.java`, `ItemStack.java` and `Instrument.java`. No `.rs` source
+edit was needed: neither row has a minimal in-scope fix.
+
+- Row 1 (TOOT_HORN use animation): VERIFIED, no server-side gap. A full grep of
+  `.vendor/vanilla-decompiled/net/minecraft` shows `getUseAnimation` is only
+  declared in item classes and delegated by `ItemStack.getUseAnimation()`
+  (`ItemStack.java:941-942`); there is no server call site. The third-person
+  animation is derived by the vanilla client from its own item definition once
+  it sees the USING_ITEM living-entity flag. Pumpkin already sets that flag and
+  syncs `DATA_LIVING_ENTITY_FLAGS` in `set_active_hand`
+  (`entity/living.rs:1084,1103,1151`), which `goat_horn.rs:66` calls. No
+  use-animation field or packet exists on the server, so an `ItemBehaviour`
+  hook would be dead code. No change.
+- Row 3 (registry-referenced datapack instruments): BLOCKED. Vanilla
+  `Instrument.CODEC` / `STREAM_CODEC` are holders over `Registries.INSTRUMENT`
+  (`Instrument.java:40-41`), so a stack can carry a registry reference rather
+  than an inline definition. Pumpkin's codec
+  (`pumpkin-protocol/src/codec/data_component.rs:2889-2897`) resolves positive
+  holder ids only against the 8 static generated builtins and falls back to the
+  ponder horn. Resolving a registry-referenced datapack instrument requires
+  preserving the registry id through `InstrumentImpl`, decoding it at use time
+  via the runtime `DynamicRegistryManager` + instrument NBT, and wiring that
+  into the item use path: a whole cross-crate subsystem plus generated
+  instrument data, far beyond a minimal fix.
+
+Rows 2, 4, 5 remain fixed. No new pure-test seam exists for either open row.
+No shell/cargo/git was used to verify; the orchestrator compiles once after all
+workers finish.

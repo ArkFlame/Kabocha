@@ -72,3 +72,103 @@ unit's scope.
 - Rider-rotation clamp (M): LEFT OPEN. Needs a vehicle `positionRider`/`onPassengerTurned` hook across
   the entity island; `passengers.rs`/`boat.rs` are outside this unit.
 - Boat gametest (S): LEFT OPEN. `server/builtin_game_tests/` is not a source file named in this unit.
+
+
+## Result
+
+Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft`
+(`BubbleColumnBlock.java`, `Entity.java` `handleOnAboveBubbleColumn`/`handleOnInsideBubbleColumn`,
+`Projectile.java`, `AbstractBoat.java`). Only `bubble_column.rs` is in this unit's edit scope.
+
+- Bubble column / `ID_BUBBLE_TIME` (M): VERIFIED ALREADY CORRECT, no source change needed.
+  `bubble_column_vertical_velocity` matches `Entity.java` exactly: up `0.06`/cap `0.7` (inside) and
+  `0.1`/cap `1.8` (above), down `-0.03`/cap `-0.3` (inside) and `-0.9` (above). `entity_inside` selects
+  surface vs inside using the same no-collision/no-fluid test as `BubbleColumnBlock.entityInside`, and
+  `push_projectile` matches `Projectile`'s uncapped `-0.03`/`0.1`/`0.06` pushes. Tests
+  `upward_push_cap_depends_on_surface` / `downward_push_cap_depends_on_surface` /
+  `open_above_requires_no_collision_and_no_fluid` already lock these pure seams, so no new unit test
+  is warranted (the remaining helpers are formula-mirroring or mutate an `Entity`).
+- Gravity (S): OUT OF SCOPE (`physics.rs`). Decompiled `AbstractBoat.floatBoat` uses `-getGravity()`
+  and `Entity.getGravity()` returns 0 under `noGravity`, so Pumpkin's `-self.get_gravity()` matches.
+- Air->water snap (S): OUT OF SCOPE (`physics.rs`); a correct fix needs `float_boat` + `move_boat`
+  together with a `noCollision` gate, more than this unit's files.
+- Rider-rotation clamp (M): OUT OF SCOPE (`passengers.rs`/`boat.rs`); needs a cross-island vehicle
+  `positionRider`/`onPassengerTurned` hook.
+- Boat gametest (S): OUT OF SCOPE (`server/builtin_game_tests/`); not a source file named in this unit.
+
+Compile pitfalls: no source code changed this pass, so none apply.
+
+
+## Result
+
+Re-verified every STILL OPEN row against the current decompile at
+`.vendor/vanilla-decompiled/net/minecraft` (`world/level/block/BubbleColumnBlock.java`,
+`world/entity/Entity.java` `handleOnAboveBubbleColumn`/`handleOnInsideBubbleColumn`,
+`world/entity/projectile/Projectile.java`, `world/entity/vehicle/boat/AbstractBoat.java`).
+`bubble_column.rs` is the only source file in this unit's edit scope.
+
+- Bubble column / `ID_BUBBLE_TIME` (M): VERIFIED ALREADY CORRECT, no source change needed.
+  `bubble_column_vertical_velocity` matches the decompiled `Entity.handleOnAboveBubbleColumn`
+  (up `+0.1`/cap `1.8`, down `-0.03`/cap `-0.9`) and `handleOnInsideBubbleColumn`
+  (up `+0.06`/cap `0.7`, down `-0.03`/cap `-0.3`) exactly. `entity_inside` picks the surface
+  branch with the same `collisionShape.isEmpty() && fluidState.isEmpty()` test as
+  `BubbleColumnBlock.entityInside`, and `push_projectile` matches `Projectile`'s uncapped
+  `0.1`/`0.06`/`-0.03` pushes. `send_bubble_column_particles` matches the two SPLASH/BUBBLE
+  emissions. Existing tests `upward_push_cap_depends_on_surface`,
+  `downward_push_cap_depends_on_surface`, `open_above_requires_no_collision_and_no_fluid`
+  already lock the pure seams; `push_entity`/`push_projectile` mutate an `Entity` and are not
+  pure seams, so no new unit test is warranted (a push-amount helper would be formula-mirroring).
+  The boat-side state/timer/metadata work named in this row is present in `boat.rs`
+  (`bubble_column_time`, `tick_bubble_column`, `ID_BUBBLE_TIME`, `on_above/inside_bubble_column`),
+  outside this unit's files.
+- Gravity (S): OUT OF SCOPE (`physics.rs`); no in-scope file. Decompiled
+  `AbstractBoat.floatBoat` uses `-getGravity()`, matching Pumpkin's `-self.get_gravity()`.
+- Air->water snap (S): OUT OF SCOPE (`physics.rs`); a correct fix needs `float_boat` +
+  `move_boat` together with a `noCollision` gate, not any file named in this unit.
+- Rider-rotation clamp (M): OUT OF SCOPE (`passengers.rs`/`boat.rs`); needs a cross-island
+  vehicle `positionRider`/`onPassengerTurned` hook.
+- Boat gametest (S): OUT OF SCOPE (`server/builtin_game_tests/`); not a source file named here.
+
+Compile pitfalls: no source code changed this pass, so none apply.
+
+
+## Result
+
+SECOND PASS. The task now permits editing any source file a row needs, so I re-verified every
+STILL OPEN row against the current decompile at `.vendor/vanilla-decompiled/net/minecraft`
+(`world/entity/vehicle/boat/AbstractBoat.java` `floatBoat`/`positionRider`/`clampRotation`/
+`onPassengerTurned`, `world/entity/Entity.java` `getGravity`). All five rows are now already
+fixed by parallel uncommitted work in the working tree; that work is not mine, so per "do not
+touch uncommitted work you did not make" I made no source edits. No compile pitfalls apply.
+
+- Air->water snap (S): FIXED. `physics.rs:191-212` now guards the surface snap with
+  `no_collision(entity, moved_box)` and still stores `InWater` unconditionally, byte-for-byte
+  the structure of vanilla `floatBoat` (`AbstractBoat.java:611-620`): compute `waterLevel`,
+  `targetY = levelAbove - height + 0.101`, snap/zero-y-velocity/zero-`lastYd` only when the
+  moved box is collision-free, then set status. No pure seam (needs `world.noCollision`), so no
+  new unit test.
+- Gravity (S): VERIFIED ALREADY CORRECT. Vanilla `floatBoat` starts `-this.getGravity()`
+  (`AbstractBoat.java:608`) and `Entity.getGravity()` returns 0 under `noGravity`;
+  `physics.rs:214 -self.get_gravity()` matches. `boat.rs:959-965 get_gravity` honours
+  `has_no_gravity()`. Replacing it with `DEFAULT_GRAVITY` would diverge. No unit-test seam.
+- Bubble column / `ID_BUBBLE_TIME` (M): FIXED. `boat.rs` now has `bubble_column_time`,
+  `tick_bubble_column` writing `pumpkin_data::tracked_data::boat::ID_BUBBLE_TIME` (429-446),
+  `on_above_bubble_column` (642) / `on_inside_bubble_column` (695) and
+  `bubble_column_vertical_velocity` (971), with tests at 1071-1073. `bubble_column.rs`
+  velocity constants match vanilla `Entity.handleOnAbove/InsideBubbleColumn` (verified in
+  prior passes). No in-scope change left.
+- Rider-rotation clamp (M): FIXED. `boat.rs:851-944` implements `on_rider_positioned` and
+  `on_passenger_turned` with pure helpers `rider_body_yaw`/`clamp_head_to_body`/
+  `clamp_rider_yaw`/`rider_clamp_adjustment` and tests (1032-1068), matching vanilla
+  `AbstractBoat.positionRider` (696-706), `clampRotation` (740-754) and `onPassengerTurned`
+  (762-766), including the 105 deg clamp, animal-in-full-boat side seating and mob head clamp.
+  Wired through `entity/mod.rs:1673` (`position_rider` -> `on_rider_positioned`) and
+  `entity/mod.rs:4486` (`Entity::turn` -> `on_passenger_turned`), both trait defaults at
+  `entity/mod.rs:797,801`. No in-scope change left.
+- Boat gametest (S): FIXED. All three requested tests exist in
+  `server/builtin_game_tests/boat_block_effects.rs` and are registered in that dir's `mod.rs`:
+  `boat_floats_up_after_fall`, `boat_ejects_passenger_after_60_underwater_ticks`,
+  `chest_boat_scatters_27_slots_on_break`. The "no boat gametest coverage" note was stale.
+
+No source files changed by me; only this tracker Result section was edited. Risk: none from my
+edits; the parallel fixes above are unverified by me via build (orchestrator compiles once).

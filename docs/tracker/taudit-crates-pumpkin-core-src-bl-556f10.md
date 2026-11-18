@@ -129,3 +129,25 @@ in-scope fixes against `.vendor/vanilla-decompiled`:
 Rows 31, 35, 75 remain OPEN (outside this unit: entity/mod.rs BoundingBox union,
 PlayerPlacedArgs.direction/registry.rs, plugin API payload). Rows 29 and 32
 remain VERIFIED, NO CHANGE. No new edits needed.
+
+
+## Result (third-pass re-verification)
+
+Re-read all five in-scope files and re-checked each STILL OPEN row against
+.vendor/vanilla-decompiled/net/minecraft/ (SlabBlock, MultifaceBlock,
+LadderBlock, LanternBlock, BaseTorchBlock/TorchBlock/WallTorchBlock).
+Prior passes' edits are intact; no new in-scope bug found, so no source edit
+or new test (the existing tests already cover the in-scope fixes).
+
+| Row | Disposition | Evidence |
+|---|---|---|
+| 28 can_update_at face convention | VERIFIED, NO CHANGE | registry.rs:667/697 passes face.opposite() (placement direction) in both branches; slabs.rs:62 flips with .opposite() to the raw clicked face and matches SlabBlock.canBeReplaced (SlabBlock.java:77-91) for BOTTOM/TOP/DOUBLE and all face/height combos. Both branches now share one convention. |
+| 29 BlockIsReplacing Other/None | VERIFIED, NO CHANGE | torches.rs:41, ladder.rs:20/36 and lanterns.rs:24 key rotation on None/Water, matching BlockPlaceContext.getNearestLookingDirections (unrotated when replaceClicked, rotated by clickedFace.opposite() otherwise), confirmed against LadderBlock.java:73-96, LanternBlock.java:35-48, WallTorchBlock.java:53-70. |
+| 31 inside-collision shape | OPEN | Needs a BoundingBox-union API change in entity/mod.rs plus powder-snow/cauldron/campfire overrides, outside this unit. |
+| 32 isPathfindable Water default | VERIFIED, NO CHANGE (in scope) | slabs.rs:72-76 returns is_waterlogged for Water and false for Land/Air, matching SlabBlock.java:127-134. registry.rs fallback is outside this unit. |
+| 35 player_placed direction | OPEN | PlayerPlacedArgs.direction is read by no implementation and registry.rs is outside this unit. |
+| 75 BlockFertilizeEvent payload | OPEN | Needs a plugin-API payload change (getBlocks list), outside this unit. |
+| 76 TestBlock registered twice | N/A | registry.rs, outside this unit; already removed per an earlier Result. |
+
+No source files changed this pass. Rows 31/35/75 remain OPEN solely because
+they require files outside this unit (entity/mod.rs, registry.rs, plugin API).

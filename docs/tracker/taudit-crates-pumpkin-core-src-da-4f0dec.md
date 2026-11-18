@@ -180,3 +180,14 @@ earlier passes; no new code edits were needed this pass.
 
 Files touched this pass: none (dynamic_registry_loader.rs unchanged). rustfmt not run (no .rs edits).
 Checks not run here (orchestrator compiles/nextests the batch).
+
+
+## Result (final verification pass, decompiled vanilla)
+
+Verified the STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/`, smallest first:
+
+- Gap 2 (plural directory aliases, S): already FIXED in source. `DYNAMIC_REGISTRIES` lists only singular paths (plus the intentional legacy `configured_*` directory aliases kept under the canonical carver/feature/structure ids). This matches `FileToIdConverter.registry -> json(Registries.elementsDirPath(...))` (`FileToIdConverter.java:15-16`, exact `.json` suffix at :12/:29) and the fixed `RegistryDataLoader.WORLD_REGISTRIES` set (`RegistryDataLoader.java:98-150`). No code edit needed.
+- Gap 3 (auto-discovery of unknown folders, S): already FIXED in source. `load_dynamic_registries_from_ns` auto-discovers only `worldgen/<sub>` folders, keyed `minecraft:worldgen/<sub>`; other `data/<ns>/<dir>` folders are ignored, matching vanilla's fixed loader set. No code edit needed.
+- Gap 1 (JSON streamed to NBT bypassing element codecs, L): STILL OPEN / out of scope. Vanilla pairs every registry with a `DIRECT_CODEC`/`NETWORK_CODEC` (`RegistryDataLoader.java:98-197`) to decode then re-encode through `NbtOps`, which normalizes field types and drops unknown fields; Pumpkin's generic `json_to_nbt_tag` has no schema. Left open because it requires the per-registry element codec schemas, which live in generated data / other crates, outside this file's scope.
+
+No code edits this pass: all in-scope fixes were already present in `dynamic_registry_loader.rs` and confirmed against decompiled vanilla; the only remaining row needs cross-crate/generated data. Files touched: this doc (Result section only). Checks not run by worker (orchestrator compiles/nextests the batch).

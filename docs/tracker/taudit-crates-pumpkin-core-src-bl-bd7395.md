@@ -123,3 +123,56 @@ already matches vanilla for every row. All five rows resolved, open=0.
 
 Test: the existing `TestBlocks`-backed unit test is deterministic and pure;
 no new seam justified another test. `rustfmt --edition 2024 vine.rs` exit 0.
+
+## Result (worker verification)
+
+Verified rows 1-5 against decompiled vanilla (`VineBlock.java`,
+`MultifaceBlock.java`, `Direction.java:137-170`,
+`BlockPlaceContext.java:71-90`) and current `vine.rs`.
+All rows resolved: 1 premise false (full-face recompute; UP checks
+`Direction.DOWN`/top face at `vine.rs:79`), 2 dead fallback retained to
+match vanilla (`vine.rs:92-108`), 3 fetched-state `is_air()` checks in
+place (no `default_state.is_air()` in vine.rs), 4 placement order matches
+`orderedByNearest`/`getNearestLookingDirections` via
+`get_nearest_looking_directions` (`vine.rs:197`), 5 single
+`get_state_for_placement` helper used by `on_place`/`can_place_at`
+(`vine.rs:231,292,317`) with existing pure tests
+(`placement_attaches_only_to_supported_face`, `updated_state_up_uses_top_face_of_block_above`).
+No source edits. No new tests (existing seams sufficient). Could not run
+cargo/rustfmt (worker shell denied). fixed=0 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-bl-bd7395.md.
+
+## Result (re-audit 2026-11-18)
+
+Re-verified all five STILL OPEN rows against decompiled vanilla this pass.
+Source already matched vanilla for rows 1-5; no further source fixes were
+required. Added the smallest pure unit test for the one real behavioural
+change from the earlier pass.
+
+- 1. `get_updated_state` (row 1): VERIFIED, no change. Vanilla
+  `VineBlock.getUpdatedState` (VineBlock.java:117-142) recomputes every
+  horizontal face plus UP on each update and checks the block above with
+  `Direction.DOWN` (its top face, line 120). Pumpkin does the same at
+  vine.rs:79 with `BlockDirection::Down` and an explanatory comment.
+  Added pure test `updated_state_up_uses_top_face_of_block_above`
+  (vine.rs:669): a top slab (solid top, hollow bottom) above keeps `up`
+  true, a bottom slab does not. This fails if the check regresses to the
+  bottom face (the original bug).
+- 2. Dead `above_props` fallback (row 2): VERIFIED, no change. Vanilla
+  carries the identical fallback (VineBlock.java:129-135), so removal
+  would diverge.
+- 3. `default_state.is_air()` (row 3): VERIFIED, no change. All six checks
+  use the fetched state's `is_air()`, matching vanilla `isAir()` /
+  `isEmptyBlock()` (VineBlock.java:173,188,191,210,234).
+- 4. Placement direction order (row 4): VERIFIED, no change. Pumpkin's
+  `get_entity_facing_order` (entity/mod.rs:4728) is a faithful port of
+  vanilla `Direction.orderedByNearest` (Direction.java:137-166), and
+  `get_nearest_looking_directions` (vine.rs:197) matches
+  `BlockPlaceContext.getNearestLookingDirections` (BlockPlaceContext.java:71-90).
+- 5. `can_place_at` duplication (row 5): VERIFIED, no change. Single
+  `get_state_for_placement` helper (vine.rs:231) mirrors vanilla
+  `getStateForPlacement` (VineBlock.java:277-293).
+
+Test: added `updated_state_up_uses_top_face_of_block_above` using the
+`TestBlocks` `BlockAccessor` and an asymmetric slab state. Not run here
+(no compile available in this pass); the orchestrator compiles once.
+Source files touched: vine.rs (test only).

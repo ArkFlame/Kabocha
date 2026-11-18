@@ -135,3 +135,38 @@ Independent re-review against decompiled `CampfireBlock.java` and
   compile errors, so it is not worth the change here.
 - No source file was modified; `bucket.rs`, `splash_potion.rs`, both
   `campfire.rs` files are untouched.
+
+## Result
+
+Re-review against decompiled `CampfireBlockEntity.java` (`cookTick` 80-144,
+`cooldownTick` 146-163) and `CampfireBlock.java`. Smallest rows first.
+
+- Row 3 (cooked result count split): FIXED. Vanilla `cookTick` loop at
+  `:123-127` does `result.split(level.getRandom().nextInt(21) + 10)` while the
+  result is non-empty, i.e. it always splits even when the result has one item
+  (a `nextInt(21) + 10` chunk just takes the whole stack). Pumpkin spawned a
+  single stack, so a command/NBT-inserted stack of 64 in a slot that cooked to
+  a 64-count result stayed one entity. Added pure `cooked_chunk_sizes(count,
+  next_chunk)` (10-30 chunking with a remainder-clamped tail) and rewired
+  `spawn_cooked_item` to split per chunk. Test
+  `cooked_result_splits_into_random_chunks` covers 1, 45 -> [30, 15], the
+  below-range clamp and the empty stack.
+- Also added the missing vanilla drop motion. `cookTick` sets
+  `setDeltaMovement(triangle(0.0, dev), triangle(0.2, dev), triangle(0.0, dev))`
+  with `dev = 0.05F * RandomSource.GAUSSIAN_SPREAD_FACTOR (2.297)` (`:122-125`);
+  `spawn_cooked_item` now uses `ItemEntity::new_with_velocity` with
+  `deviation * (random - random)` per axis and the 0.2 mean on Y (same shape as
+  `RandomSource.triangle`), keeping the default 10-tick pickup delay.
+- Vanilla also emits `GameEvent.BLOCK_CHANGE` at `:131` when a slot finishes;
+  Pumpkin only sent the block-entity update. Added
+  `world.emit_game_event(GameEvent::BlockChange.name(), position.to_centered_f64())`
+  next to the existing `update_block_entity` call.
+- Row 12 (`isSmokeyPos` obstruction probe): VERIFIED already fixed, no change.
+  `is_smokey_pos_from` (`block/blocks/campfire.rs:64-77`) returns
+  `state_at(dy + 1).0` at the first shape crossing the 0.375..0.625 post,
+  matching `CampfireBlock.isSmokeyPos`; test
+  `smoke_scans_five_cells_and_stops_at_a_blocker` covers it.
+- Rows 1-2 (cancelled start event, recipe-less progress): VERIFIED already
+  fixed in tree (`cooking_cancelled` skip at `:125-130`, increment before recipe
+  lookup with raw-stack fallback at `:132-162`), matching Paper `cookTick`.
+- `bucket.rs` / `splash_potion.rs`: no open rows, untouched.

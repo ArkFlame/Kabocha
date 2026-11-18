@@ -138,3 +138,33 @@ row-3 test already exists).
 
 No behaviour change, so no unit test seam was added; the existing row-3 test already locks the
 only STILL OPEN row. rustfmt not needed (no source edits).
+
+## Result (second pass, cross-file edits permitted)
+
+Re-verified every "Remaining gaps" row against the decompiled vanilla. The two rows that earlier
+passes left open as cross-file/outside-unit are now CLOSED in the current tree, so nothing remains
+for this pass to fix:
+
+- Row 1 (non-cancellable destroy): CLOSED. `piston.rs:422-439` destroys via
+  `World::break_block_naturally` plus `GameEvent::BlockDestroy`, matching vanilla
+  `PistonBaseBlock.move` (unconditional `setBlock(AIR, ...)`, no cancellable `BlockBreakEvent`).
+- Row 2 (collision-shape entity sweep): CLOSED. `entities/piston.rs:124-139` uses
+  `pushed_block_state.get_block_collision_shapes_at` for pushed blocks and the 4-pixel head slab
+  for the head, matching `PistonMovingBlockEntity.moveCollidedEntities` (`getCollisionShape`).
+- Row 3 (head slab anchoring): CLOSED, already correct, locked by the existing pure test
+  `head_shape_slab_sits_on_facing_side`.
+
+Row 4 (players excluded from piston pushes) remains open and is BLOCKED here: it requires a whole
+player movement-reconciliation subsystem. Vanilla `moveCollidedEntities` pushes every entity with
+`PushReaction != IGNORE_ENTITY` via `Entity.move(PISTON)`
+(`PistonMovingBlockEntity.java:139-193`), players included. Pumpkin is deliberately
+client-authoritative: `apply_client_move` (`entity/player/client_move.rs:298-306`) overwrites
+`entity.pos` with the client's absolute position on every movement packet, so a naive server-side
+push is cancelled next tick and causes position flip-flop. A correct fix needs piston-aware
+rejection/re-sync in the client-move validation path (extending the existing `reject_client_move`
+correction), a cross-cutting subsystem outside this unit's files and outside a small edit. Left for
+a dedicated movement-reconciliation task; client-authoritative movement is a documented
+intentional vanilla difference.
+
+No source files modified (all fixable rows already closed); no new test seam exists. rustfmt not
+needed.

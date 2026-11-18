@@ -163,3 +163,61 @@ touched: this unit names no source basenames and the only open row needs a new f
   drops) has no pure seam.
 
 No `.rs` file touched, so no rustfmt needed. Cargo/clippy not run (worker constraint).
+
+
+## Result (seam-coverage pass)
+
+Re-verified the single STILL OPEN row (row 6) and the five FIXED rows against the current
+checkout. The decompiled vanilla tree (.vendor/vanilla-decompiled) is absent in this worktree, so
+vanilla behaviour is taken from the three prior Result sections that verified it
+(AbstractBoat / AbstractChestBoat / VehicleEntity / BoatItem, 1.21.x).
+
+- Rows 1-5: FIXED (re-confirmed by grep, no edit needed). on_removed calls
+  scatter_chest_contents gated by claim_drops (row 1); boat_drop_item prefers
+  BoatItem::entity_to_item (row 2); boat_interact_outcome models the mount/container/nothing
+  chain (row 3); max_passengers is the one seat rule used by boat.rs and entity/mod.rs:1338
+  (row 4); player.rs:4569 uses boat::is_boat (row 5). All five already carry pure unit tests.
+- Row 6: PARTIALLY COVERED. The full pumpkin-gametest (spawn acacia chest boat, fill a slot, break
+  with a player, assert world drops plus boat item, no item on creative break) still needs a new
+  gametest file and a build/run, both outside this unit's permitted sources and forbidden under
+  no-cargo. Its remaining pure seam, the scatter-contents-exactly-once-on-break guarantee that
+  scatter_chest_contents gets from MinecartInventory::claim_drops, had no test. Added
+  chest_contents_scatter_claim_is_single_use in crates/pumpkin-core/src/entity/vehicle/boat.rs
+  (a source file named in this unit): it asserts the claim returns true once then false. The other
+  row-6 assertions are already covered by chest_boat_items_round_trip_through_last_slot,
+  every_boat_entity_type_resolves_a_drop_item and creative_boat_drops_no_item_even_when_named.
+  The spawn/break/inspect-world integration assertion has no pure seam and stays open.
+
+Verification: read-only grep confirmation of rows 1-5 plus an in-file unit test added for row 6.
+Cargo/clippy not run (worker constraint); rustfmt to be run by the orchestrator.
+
+## Result (second pass - cross-file rows now permitted)
+
+The decompiled vanilla tree is present this pass
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/`). Re-checked
+`AbstractChestBoat.java` directly: `destroy` runs `destroy(level, getDropItem())` +
+`chestVehicleDestroyed` (lines 65-68); `remove` calls `Containers.dropContents` gated on
+`reason.shouldDestroy()` (lines 71-77); `interact` delegates to `super` first and only opens the
+container when the super result is PASS and NOT (`canAddPassenger(player) &&
+!isSecondaryUseActive()`) (lines 80-97). These match the already-fixed Pumpkin seams.
+
+No source edit was needed: every row, including the previously open row 6, is already covered in
+the checkout.
+
+- Rows 1-5: FIXED (pre-existing, re-confirmed by grep + vanilla source). `on_removed` ->
+  `scatter_chest_contents` gated by `claim_drops`; `boat_drop_item` prefers
+  `BoatItem::entity_to_item`; `boat_interact_outcome` models the mount/container/nothing chain;
+  `max_passengers` is the single seat rule; `player.rs` uses `boat::is_boat`.
+- Row 6: FIXED (pre-existing in this checkout). The full pumpkin-gametest
+  `pumpkin:acacia_chest_boat_contents_and_item_drop` is implemented in
+  `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs`
+  (`test_acacia_chest_boat_contents_and_item_drop`, lines 284-335): it spawns an acacia chest boat,
+  fills three slots via summon NBT, breaks it with a damage command, then asserts entity removal,
+  three scattered diamond item entities and the dropped `minecraft:acacia_chest_boat` item.
+  It is listed in `BUILTIN_TEST_IDS` (mod.rs:279) and registered in
+  `ensure_builtin_game_tests_registered` (mod.rs:1860-1866) against `pumpkin:empty_5x5x5`.
+  The creative-break half is covered by the pure `creative_boat_drops_no_item_even_when_named`
+  unit test (boat.rs:1132). All gametest helper methods used exist in
+  `pumpkin-gametest/src/helper.rs`; no new seam was required.
+
+No `.rs` file touched this pass, so no rustfmt needed. Cargo/clippy not run (worker constraint).

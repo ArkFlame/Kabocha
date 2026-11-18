@@ -156,3 +156,84 @@ Entity.java getControlledVehicle :6661).
 No code changes: both in-scope rows were already fixed by a prior pass and re-verified here. No
 pure unit-test seam exists for these packet handlers (they need a live Player/world/vehicle graph).
 No rustfmt run (no .rs file touched). No compile run (shell denied to workers).
+
+
+## Result (verify pass 2026-11-18, main checkout, re-check)
+
+Re-verified the two in-scope rows against decompiled vanilla at
+.vendor/vanilla-decompiled/net/minecraft/ (ServerGamePacketListenerImpl.java
+handleMoveVehicle :578 with Mth.wrapDegrees at :606-607 / handlePaddleBoat :2464-2468,
+Entity.java getControlledVehicle :6661-6662).
+
+- Row 5 (MoveVehicle rotation wrap, net/java/play/move_vehicle.rs): VERIFIED FIXED, no change.
+  Vanilla wraps yaw/pitch with Mth.wrapDegrees (:606-607) before absSnapTo; Pumpkin wraps at
+  move_vehicle.rs:43-44 and applies via set_rotation at :81. client_move.rs also wraps
+  (import :13, applied :392-428). No edit required.
+- Row 6 (paddle boat handler, net/java/play/paddle_boat.rs): VERIFIED FIXED, no change.
+  Vanilla getControlledVehicle (:6661-6662) returns the immediate vehicle only for its
+  controlling passenger; handlePaddleBoat (:2466) requires that vehicle be an AbstractBoat.
+  Pumpkin reads the immediate vehicle, checks its controlling passenger, downcasts to BoatEntity
+  and sets paddle state. Matches vanilla (the doc's get_root_vehicle suggestion is not what
+  decompiled vanilla does).
+
+All STILL OPEN rows require files outside this unit, so each is left open:
+- Row 1 (bubble time publish): boat.rs, physics.rs, generated tracked_data.
+- Row 2 (rider position clamp): passengers.rs/boat.rs.
+- Row 3 (float_boat air-to-water snapping): physics.rs.
+- Row 4 (floatBoat gravity constant): physics.rs.
+- Row 7 (dead move_from_client path): physics.rs.
+- Row 8 (boat gametest coverage): server/builtin_game_tests.
+
+No code changes this pass: both in-scope rows were already fixed by earlier passes and re-verified
+here. No pure unit-test seam exists for these packet handlers (they need a live Player/world/vehicle
+graph), so none was added. No rustfmt run (no .rs file touched). No compile run (shell denied to workers).
+
+
+## Result (second pass 2026-11-18, cross-file edits now permitted, main checkout)
+
+Re-verified every STILL OPEN row against decompiled vanilla at
+/home/linsaftw/.claude/jobs/9615f3b2/tmp/rel-mc-backup/net/minecraft/
+(AbstractBoat.java floatBoat :607-648, clampRotation :740-754,
+positionRider :696-706, onAboveBubbleColumn :164-185,
+tickBubbleColumn :351-387, handleBubbleColumnEffect :399-408;
+ServerGamePacketListenerImpl.java handleMoveVehicle :578 / handlePaddleBoat :2464;
+Entity.java getControlledVehicle :6661, getY(double) :6839).
+
+All previously STILL OPEN code rows are already fixed in the main checkout; no new code
+edit was needed in this pass:
+
+- Row 1 (bubble time publish): VERIFIED FIXED, no change. boat.rs carries the
+  bubble_column_time / bubble_column_drag_down / bubble_column_above fields (:237-239),
+  on_above_bubble_column arms the 60-tick countdown and writes ID_BUBBLE_TIME (:665-716),
+  tick_bubble_column decrements and republishes it and applies the launch/sink impulse
+  (:429-474), and on_inside_bubble_column uses the capped entity push (:718-723).
+  bubble_column_vertical_velocity (:994-996) matches handleBubbleColumnEffect (-0.7 / 0.6)
+  and has a pure unit test (:1094-1098). Generated field ID_BUBBLE_TIME already exists.
+- Row 2 (rider rotation clamp): VERIFIED FIXED, no change. on_rider_positioned (:851-894)
+  and on_passenger_turned (:896-944) apply clampRotation to non-player, non-can-turn-in-boats
+  riders; clamp_rider_yaw (:1027-1031), clamp_head_to_body (:1016-1020), rider_body_yaw
+  (:1000-1012) and rider_clamp_adjustment (:1036-1038) mirror vanilla, with unit tests
+  (:1057-1092). Players and CAN_TURN_IN_BOATS entities stay client authoritative.
+- Row 3 (float_boat air-to-water snapping): VERIFIED CORRECT, no change needed. The doc's
+  premise was inverted: vanilla floatBoat (:614-618) runs the noCollision test FIRST and
+  only calls move when the target box is clear. physics.rs:196-211 does the same, returning
+  the offset only when no_collision passes. No snap-while-blocked change required.
+- Row 4 (floatBoat gravity constant): VERIFIED CORRECT, no change needed. Vanilla uses
+  -getGravity() (:608) for vspeed and getDefaultGravity()/0.65 only for buoyancy (:645);
+  physics.rs:214 uses -self.get_gravity() and physics.rs:235 uses DEFAULT_GRAVITY/0.65.
+  get_gravity (boat.rs:982-988) honours no_gravity exactly like vanilla getGravity().
+- Row 5 (MoveVehicle rotation wrap): VERIFIED FIXED, no change. move_vehicle.rs:49-50 wraps
+  yaw/pitch with wrap_degrees and applies at :91; vanilla wraps with Mth.wrapDegrees
+  (:606-607). client_move.rs also wraps.
+- Row 6 (paddle boat handler): VERIFIED FIXED, no change. paddle_boat.rs reads the immediate
+  vehicle, requires it be the controlling passenger, downcasts to BoatEntity and sets paddle
+  state. Vanilla getControlledVehicle (:6661-6662) is the same immediate-vehicle check and
+  handlePaddleBoat (:2466) requires an AbstractBoat.
+- Row 7 (dead move_from_client path): VERIFIED FIXED, no change. physics.rs no longer defines
+  move_from_client; the generic move_vehicle.rs handler supersedes it.
+- Row 8 (boat gametest coverage): STILL OPEN - needs a builtin gametest plus a runtime run;
+  gametest files are outside this unit and the worker shell is denied, so it stays open.
+
+Compile-pitfall re-check: no source file was edited this pass, so no new import paths,
+helper placement, struct initializers, clones, or clippy-pedantic issues were introduced.
+No rustfmt run (no .rs file touched). No compile run (shell denied to workers).

@@ -55,3 +55,14 @@ Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecra
 - Row 6 (readAdditionalSaveData sync): NO GAP. Vanilla sets DATA_IS_POWERED and, when ignited, DATA_IS_IGNITED into synced data on load. Pumpkin's `mob_read_nbt` stores the atomics and sets IS_IGNITED synced data; at spawn `java_spawn_metadata` -> `mob_java_spawn_metadata` -> `mob_metadata()` serialises charged/ignited/fuse_speed from those atomics for Java clients, and `mob_bedrock_spawn_metadata` does the same for Bedrock. Same observable behaviour; this seam is already covered by the `creeper_metadata_generation` test in `metadata.rs`.
 - Row 7 (charged_creeper/root loot table): RESOLVED BY DATA. `pumpkin_data::loot_table::get_loot_table("minecraft:charged_creeper/root")` resolves through the generated static `CHARGED_CREEPER_ROOT` table, and `datapack_manager.get_loot_table` falls back to that static table. `killed_entity` therefore drops charged-creeper heads without a datapack. Generated data is outside this unit; no edit possible or needed.
 - No new unit test: the inline cloud parameters have no pure seam, and the creeper metadata seam already has a test. No `.rs` file was touched, so no rustfmt run.
+
+
+## Result
+
+Second pass (expanded file permissions). Re-verified each STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java` and `.../ai/goal/SwellGoal.java` (Paper 1.21.x) and the current Pumpkin sources. No `.rs` edit was required.
+
+- Row 4 (spawnLingeringCloud cloud params): NO GAP. Vanilla sets radius 2.5, radiusOnUse -0.5, waitTime 10, duration 300, potionDurationScale 0.25, radiusPerTick -radius/duration (-2.5/300). `creeper.rs:174-185` passes duration 300, radius 2.5, reapplicationDelay 20 (vanilla default), waitTime 10, radiusOnUse -0.5, durationOnUse 0 (vanilla default); `area_effect_cloud.rs:116-120` computes radiusPerTick as `-radius/max(duration,1)` and hardcodes potion scale 0.25. The tracker's `600` claim is incorrect.
+- Row 6 (readAdditionalSaveData sync): NO GAP. Vanilla always sets DATA_IS_POWERED and, when true, DATA_IS_IGNITED on load. `creeper.rs:227-253` stores the atomics and pushes CHARGED/IS_IGNITED synced data; `mob_metadata()` (line 263) feeds both Java and Bedrock spawn metadata from those same atomics. The seam is already covered by `creeper_metadata_generation` in `metadata.rs`.
+- Row 7 (charged_creeper/root loot table): RESOLVED BY DATA. Assets exist at `assets/datapack/data/minecraft/loot_table/charged_creeper/*.json`; generated `pumpkin-data/src/generated/loot_table.rs` registers `CHARGED_CREEPER_ROOT` under `minecraft:charged_creeper/root`; `world.get_loot_table` falls back to the static table. No code change possible or needed.
+
+No new pure unit test: the inline cloud parameters have no pure seam, and the creeper metadata seam already has a test. No source file was touched, so no rustfmt run was needed.

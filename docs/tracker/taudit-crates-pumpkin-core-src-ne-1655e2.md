@@ -134,3 +134,28 @@ Re-verified the sole remaining STILL OPEN row (6) against decompiled vanilla `.v
 6. Enabled-feature gate: STILL OPEN. Vanilla `ServerPlayerGameMode#useItemOn:539` returns `FAIL` when `!state.getBlock().isEnabled(level.enabledFeatures())`. Feature-flag *resolution* now exists in this crate (`data/datapack/mod.rs:1182` `get_enabled_features`, `:1227` `is_feature_enabled`, `:2293` `known_feature_flag`), but the generated `Block`/`Item` definitions (`pumpkin-data/src/blocks.rs:21`) carry no `requiredFeatures` field and there is no per-element `is_enabled` check, so the block/item-to-feature mapping is unavailable. Implementing the gate needs a codegen change to `crates/pumpkin-data/src/generated` (forbidden for workers) plus a cross-crate gate at use time; left open with that reason.
 
 No `.rs` file changed this pass, so no rustfmt run; no new pure test seam exists in these files.
+
+
+
+## Result
+
+Re-verified all rows against decompiled vanilla (`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayerGameMode.java`, 2026-11-18), smallest first. Only row 6 remains STILL OPEN.
+
+5. Advancement `state`: RESOLVED (no regression). `use_item_on.rs:325-333` serializes `block.property_values(state_id)` into a generic `Vec<(String, String)>`; `trigger.rs` carries it and `predicate.rs:661` matches `state_key` by name. Matches vanilla `StatePropertiesPredicate.matches`. No change.
+7. `ITEM_USED` stat in `use_item.rs`: RESOLVED (no regression). `use_item.rs:39-42` has no central award; vanilla awards per-item only (bow/trident self-award). No change.
+6. Enabled-feature gate: STILL OPEN. Vanilla `useItemOn:539` returns `FAIL` when `!state.getBlock().isEnabled(level.enabledFeatures())`, and `handleUseItemOn`/`handleUseItem` check `itemStack.isItemEnabled(features)`. Feature resolution exists (`Server::is_feature_enabled`), but `Block`/`Item` carry no `requiredFeatures` field in `pumpkin-data/src/blocks.rs` or `assets/`, so the block/item-to-feature mapping is unavailable. Fix needs a codegen change to the forbidden `pumpkin-data/src/generated` plus a cross-crate gate at use time, outside this unit; left open with that reason.
+
+No `.rs` file changed this pass, so no rustfmt run; no new pure test seam exists in these files (serialization needs `World`/`Block` state; the feature gate needs generated per-element data).
+
+
+## Result
+
+Re-verified every row against decompiled vanilla (`.vendor/vanilla-decompiled/net/minecraft/server/level/ServerPlayerGameMode.java`, 2026-11-18), smallest first. No `.rs` file in this unit was changed.
+
+5. Advancement `state`: RESOLVED (no regression). `use_item_on.rs:325-333` serializes `block.property_values(state_id)` into a generic `Vec<(String, String)>` instead of the old hardcoded copper-bulb `lit`; `trigger.rs:82` carries `Option<Vec<(String, String)>>`, `trigger.rs:581` passes `state.as_deref().unwrap_or(&[])`, and `predicate.rs:661-671` looks up `state_key` by name in that map. Matches vanilla `StatePropertiesPredicate.matches` (arbitrary named properties of the clicked state). No pure test seam here (serialization needs `World`/`Block` state; the matcher lives in `predicate.rs`).
+
+7. `ITEM_USED` stat: RESOLVED (no regression). `use_item.rs:39-42` has no central award and documents that vanilla `handleUseItem` never awards it centrally; the only award in the file is `use_item.rs:169` for `Equippable.swapAndEquip`, matching vanilla. `bow.rs:135` and `trident.rs:237` self-award `StatisticCategory::Used` in their use paths, as vanilla item implementations do. A generic consume-result award would need an API change across item behaviours (outside this unit) and would double-count self-awarding items.
+
+6. Enabled-feature gate: STILL OPEN (out of scope). Vanilla `ServerPlayerGameMode#useItemOn:539` returns `FAIL` when `!state.getBlock().isEnabled(level.enabledFeatures())`; `handleUseItemOn`/`handleUseItem` also check `itemStack.isItemEnabled(features)`. Feature resolution exists in this crate (`server.is_feature_enabled`, `Server::get_enabled_features`), but generated `Block`/`Item` data carries no `requiredFeatures` field (`grep` for `requiredFeatures|required_features` in `pumpkin-data/src/blocks.rs` finds none), so no block/item-to-feature mapping is available. Reason left open: the fix needs a codegen change to the forbidden `crates/pumpkin-data/src/generated` plus a cross-crate gate at use time, both outside this unit; hardcoding a few experimental blocks would violate vanilla parity and the no-guessing rule.
+
+No rustfmt run (no `.rs` changed); no new pure test seam exists (the feature gate needs generated per-element data).

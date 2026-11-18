@@ -74,3 +74,60 @@ Re-check of the single STILL OPEN row (Row 4) against the decompiled vanilla cla
   - Also re-confirmed melee_attack.rs:121-147 calls `do_hurt_target`/`on_attack` only on a landing hit, matching vanilla `Mob.doHurtTarget`; no change.
 
 No `.rs` source changed: the only STILL OPEN row needs a file outside this unit (panda/goals.rs) plus a broad, deliberately-deferred audit, and all in-scope behaviour is already at parity with covering tests. No rustfmt run and no new pure test: the jump-range and gift seams are already covered by pure/world tests.
+
+
+## Result
+
+Verification pass over the single STILL OPEN row (Row 4) against the decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java`, reading the current checkout in the main worktree.
+
+- Row 1 `genes_from_parents` (panda.rs:151-171) - CLOSED, no change. Vanilla `setGeneFromParents` (Panda.java:566-590) rolls each mutation with an independent `if (random.nextInt(32) == 0)` (lines 583 and 587), both always evaluated. Pumpkin's two independent `if next_int(MUTATION_CHANCE) == 0` blocks (panda.rs:164-169) match; `foal_genes_come_from_the_parents_and_mutate_independently` pins it.
+- Row 2 `sit_and_eat` (panda.rs:624-638) - CLOSED, no change. Vanilla `mobInteract` (Panda.java:615-664) returns PASS for a baby (635-637) and gates the sit-and-eat branch on `isSitting() || isInWater()` (line 644). Pumpkin's `is_baby() || is_sitting() || is_in_water()` gate (line 627) matches, and the held-item drop on 630-632 mirrors 650-653. `feeding_a_panda_that_cannot_breed_swaps_its_item_for_the_food` covers it.
+- Row 3 `can_find_bamboo` (panda/goals.rs:146-157) - CLOSED, no change (file outside this unit). Vanilla `canFindBamboo` (Panda.java:834-852) covers x,z in [-7,7] and y in [0,2]; Pumpkin uses `BAMBOO_SEARCH_RADIUS = 7` / `BAMBOO_SEARCH_HEIGHT = 2` over the same box. `breeding_needs_bamboo_nearby_and_sulks_once_per_cooldown` pins the boundaries.
+- Row 4 `after_sneeze` AI-island note (sneeze.rs:87-121) - STILL OPEN, no code change. One-line reason: finishing the species-level panda tick/AI/Brain reach audit and flipping `has_audited_tick` needs `panda/goals.rs` (outside this unit) and would still fall back to the conservative `unaudited_reach` because the shared melee/revenge goals stay unaudited and the bamboo box read exceeds `GoalReach`'s block-read bound (goals.rs:104); there is no smallest in-unit fix.
+
+In-scope behaviour verified at vanilla parity:
+- `after_sneeze` (sneeze.rs:96-121) matches `Panda.afterSneeze` (Panda.java:506-531): `PANDA_SNEEZE` at 1.0/1.0, jump for every non-baby, grounded, out-of-water, `canPerformAction` panda in a box inflated by 10, and the gift only with `MOB_DROPS` on. The SNEEZE particle is client-only from the synced counter; the Paper `EntityJumpEvent` hook at 522-524 has no vanilla-parity meaning. Covered by `a_sneeze_lasts_21_ticks_and_only_grounded_adults_that_can_act_within_ten_blocks_jump` and `sneeze_gift_drops_at_the_panda_only_with_mob_drops_on`.
+- `tick_sneeze` end `counter > 20` (sneeze.rs:79) matches Panda.java:369. `tick_roll`/`handle_roll` steps 7/15/23 and the 32-step end match Panda.java:485-504; `roll_velocity` keeps `roll_delta` on hops and the vertical speed when airborne (roll.rs:84-97) matches Panda.java:497-500. Covered by the roll tests.
+- Sneeze bounds 500/6000 and roll bounds 60/500 with `== 1` (sneeze.rs:31-34, roll.rs:53-56) match Panda.java:1119-1121 and 1022-1023; both go through `reducedTickDelay` via `to_goal_ticks`.
+- Every panda goal reports a reach: sneeze (sneeze.rs:186-188), roll (roll.rs:196-198), sit/breed (goals.rs:215-219, 368-370). Pandas keep `has_audited_tick` false, so the conservative `unaudited_reach` covers the 10-block jump; the row's original sub-gap about sit/breed `tick_reach` returning `None` is already resolved.
+- `melee_attack.rs:129-148` calls `do_hurt_target`/`on_attack` only on a landing hit, matching vanilla `Mob.doHurtTarget` (attack sound only when damage lands).
+
+No `.rs` source changed: every in-scope row is at vanilla parity with a covering test, and the only open row is out of scope with no smallest in-unit fix. No rustfmt run; no new pure test needed (gene mutation, bamboo box, sneeze jump range, roll velocity and sit-and-eat seams are already covered).
+
+
+## Result
+
+Second-pass verification of the single STILL OPEN row against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java`, reading the current
+main-checkout files. This pass allowed editing files outside the unit; none was needed.
+
+- Row 1 `genes_from_parents` (panda.rs:151-171) - CLOSED, no change. Vanilla `setGeneFromParents`
+  (Panda.java:583,587) rolls mutation with two INDEPENDENT `if (nextInt(32) == 0)` blocks, both
+  always evaluated; both genes can mutate and both draws are always taken. Pumpkin's two independent
+  `if next_int(MUTATION_CHANCE) == 0` blocks (panda.rs:164-169) match. `foal_genes_come_from_the_parents_and_mutate_independently` pins it.
+- Row 2 `sit_and_eat` (panda.rs) - CLOSED, no change. Vanilla `mobInteract` (Panda.java:644) gates
+  the sit-and-eat branch only on `isSitting() || isInWater()` and returns PASS for a baby. Pumpkin's
+  `is_baby() || is_sitting() || is_in_water()` gate matches, with the vanilla quirk comment recorded;
+  `feeding_a_panda_that_cannot_breed_swaps_its_item_for_the_food` covers it.
+- Row 3 `can_find_bamboo` (panda/goals.rs:146-159) - CLOSED, no change. Vanilla `canFindBamboo`
+  (Panda.java:834-852) loops yOff 0..3 and r 0..8, covering x,z in [-7,7] and y in [0,2]. Pumpkin's
+  `BAMBOO_SEARCH_RADIUS/HEIGHT` box is the same; `breeding_needs_bamboo_nearby_and_sulks_once_per_cooldown` pins the boundaries.
+- Row 4 `after_sneeze` AI-island note (sneeze.rs:87-121) - STILL OPEN, no code change. One-line reason:
+  the remaining species-level tick/AI/Brain reach audit plus flipping `has_audited_tick` requires a
+  whole missing subsystem, not a smallest fix: `MeleeAttackGoal::tick_reach` intentionally stays
+  `None` because of the `performing(bite)` hook (melee_attack.rs:44-47,45 comment), and the bamboo box
+  read cannot be expressed in `GoalReach` (goals.rs:102-104), so an audited panda reach would fall
+  back to `entity_islands.unaudited_reach` anyway. Pandas correctly keep `has_audited_tick` false;
+  the conservative reach (at least 16 blocks) covers the 10-block jump, and the row's original
+  sub-gap (sit/breed `tick_reach` returning `None`) is already resolved at goals.rs:215-219 and 368-370.
+  No current bug.
+
+In-scope behaviour verified at parity: `after_sneeze` matches vanilla `afterSneeze`
+(Panda.java:506-531) - `PANDA_SNEEZE` at 1.0/1.0, jump for every non-baby, grounded, out-of-water,
+`canPerformAction` panda in a box inflated by 10, gift only with `MOB_DROPS` on (the SNEEZE particle
+is client-only; the Paper `EntityJumpEvent` hook has no vanilla-parity meaning); sneeze/roll bounds and
+steps and the hop velocity match Panda.java. Covered by existing sneeze/roll tests.
+
+No `.rs` source changed: every in-scope row is at vanilla parity with a covering test, and the only
+open row needs a whole subsystem with no smallest fix. No rustfmt run and no new pure test needed
+(gene mutation, bamboo box, sneeze jump range, roll velocity and sit-and-eat seams are already covered).

@@ -79,3 +79,22 @@ Remaining gaps:
   (out of scope): stored-Y is settled, `isRemoved` needs a reproduced spurious block, `scheduleCandidate`
   chunk-dedup test and flat-generator fixture are optional coverage, none affect correctness here.
 - No files changed this pass. open=0, fixed=0 (both rows were already resolved by prior passes).
+
+## Result (verify against decompiled vanilla reference)
+- Task path `.vendor/vanilla-decompiled/net/minecraft/` is absent; verified against the doc's
+  reference tree read this pass:
+  `/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft/server/level/PlayerSpawnFinder.java`.
+- `player_spawn_finder.rs:99-109` stored-Y path: CONFIRMED FIXED. Vanilla `findSpawn` (:50-68) has
+  no stored-Y early return; with radius 0 the single candidate goes through `getLevelRespawnPos`
+  (column surface), and the suggestion's Y is used only as the final fallback after all candidates
+  fail (`scheduleNext` else-branch :82-86). Current `get_safe_player_spawn_position` (player_spawn_finder.rs:89-141)
+  has no standable/early-return branch, resolves radius 0 via `check_spawn_column`, and calls
+  `fixup_spawn_height_at(suggestion)` only after the candidate loop. Covering test
+  `zero_radius_uses_the_column_surface_not_the_stored_height` (spawn_tests.rs:272-282) present.
+- `player_spawn_finder.rs:110-117` adventure gate: CONFIRMED FIXED. Vanilla :51 reads
+  `level.serverLevelData.getGameType()` (level.dat). Current code reads `self.level_info.load().game_type`
+  (player_spawn_finder.rs:98), the level's own GameType persisted in level.dat "GameType"
+  (anvil.rs:270-274 read, :354 write). No cross-crate change needed. Covering test
+  `adventure_mode_fixes_height_on_the_suggestion_not_the_column` (spawn_tests.rs:404-419) present.
+- No source edits needed; both rows were already resolved and are now re-verified against the
+  actual decompiled source. open=0, fixed=0.

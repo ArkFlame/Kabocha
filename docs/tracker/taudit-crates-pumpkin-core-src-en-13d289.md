@@ -75,3 +75,22 @@ Files edited this pass: none (documentation only). Rows 5 and 8 left open with t
 ## Result (native-4 cross-file pass)
 - Row 8 (dimension-change duplication): BLOCKED-L. Cross-crate refactor of `entity/player.rs` and `world/mod.rs` change-dimension paths.
 - Row 5 (difficulty damage scaling): BLOCKED-DATA. Needs `DamageType.scaling` in generated pumpkin-data.
+
+
+## Result (current pass audit)
+Re-verified STILL OPEN rows against vanilla 1.21.4 decompiled sources and current code. No source files in this unit were edited (only this doc). No cargo/git/checks run.
+
+- Row 1 (respawn food/breath carry-over): VERIFIED/FIXED in current codebase per prior audit (respawn reuses same player instance; hunger/saturation/air persist). No change.
+- Row 2 (stale spawn-position TODO): VERIFIED/FIXED in prior pass. No change.
+- Row 3 (attack cooldown / enchant damage order): VERIFIED, NO CHANGE. Vanilla 1.21.4 `Player.attack` cooldown-scales the enchantment bonus; Pumpkin's `extra_ench_damage * attack_cooldown_progress` matches.
+- Row 4 (gliding movement statistics): VERIFIED/FIXED in current codebase. `statistics::movement_statistic`/ `MovementState` award `AVIATE_ONE_CM` when fall-flying (vanilla `ServerPlayer.checkMovementStatistics` order) and is wired via `Player::get_movement_statistic`/`move_vehicle.rs`; unit tests exist in `statistics.rs`. No change.
+- Row 5 (difficulty damage scaling): VERIFIED/FIXED in current codebase. Generated `crates/pumpkin-data/src/generated/damage_type.rs` now includes `DamageScaling`/`scaling`, and `crates/pumpkin-core/src/entity/player.rs` implements `damage_scales_with_difficulty`/`difficulty_scaled_damage` in the hurt path, matching vanilla `DamageSource.scalesWithDifficulty()` and `Player.hurtServer`. Outside this unit's editable files; no change made here.
+- Row 6 (duplicate effect-removal packets): VERIFIED/FIXED in prior pass. No change.
+- Row 7 (team colour on display name): VERIFIED/FIXED in prior pass. No change.
+- Row 8 (dimension-change duplication): BLOCKED. Cross-crate refactor spanning `crates/pumpkin-core/src/entity/player.rs` and `world/mod.rs`; outside this unit's scope.
+- Row 9 (relative teleport flags): VERIFIED, NO CHANGE per prior audit. No change.
+- Row 10 (drop-time merging TODO): VERIFIED/FIXED in prior pass. No change.
+- Row 11 (experience state atomicity): VERIFIED/FIXED in current codebase per prior audit (`ExperienceState` mutex). No change.
+- Row 12 (`previous_gamemode` on plain setGameMode): VERIFIED, NO CHANGE per prior audit. No change.
+
+Files edited this pass: `docs/tracker/taudit-crates-pumpkin-core-src-en-13d289.md` only. Open for this unit: row 8.

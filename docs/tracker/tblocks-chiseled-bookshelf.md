@@ -162,3 +162,34 @@ Files touched: crates/pumpkin-core/src/block/entities/chiseled_bookshelf.rs
 (test-only), docs/tracker/tblocks-chiseled-bookshelf.md.
 blocks/chiseled_bookshelf.rs, hopper.rs and use_item_on.rs unchanged (no
 outstanding row implicates them).
+
+## Result (re-review, 2026-11-18, third pass)
+
+Verification: glob `**/ChiseledBookshelf*` over .vendor/vanilla-decompiled returns
+no files and no Paper/Spigot copy exists under ../; verified against the 1.21
+class behaviour recorded above plus Pumpkin's own source. No build run (worker
+mandate). Only row 6 remains STILL OPEN in the tracker; rows 2-5 are already
+fixed in the current tree.
+
+2-5. VERIFIED FIXED (already in tree, re-read this pass) - creative removal
+   deletes the stack (blocks :187-194); remove_book/remove_stack_specific split
+   `amount` and return EMPTY for 0 (entities :236-248, :297-314; hopper.rs:442
+   passes 1); hit slot resolved before the held-item tag check (block :83-88)
+   with occupied slot -> PassToDefaultBlockAction (:102-104); occupancy read
+   from the block-entity stack via has_book (block :102, entity :250-258).
+   No code change needed.
+
+6. STILL OPEN (BLOCKED) - the insert/remove/comparator transition test is a
+   pumpkin-gametest, which requires editing
+   `crates/pumpkin-core/src/server/builtin_game_tests/mod.rs` (basename `mod.rs`)
+   to declare the module, add an entry to `BUILTIN_TEST_IDS`, and register the
+   test via `register_function_test`. `mod.rs` is outside this unit's allowed
+   basenames (chiseled_bookshelf.rs, hopper.rs, use_item_on.rs); a new
+   `builtin_game_tests/chiseled_bookshelf.rs` would be dead code without it.
+   The pure unit-test seam at entities/chiseled_bookshelf.rs is already maximal
+   (has_book / remove_book amount+empty guard / set_stack+is_valid_slot_for);
+   the remaining comparator arithmetic is formula-mirroring and its integration
+   path needs a World, so no new test was added here.
+
+No source files changed this pass (the only open row needs out-of-unit files).
+No test run (shell/cargo denied to workers; orchestrator compiles once).

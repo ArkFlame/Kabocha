@@ -164,3 +164,88 @@ invisible flag, `get_text()` name copy, creative drop ordering, single-slot Cont
 new source edit needed; no pure unit-test seam. Explosion divergence remains deferred: it
 requires the `ignoreExplosion`/`shouldAffectBlocklikeEntities` path in `explosion.rs` and
 entity defaults, files outside this unit.
+
+
+## Result (verification pass, post-restart)
+
+Re-read `crates/pumpkin-core/src/entity/decoration/item_frame.rs` in full and checked every row
+marked STILL OPEN in `## Gap status` against decompiled
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/{ItemFrame,HangingEntity,BlockAttachedEntity}.java`.
+Every row is already implemented in source; no edit was required.
+
+- Row 1 (tick cadence) VERIFIED: `tick` fires the support check on tick 100, 200, ... via
+  `SUPPORT_CHECK_INTERVAL = 100` and `fetch_add(..) + 1 < 100` (item_frame.rs:122, 499-511),
+  matching `BlockAttachedEntity.CHECK_INTERVAL = 100` and `ticksSinceLastCheck++ >= 100`
+  (BlockAttachedEntity.java:26, 43-49). The one-tick offset from vanilla's post-increment is immaterial.
+- Row 2 (add-item sound) VERIFIED: `set_item` plays `get_add_item_sound()` only when
+  `!empty && update_neighbours` (item_frame.rs:274-301), matching decompiled
+  `setItem(.., updateNeighbours, playSound)` at ItemFrame.java:313-327.
+- Row 3 (comparator-only update) VERIFIED: `set_item`, `set_rotation` and `drop_item` call
+  `world.update_neighbour_for_output_signal(&pos, &Block::AIR)` (item_frame.rs:296-300, 314-318,
+  436-438), matching ItemFrame.java:325-327 and :363.
+- Row 4 (entity drops) VERIFIED: `drop_item` returns before both drops when
+  `world.level_info.load().game_rules.entity_drops` is false (item_frame.rs:440-444), matching
+  ItemFrame.java:251 `GameRules.ENTITY_DROPS`.
+- Row 5 (invulnerable) VERIFIED: `damage_with_context` returns false for
+  `is_invulnerable_to(..)` sources (item_frame.rs:664-667), matching ItemFrame.java:189.
+- Row 6 (invisible) VERIFIED: `is_invisible`/`set_invisible` use the shared `Entity.invisible`
+  flag; NBT writes/reads `Invisible` through that flag (item_frame.rs:337-343, 526, 550-551),
+  matching ItemFrame.java:54, 62, 72, 378, 395. The earlier note that vanilla saves no
+  `Invisible` tag was wrong.
+- Row 7 (custom name) VERIFIED: `get_frame_item_stack_with_data` copies the name via
+  `custom_name.get_text()` (item_frame.rs:353-359), matching ItemFrame.java:478's verbatim
+  `CUSTOM_NAME` copy; Pumpkin's `ItemStack` stores a String, so component styles are not kept.
+- Row 8 (creative drop ordering) VERIFIED: `drop_item` returns before both drops for a creative
+  player (item_frame.rs:446-454), matching ItemFrame.java:255-257's `hasInfiniteMaterials()` branch.
+- Row 9 (single-slot container) VERIFIED: `ItemFrameInventory` (size 1, max stack 1) is exposed
+  via `get_container_inventory` (item_frame.rs:48-117, 560-569), matching ItemFrame.java:335
+  `getSlot(0)`.
+- Row 10 (DOWN drop offset) VERIFIED: `drop_item` applies the -0.6 y offset for Down-facing frames
+  (item_frame.rs:456-467), matching the Paper MC-123848 `spawnAtLocation` override at
+  ItemFrame.java:289-293.
+
+Explosion divergence remains deferred (not a numbered row): decompiled `hurtServer`
+(ItemFrame.java:187-213) lets explosion damage that fails `shouldDamageDropItem` fall through to
+`BlockAttachedEntity.hurtServer` and break the frame, while Pumpkin's early `return false` for
+`EXPLOSION`/`PLAYER_EXPLOSION` (item_frame.rs:671-676) keeps it. Fixing needs `IS_EXPLOSION` tag
+ingestion plus `ignoreExplosion`/`shouldAffectBlocklikeEntities` in explosion.rs, outside this unit.
+
+No source edit: all rows were already fixed. No pure unit-test seam (every behaviour needs a `World`
+plus fixture; `calculate_bounding_box` is a pure formula and formula-mirroring tests are disallowed).
+Compile not run (worker restriction); all referenced APIs confirmed present by source inspection.
+
+
+## Result (independent re-verification, current pass)
+
+Re-read `item_frame.rs` in full and re-checked all rows marked STILL OPEN in `## Gap status`
+against decompiled `ItemFrame.java`, `BlockAttachedEntity.java` (`.vendor/vanilla-decompiled`).
+All nine rows are already implemented in source; no edit was needed.
+
+- Row 1 tick cadence VERIFIED: SUPPORT_CHECK_INTERVAL=100, fetch_add(..)+1 fires on tick 100,
+  matching BlockAttachedEntity CHECK_INTERVAL=100 / ticksSinceLastCheck++ >= 100.
+- Row 2 add-item sound VERIFIED: set_item plays sound only when !empty && update_neighbours,
+  matching ItemFrame.setItem(.., updateNeighbours, playSound) condition at line 321.
+- Row 3 comparator-only update VERIFIED: update_neighbour_for_output_signal(&pos, &Block::AIR)
+  in set_item, set_rotation, drop_item, matching ItemFrame.java:325-327,363.
+- Row 4 entity drops VERIFIED: drop_item returns before both drops when entity_drops is false,
+  matching GameRules.ENTITY_DROPS at ItemFrame.java:251.
+- Row 5 invulnerable VERIFIED: damage_with_context returns false for is_invulnerable_to sources,
+  matching ItemFrame.java:189. No new edit (fixed in prior pass).
+- Row 6 invisible VERIFIED: shared Entity.invisible flag; NBT Invisible round-trips through it,
+  matching ItemFrame.java:378,395.
+- Row 7 custom name VERIFIED: custom_name.get_text() copy, matching the verbatim CUSTOM_NAME copy
+  at ItemFrame.java:478; Pumpkin ItemStack stores a String so component styles are not kept.
+- Row 8 creative drop ordering VERIFIED: creative player returns before both drops, matching
+  hasInfiniteMaterials() branch at ItemFrame.java:255-257.
+- Row 9 single-slot container VERIFIED: ItemFrameInventory via get_container_inventory, matching
+  getSlot(0) at ItemFrame.java:335.
+- Row 10 DOWN drop offset VERIFIED: -0.6 y offset for Down-facing frames, matching the Paper
+  MC-123848 spawnAtLocation override at ItemFrame.java:289-293.
+
+Explosion divergence remains deferred (not a numbered row, files outside this unit):
+ItemFrame.hurtServer lets explosion damage fall through to BlockAttachedEntity.hurtServer,
+while Pumpkin returns false for EXPLOSION/PLAYER_EXPLOSION; fixing needs IS_EXPLOSION tag
+ingestion plus explosion.rs handling.
+
+No source edit this pass. No pure unit-test seam (all behaviour needs a World plus fixture).
+Compile not run (worker restriction).

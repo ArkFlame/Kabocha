@@ -170,3 +170,50 @@ No `.rs` file changed, so no rustfmt. No compile run (workers do not compile); v
 reading code against `.vendor/vanilla-decompiled` only.
 
 Status: PASS fixed=0 open=1 files=none
+
+
+## Result (fresh pass, independent verification of current checkout)
+
+Re-verified every STILL OPEN row against decompiled vanilla FishingHook.java and CraftBukkit FishingHook. All fixable rows are already implemented in the working tree; no .rs file needed changes.
+
+- **Row 1 (open-water flag, M): CORRECT.** FishingBobberEntity stores open_water: AtomicBool and exposes is_open_water_fishing(). process_tick latches via the pure latched_open_water helper, reading out_of_water_time from the state at tick start before its update, matching vanilla FishingHook.tick 233-251 with MAX_OUT_OF_WATER_TIME=10. predicates.rs is_open_water reproduces calculateOpenWater layer rules (FishingHook.java 442-485) and gates the loot in_open_water predicate (predicates.rs 268-273). Pure tests exist for both helpers (fishing_bobber.rs 1065+, predicates.rs 1042+). No new test added (duplicates discouraged).
+- **Row 2 (cancelled PlayerFishEvent, S): CORRECT.** reel_in returns Option<i32>; fire_fish_event returns None on cancel (fishing_bobber.rs 381-385); fishing_rod.rs 138-154 keeps the hook and player.fishing_bobber on None and removes only on Some. Matches CraftBukkit retrieve early return before discard.
+- **Row 3 (should_stop_fishing discard, trivial): CORRECT.** calls self.discard(player) before returning true (fishing_bobber.rs 620), matching FishingHook.java 289.
+- **Row 4 (rod durability, S): CORRECT.** fishing_rod.rs 142 uses damage_item_in_slot -> damage_item_stack_internal, which rolls Unbreaking and fires the item damage/break events and sound. Covers vanilla stack.hurtAndBreak.
+- **Row 5 (random f64 vs f32): LEFT OPEN.** Cosmetic distribution-only difference, accepted by note. Reason: cosmetic, no fix planned.
+
+No .rs file changed, so no rustfmt. No compile run (workers do not compile); verification by reading code against .vendor/vanilla-decompiled only. Re-checked the diff against the worker compile-pitfalls table: no changes made, so none apply.
+
+
+## Result (second pass, full cross-file scope granted)
+
+Re-verified every STILL OPEN row against decompiled vanilla FishingHook.java / CraftBukkit FishingHook
+with permission to edit any needed source file. All fixable rows are already implemented and correct
+in the current checkout; no .rs file needed changes this pass.
+
+- **Row 1 (open-water flag, M): CORRECT.** `FishingBobberEntity` stores `open_water: AtomicBool` and
+  exposes `is_open_water_fishing()` (fishing_bobber.rs:56,175). `process_tick` latches via the pure
+  `latched_open_water` helper (fishing_bobber.rs:932-944), reading `out_of_water_time` from the state
+  at tick start, matching vanilla `FishingHook.tick:233-251` (MAX_OUT_OF_WATER_TIME=10). The fishing
+  loot params set `this_entity: Some(self)` (fishing_bobber.rs:239), so the predicate reads the latched
+  flag. `predicates.rs` `is_open_water` (416-453) reproduces vanilla `calculateOpenWater`
+  (FishingHook.java:442-485) exactly: per-layer uniform scan, ABOVE_WATER with INVALID previous ->
+  false, INSIDE_WATER with ABOVE_WATER previous -> false, source-only water gate (365-374 vs 475-481).
+  The loot `fishing_hook.in_open_water` condition is wired at predicates.rs:268-273. Pure unit tests
+  exist for both helpers (fishing_bobber.rs:1065+, predicates.rs:1039+). No new test added (duplicates
+  are discouraged).
+- **Row 2 (cancelled PlayerFishEvent, S): CORRECT.** `reel_in -> Option<i32>` and `fire_fish_event`
+  return `None` on cancel; `fishing_rod.rs:132-154` keeps the hook and `player.fishing_bobber` on
+  `None` and removes only on `Some`. Matches CraftBukkit `retrieve` early return before `discard()`.
+- **Row 3 (should_stop_fishing discard, trivial): CORRECT.** Calls `self.discard(player)` before
+  returning true (fishing_bobber.rs:620), matching FishingHook.java:289.
+- **Row 4 (rod durability, S): CORRECT.** `fishing_rod.rs:142` uses `damage_item_in_slot`, which rolls
+  Unbreaking and fires the damage/break events and sound. Covers vanilla `stack.hurtAndBreak`.
+- **Row 5 (random f64 vs f32): LEFT OPEN.** Cosmetic distribution-only difference, accepted by note.
+  Reason: cosmetic, no fix planned.
+
+No .rs file changed, so no rustfmt needed. No compile run (workers do not compile); verification by
+reading code against .vendor/vanilla-decompiled only. Diff re-checked against the worker compile-pitfalls
+table: no changes made, so none apply.
+
+Status: PASS fixed=0 open=1 files=none

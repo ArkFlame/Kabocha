@@ -45,3 +45,13 @@ Re-verified both STILL OPEN rows against decompiled vanilla `Cushion.java` and c
 - Game events ENTITY_MOUNT / ENTITY_DISMOUNT: OUT OF UNIT, left open. Fix belongs in shared `Entity::add_passenger` / `remove_passenger` in `entity/mod.rs`, not an allowed file for this unit (cushion.rs / painting.rs only). Verified both are already emitted at HEAD at the vehicle position (`entity/mod.rs:6214` `GameEvent::EntityMount`, `entity/mod.rs:6467` `GameEvent::EntityDismount`), matching vanilla `Entity.startRiding` / `stopRiding`.
 
 No .rs file was touched, so no rustfmt run.
+
+## Result (pass 5)
+
+Re-verified all rows in `cushion.rs`/`painting.rs` against decompiled vanilla (`Cushion.java`, hanging-entity drop semantics) and current HEAD; no source change was made in allowed files.
+
+- Creative-attacker no-drop (`cushion.rs:176-214`, `drop_and_remove`): RESOLVED at HEAD. Sound plays unconditionally before the `doEntityDrops` gate (matching `Cushion.dropItem` order), item drop is gated on `game_rules.entity_drops` and skipped for a creative `Player` `caused_by`, and `damage_with_context` forwards `source`; removed-entity hits return handled. `painting.rs` uses the matching drop/creative/removed-hit pattern. No pure seam for a unit test (needs a real `Player` fixture). Client-only gap not changed: vanilla also emits break particles and special lightning-drop item invulnerability in `Cushion.dropItem`.
+- Game events ENTITY_MOUNT / ENTITY_DISMOUNT: OUT OF UNIT, not fixable here (shared `Entity::add_passenger` / `remove_passenger` in `entity/mod.rs`). Already emitted at HEAD at vehicle position (`entity/mod.rs:6214`, `entity/mod.rs:6467`), matching vanilla.
+- Placement/support `pumpkin-gametest` cases (table row, M): OPEN, out of unit scope (would require test files outside allowed basenames `cushion.rs`, `painting.rs`).
+
+No .rs file was touched, so no rustfmt run.

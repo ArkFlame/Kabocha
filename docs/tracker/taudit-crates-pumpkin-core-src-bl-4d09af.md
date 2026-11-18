@@ -150,3 +150,21 @@ rows are outside this unit (only shelf.rs editable) or blocked by generated data
   `#minecraft:wooden_shelves` (engine/codegen), not shelf.rs.
 - Piston push reaction for shelves: LEFT OPEN. Pumpkin has no engine-level piston
   push-reaction/moveability concept; fix is outside this unit.
+
+## Result (2026-11-18, CODER pass)
+
+Re-verified `crates/pumpkin-core/src/block/blocks/shelf.rs` against decompiled vanilla
+`ShelfBlock` and `SideChainPartBlock` at
+`/run/media/linsaftw/SDD/tmp/mc-proof/final/net/minecraft/world/level/block/`.
+No source changes in `shelf.rs`.
+
+- `on_place` waterlogging: `replacedFluidState.is(Fluids.WATER)` -> `args.replacing.is_water()`
+  (source-only) matches decompiled placement and `mod.rs:is_water()` semantics; correct.
+- Chain connect/disconnect/update ordering, `neighborChanged` powered/chain/sound/event handling,
+  `useItemOn`/single swap/hotbar swap, comparator back-face bitmask, and water pathfindability
+  all match vanilla behavior. Existing pure tests cover hit-slot selection, hotbar slot mapping,
+  and side-chain transitions.
+- Remaining table rows still open/outside scope: `BlockIsReplacing::water_source` migration across
+  46 call sites is in `block/mod.rs` (not editable by this unit); shelf collision/occlusion shape
+  needs generated `#minecraft:wooden_shelves` shape data (BLOCKED-DATA); piston push reaction needs
+  engine-level moveability support. No small pure test seam added.

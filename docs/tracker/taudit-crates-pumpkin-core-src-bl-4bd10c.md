@@ -110,3 +110,16 @@ No code changes were needed: all actionable rows are already fixed in the tree.
 - `spreading_snowy_block.rs:100-106` opacity: verified non-issue at this call site. Vanilla `BlockBehaviour.getLightDampening` is a fixed per-state value (15 solid render, 0 skylight propagator, else 1); generated `BlockState.opacity` is that same value, so passing `above_state.opacity` as `simple_opacity` is correct. A faithful `Shapes.mergedFaceOccludes` face occlusion needs voxel-shape occlusion data and a cross-cutting rewrite of `LightEngine::get_light_dampening_into` in `pumpkin-world/src/lighting/engine.rs`. The current solid-render heuristic already matches vanilla for every block that can sit above grass (full cube, slab, glass, snow), and a slab case is covered by the existing `a_slab_above_does_not_add_occlusion` test. Left open for that reason.
 
 No new unit test was added: the verified rows need a live `World` or would only mirror their own logic. Files touched this pass: this doc only, so no rustfmt run.
+
+## Result (worker verification)
+
+Re-verified against current source in allowed files (`grass_block.rs`, `spreading_snowy_block.rs`) and the core event `crates/pumpkin-core/src/plugin/api/events/block/block_fade.rs` (basename in scope). Vanilla decompiled sources named in the task were not found under `.vendor/vanilla-decompiled/net/minecraft/world/level/block/` in this checkout, so parity was checked against the documented vanilla/Paper behavior in this unit and the existing implementation.
+
+- `plugin/api/events/block/block_fade.rs:8-14` new-state field: already present in tree (`BlockFadeEvent` carries `new_state_id: BlockStateId`, ctor and call site in `spreading_snowy_block.rs:127-131` pass `base_block.default_state.id`). Any remaining WIT/binding/version-bump work is cross-crate and outside this unit; left open with that reason.
+- `spreading_snowy_block.rs:60-76` `is_full_fluid` hardcoded: fixed in tree (`world.get_fluid_and_fluid_state`, `!fluid_state.is_empty && fluid_state.level == 8`), no change needed.
+- `spreading_snowy_block.rs:100-106` opacity not position-aware: call site matches fixed per-state damping (`above_state.opacity` as simple opacity); faithful face-occlusion requires cross-cutting rewrite of `LightEngine::get_light_dampening_into` in `pumpkin-world/src/lighting/engine.rs`, outside this unit. Left open (S, no known grass-cover divergence).
+- `spreading_snowy_block.rs:123-141` fade gate: no invented brightness/opacity gate on fade (fade fires when `!can_stay_alive`); spread branch keeps `get_max_local_raw_brightness(&pos.up()) >= 9`. Fixed in tree.
+- `can_propagate` argument: `random_tick` passes `default_block_state` (line 152), matching vanilla intent. Fixed in tree.
+- `grass_block.rs`/`spreading_snowy_block.rs` registration and snowy/mycelium spread/fade behavior otherwise match existing verified rows; no further small in-scope fix identified.
+
+No source code edits made; no pure unit-test seam available in these files without a live `World`. Files touched: `docs/tracker/taudit-crates-pumpkin-core-src-bl-4bd10c.md` only.

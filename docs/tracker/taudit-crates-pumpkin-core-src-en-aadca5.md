@@ -58,3 +58,14 @@ Re-read the current source and the decompiled classes directly; no STILL OPEN ro
 - Row 4 (lava pathfinding malus) - LEFT OPEN, out of scope and premise false. Decompiled AbstractSkeleton.java:71-74 constructor only calls super() and reassessWeaponGoal(), with no setPathfindingMalus; the LAVA 8.0F malus is in WitherSkeleton.java, not AbstractSkeleton. A per-mob path-type malus API plus an edit to skeleton/mod.rs would be required, neither in this unit's files.
 
 No pure unit-test seam exists for these one-line goal/interval behaviours without a full Mob/world; none added. No .rs file touched, no rustfmt run.
+
+
+## Result (re-audit 2026-11-18, direct source + decompiled verification)
+
+Re-verified all three STILL OPEN rows against current Pumpkin source and .vendor/vanilla-decompiled/net/minecraft/. No code edit is needed in this unit's files (bogged.rs, bow_attack.rs, parched.rs, restrict_sun.rs).
+
+- Row 2 (RestrictSunGoal) - ALREADY CORRECT, no change. restrict_sun.rs:14-16 is_exposed = is_bright_outside() && !sun_burn::is_protected; sun_burn.rs:68-76 is_protected checks the sun_protection_slot item is non-empty, and that slot defaults to HEAD (mob/mod.rs:1759), so !is_protected == HEAD empty, matching vanilla RestrictSunGoal.java:16-17 (isBrightOutside && HEAD.isEmpty(); ground nav implicit for skeletons). start/stop toggle navigator().set_avoid_sun(true/false) (restrict_sun.rs:28-38), matching java:21-31. Registration at skeleton/mod.rs:72 priority 2 matches AbstractSkeleton.java:78.
+- Row 3 (Parched attack interval) - ALREADY CORRECT, no change. parched.rs:59-66 returns Some(50) on Hard / Some(70) otherwise; bow_attack.rs:272-273 consumes get_min_attack_interval(). Matches decompiled Parched.java:56-64 (getHardAttackInterval=50, getAttackInterval=70). The docs/VANILLA_REF.md omission that seeded this row was wrong.
+- Row 4 (lava pathfinding malus) - LEFT OPEN, out of scope and premise false. Decompiled AbstractSkeleton.java:71-74 constructor only calls super() and reassessWeaponGoal(), with no setPathfindingMalus; the LAVA 8.0F malus is in WitherSkeleton.java:34. Fixing it needs a per-mob path-type malus API plus a skeleton/mod.rs constructor edit, neither in this unit's files.
+
+No pure unit-test seam exists for these goal/one-line interval behaviours without a full Mob/world, so none added. No .rs file touched, no rustfmt run.

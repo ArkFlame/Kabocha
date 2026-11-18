@@ -118,3 +118,38 @@ Re-verified the single STILL OPEN row against decompiled vanilla; no in-scope ed
 - 1. `get_inside_collision_shape` fallback (`block/registry.rs`, trait default `block/mod.rs`): LEFT OPEN. Decompiled `BlockBehaviour.java:336-338` shows the default `getEntityInsideCollisionShape` returns `Shapes.block()` (a full block), so Pumpkin's `full_block()` fallback already matches vanilla for behaviour-less blocks; the doc's premise (default should be `state.getCollisionShape`) does not hold in this decompiled version. Even if it were a gap, the fix requires `registry.rs`, `block/mod.rs` and a multi-AABB shape type in `BoundingBox`, all outside this unit (cross-crate refactor). No in-scope change and no pure-unit-test seam (the logic lives outside the nine allowed consumer files).
 - 3. relative-position `BlockIsReplacing::None` (nine allowed consumer files): no in-scope code change. Verified root cause is `block/registry.rs:714`, which returns `BlockIsReplacing::None` (vs `Other` for the clicked-block branch at line 683) when the block at the relative position is replaceable; `registry.rs` is outside this unit. Decompiled `LadderBlock.java:73-95`, `WallTorchBlock.java:53-69` and `LanternBlock.java:35-47` show these blocks derive wall/facing preference from `context.getNearestLookingDirections()`, which is gated on `replaceClicked`; the consumers' `== BlockIsReplacing::None` checks already reorder for the relative-position case and skip the clicked-position case. Changing the consumers without changing `registry.rs:714` would break that parity, so no edit was made.
 - No source files in the unit were edited; no rustfmt or unit test needed. Status: BLOCKED for the one STILL OPEN row (out-of-scope files + non-gap per vanilla default), zero fixed.
+
+## Result (consumer-side pass)
+
+Row 3 (relative-position `BlockIsReplacing::None`) fixed at the consumer level, plus
+placement-order parity for the standing/wall variants. Evidence: vanilla
+`BlockPlaceContext.getNearestLookingDirections` (`.vendor/.../context/BlockPlaceContext.java:71-90`)
+reorders to `clickedFace.getOpposite()` only when `replaceClicked` is false, i.e. when the
+block lands at the clicked position relative to the clicked block;
+`StandingAndWallBlockItem.getPlacementState` walks that single ordered list (DOWN asks for
+the standing block, horizontals for the wall block, UP is skipped) and returns null when
+nothing fits. Pumpkin's `placement_target` puts the block at the clicked position exactly
+when the clicked block gives way, so `args.position != args.use_item_on.position` is the
+faithful `!replaceClicked` predicate (the old `replacing == None` check missed the
+relative-position water/snow/grass cases, which report `Other` or `Water`).
+
+- 3. relative-position replacement: FIXED. The nine consumers now reorder on
+  `args.position != args.use_item_on.position` instead of matching `BlockIsReplacing`;
+  the ladder `Water` clause is covered by the new predicate, and its behind-ladder guard
+  uses the same predicate. Registry enum semantics untouched (registry.rs is outside this
+  unit). Size: S.
+- torches.rs, redstone_torch.rs, coral_fan.rs, skull_block.rs: the out-of-order DOWN
+  pre-checks (the `args.direction == Down` check before the reorder, plus the post-loop
+  unconditional standing fallback) were replaced by a single ordered walk that asks for
+  the standing state when DOWN is reached, matching StandingAndWallBlockItem. Standing
+  skulls no longer require a non-replaceable block below (vanilla AbstractSkullBlock
+  placement only sets POWERED). Test: `torches.rs`
+  `prefer_facing_moves_the_clicked_face_first` covers the extracted reorder helper.
+- 1. `get_inside_collision_shape`: still out of scope (registry.rs / block/mod.rs, needs a
+  multi-AABB shape type); re-verified earlier that the vanilla default is `Shapes.block()`.
+- Rows 2/4/5 remain registry.rs work, outside this unit.
+
+Files: crates/pumpkin-core/src/block/blocks/torches.rs,
+redstone/redstone_torch.rs, abstract_wall_mounting.rs, lanterns.rs, ladder.rs,
+skull_block.rs, coral/coral_fan.rs, plant/cocoa.rs, plant/shelf_mushroom.rs.
+Status: UNVERIFIED (no cargo run allowed for workers; rustfmt left to the orchestrator).

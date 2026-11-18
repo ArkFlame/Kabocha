@@ -108,3 +108,59 @@ No new unit test: every pure seam already has a failing-without-fix test
 `server_clock_manager_keeps_clocks_independent`, the three wake-marker tests,
 and the legacy/clock packet tests in `set_time.rs`). Adding more would duplicate
 them.
+
+
+## Result (re-audit, this pass)
+
+Re-verified the single remaining STILL OPEN row against decompiled vanilla at
+`/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft/world/clock/` (`ServerClockManager.java`,
+`ClockTimeMarker.java`, `ClockInstance.java`, `WorldClocks.java`, `ClockNetworkState.java`) and
+`world/timeline/Timeline.java` / `Timelines.java`, plus both in-unit source files. No source edits
+were made: nothing fixable remains in `time.rs` or `set_time.rs`.
+
+| # | Verdict | One-line reason |
+|---|---------|-----------------|
+| 5 | STILL OPEN (outside unit) | In-unit `ServerClockManager` keeps one `ClockInstance` per clock name (`server_clock_manager_keeps_clocks_independent`) and is wired by `world/mod.rs:624-633` and `command/commands/time.rs:205-219,375`; `/time set <timemarker>` and `of <clock>` already exist in `command/commands/time.rs` (outside unit). Residue needs full datapack timeline-attribute data (L, cross-crate). |
+
+Confirmation of the closed rows: row 1 is a Bedrock protocol limit (its `SetTime` has no frozen
+field; `send_game_time_sync` resends it every sync); row 2's night window matches `Timelines.java`
+(nightStart 12600, nightEnd 23401) with the skip gated by `advance_time && is_dark_outside()` in
+`world/mod.rs` (outside unit); row 3's `SleepWakeMarker` / `resolve_time_to_move_to` /
+`parse_sleep_wake_marker` match `ClockTimeMarker.resolveTimeToMoveTo` and the
+`Timeline.TimeMarkerInfo` codec (int or compound `ticks`/`show_in_commands`); row 4's `load_from`
+methods are present; row 6's per-player day-time override is in `send_game_time_sync`; row 7's
+`default_clock_id` matches `WorldClocks.bootstrap` (overworld 0, the_end 1). `ClockInstance.tick` /
+`packNetworkState` / `addTicks` / `setTotalTicks` and the `CUpdateTime` codec
+(VarLong totalTicks, f32 partialTick, f32 rate, VarInt clock id) match vanilla line for line.
+
+No new unit test: every pure seam in `time.rs` and `set_time.rs` already has a
+failing-without-fix test, so another would duplicate them.
+
+
+## Result (second pass, cross-file edits allowed)
+
+Re-verified the only remaining STILL OPEN row (5) against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/server/commands/TimeCommand.java`,
+`world/timeline/Timeline.java`, `world/clock/ClockTimeMarker.java` and
+`world/clock/ServerClockManager.java`.
+
+| # | Verdict | One-line reason |
+|---|---------|-----------------|
+| 5 | PARTLY FIXED; residue BLOCKED | `/time set <timemarker>` and its suggestions now resolve markers from the `minecraft:day` timeline registry NBT (datapack-added or moved markers are honoured), falling back to the vanilla builtins. Residue is the environment-attribute timeline tracks (`sky_light_level`, `monsters_burn`, ...): a whole missing subsystem needing keyframe-sampling plumbing across `pumpkin-world`/`pumpkin-core` and full timeline-attribute data (L). |
+
+Changes in `crates/pumpkin-core/src/command/commands/time.rs`: added `day_timeline_marker`,
+`day_timeline_command_markers`, `day_timeline_data` and `resolve_time_marker`;
+`SetTimeMarkerExecutor` resolves through `resolve_time_marker`, and
+`TimeMarkerSuggestionProvider` suggests the `show_in_commands` markers from the same
+`minecraft:day` NBT. Two pure unit tests cover the NBT codec seam:
+`day_timeline_marker_reads_datapack_int_and_compound_forms` and
+`day_timeline_command_markers_filters_show_in_commands`. UNVERIFIED: no compile or test
+run (worker shell denied); builtins remain the fallback so no regression when no datapack
+data is loaded.
+
+Confirmations (no changes made): row 1 is a Bedrock `SetTime` protocol limit (no frozen
+field; `send_game_time_sync` resends it); row 2 skips night via `advance_time &&
+is_dark_outside()` with the `Timelines.java` window (12600..23401); row 3's
+`SleepWakeMarker` matches `ClockTimeMarker.resolveTimeToMoveTo`; row 4 persists
+`world_clocks` with a round-trip test; row 6 carries the per-player day time in
+`send_game_time_sync`; row 7's `default_clock_id` matches `WorldClocks.bootstrap`.

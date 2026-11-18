@@ -98,3 +98,68 @@ fixed on master (`bubble_column_*` fields, `tick_bubble_column`, `on_above_bubbl
 
 fixed=0 open=0 files=dismount.rs (verified only, no source change).
 
+
+
+## Result (STILL OPEN verification wave)
+
+Re-opened the single row marked STILL OPEN (boat.rs:276-301, bubble time / DATA_ID_BUBBLE_TIME)
+against the now-available decompiled vanilla and re-checked the only editable source file
+`boat/dismount.rs`.
+
+- STILL OPEN row (bubble time): out of this unit's editable basenames (it targets `boat.rs`,
+  not `dismount.rs`) and already fixed on master. `boat.rs` now carries the full bubble-column
+  state machine: `bubble_column_time` / `bubble_column_drag_down` / `bubble_column_above`,
+  `BUBBLE_COLUMN_DELAY = 60`, `on_above_bubble_column` publishing `ID_BUBBLE_TIME`,
+  `tick_bubble_column` decrementing/clearing it, ejecting riders on drag-down and broadcasting
+  BOAT_SINK / BOAT_LAUNCH, plus `bubble_column_vertical_velocity`, covered by the pure test
+  `bubble_column_impulse_matches_vanilla_boat_effect`. `tick_underwater` deliberately does NOT
+  write `ID_BUBBLE_TIME` (comment boat.rs:392-395). Matches vanilla
+  `AbstractBoat.onAboveBubbleColumn` / `tickBubbleColumn` / `handleBubbleColumnEffect`.
+- The remaining "S (verify)" gap rows (spectator interact, creative spill, custom name on the
+  drop, scatter position) also target `boat.rs` (out of scope) and are already reworked on
+  master with re-verification comments and tests (`drops_item_when_destroyed`,
+  `scatter_chest_contents`, `creative_boat_drops_no_item_even_when_named`).
+- Editable file `boat/dismount.rs`: re-verified every step against decompiled vanilla
+  `AbstractBoat.getDismountLocationForPassenger` (709-738),
+  `Entity.getCollisionHorizontalEscapeVector` (6645-6651),
+  `Entity.getDismountLocationForPassenger` (6653-6655), `Player.getDismountPoses` (2069-2071),
+  and `DismountHelper.isBlockFloorValid` / `canDismountTo` (38-54). All match: escape-vector
+  math and the `1.0e-5f32` epsilon, target/below block order, water early return, the
+  `is_finite && < 1.0` floor filter, per-pose dimensions for the collision test, the world-border
+  epsilon, and the fallback position. Two existing pure tests cover the escape vector and pose
+  selection. No divergence found, so no source change was needed.
+
+No source files changed (only editable file verified correct; the STILL OPEN row is out of scope
+and already fixed on master). No rustfmt needed.
+
+fixed=0 open=0 files=dismount.rs (verified only, no source change).
+
+
+## Result (second pass, expanded edit scope)
+
+The only STILL OPEN row (boat.rs:276-301, bubble time / DATA_ID_BUBBLE_TIME) was verified
+against decompiled vanilla `AbstractBoat.java` under .vendor/vanilla-decompiled/ and is
+already fixed on master. Vanilla `DATA_ID_BUBBLE_TIME` is the bubble-column countdown, not
+an underwater air timer: onAboveBubbleColumn (164-184) arms it to 60 (BUBBLE_TIME), and
+tickBubbleColumn (351-386) decrements it, clears it on leaving the column, and at zero ejects
+riders on drag-down then broadcasts BOAT_SINK / BOAT_LAUNCH before handleBubbleColumnEffect
+(399-408) applies -0.7 y on drag-down or y=0.6 on updraft.
+
+Pumpkin `boat.rs` now mirrors this exactly: bubble_column_time / bubble_column_drag_down /
+bubble_column_above fields, BUBBLE_COLUMN_DELAY=60, on_above_bubble_column (642-693) publishing
+ID_BUBBLE_TIME plus the 1% SPLASH event/sound/particle, tick_bubble_column (429-474) decrementing
+and publishing ID_BUBBLE_TIME, ejecting riders, broadcasting the entity event and applying the
+impulse (skipped for client-controlled boats, matching vanilla canSimulateMovement),
+on_inside_bubble_column (695-700), and bubble_column_vertical_velocity (971). The pure unit test
+bubble_column_impulse_matches_vanilla_boat_effect (1071) covers the impulse. tick_underwater
+(392-402) deliberately does NOT publish ID_BUBBLE_TIME (comment 394-395), matching vanilla where
+the 60-tick underwater rider ejection is the plain outOfControlTicks field (244-249), which
+Pumpkin already tracks via ticks_underwater. The row's literal suggestion (publish bubble time from
+the underwater tick) rests on a misreading of vanilla; the feature is correctly implemented via
+the bubble-column path instead.
+
+The remaining table rows are marked "S (verify)", not STILL OPEN, and are outside this task's
+STILL OPEN scope; they are also already reworked on master with re-verification comments and
+tests. No source file needed a change, so no rustfmt was required.
+
+fixed=0 open=0 files=dismount.rs (verified only, no source change).

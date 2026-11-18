@@ -110,3 +110,96 @@ Option<&dyn EntityBase> (game_event.rs:17-18), GameEvent::ProjectileShoot.name()
 BoundingBox::expand_towards/expand_all/intersects, World::get_entity_by_uuid /
 get_player_by_uuid, Player::can_see(&Uuid), and the emit_game_event_with_context call shape
 matches other call sites.
+
+
+## Result (verification pass, current checkout)
+
+Re-checked every STILL OPEN row against decompiled vanilla at
+.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/Projectile.java and against
+the current checkout. All five fixes are already present; no .rs file needed a change this
+pass. Compilation is the orchestrator gate (workers cannot run cargo).
+
+- FIXED projectile NBT persistence: ProjectileOwner::write_nbt/read_nbt/remove_nbt are
+  called from EntityBase::write_nbt (entity/mod.rs:281-283), read_nbt_non_mut (312-314) and
+  remove_nbt (322-324) through get_projectile_owner, implemented by every projectile type.
+  Keys match vanilla Projectile#addAdditionalSaveData (Owner only when present, LeftOwner
+  only when true, HasBeenShot always; Projectile.java:154-175). owner.rs unit tests cover
+  round trip, vanilla defaults and data-remove.
+- FIXED weak/UUID pre-registration owner: Entity::self_weak/set_self_weak
+  (entity/mod.rs:2065,2074) seed EntityReference::new (owner.rs:33-40); get() upgrades the
+  Weak before UUID lookup, matching vanilla EntityReference.of storing the entity itself.
+  Unit test reference_resolves_owner_before_world_registration present.
+- FIXED is_pickable predicate: outside_owner_collision_range (owner.rs:202-218) filters the
+  root vehicle self/passengers with !is_removed && !is_spectator && can_hit, matching vanilla
+  filter(EntitySelector.CAN_BE_PICKED) (Projectile.java:229-232). Paper setCollidable sub-case
+  remains unmatched (no Pumpkin equivalent).
+- FIXED vanish check: ProjectileOwner::can_hit (owner.rs:234-248) drops targets a shooting
+  Player cannot see via Player::can_see (entity/player.rs:5104), matching Paper's
+  Projectile#canHitEntity ServerPlayer#canSee guard (Projectile.java:557-564). No unit seam.
+- FIXED restore_from hook: EntityBase::restore_from (entity/mod.rs:391-397) copies via
+  ProjectileOwner::restore_from (owner.rs:112-120,157-163), matching vanilla
+  Projectile#restoreFrom (Projectile.java:180-185). Unit test present.
+- NO ACTION lastDeflectedBy entity_id: vanilla uses a nullable entity reference, but ids are
+  not reused within a session, so equivalent today (tracker marked None).
+
+Files changed this pass: none (Result appended to this doc only).
+
+
+## Result (re-audit pass 2, current checkout)
+
+Re-verified every STILL OPEN row against
+.vendor/vanilla-decompiled/net/minecraft/ (Projectile.java, EntityReference.java,
+Entity.java, LivingEntity.java, Player.java, EntitySelector.java) and Paper's vanish rule.
+Five of six rows were already fixed in the checkout by the prior pass; wiring and all
+referenced APIs (EntityBase::self_weak / set_self_weak / restore_from / get_projectile_owner,
+Player::can_see, World::get_entity_by_uuid, emit_game_event_with_context) were confirmed present.
+
+- FIXED (is_pickable predicate, owner.rs:202-219): added a get_living_entity().is_some() guard
+  to the outside_owner_collision_range filter. Vanilla isPickable() defaults to false on Entity;
+  only LivingEntity (!isRemoved && collides) and Player (+!isSpectator) override it. Without the
+  guard, non-living owners/passengers whose can_hit() is true (boat/minecart/tnt/falling block)
+  were wrongly counted as pickable, so a projectile near a non-living mount did not register as
+  having left its owner. Living entities and players still pass via can_hit(). Paper's
+  setCollidable (LivingEntity.collides) still has no Pumpkin equivalent; that sub-case stays open
+  and needs an is_pickable trait method in entity/mod.rs (outside this unit). No pure unit-test
+  seam: the predicate is in a private method needing a live Entity/World.
+- ALREADY FIXED (projectile NBT persistence, owner.rs:250-281, evoker_fangs.rs:35-52):
+  EntityBase::write_nbt / read_nbt_non_mut / remove_nbt call get_projectile_owner()'s helpers;
+  keys match Projectile#addAdditionalSaveData / #readAdditionalSaveData. EvokerFangs keeps its own
+  Owner + Warmup keys with no get_projectile_owner override, so no double write.
+- ALREADY FIXED (EntityReference weak/UUID pre-registration, owner.rs:23-40,53-76): new() seeds a
+  Weak from Entity::self_weak; get() upgrades it before the UUID lookup.
+- ALREADY FIXED (vanish check, owner.rs:234-248): can_hit drops targets the shooting Player cannot
+  see, matching Paper's Projectile#canHitEntity ServerPlayer#canSee guard (Projectile.java:551-567).
+- ALREADY FIXED (restore_from hook, owner.rs:110-120,155-163): EntityBase::restore_from copies
+  get_projectile_owner via ProjectileOwner::restore_from, matching Projectile#restoreFrom.
+- NO ACTION (lastDeflectedBy entity_id): equivalent to vanilla's nullable reference for a session.
+- LEFT OPEN (setCollidable / LivingEntity.collides parity): requires an is_pickable trait method in
+  entity/mod.rs, outside this unit's editable files (owner.rs, evoker_fangs.rs, game_event.rs).
+
+Verification only; no cargo/git/shell run (worker restriction). rustfmt is the orchestrator's gate.
+
+
+## Result (second pass: cross-file is_pickable fix)
+
+Fixed the single row the prior pass left open (is_pickable predicate / Paper setCollidable parity).
+Verified against .vendor/vanilla-decompiled/net/minecraft: Entity.java:2780 isPickable defaults to
+false, LivingEntity.java:4153 is !isRemoved && collides, Player.java:1846 adds !isSpectator, and
+FallingBlockEntity:143 / PrimedTnt:97 / AbstractMinecart:273 / AbstractBoat:225 all override
+isPickable to !isRemoved. The previous workaround's get_living_entity().is_some() guard was wrong:
+a player riding a boat or minecart has a non-living root vehicle that vanilla still counts as
+pickable, so a projectile near the mount was flagged as having left its owner too early.
+
+- FIXED (is_pickable, entity/mod.rs:707-712, owner.rs:211-215): added EntityBase::is_pickable,
+  defaulting to get_entity().is_alive() && can_hit(). can_hit already mirrors every vanilla
+  isPickable override (mob, player, boat, minecart, tnt, falling block, end crystal, armor stand).
+  The collision-range filter now uses is_pickable, so removed owners/passengers are excluded and
+  non-living pickable vehicles are included, matching Projectile#isOutsideOwnerCollisionRange
+  (Projectile.java:225-236) and EntitySelector.CAN_BE_PICKED (EntitySelector.java:19).
+- LEFT OPEN (Paper setCollidable / LivingEntity.collides sub-case): Pumpkin has no collides field
+  and no setCollidable API; adding that is a separate subsystem, out of scope for this row.
+- Every other row remains fixed as documented above; no changes to them this pass.
+- No pure unit-test seam: is_pickable needs a live Entity/World (the existing owner.rs tests build a
+  World under a Tokio runtime), so no test was added.
+Files changed: crates/pumpkin-core/src/entity/mod.rs, crates/pumpkin-core/src/entity/projectile/owner.rs.
+Compilation not run (worker restriction); rustfmt and compile are the orchestrator gate.

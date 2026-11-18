@@ -72,3 +72,20 @@ Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecra
 | h3 | M | FIXED elsewhere - `DragonFight::tick` wired at :2422; the `Implement ender dragon handling` TODO no longer exists. |
 
 No .rs file edited (zero editable basenames), so no rustfmt run and no unit test added; row 1's pure seam is already covered by an existing test and the rest are World/engine coupled.
+
+## Result
+
+Re-verified in this pass against `.vendor/vanilla-decompiled/net/minecraft/` (26.3; `LevelChunk`, `ServerChunkCache`/`ChunkMap`, `ServerPlayer`) and current `world/mod.rs`. Editable basenames for this unit: none, so no source file was changed; no fix has an in-unit seam.
+
+| # | Size | Result |
+|---|---|---|
+| 1 | M | FIXED elsewhere - `mark_unsent_light` (:2514) dirties adjacent-chunk masks on x/z borders; pure test `border_block_dirties_light_sections_in_adjacent_chunks` (:9913). Matches `SectionPos.aroundAndAtBlockPos`. |
+| 2 | M | FIXED elsewhere - `any_player_close_enough_for_spawning` (:3432, 128-block^2) gates `tick_chunk` (:3458). Matches `ChunkMap.anyPlayerCloseEnoughForSpawning`. |
+| 3 | S | FIXED elsewhere - respawn path calls `player.send_difficulty_update()` / `player.send_active_effects()` (:5499-5500) after world info; helpers in `entity/player.rs`. |
+| 4 | S | FIXED elsewhere - `spawn_bedrock_player` sends `CSetSpawnPosition` (`WorldRespawn`) after `CStartGame` (:4103). |
+| 5 | L | FIXED elsewhere - `dragon_parts: DashMap` (:352) merged into entity queries/hit tests via `dragon_part_by_id`/`add_dragon_parts` (:5828+). |
+| 6 | XS | N/A - no behaviour gap; stale broadcast comment already removed. |
+| 7 | XS | N/A - marker/comment-only notes remain in world/mod.rs (outside unit), no behaviour gap. |
+| h3 | M | FIXED elsewhere - `DragonFight::tick` wired; `TODO: Implement ender dragon handling` absent. |
+
+No .rs edited (zero editable basenames), so rustfmt not run. No unit test added (row 1 seam already covered; others are World/engine coupled with no in-unit seam).

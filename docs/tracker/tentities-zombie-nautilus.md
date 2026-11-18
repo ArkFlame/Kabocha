@@ -41,3 +41,12 @@ Re-checked every survivor against `.vendor/` decompiled sources; no code changes
 - Row 3 (M) PASS: `NautilusAi` constants (panic 1.6, love 0.4, tempt 1.3, swim 1.0, attack 0.6) and `ZombieNautilusAi` (tempt 0.9, swim 1.0, attack 0.5, no panic/breed) match registered goals.
 - Row 4 (S) OPEN (unchanged): `AbstractNautilus.inventory` is a real `SimpleContainer` used by `openNautilusInventory`/`NautilusInventoryMenu` (`AbstractNautilus.java:82,494-522`); the dead 9-slot fields are already removed, and full `Items` NBT + mount-screen wiring needs `Player`/menu files outside this unit.
 - Row 5 (S) PASS: submerged-vs-land sound test and `finalize_spawn` biome-variant test present in `zombie_nautilus.rs`.
+
+### Re-verification (2026-11-18, second pass)
+
+Re-read both source files and the decompiled vanilla; no code changes required.
+- Row 1 PASS: all sound selectors in both files branch on `is_under_water()` (submerged), matching `Nautilus.java:72-105` / `ZombieNautilus.java:81-102`.
+- Row 2 PASS: `handle_rider_start_jump` in both files gates on cooldown, plays dash sound, applies the `(isInWater ? 1.2 : 0.5) * amount * MOVEMENT_SPEED * blockSpeedFactor` impulse (`AbstractNautilus.java:348-354`), sets cooldown 40 and the dashing flag; rider dispatch present at `player.rs:8005-8006`.
+- Row 3 PASS: registered goal speeds match `NautilusAi` (1.6/0.4/1.3/1.0/0.6) and `ZombieNautilusAi` (0.9/1.0/0.5).
+- Row 4 OPEN (unchanged): `AbstractNautilus.java:82,490-522` uses a real 3-row `SimpleContainer` wired through `player.openNautilusInventory` / `NautilusInventoryMenu`; restoring it needs `Player`, menu and NBT files outside this unit's two files.
+- Row 5 PASS: pure submerged/land sound test and biome-variant `finalize_spawn` test present.

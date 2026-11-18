@@ -44,7 +44,7 @@ one of the deliberate deviations above. No code change was made.
 
 ## Gap status
 
-- STILL OPEN: note has no gap rows; extraction empty, needs re-audit.
+- RESOLVED 2026-11-18: meta note only; re-audit against decompiled vanilla Behavior.java/Activity.java found no fixable code gaps in activity.rs or timed.rs.
 
 
 ## Result
@@ -78,3 +78,19 @@ deliberate / out-of-scope (memory ttl clock and debug formatting live in
 `memory/mod.rs`; #1 is the documented hash-order deviation).
 
 Re-verified 2026-11-18 against decompiled vanilla `Behavior.java` (tryStart/tickOrStop/doStop/timedOut match step for step) and `Activity.java` (name.hashCode + h^(h>>>16) + resize at 0.75 load factor). Bucket values core=1, idle=5, fight=14 confirmed by hand. Both tests present and correct; no new gaps, no .rs edits needed this pass.
+
+
+Additional pass 2026-11-18 (this worker): re-read both files against decompiled vanilla
+`Behavior.java` (tryStart/tickOrStop/doStop/timedOut/checkExtraStartConditions/canStillUse/
+getRequiredMemories/DEFAULT_DURATION) and `Activity.java` (String.hashCode UTF-16 fold,
+h^(h>>>16) spread, 0.75 load-factor resize), plus the `activity_slot` call site in
+brain/mod.rs:319-320 (count = activities.len() after insertion). Hand-recomputed buckets
+core=1, idle=5, fight=14. Both files already match vanilla step for step and already carry
+pure unit tests (activity_slot_matches_java_hash_map_buckets and the timed.rs boundary tests);
+no .rs edits needed this pass. The single STILL OPEN row is the meta note, now resolved:
+no fixable gaps in scope. No em dashes added.
+
+### Pass 2026-11-18 (second pass, cross-file authority)
+- Verified both in-scope files against decompiled vanilla Behavior.java: try_start/tick_or_stop/do_stop/timed_out match step for step (duration = min + nextInt(max+1-min), timedOut = timestamp > endTimestamp, stop sees that same flag). Only deviation is the .max(1) clamp on a misconfigured max<min, which vanilla would throw on.
+- Verified activity_slot against Java String.hashCode (i32 wrapping fold), h ^ (h >>> 16) spread and the 0.75 load-factor resize; the existing test pins buckets core=1, idle=5, fight=14.
+- No fixable gaps in scope, so no .rs edits made (adding tests would duplicate the pure tests already present in both files). The sole STILL OPEN row was the meta note, now marked RESOLVED. fixed=0 open=0.

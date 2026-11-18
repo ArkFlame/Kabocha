@@ -45,3 +45,18 @@ Verified STILL OPEN rows against decompiled vanilla (`world/entity/vehicle/boat/
 `paddle_boat.rs` checked against vanilla `handlePaddleBoat` (decompiled 2464-2468) and `Entity.getControlledVehicle` (6661): the `get_vehicle()` + controlling-passenger-id check + downcast to `BoatEntity` is equivalent to `getControlledVehicle() instanceof AbstractBoat` (player-only front seat, immediate vehicle). No gap; no source edit in this unit.
 
 Re-review pass (this session): re-verified `paddle_boat.rs` against `ServerGamePacketListenerImpl.handlePaddleBoat` (2464-2469) and `Entity.getControlledVehicle` (6661-6663). Confirmed `EntityBase::get_vehicle` (entity/mod.rs:6070) returns the immediate `self.vehicle` (not a root chain) and `BoatEntity::get_controlling_passenger` (boat.rs:510-518) returns `.first()` player rider, so the entity_id comparison equals vanilla's `vehicle.getControllingPassenger() == this`. `downcast_ref::<BoatEntity>` equals `instanceof AbstractBoat`. All STILL OPEN rows (bubble column, clampRotation, floatBoat, getGravity, gametest, delta-rotation) live in files outside this unit (boat.rs / physics.rs / gametest) and were already fixed/closed by other workers per above. No source edit in this unit.
+
+## Result (Coder verification)
+
+Verified against decompiled vanilla `ServerGamePacketListenerImpl.handlePaddleBoat` (`.vendor/vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java:2464-2469`) and `Entity.getControlledVehicle` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:6661-6663`). `crates/pumpkin-core/src/net/java/play/paddle_boat.rs` and `crates/pumpkin-protocol/src/java/server/play/paddle_boat.rs` match vanilla: immediate vehicle only, controlling passenger id match, boat downcast, and `left_paddle`/`right_paddle` bool fields. No in-unit source fix needed. No pure unit-test seam in this handler path (requires player/vehicle runtime state), so no test added.
+
+| row | status | reason |
+|---|---|---|
+| 19 bubble column | VERIFIED FIXED (outside unit) | Implemented in `entity/vehicle/boat.rs` per doc; file outside this unit, no edit. |
+| 20 clampRotation | VERIFIED FIXED (outside unit) | Implemented/tested in `entity/vehicle/boat.rs`/`passengers.rs` per doc; outside this unit. |
+| 21 floatBoat air->water | VERIFIED FIXED (outside unit) | Implemented in `entity/vehicle/boat/physics.rs` per doc; outside this unit. |
+| 22 getGravity | VERIFIED (no change) | Vanilla parity confirmed; logic outside this unit. |
+| 23 boat gametest | STILL OPEN | Needs a gametest file outside this unit's editable scope. |
+| h6 delta-rotation | VERIFIED FIXED (outside unit) | Implemented/tested in `entity/vehicle/boat.rs` per doc; outside this unit. |
+
+Files edited: `docs/tracker/tentities-spruce-boat.md` only. No cargo/rustfmt/tests run (worker environment).

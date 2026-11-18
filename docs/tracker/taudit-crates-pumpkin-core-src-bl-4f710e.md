@@ -227,3 +227,32 @@ world/dispatch change; `spawn_particle_with_options` broadcasts world-wide vs va
 radius (shared helper).
 
 Files touched this pass: this doc only.
+
+## Result (post-restart verification, 2026-11-18)
+
+Third consecutive post-restart pass found every fix and test from prior sections still on disk; no code edits needed. Re-checked all STILL OPEN rows against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`:
+
+- 1. Peaceful bee-poison gate (`eyeblossom.rs:92-94`): CLOSED. Vanilla `EyeblossomBlock#entityInside` (EyeblossomBlock.java:98-104) requires `getDifficulty() != Difficulty.PEACEFUL`; the guard matches.
+- 3. Shared RNG (`eyeblossom.rs:140-144`, `flower_pots.rs:119-124`): CLOSED. Both draw from `world.block_random` (the level RNG), mirroring vanilla's `RandomSource`; `transform_particle_is_reproducible_from_a_seed` covers the seam.
+- 4. Potted variants (`flower_pots.rs:85-133`): CLOSED. Matches vanilla `FlowerPotBlock#randomTick`: two-id gate, current-type fallback, transform particle coloured for the target type, long switch sound at BLOCKS 1.0/1.0, no game event, no neighbour loop.
+- 5. `eyeblossom_open(pos).unwrap_or(is_open)` (`eyeblossom.rs:125`, `flower_pots.rs:93`): CLOSED. Vanilla `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)` falls back to the current type's own open value.
+
+Reverted regression confirmed correct: vanilla `entityInside` gates on `Bee.attractsBees(state)` (EyeblossomBlock.java:101), i.e. the `bee_attractive` tag, which contains `open_eyeblossom` (bee_attractive.json:4); `poisons_bees` (`eyeblossom.rs:119`, test `only_the_open_eyeblossom_poisons_bees`) mirrors it.
+
+Left open (out of unit, unchanged): `animateTick` idle sound needs a new `BlockBehaviour` hook plus world/dispatch change; `spawn_particle_with_options` broadcasts world-wide vs vanilla's 32-block radius (shared helper). No new pure unit test: all pure seams (`transform_particle`, `poisons_bees`) already have tests.
+
+Files touched this pass: this doc only.
+## Result (CODER verification, 2026-11-18)
+
+All 5 STILL OPEN rows from the original audit have been verified against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/` and are now CLOSED:
+
+- 1. Peaceful bee-poison gate (`eyeblossom.rs:92-94`): CLOSED. Vanilla `EyeblossomBlock#entityInside` requires `getDifficulty() != Difficulty.PEACEFUL`; the Pumpkin guard matches.
+- 3. Shared RNG (`eyeblossom.rs:140-144`, `flower_pots.rs:119-124`): CLOSED. Both draw from `world.block_random` (the level RNG), mirroring vanilla's `RandomSource`; `transform_particle_is_reproducible_from_a_seed` covers the seam.
+- 4. Potted variants (`flower_pots.rs:85-133`): CLOSED. Matches vanilla `FlowerPotBlock#randomTick`: two-id gate, current-type fallback, transform particle coloured for the target type, long switch sound at BLOCKS 1.0/1.0, no game event, no neighbour loop.
+- 5. `eyeblossom_open(pos).unwrap_or(is_open)` (`eyeblossom.rs:125`, `flower_pots.rs:93`): CLOSED. Vanilla `getValue(EYEBLOSSOM_OPEN, pos).toBoolean(this.type.open)` falls back to the current type's own open value.
+
+Also confirmed: the reverted regression from the prior pass is correct - vanilla `entityInside` gates on `Bee.attractsBees(state)` (the `bee_attractive` tag, which contains `open_eyeblossom`), and `poisons_bees` (`eyeblossom.rs:119`, test `only_the_open_eyeblossom_poisons_bees`) mirrors it.
+
+No code edits were needed this pass: all fixes from prior sections are already on disk. All pure seams (`transform_particle`, `poisons_bees`) have existing unit tests. Left out of scope: `animateTick` idle sound needs a new `BlockBehaviour` hook + world/dispatch change; `spawn_particle_with_options` broadcasts world-wide vs vanilla's 32-block radius (shared helper).
+
+Files touched this pass: this doc only (verification recorded).

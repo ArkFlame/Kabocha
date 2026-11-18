@@ -42,3 +42,27 @@ Rows not re-verified here keep their unit-note reasons:
 - No compile. Verified items are read-only greps; no new code.
 - Line numbers in unit notes (entity/mod.rs:6217/5883) differ from current code (6214/6467). Notes need refresh.
 - The work list (/tmp/kabocha-runs/native-2.md) says "32 open lines" but the rows are mostly M/L or cross-crate. Most cannot be closed without a compile-checked multi-crate change.
+
+## Second pass (2026-11-18, after coordinator update)
+
+Edits in tree (not committed: git index.lock contention, supervisor commits the tree):
+
+- wo-ea95b7 gap 1 (End spike seed): FIXED. `crates/pumpkin-world/src/generation/proto_chunk.rs` gains a `world_seed` field set in `ProtoChunk::new` from `noise_gen.random_config.seed` / `flat_gen.seed` (Custom: 0), and `impl GenerationCache for ProtoChunk` overrides `world_seed()`. The chunk-system `Cache` already threaded the seed in the Features stage (`generation_cache.rs:756`), so the pipeline was correct; this closes the ProtoChunk fallback to 0. Dragon fight already receives `level.seed` (`world/mod.rs:662`). Compile check needed: no new struct initializer exists besides `ProtoChunk::new`.
+- ne-254fb9 row 2 (config disconnect Component): FIXED (present). `crates/pumpkin-core/src/net/java/mod.rs:699` sends `CConfigDisconnect::new(reason)` with the TextComponent; `pumpkin-protocol/src/java/client/config/config_disconnect.rs` writes it as a component.
+- cushion mount/dismount events: NOT A GAP (already emitted, `entity/mod.rs:6214`, `:6467`).
+- en-f688a8 row 7 (kill fallback): NOT A GAP. Matches `Entity.kill` (Entity.java:765-768); no change.
+- en-e4505c row 3 (cancellable dismount): NOT A GAP. Intentional per unit note; vanilla removes regardless of cancelled dismount.
+- en-db7d33 row 5: NOT A GAP (false positive, owner NBT round trip matches).
+- en-dae447 row 5 (f64 vs f32 random): NOT A GAP. Decided: differs only in the bit stream of the cosmetic distribution, not in any protocol or gameplay value.
+- birch boat row 5 (movement): NOT A GAP. Vanilla has no server-side paddle path; paddles are client-driven (`set_paddles` is metadata only).
+
+Still OPEN with exact seams (not implemented in this pass):
+
+- entityInside sweep: vanilla `Entity.checkInsideBlocks` (Entity.java:1951-2050, visitedBlocks + step-based effect collector) vs Pumpkin `check_block_collision` (`entity/mod.rs:5282`, outline-based) and `check_inside_blocks` (`entity/mod.rs:3300`). Needs `OnEntityCollisionArgs` in `block/mod.rs:419` extended and every impl updated (buttons, pressure plates, tripwire, detector rail, eyeblossom, wither rose, lily pad, crops x5, torch flower, boat block_effects).
+- fluid push: `base_tick_without_fluid_push` (`entity/mod.rs:7104`) exists and is used by boat.rs:584; not re-audited against `Entity.updateFluidOnEyes`/`push` (Entity.java).
+- dimension change dedup player.rs vs world/mod.rs: not examined.
+- difficulty damage scaling: not examined.
+- message signature chain (ne-61496d): needs per-player profile key storage and SignedMessageChain unpacker in `net/java/play/chat_message.rs`; crypto deps (rsa, ed25519-dalek, sha2) are in pumpkin-core Cargo.toml.
+- Other rows (bl-556f10 31/35/75, co-122988 7/8, co-ee4197 8, da-2842f9 gap 3, da-734ab8, da-c13d0e x2, en-db7d33 already listed, li-03c9dd 1/4, se-870386, wo-ea95b7 gap 2, world-natu 7): unchanged from the first pass; exact files are in the unit notes.
+
+Status: PARTIAL. 1 Rust edit, 4 rows FIXED (present or edited), 6 NOT A GAP decisions, the rest OPEN. The coordinator's full list is not complete.

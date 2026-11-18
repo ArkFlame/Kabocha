@@ -123,3 +123,69 @@ is involved, so no source edit, rustfmt or test run was needed.
 - Row 4 remains FIXED 080a2e01e (`average_ground_friction` guard plus its unit test, physics.rs:264-281).
 
 Status: fixed=0 open=0 verified=4 (rows 1, 2, 3, 5).
+
+
+## Result (scope: dismount.rs + spawn_egg.rs, re-review)
+
+Independently re-verified every row against decompiled vanilla under
+.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/ and
+world/entity/. This unit's editable source files are dismount.rs and
+spawn_egg.rs; both are already complete and match vanilla, so no source edit,
+rustfmt run, or test run was needed.
+
+Rows 1, 2, 3 and 5 map to boat.rs / physics.rs / vehicle.rs, files outside
+this unit's editable scope, and are already resolved in the current code:
+
+- Row 1 VERIFIED: boat.rs:816 returns open_custom_inventory_screen(player)
+  directly, matching vanilla AbstractChestBoat.interact returning the
+  interactWithContainerVehicle result (PASS on a failed open).
+- Row 2 NOT A GAP: boat.rs:810 gates mounting on is_eye_in_water of the boat;
+  vanilla AbstractBoat.canAddPassenger also blocks when the eye is in water,
+  so the doc's ticksUnderwater-only premise was wrong.
+- Row 3 VERIFIED: boat.rs:714-725 drops from a post-hit
+  was_alive && is_removed() && drops_item_when_destroyed(...) check, so there
+  is no will_break prediction that can drift from the vehicle threshold.
+- Row 5 VERIFIED: boat.rs:602 stores last_yd = 0.0 in the client-controlled
+  branch, matching vanilla AbstractBoat.checkFallDamage storing lastYd each
+  tick.
+
+Row 4 remains FIXED (average_ground_friction empty-count guard plus its unit
+test in physics.rs); that file is outside this unit.
+
+Editable files checked against vanilla (no gaps found):
+- dismount.rs get_collision_horizontal_escape_vector matches vanilla
+  Entity.getCollisionHorizontalEscapeVector (Entity.java:6645) exactly.
+  get_dismount_location_for_passenger matches AbstractBoat
+  .getDismountLocationForPassenger (AbstractBoat.java:709-738): water check on
+  the block below, floored target, valid floor height (finite and < 1.0),
+  per-pose canDismountTo with the boat-top fallback. Two pure unit tests present.
+- spawn_egg.rs apply_variant preserves the custom name (lines 152-154) and
+  applies entity variants before entity_data, matching the vanilla order.
+
+fixed=0 open=0 verified=5 files=<doc only: docs/tracker/tentities-pale-oak-boat.md>
+
+## Result (dismount.rs + spawn_egg.rs, wave re-review)
+
+Re-verified each STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`,
+`AbstractChestBoat.java` and the current `crates/pumpkin-core/src/entity/vehicle/boat.rs`. All four rows live in
+`boat.rs` (or `physics.rs`/`vehicle.rs`), outside this unit's editable files, and are already satisfied there. No
+source edit, rustfmt run or test run was needed; no new seam exists in `dismount.rs`/`spawn_egg.rs`.
+
+- Row 1 VERIFIED: `AbstractChestBoat.interact` (AbstractChestBoat.java:86) opens the container only when
+  `canAddPassenger(player) && !player.isSecondaryUseActive()`; Pumpkin `boat.rs:827` returns
+  `open_custom_inventory_screen(player)` directly, so a failed open now yields `false` (vanilla PASS).
+- Row 2 NOT A GAP: `AbstractBoat.canAddPassenger` (AbstractBoat.java:836-837) is
+  `getPassengers().size() < getMaxPassengers() && !isEyeInFluid(FluidTags.WATER)`; Pumpkin models exactly that in
+  `boat_interact_outcome` (boat.rs:169) and feeds it `is_eye_in_water` at boat.rs:821.
+- Row 3 VERIFIED: `boat.rs:713-735` drops from a post-hit `was_alive && is_removed() && drops_item_when_destroyed(..)`
+  check, with no pre-computed `will_break` left to drift from `VehicleEntity`'s destroy threshold.
+- Row 5 VERIFIED: `boat.rs:613` stores `last_yd = 0.0` in the client-controlled branch, matching vanilla
+  `AbstractBoat.tick` zeroing the delta movement and `checkFallDamage` storing `lastYd` from it.
+- Row 4 remains FIXED (physics.rs empty-count guard plus its unit test).
+
+Editable files re-checked against vanilla, no gaps: `dismount.rs` matches `AbstractBoat.getDismountLocationForPassenger`
+(AbstractBoat.java:709-738) including the water-below early fallback, floored target, `isBlockFloorValid` (finite,
+< 1.0) filtering and per-pose `canDismountTo`; `spawn_egg.rs` `apply_variant` (line 151-154) still preserves the custom
+name before entity variants and entity_data.
+
+Status: fixed=0 open=0 verified=5 files=<doc only: docs/tracker/tentities-pale-oak-boat.md>

@@ -66,7 +66,7 @@ None of 1-5 is cherry-specific; they are recorded once here because the tracker 
 point at this file.
 
 ## h6 status
-- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
+- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 and re-verified 2026-11-18 in entity/vehicle/boat.rs (clamp_rider_yaw, on_rider_positioned). Per-tick delta rotation is wrap_degrees(yaw - last_yaw) (boat.rs:586-588) and is applied before the clamp (boat.rs:881, :890). Tests: rider_yaw_follows_boat_yaw_delta_then_clamps, rider_clamp_adjustment_feeds_previous_yaw. CLOSED, no open row.
 
 
 ## Result (2026-11-17, shared-checkout worker)
@@ -161,3 +161,58 @@ plus the current Pumpkin source. No row is marked STILL OPEN; all prior conclusi
 
 No source files edited, so no rustfmt/build was required (cargo forbidden for this worker).
 Status: PASS (verified by vanilla/Pumpkin source comparison, not compilation).
+
+
+## Result (2026-11-18, fourth pass)
+
+No row is marked STILL OPEN after the 11-17/11-18 passes, so this pass re-verified every claim
+against decompiled vanilla 26.3 and the current Pumpkin source; nothing needed editing.
+
+1. Rider clamp + delta rotation: CLOSED, source unchanged. `clamp_rider_yaw` (boat.rs:1004-1008)
+   reproduces `AbstractBoat.clampRotation` (vanilla:740-753): `wrap_degrees` delta, clamp to
+   `RIDER_MAX_TURN_DEGREES` 105, `rider_yaw + target_delta - delta`. `rider_clamp_adjustment`
+   (boat.rs:1013) returns `yDelta` exactly as `onPassengerTurned` (vanilla:762-766) folds into `yRotO`.
+   `calculatePassengerBodyYRot` (vanilla:756-760) matches the full-boat animal +90/+270 rule.
+2. Buoyancy/drag/friction: CLOSED. `float_boat` present and called from the tick for
+   server-authoritative boats (boat.rs:620).
+3. Boarding gate: NOT A GAP, re-confirmed verbatim. Vanilla `AbstractBoat.interact`
+   (AbstractBoat.java:784) returns PASS when `player.isSecondaryUseActive() || !(outOfControlTicks < 60.0F)`;
+   Pumpkin `boat_interact_outcome` (boat.rs:161-177) has the same `!out_of_control` term.
+4. Chest-boat cap: NOT A GAP, re-confirmed. `AbstractChestBoat.getMaxPassengers` returns 1
+   (AbstractChestBoat.java:48-50) against `AbstractBoat.getMaxPassengers` 2 (AbstractBoat.java:840-842);
+   `canAddPassenger` (vanilla:836-838) is `size < max && !isEyeInFluid(WATER)`, matching
+   `can_add_passenger = seat_available && !eye_in_water`. Its `interact` (vanilla:86) only falls back
+   to the container when `!canAddPassenger(player) || isSecondaryUseActive()`.
+5. Chest contents on destroy: CLOSED. `AbstractChestBoat.remove` (vanilla:71-77) drops contents when
+   `reason.shouldDestroy()`; Pumpkin `scatter_chest_contents` runs from `on_removed` (boat.rs:499)
+   and the damage path (boat.rs:741), guarded by `claim_drops`.
+   `is_collidable` returns true unconditionally (boat.rs:637-640), as `canBeCollidedWith` does.
+
+No source file edited, so no rustfmt or build was needed (cargo forbidden for this worker).
+Risk: conclusions are from source comparison, not runtime; client-only motion still differs by design.
+
+
+## Result (2026-11-18, fifth pass)
+
+The stale "STILL OPEN" marker on the h6 delta-rotation note was removed: it had already been
+closed by the 11-17 and 11-18 passes and was the only text keeping this unit in the queue.
+
+Re-verified against the current Pumpkin source (decompiled vanilla is not present in this
+checkout: .vendor has no net/minecraft tree, so vanilla references are the line-anchored ones
+recorded in the passes above):
+
+1. Rider clamp + delta rotation: CLOSED. boat.rs:586-588 derives yaw_delta, 881/890 apply it
+   before clamp_rider_yaw / clamp_head_to_body, 896-939 re-clamps on turn and folds
+   rider_clamp_adjustment into the previous yaw.
+2. Buoyancy/drag/friction: CLOSED. float_boat at boat/physics.rs:184, called for
+   server-authoritative boats at boat.rs:620.
+3. Boarding gate: NOT A GAP. boat_interact_outcome (boat.rs:161-177) keeps the
+   !out_of_control term and returns Nothing when it fails.
+4. Chest-boat cap: NOT A GAP. One seat, container opens on secondary use or when no seat is free
+   (chest_opens_container, boat.rs:140).
+5. Chest contents on destroy: CLOSED. scatter_chest_contents (boat.rs:272) runs from on_removed
+   (488-501) when the removal reason should_destroy(), and from the damage path (741), guarded by
+   claim_drops. is_collidable returns true unconditionally (637-640).
+
+No source file edited, so no rustfmt or build was required (cargo and shell are forbidden for
+this worker; no edit needed). Status: PASS (source comparison only, not compiled).

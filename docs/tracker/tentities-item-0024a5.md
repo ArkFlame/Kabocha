@@ -191,3 +191,53 @@ Re-verified the in-scope fix and re-confirmed both remaining STILL OPEN rows aga
 
 No .rs file was modified this pass, so no new pure unit test or rustfmt run was needed
 (the only in-scope change is already present from the earlier pass).
+
+
+## Result (give.rs pass 2026-11-18, all-fits branch wired)
+
+Re-verified against .vendor/vanilla-decompiled/net/minecraft/server/commands/GiveCommand.java
+(77-109) and world/entity/item/ItemEntity.java (585-587).
+
+- Fake item entity / missing pickup feedback on the all-fits branch: RESOLVED in give.rs, with the
+  client-only part left out. Vanilla giveItem splits on `added && copyToDrop.isEmpty()`; that branch
+  spawns `makeFakeItem()` (a never-pickable entity so the client animates the pickup), then calls
+  `level().playSound(null, x, y, z, ITEM_PICKUP, PLAYERS, 0.2F, ...)` and
+  `containerMenu.broadcastChanges()`. Pumpkin previously only dropped the remainder; a fully fitting
+  give produced no sound and no inventory sync. give.rs now branches on `stack.is_empty()`: the
+  all-fits branch plays `Sound::EntityItemPickup` in `SoundCategory::Players` at the player with the
+  vanilla 0.2 volume and random pitch, then calls `sync_inventory_to_client()` (Pumpkin's
+  broadcastChanges equivalent). The fake item entity is intentionally not spawned: it is a pure
+  client visual and Pumpkin has no `make_fake_item`/`set_never_pickup` helper in item.rs.
+  The did-not-fit branch is unchanged (`set_pickup_delay(0)` + `set_target`, GiveCommand.java:104-105).
+- Age-based thrower gate (item.rs:826-838): STILL OPEN, out of unit (item.rs).
+
+No pure unit test: the branch needs a live Player, world and inventory, and a command executor
+exposes no pure seam. Rustfmt was NOT run (no shell access in this worker); the edit follows the
+surrounding formatting (4-space indent, trailing commas, under 100 columns).
+
+## Result (second pass 2026-11-18, item.rs now in scope)
+
+Re-verified the two remaining STILL OPEN rows against
+.vendor/vanilla-decompiled/net/minecraft/world/entity/item/ItemEntity.java, decompiled
+`playerTouch` (lines 423-501, gate at 490) and `getOwner` (94-95).
+
+- Age-based thrower gate: FIXED. Vanilla `playerTouch` gates pickup only on
+  `pickupDelay == 0 && (target == null || target.equals(player.getUUID()))` (line 490);
+  the thrower/owner reference is not a pickup gate and is used only by `getOwner`
+  (line 94) for the `ThrownItemPickedUpByPlayer` advancement and the "Thrower" NBT tag.
+  Removed the `item_age <= 60` thrower head-start block from `on_player_collision`
+  (item.rs:826-838). The `thrower` field remains for the advancement (item.rs:873-884)
+  and NBT (item.rs:963-972), so no field/call-site changes were needed. Updated the
+  adjacent comment to state the real vanilla gate.
+- Fake item entity on the all-fits branch: STILL OPEN, client-only and non-blocking.
+  It is a pure client pickup animation (`makeFakeItem`, ItemEntity.java:585) with no
+  gameplay effect; per project rule client-only effects do not block. The audible /
+  inventory-sync parts were already wired in give.rs in the prior pass. Left as-is.
+
+No new pure unit test: the removed gate needed a live world (`get_player_by_uuid`), so
+no pure seam exists for it; the surviving pickup gate is already covered by
+`target_gate_matches_vanilla_player_touch` (item.rs:1115). Rustfmt was NOT run (no shell
+access in this worker); the edit is a block deletion plus a comment only.
+
+Re-read the diff against the worker compile pitfalls: no new imports, helper placement,
+macro paths, struct initializers or clones; no unwrap/expect/panic added; no em dashes.

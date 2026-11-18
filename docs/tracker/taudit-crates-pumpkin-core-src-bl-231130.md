@@ -117,3 +117,29 @@ Verified every STILL OPEN row from the "Remaining gaps" table against decompiled
 No new tests added: both seams (per-recipe XP extraction, recipe-id collection) already have pure
 unit coverage. `rustfmt --edition 2024` run on `furnace_like_block_entity.rs`. No compile check run
 (worker rule).
+## Result (re-verification pass)
+
+Re-verified the in-scope files against the "Remaining gaps" table and decompiled vanilla intent recorded in this doc. Current tree state:
+
+- **furnace_like_block_entity.rs:30-38,511 (data-driven fuel `speed_multiplier`, M)** -- FIXED in tree. `speed_multiplier_bits` is persisted/read/written and `cooking_total_time` uses the stored multiplier; `rescale_cooking_after_relight` is present and invoked on ignition.
+- **furnace_like_block_entity.rs:511-535 (rescale timer on relight, S)** -- FIXED in tree (`rescale_cooking_after_relight`, `ceil(timer / oldTotal * newTotal)` while `timer < oldTotal`).
+- **furnace_like_block_entity.rs:177-198 (one XP orb per recipe, S)** -- FIXED in tree for block-entity replacement via per-recipe `extract_recipes`/`extract_experience` and orb spawn in `block/entities/mod.rs`. Caveat unchanged: result-slot take path still sums extracted amounts into one `award_experience` call (no world/orb spawn there); changing that needs a `World`-aware `InventoryPlayer` method outside this unit.
+- **furnace_like_slot.rs take path (unlock recipes in recipe book, M)** -- FIXED in tree. `on_take_item` passes extracted recipe ids to `player.award_recipes()`; `screen_handler.rs` declares the trait method and `player.rs` implements recipe-book unlock/crafted handling (outside this unit's files but present).
+- **furnace_like_block_entity.rs:867-876 (Bedrock `StoredXPInt`, S)** -- FIXED via `stored_experience()` in `bedrock_block_actor_data`.
+- **furnace_like_block_entity.rs:235-274 (result data components, S)** -- FIXED via `assemble_cooking_result()` in can-burn/craft paths.
+- **furnace_like_block_entity.rs:225 (`isSameItemSameComponents`, S)** -- SATISFIED by existing `are_items_and_components_equal` calls on assembled/component-carrying stacks.
+- **furnace_like_block_entity.rs:856-858 (`getUpdateTag`, S)** -- verified correct (vanilla base empty tag; container packets carry contents).
+
+No source edits made in this pass (all actionable in-unit rows already resolved). No tests added; existing pure unit coverage remains for the seams above. No compile/check run (worker rule).
+
+## Result (second pass, take-path orbs)
+
+- **furnace_like_block_entity.rs:177-198 (one XP orb per recipe on the take path)** -- FIXED. The
+  caveat recorded above is gone: `screen_handler.rs` now declares `InventoryPlayer::award_experience_orbs(&[i32])`
+  (default no-op), `entity/player.rs` implements it by spawning one `ExperienceOrbEntity` per amount at the
+  player position (vanilla `ExperienceOrb.awardWithDirection` from `getRecipesToAwardAndPopExperience`),
+  and `furnace_like_slot.rs::on_take_item` forwards the per-recipe amounts from `extract_recipes()`
+  instead of summing them into a single `award_experience` call.
+- All other rows were re-checked in tree and remain FIXED / SATISFIED as recorded in the previous pass;
+  no new tests (the `experience_per_recipe` seam already has pure unit coverage, and the slot path needs
+  a full `InventoryPlayer` double for no extra assertion).

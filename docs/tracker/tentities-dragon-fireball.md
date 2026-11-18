@@ -157,3 +157,29 @@ constant assertion would be a discouraged constant-mirroring test. Worker cannot
 rustfmt; orchestrator compiles once. Out of scope (not in these 6 rows, left for a separate
 tracker row): sit_breathing.rs cloud parameters differ from vanilla DragonSittingFlamingPhase
 (radius 3.0 vs 5.0, duration 600 vs 200, shrinking radiusPerTick and radiusOnUse 0.5 vs defaults).
+
+
+## Result (pass 5 - second pass, sit_breathing now in scope)
+
+Re-verified rows 1-6 against .vendor/vanilla-decompiled/net/minecraft/: still matching, no change.
+Verified the previously out-of-scope sitting-flame cloud against
+boss/enderdragon/phases/DragonSittingFlamingPhase.java:64-89 and AreaEffectCloud.java:35-57.
+
+- Sitting-flame cloud parameters - FIXED. Pumpkin spawned via create(), which hardcodes a
+  shrinking radiusOnTick (-radius/duration) and took radius 3.0, duration 600, radiusOnUse
+  0.5 and durationOnUse -100. Vanilla sets radius 5, duration 200 and never calls
+  setRadiusPerTick/setRadiusOnUse/setDurationOnUse, so those stay at defaults (0.0/0.0/0).
+  Added AreaEffectCloudEntity::create_sitting_flame (area_effect_cloud.rs:163-193) that
+  builds the cloud directly with radius 5, duration 200, radius_on_tick 0.0, radius_on_use
+  0.0, duration_on_use 0, potion_duration_scale 0.25 and INSTANT_DAMAGE amplifier 0, and
+  switched sit_breathing.rs:53 to it.
+- Cloud position - left as a separate gap, not in rows 1-6: vanilla derives it from
+  head + look*2.5 with a down-to-ground scan, while Pumpkin uses a body/yaw offset. Fixing it
+  needs a head-position/ground-check API, not a cloud parameter or generated data.
+- No pure unit-test seam: constructing the cloud needs a live Entity/World, and a bare
+  constant assertion would be a discouraged constant-mirroring test.
+
+Files touched: crates/pumpkin-core/src/entity/area_effect_cloud.rs (new constructor),
+crates/pumpkin-core/src/entity/boss/ender_dragon/phase/sit_breathing.rs (call site).
+No cargo/git/shell runs by worker (no edit tool registered; targeted file writes used);
+orchestrator compiles once. No unwrap/expect/panic, no em dashes, no new imports.

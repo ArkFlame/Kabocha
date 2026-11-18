@@ -43,3 +43,16 @@ Fixed: command-block source yaw mapped `facing=up/down` to 270, while vanilla `D
 ## Result (native-1)
 
 - Row 11 (CustomName in `CommandSender` Display and `into_source`): FIXED. `command_block_name` in `crates/pumpkin-core/src/command/mod.rs` returns the command block's `custom_name` or `@`, matching vanilla `BaseCommandBlock#getName`. Both `Display` and `into_source` use it. Compile not run (orchestrated later).
+
+## Result (re-audit)
+
+All six rows re-verified against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. No row remains genuinely STILL OPEN and no new source edit is needed; the earlier STILL OPEN notes for rows 11/14/15 were superseded by later fixes present in the checkout.
+
+- Row 11 (CustomName): FIXED in checkout. `command_block_name` (`command/mod.rs:129`) returns `custom_name` or `@`, matching vanilla `BaseCommandBlock.getName`; both `Display` (line 143) and `into_source` (line 394) use it. `mod.rs` is outside this unit's editable basenames and needed no edit.
+- Row 12 (LastExecution/UpdateLastExecution/CustomName): FIXED in checkout. `CommandBlockEntity` fields plus NBT read/write (`block/entities/command_block.rs:58-160`) and the round-trip tests match vanilla `BaseCommandBlock.save/load` (`BaseCommandBlock.java:54-80`).
+- Row 13 (`chain_execute`): FIXED in checkout. `conditions_met` (`block/blocks/command.rs:61`) returns true for unconditional blocks and checks the previous block's `SuccessCount` for conditional ones, matching vanilla `CommandBlockEntity.markConditionMet` (`CommandBlockEntity.java:146-159`). `execute` (line 164) and `chain_execute` (line 240) stop on `lastExecution == gameTime`, matching vanilla `BaseCommandBlock.performCommand` (`BaseCommandBlock.java:95-97`) and `CommandBlock.executeChain` (`CommandBlock.java:207-209`).
+- Row 14 (admin broadcast target): FIXED in checkout. `send_to_ops` (`command/context/command_source.rs:383`) targets op-list members via `operator_config.get_entry`, matching vanilla `CommandSourceStack.broadcastToAdmins` (`CommandSourceStack.java:539-548`, `PlayerList#isOp` / Paper `hasPermission("minecraft.admin.command_feedback")`).
+- Row 15 (console feedback): FIXED in checkout. `CommandSender::Console` routes through `tracing::info!` (`command/mod.rs:154`); no `println!`/`print!`/`eprintln!` remains anywhere under `command/`.
+- Row 16 (`world_or_first`): no change; anchoring console/dummy sources to the overworld matches vanilla.
+
+No unit test added: every row with a pure seam already has one (`command_block_y_rot`, `command_block_custom_name_nbt_round_trip`, `command_block_last_execution_nbt_round_trip`, `command_block_last_output_nbt_round_trip`); `chain_execute`, `send_to_ops` and `Display` require a live `World`/`Server`. No source file edited, so no rustfmt run needed.

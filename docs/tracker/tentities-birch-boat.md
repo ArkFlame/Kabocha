@@ -192,3 +192,32 @@ so no rustfmt and no unit test. Risk: none, verification/docs only.
 - 6 damage early-out: FIXED (present), boat.rs:691-710.
 - 5 movement: not re-verified, unchanged.
 - Details: docs/investigations/native-2.md
+
+
+## Result (CODER re-verify 2026-11-18, session 2)
+
+Independent re-verification of every row still marked STILL OPEN against
+`.vendor/vanilla-decompiled/net/minecraft` (MC 26.3). This unit may edit only
+`item/items/place_on_water.rs`, which implements `PlaceOnWaterBlockItem` for
+LILY_PAD/FROGSPAWN (`ids()` line 25) and contains no boat code, so no row is
+actionable in an editable source file here.
+
+- 2 LEFT OPEN (out of unit) - `entity/vehicle/boat.rs` chest-boat destroy; premise
+  disproven: `VehicleEntity.destroy` (VehicleEntity.java:94-101) writes only
+  CUSTOM_NAME to the drop, no `minecraft:container` component.
+- 3 LEFT OPEN (out of unit) - row names `place_on_water.rs`, but boat placement lives
+  in `item/items/boat.rs:178-179`; `BoatItem.getBoat` (BoatItem.java:93-104) calls only
+  `createDefaultStackConfig`, no container read. No `place_on_water.rs` edit.
+- 4 LEFT OPEN (out of unit) - `boat.rs` leash hooks; `AbstractBoat.java:54,428-449`
+  confirms `implements Leashable` / `getLeashOffset` / `supportQuadLeash`. Prior Result
+  reports FIXED; not re-touched.
+- 5 LEFT OPEN (out of unit) - `boat.rs` / `boat/physics.rs` movement;
+  `AbstractBoat.java:269-270` calls `controlBoat()` only on the client and sends
+  `ServerboundPaddleBoatPacket`, so there is no server-side paddle path to port.
+  Prior Result reports CLOSED; not re-touched.
+- 6 LEFT OPEN (out of unit) - `boat.rs` damage early-out/return;
+  `VehicleEntity.hurtServer` (VehicleEntity.java:35-42) checks `isRemoved()` first,
+  then `isInvulnerableToBase`. Prior Result reports FIXED; not re-touched.
+
+No `.rs` file changed (no source seam in `place_on_water.rs` for any boat row), so
+no rustfmt and no unit test. Risk: none, verification/docs only.

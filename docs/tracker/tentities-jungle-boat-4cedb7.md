@@ -54,7 +54,7 @@ not available to diff).
   tag branch above already covers them - hygiene only, left untouched.
 
 ## h6 status
-- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED bd8b9bf97 in entity/vehicle/boat/passengers.rs. Unit test: rider_yaw_is_clamped_to_105_degrees_around_boat_yaw. Delta-rotation accumulation not added: UNVERIFIED, STILL OPEN.
+- Rider yaw clamp (AbstractBoat.clampRotation, +/-105 deg, body and head sync): FIXED. Delta-rotation accumulation: FIXED and verified in a later pass (deltaRotation sampled into yaw_delta each tick and applied in on_rider_positioned / on_passenger_turned); stale STILL OPEN marker retired.
 
 ## Result
 
@@ -134,3 +134,93 @@ The marker is stale; no source change was needed this pass.
 
 All rows in this unit are resolved (open=0). No generated-data, WIT, cross-crate change or
 file outside the unit was touched. No cargo/git run (worker constraint); read-only verification.
+
+## Result
+
+Re-checked the only STILL OPEN marker (h6 note, line 57: delta-rotation accumulation) against
+the decompiled tree at `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`.
+The marker is stale; no source change was needed this pass.
+
+- `AbstractBoat.positionRider` (L696-706) adds `deltaRotation` to a non-`CAN_TURN_IN_BOATS`
+  rider's yaw and head yaw, then calls `clampRotation`; `clampRotation` (L740-754) clamps a
+  non-mob rider to +/-105 deg and sets a mob's yaw to the hull heading with
+  `clampHeadRotationToBody`; `onPassengerTurned` (L762-766) re-clamps and folds `yDelta` into
+  `yRotO`. `calculatePassengerBodyYRot` (L756-760) gives a full-boat animal a 90/270 offset.
+- Pumpkin matches: `boat.rs::tick` samples `yaw_delta` from consecutive yaw (L574-577),
+  `on_rider_positioned` (L840-883) applies the delta and the clamp, `on_passenger_turned`
+  (L885-933) re-clamps and folds the adjustment into `y_rot_o`, and the helpers
+  `rider_body_yaw` (L966-978), `clamp_rider_yaw` (L993-997), `clamp_head_to_body` (L982-986)
+  and `rider_clamp_adjustment` (L1002-1004) reproduce the vanilla math. Tests
+  `rider_yaw_clamps_to_boat_heading_window` and `rider_yaw_follows_boat_yaw_delta_then_clamps`
+  cover the delta + clamp paths.
+- Hooks are live, not dead: `entity/mod.rs:1673` calls `on_rider_positioned` and
+  `entity/mod.rs:4486` calls `on_passenger_turned`.
+
+No source file edited (unit names no source basenames). No generated-data, WIT or cross-crate
+change required. Worker constraint: no cargo/git run; read-only verification only.
+
+
+## Result
+
+Second-pass verification against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`,
+`ChestBoat`, and `world/entity/vehicle/VehicleEntity.java`. The only STILL OPEN marker (line 57,
+delta-rotation accumulation) is stale; the current source already implements every gap in the
+table, so no source change was needed this pass.
+
+- Row 40 / h6 marker (rider yaw delta): FIXED and live. `AbstractBoat.positionRider` L696-705
+  adds `deltaRotation` to yaw/head then `clampRotation` (L740-754, +/-105deg), and
+  `onPassengerTurned` L762-766 re-clamps and folds the delta into `yRotO`. Pumpkin matches:
+  `boat.rs::tick` samples `yaw_delta` from consecutive yaw (L585-588), `on_rider_positioned`
+  applies the delta then clamps (L851-894), `on_passenger_turned` re-clamps (L896-944), and the
+  helpers `rider_body_yaw`, `clamp_rider_yaw`, `clamp_head_to_body`, `rider_clamp_adjustment`
+  (L977-1014) reproduce the vanilla math. Hooks are live: `entity/mod.rs:1686` calls
+  `on_rider_positioned` and `entity/mod.rs:4499` calls `on_passenger_turned`. The stale line 57
+  marker was retired to stop this row re-queuing.
+- Row 41 (bubble time): FIXED. `ID_BUBBLE_TIME` exists in generated tracked_data and is published
+  on bubble-column contact (boat.rs L436, L446, L651); `ticks_underwater` stays a separate eject
+  counter.
+- Row 42 (eject counter / flowing water): VERIFIED, no change. Vanilla `AbstractBoat.tick`
+  L243-249 counts both UNDER_WATER and UNDER_FLOWING_WATER toward the 60-tick eject; Pumpkin's
+  `BoatStatus::is_underwater()` (physics.rs L22-24) covers both, so the suggested split would
+  diverge from vanilla.
+- Row 43 (leash): FIXED. `BoatEntity::interact` LEAD branch (L765-805), `tick` calls
+  `entity.tick_leash` (L604), `support_quad_leash` true (L951), and leash NBT read/write (L531-544).
+- Row 44 (custom name on drop): VERIFIED. `VehicleEntity.destroy` L94-100 copies CUSTOM_NAME onto
+  the dropped item; `hurtServer` L59-80 discards on an instabuild hit with no drop, so
+  `drops_item_when_destroyed(creative) = !creative` (boat.rs L117) is correct.
+- Row 45 (push-mount cap): VERIFIED. `entity/mod.rs:1350-1357` and boat.rs `interact` share
+  `boat::max_passengers`.
+- Row 46 (seat offsets): FIXED. `passenger_seat_offset` is shared by `passenger_attachment_point`
+  and `passengers.rs::get_passenger_attachment_point`, including the +0.2 animal shift.
+- Row 47 (pure tests): present (rider yaw clamp/delta, clamp adjustment, body yaw, head clamp,
+  bubble impulse, seat offsets, interact outcome, drop resolution).
+
+All rows open=0. No generated-data, WIT, cross-crate change or source edit required. Worker
+constraint: no cargo/git run; read-only verification plus tracker-doc update only.
+
+## Result
+
+Second pass against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/`
+(`AbstractBoat.java`, `AbstractChestBoat.java`, `Boat.java`) and `VehicleEntity.java`.
+
+- h6 STILL OPEN marker (delta-rotation accumulation, line 57): still stale, no change.
+  `AbstractBoat.positionRider` (L696-706) applies `deltaRotation` then `clampRotation`
+  (L740-754); Pumpkin samples `yaw_delta` in `tick` (boat.rs L585-588) and applies it in
+  `on_rider_positioned` / `on_passenger_turned`. Verified live at `entity/mod.rs:1686`
+  (`position_rider` -> `on_rider_positioned`). Tests already cover it.
+- Row 43 (leash) had one half missing and is now FIXED. `AbstractBoat.remove` (L790-805)
+  drops the lead on a destroying removal (`reason.shouldDestroy()` -> `dropLeash()` /
+  `removeLeash()`), which Pumpkin had no equivalent for: `BoatEntity::on_removed` only
+  scattered chest contents, so a broken or `/kill`-ed leashed boat left `leashed_to`
+  pointing at a gone holder with no lead refunded. `on_removed` now calls
+  `drop_leash()` (unleash event + lead item, entity_drops independent like vanilla)
+  before the chest scatter. No new test: the seam is entity/world state, not a pure
+  function; the existing leash interact path is unchanged.
+- Row 42 (eject counter): unchanged, vanilla `AbstractBoat.tick` L243-247 counts both
+  `UNDER_WATER` and `UNDER_FLOWING_WATER`, matching `BoatStatus::is_underwater`.
+- Rows 40, 41, 44, 45, 46, 47 remain as previously resolved; `max_passengers`,
+  `passenger_seat_offset` and the bubble-column metadata are single-sourced and wired
+  (`entity/mod.rs:1343` uses `boat::max_passengers`).
+
+Edited `crates/pumpkin-core/src/entity/vehicle/boat.rs` only. No generated-data, WIT or
+cross-crate change. No cargo/git run (worker constraint); syntax-reviewed only.

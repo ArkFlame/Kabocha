@@ -121,3 +121,47 @@ No new unit test added: the only pure seam is `next_gaussian()`, already covered
 No `.rs` file was touched this pass, so no rustfmt run was required. Compile not run per worker
 rules; re-read of the file against the Worker compile pitfalls table found no new import-path,
 helper-placement, macro-path, struct-initializer, clone, or clippy-pedantic issues.
+
+
+## Result (final verification pass)
+
+Re-verified every row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java` (Paper/Folia mappings) and the active `on_hit` path. All actionable rows are already resolved in `ender_pearl.rs`; no source edits were needed this pass, so the two earlier Result sections are superseded by this one.
+
+- Row 1 (portal particle burst, S): RESOLVED IN CODE, no change. Vanilla `onHit` (lines 165-175) spawns 32 PORTAL particles at `getX(), getY()+nextDouble()*2.0, getZ()` with velocity `(nextGaussian(), 0.0, nextGaussian())`. `ender_pearl.rs:96-114` matches exactly: no X/Z position spread, uniform 0..2 Y offset, gaussian X/Z velocity via the local Box-Muller `next_gaussian()` helper (lines 28-33), covered by the pure unit test `gaussian_is_standard_normal` (lines 215-230).
+- Row 2 (teleport sound for non-player owners, XS): CLOSED false positive, no change. Vanilla calls `playSound(PLAYER_TELEPORT)` in BOTH branches (Folia path lines 148 and 152, legacy path lines 234 and 248); Pumpkin playing it for all owners is correct.
+- Row 3 (cancellable dismount events, S): STILL OPEN, intentional, no change. Vanilla `unRide(true)` (line 101) is uncancellable. Making Pumpkin's dismount uncancellable requires changing `remove_passenger_before_teleport` / the plugin event contract (Entity and plugin event files outside this unit), so it is left open per the prior design decision.
+- Row 4 (connection-open gate, XS): RESOLVED IN CODE, no change. Vanilla legacy path checks `player.connection.isAcceptingMessages()` (line 199); `ender_pearl.rs:142` guards with `owner.get_player().is_none_or(|player| !player.client.closed())`, equivalent for players and a no-op for non-player owners, as in vanilla.
+- Row 5 (endermite gate, XS): RESOLVED IN CODE, no change. `world.should_spawn_monsters()` (`world/mod.rs:8329-8334`) = `spawn_mobs && spawn_monsters && !Peaceful`, matching the vanilla non-Folia gate `isSpawningMonsters() && != PEACEFUL` (line 211). Pumpkin is a non-Folia server, so this is parity-correct.
+- Row 6 (death entity status, XS): RESOLVED IN CODE, no change. Vanilla only discards the pearl (lines 191 and 251); no spurious `send_entity_status(EntityStatus::Death, ActorEventID::Death)` or related imports remain in `ender_pearl.rs`.
+
+No new unit test added: the only pure seam is `next_gaussian()`, already covered by `gaussian_is_standard_normal`; all other logic is inside `on_hit` with World/Player dependencies. No `.rs` file was touched, so no rustfmt run was required. Re-reading `ender_pearl.rs` against the Worker compile pitfalls table found no new import-path, helper-placement, macro-path, struct-initializer, clone, or clippy-pedantic issues. Compile not run per worker rules.
+
+
+## Result (verification pass 4, CODER direct checkout)
+
+Re-verified every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java`
+and the active `on_hit` path. All actionable rows are already resolved in `ender_pearl.rs`;
+no source edits were needed this pass.
+
+- Row 1 (portal particle burst, S): RESOLVED IN CODE, no change. Vanilla `onHit` (lines 165-175) spawns 32 PORTAL particles at `getX(), getY()+nextDouble()*2.0, getZ()` with velocity `(nextGaussian(), 0.0, nextGaussian())`. `ender_pearl.rs:96-114` matches: no X/Z position spread, uniform 0..2 Y offset, gaussian X/Z velocity via local Box-Muller `next_gaussian()` (lines 28-33), covered by pure unit test `gaussian_is_standard_normal` (lines 215-230).
+- Row 2 (teleport sound for non-player owners, XS): CLOSED false positive, no change. Vanilla calls `playSound` in BOTH branches (Folia lines 148 and 152, legacy lines 234 and 248); Pumpkin playing it for all owners is correct.
+- Row 3 (cancellable dismount events, S): STILL OPEN, left open per task rule. Vanilla `entity.unRide(true)` (line 101) is uncancellable; Pumpkin's `remove_passenger_before_teleport` fires cancellable `EntityDismountEvent`/`VehicleExitEvent` from `entity/mod.rs:6384-6405`. Making it uncancellable requires editing `entity/mod.rs` and the plugin event contract, files outside this unit.
+- Row 4 (connection-open gate, XS): RESOLVED IN CODE, no change. Vanilla legacy path checks `player.connection.isAcceptingMessages()` (line 199), which is `connection.isConnected() && !waitingForSwitchToConfig` (ServerGamePacketListenerImpl.java:495-497). `ender_pearl.rs:142` guards with `owner.get_player().is_none_or(|player| !player.client.closed())`, where `closed()` maps to the connection `is_closed()` (net/mod.rs:211-215). Equivalent for players, no-op for non-player owners.
+- Row 5 (endermite gate, XS): RESOLVED IN CODE, no change. Vanilla non-Folia gate (line 211) is `isSpawningMonsters() && != PEACEFUL`; Pumpkin `world.should_spawn_monsters()` = `spawn_mobs && spawn_monsters && !Peaceful`, parity-correct for a non-Folia server.
+- Row 6 (death entity status, XS): RESOLVED IN CODE, no change. Vanilla only discards the pearl (lines 191 and 251); no spurious `send_entity_status(EntityStatus::Death, ...)` or related imports remain in `ender_pearl.rs`.
+
+No new unit test added: the only pure seam is `next_gaussian()`, already covered; all other logic is inside `on_hit` with World/Player dependencies. No `.rs` file was touched, so no rustfmt run was required. Re-read of `ender_pearl.rs` against the Worker compile pitfalls table found no new import-path, helper-placement, macro-path, struct-initializer, clone, or clippy-pedantic issues. Compile not run per worker rules.
+
+## Result (pass 5, CODER direct checkout, SECOND PASS)
+
+SECOND PASS: row 3 was left open in earlier passes as cross-file/outside this unit. This pass edited `crates/pumpkin-core/src/entity/mod.rs` (now permitted) to make the ender-pearl teleport dismount uncancellable, matching vanilla `entity.unRide(true)` at ThrownEnderpearl.java:101.
+
+- Row 1 (portal particle burst, S): RESOLVED IN CODE, no change.
+- Row 2 (teleport sound for non-player owners, XS): CLOSED false positive, no change.
+- Row 3 (cancellable dismount events, S): FIXED. `remove_passenger_internal` gained a `cancellable: bool` parameter; `remove_passenger_before_teleport` now passes `false`, so `EntityDismountEvent`/`VehicleExitEvent` cancellation is ignored on the teleport path. Both events still fire, preserving Pumpkin's plugin notification contract; only the ability to cancel is removed. `remove_passenger` passes `true`, preserving normal cancellable dismount semantics. Verified against decompiled vanilla ThrownEnderpearl.java:101 (`entity.unRide(true)`, uncancellable).
+- Row 4 (connection-open gate, XS): RESOLVED IN CODE, no change.
+- Row 5 (endermite gate, XS): RESOLVED IN CODE, no change.
+- Row 6 (death entity status, XS): RESOLVED IN CODE, no change.
+
+No new unit test: the dismount path depends on World/Player/plugin manager, so there is no pure seam; the only pure seam (`next_gaussian`) is already covered by `gaussian_is_standard_normal`. Re-read the edit against the Worker compile pitfalls table: two bool params (within the 3-param limit), no new imports, helpers, macros, struct initializers or clones; backticked code identifier in the doc; no unwrap/expect/panic; no em dashes. Compile not run per worker rules; rustfmt run by the orchestrator.

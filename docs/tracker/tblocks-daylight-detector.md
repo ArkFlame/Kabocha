@@ -96,3 +96,28 @@ sources. No source edit was needed; no new test seam exists beyond the math test
   light-engine occlusion change, neither in this unit's files (`brightness.rs`, `daylight_detector.rs`).
 - `brightness.rs` (`light_level_curve`, `DAYLIGHT_BRIGHTNESS`) and `block/entities/daylight_detector.rs`
   have no STILL OPEN rows and no gaps; left untouched.
+
+
+## Result (re-review 2026-11-18, .vendor tree)
+
+Re-verified directly against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java`
+(lines 47-64 and 100-110). No source edit was needed; no new pure test seam exists.
+
+- Plugin same-state redundant update (S, the STILL OPEN row) - NOT A GAP; no change. Vanilla wraps
+  `callRedstoneChange` and `setBlockAndUpdate(pos, state.setValue(POWER, target))` in a single
+  `if (state.getValue(POWER) != target)` block (lines 60-63), so both only run when the computed target
+  differs from the stored power. Pumpkin `update_signal_strength`
+  (`block/blocks/redstone/daylight_detector.rs:112-132`) has the identical guard: fire
+  `BlockRedstoneEvent`, clamp `new_current` to 0-15, write with `BlockFlags::NOTIFY_ALL` (0b11, no
+  `FORCE_STATE` = 0b100) and let the unchanged-state early return drop a plugin write that restores the
+  old power, matching `LevelChunk.setBlockState` returning null. `useWithoutItem` uses
+  `BlockFlags::NOTIFY_LISTENERS` (0b10) = vanilla `Block.UPDATE_CLIENTS` (2).
+- Effective sky brightness can go negative (S) - already FIXED at HEAD, outside this unit's files.
+  `world/mod.rs:7372-7375` `effective_sky_brightness_from` applies `.max(0)` and
+  `get_effective_sky_brightness` (7368-7370) routes through it.
+- Shape-based light occlusion / 6px column (L) - left OPEN, out of scope. Vanilla `getShape` returns
+  `Block.column(16.0, 0.0, 6.0)` and `useShapeForLightOcclusion` is `true` (lines 30, 38-45); fixing it
+  needs a generated `use_shape_for_light_occlusion` flag (generated data is forbidden to hand-edit) plus
+  a cross-crate light-engine change, neither in this unit's files.
+- `block/entities/daylight_detector.rs` matches `getTicker`/`tickEntity` (skylight-only gate, game time
+  % 20) and the vanilla block entity has empty NBT, as here.

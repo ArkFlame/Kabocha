@@ -106,3 +106,38 @@ Skipped: no code changes (all rows already fixed); no build/test (orchestrator c
 Risk: Bedrock-only field conventions (`camera_orientation`/`raw_move`, sneak raw flags,
 analog deadzone threshold) have no Geyser/protocol fixture or live client in `.vendor` to
 verify end-to-end; only the vanilla-input mapping was checked here.
+
+## Result
+
+Re-audit (2026-11-18) of every gap row against `.vendor/vanilla-decompiled/net/minecraft/`.
+All ten rows are already fixed in this checkout; no source file needed an edit this pass.
+No cargo/git run (forbidden by the unit); the orchestrator compiles.
+
+Vanilla references checked this pass:
+- `ServerPlayer.getLastClientMoveIntent` (3777-3781) builds
+  `(leftIntent, 0, forwardIntent)`; `Entity.getInputVector` (2471-2481) maps that to
+  world `(x*cos - z*sin, z*cos + x*sin)`, so LEFT -> +X and FORWARD -> +Z at yaw 0.
+  `camera_relative_move`'s `left_intent = raw_move.x*forward_z - raw_move.y*forward_x`
+  is sign-correct and sets LEFT for +X.
+- `Player.getDesiredPose` (382-393) returns SPIN_ATTACK only from `isAutoSpinAttack()`,
+  confirming both Bedrock handlers must call `update_player_pose()`, never set it from a flag.
+- Java `Action::StartHorseJump` calls `player.start_riding_jump(server, jump_boost)`
+  (java/play/player_command.rs:25), matching the Bedrock held-`JumpDown` charge swap.
+
+| row | outcome | verification in main checkout |
+|---|---|---|
+| spin attack flags (S) | FIXED (already) | `update_player_pose()` on both spin flags in player_auth_input.rs (88-92) and player_action.rs (273-275); no `set_pose(SpinAttack)` from a client flag. |
+| camera-relative movement (S) | FIXED (already) | `camera_relative_move` with `left_intent` (490); sign checked against vanilla input mapping above. |
+| sneak raw flags (S) | FIXED (already) | `sneaking_from_flags` toggle edge + raw fallbacks (357-381); four unit tests. |
+| analog deadzone (S) | FIXED (already) | `ANALOG_DEADZONE` 0.1 in `analog_move` (459-468); test present. |
+| `await_teleport` (M) | FIXED (already) | `SPlayerAuthInput.teleport` echo + `HandledTeleport` flag (303-308) + player_action.rs clearing on `HandledTeleport`/`ChangeDimensionAck` (17-33); proximity resend fallback. |
+| `InputData::StartJumping` (M) | FIXED (already) | held `JumpDown` charge capped at `MAX_JUMP_CHARGE_TICKS` swapped into `start_riding_jump` (137-151). |
+| `apply_mount_move` (M) | FIXED (already) | `get_controlling_passenger` check (514-519), `vehicle_id_matches` (523,554), `mount_rotation` from `vehicle_rotation` (539-544,561); tests present. |
+| vehicle branch boats/minecarts (L) | FIXED (already, MVP) | `apply_mount_move` takes `&Arc<dyn EntityBase>` and moves any controlled vehicle; paddle flags applied (122-133). |
+| `inventory_action.rs` ReleaseItem (S) | FIXED (already) | `player.stop_using_item()` at line 552, matching the Java path. |
+| `player_action.rs` `// TODO` catch-all (M) | FIXED (already) | teleport acks clear pending state; remaining sneak/item-use/swing actions documented intentional no-ops (296-299); swings broadcast by animate.rs (31-35). |
+
+Skipped: no code changes (all rows already fixed); no build/test (orchestrator compiles).
+Risk: Bedrock-only field semantics (`camera_orientation`/`raw_move` signs, sneak raw flags,
+0.1 analog deadzone) have no decompiled vanilla, Paper/Spigot, Geyser source or protocol fixture
+in `.vendor`; only the vanilla Java input mapping was verified here.

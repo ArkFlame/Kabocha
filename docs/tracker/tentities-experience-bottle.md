@@ -87,3 +87,42 @@ Re-reviewed all three STILL OPEN rows against .vendor/vanilla-decompiled (now pr
   `if !entity.is_silent()` around the sound event in
   crates/pumpkin-core/src/entity/projectile/experience_bottle.rs. No test added: entity silence
   is synced/data-driven with no pure seam here; the existing orb_direction test covers the same file.
+
+## Result
+
+Final verification after restart; re-checked every STILL OPEN row against .vendor/vanilla-decompiled
+and the current source.
+
+- Row 1 (orb merge): RESOLVED in code. `ExperienceOrbEntity::spawn_with_direction` splits via
+  `orb_sizes` then calls `try_merge_to_existing` (1x1x1 box, equal `amount`, `fetch_add` the value,
+  reset `orb_age`). Every award call site (spawner, furnace/block XP, mob death, fishing bobber,
+  villager, breeding, ender dragon, WASM host, player) routes through `spawn()` ->
+  `spawn_with_direction`, so merging applies everywhere, matching vanilla
+  `ExperienceOrb.awardWithDirection`/`tryMergeToExisting` functional intent. Vanilla groups orbs by
+  entity-id%40 and increments `count`; Pumpkin folds into `amount` - identical XP total. Test
+  `award_splits_amount_into_vanilla_orb_sizes` already covers the split. Fixed one build blocker in
+  the same file: removed unused `use core::f32;` that fails `-D warnings`.
+- Row 4 (stack count forced to 1): LEFT OPEN (cosmetic). Vanilla `ExperienceBottleItem.use` passes
+  the whole `ItemStack` to the projectile; Pumpkin uses `copy_with_count(1)` on throw and on NBT
+  load. Only the item rendered on the projectile changes; no gameplay/XP effect. Tracker says fix
+  only if tracked-data NBT matters later, so no change.
+- Row 6 (automated test): RESOLVED via pure unit tests. `experience_orb.rs` has four pure tests
+  (buoyancy x2, `orb_sizes`, `closest_free_center`), entity `experience_bottle.rs` has
+  `orb_direction_uses_block_face_normal`, item `experience_bottle.rs` has
+  `throw_spawns_below_eye_level_at_shooter_xz`. The tracker's suggested world-harness test (on_hit
+  -> XP total) needs access to the private `amount` field and the bottle is removed by the shared
+  hit flow, so there is no clean pure seam for it.
+- Rows 2, 3, 5, 7: re-confirmed against vanilla `ThrownExperienceBottle.onHit` (block face normal /
+  -deltaMovement award direction, `!isSilent()` sound guard) and `ExperienceBottleItem.createDispenseConfig`
+  (power 1.1*1.25=1.375, uncertainty 6*0.5=3); no further change.
+
+
+## Result
+
+Second pass: re-verified the sole remaining LEFT OPEN row (row 4, projectile stack count) against decompiled vanilla.
+
+- Row 4 (stack count forced to 1): VERIFIED MATCH (false positive), no code change. The tracker claimed vanilla sets the whole ItemStack on the bottle, but decompiled `ThrowableItemProjectile.setItem(source)` (net/minecraft/world/entity/projectile/throwableitemprojectile/ThrowableItemProjectile.java:39-41) does `this.getEntityData().set(DATA_ITEM_STACK, source.copyWithCount(1))`. Both vanilla throw paths (ExperienceBottleItem.use -> spawnProjectileFromRotationDelayed(ThrownExperienceBottle::new, ...), and asProjectile -> new ThrownExperienceBottle(..., itemStack)) funnel through that constructor -> setItem -> copyWithCount(1). Pumpkin uses `stack.copy_with_count(1)` on throw (item/items/experience_bottle.rs:66) and on NBT load (entity/projectile/experience_bottle.rs:114); the latter also matches vanilla readAdditionalSaveData -> setItem -> copyWithCount(1). This is also the consistent convention for every other throwable item in the crate (egg.rs, potions.rs, firework_rocket.rs, trident.rs). No per-item fix warranted.
+
+- Cross-file check: confirmed `ExperienceOrbEntity::spawn()` (entity/experience_orb.rs:54) delegates to `spawn_with_direction`, whose split loop calls `try_merge_to_existing` before spawning (lines 120-132), so the row-1 orb-merge fix applies to every award call site, matching the prior pass claim.
+
+All tracker rows are now resolved (fixed, verified match, or false positive). No code changes this pass.

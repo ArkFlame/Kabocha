@@ -53,3 +53,8 @@ The single STILL OPEN row (line 17, the prose gaps at lines 5-13) was re-verifie
 - Row 4 (entity/vehicle/boat.rs:95-101,1098-1118): VERIFIED. max_passengers returns 1 for chest boats and 2 otherwise; vanilla AbstractBoat.getMaxPassengers = 2, AbstractChestBoat overrides to 1. chest_boat_detection_covers_every_chest_boat_entity_type iterates EntityType::ALL (includes DARK_OAK_CHEST_BOAT), asserting is_chest_boat plus max_passengers 1 vs 2; item round-trip is covered in item/items/boat.rs::every_boat_item_round_trips_through_its_entity_type. Coverage is sufficient; no duplicate test added.
 
 Only the tracker doc was edited (STILL OPEN flag + this Result). No .rs files changed; rustfmt not needed; no compile run (workers cannot compile).
+
+
+## Result (session resume check 2026-11-18)
+
+Resumed after server restart; no STILL OPEN rows remain for this unit. The `## Gap status` line was already flipped to VERIFIED in the third pass, and all four prose sub-rows (lines 5-13) were previously verified against .vendor/vanilla-decompiled (BoatItem.java, AbstractBoat.java, AbstractChestBoat.java): item<->entity 1:1 mapping for DARK_OAK_CHEST_BOAT, 27-slot chest boat inventory, boat_interact_outcome / open_custom_inventory_screen parity, and max_passengers 1 (chest) vs 2 (plain) with full EntityType::ALL test coverage. Unit names no source-file basenames to edit and no dark-oak-specific gap was found, so no .rs file was changed. Not repeating the completed re-reviews. No compile (workers cannot compile); no rustfmt (no .rs change).

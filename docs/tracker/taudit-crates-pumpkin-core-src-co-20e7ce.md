@@ -81,3 +81,34 @@ Pass 3 (verified against decompiled vanilla 26.3 in `.vendor/vanilla-decompiled`
 - Row 7 (`mark_dirty` on container write): FIXED. `inventory.mark_dirty()` is called at `commands/item.rs:152` and `:834`. Stale row.
 - Row 8 (`item modify` feedback): FIXED. `BlockModifyExecutor` and `EntityModifyExecutor` send `COMMANDS_ITEM_BLOCK_MODIFY_SUCCESS` and `COMMANDS_ITEM_ENTITY_MODIFY_SUCCESS_*` (`commands/item.rs` ~L1212-1280). Stale row.
 - Row 9 (maintenance dedup of entity mapping): SKIPPED. Pure refactor with no behaviour difference; not a parity gap.
+
+
+
+## Result
+
+Pass 4 (verified against decompiled vanilla 26.3 in `.vendor/vanilla-decompiled`). No source changes in this unit: the two editable argument types (`argument_types/slot.rs`, `argument_types/item_modifier.rs`) are already vanilla-correct with adequate pure tests, so no edits or duplicate tests were added. Rows fixed elsewhere by native-1 (`commands/item.rs`) are noted; only cross-crate/API-bound gaps remain.
+
+- Row 1 (M): addressed by native-1 in `commands/item.rs` (block/entity replace executors now iterate slot sources and emit `target.failed*`). In this unit `SlotArgumentType`/`SlotsArgumentType` match vanilla `SlotArgument.parse`/`SlotsArgument.parse` (`SlotRanges.read`, single-slot guard, `slot.only_single_allowed`, `SLOT_RANGE_SINGLE_SLOT_NAMES`/`SLOT_RANGE_ALL_NAMES` suggestions). Generated `slot_ranges.rs` matches vanilla `SlotRanges.java`.
+- Row 2 (M): addressed by native-1 in `commands/item.rs` (`SuccessFeedback::Set` and single-slot executors). Argument parsing in this unit is vanilla-correct.
+- Row 3 (M): partially addressed by native-1 (mob/horse inventory mapping). Cursor (499) and player crafting grid (500-503) remain BLOCKED-L (needs player menu/crafting-grid API outside this unit). The slot-name table in this unit was verified correct.
+- Row 4 (L): OPEN/BLOCKED-L - remaining loot functions need component/enchantment/data-component APIs in pumpkin-core (cross-crate). `ItemModifierArgumentType` here already parses reference-or-inline like vanilla `ResourceOrIdArgument.parse` (`ResourceOrIdArgument.java`); verified.
+- Row 5 (S): already FIXED in pass 1 (number providers); not re-audited.
+- Row 6 (S): already FIXED in pass 1 (set_count does not clamp to max stack size); not re-audited.
+- Row 7 (M): addressed by native-1 (`inventory.mark_dirty()` now called in `commands/item.rs`).
+- Row 8 (S): already FIXED in pass 1 (modify feedback); not re-audited.
+- Row 9 (S): SKIPPED - maintenance dedup inside `commands/item.rs`, no behavioural difference.
+
+
+## Result (pass 4)
+
+Re-verified every STILL OPEN row against decompiled vanilla 26.3 in `.vendor/vanilla-decompiled`. No behavioural fix was needed: all rows are either fixed/stale (1, 2, 5, 6, 7, 8) or need files/APIs outside this unit or generated data (3, 4, 9).
+
+- Row 1: verified `SlotArgumentType`/`SlotsArgumentType` in `slot.rs` match vanilla `SlotArgument.parse` (reject multi-slot ranges with `slot.only_single_allowed`) and `SlotsArgument.parse`; `resolve_slot_range` reads until space like `SlotRanges.read`. Generated `slot_ranges.rs` matches `SlotRanges.java` exactly (mob.inventory.*, saddle, armor.body, weapon.*, player.crafting.*, no stale pre-26.3 names). One-to-many execution lives in `commands/item.rs` (outside this unit) and is already fixed.
+- Row 2: `item set` executors/Set feedback live in `commands/item.rs` (outside this unit); already fixed. Generated `translation.rs` keys verified present.
+- Row 3: OPEN - cursor (499) / player crafting-grid (500-503) mapping needs player menu APIs in `commands/item.rs` (outside this unit and this unit's files). Slot-name table itself is verified correct.
+- Row 4: OPEN (L) - remaining loot functions need component/enchantment/data-component APIs in pumpkin-core (cross-crate). Parsing in `item_modifier.rs` already matches vanilla `ResourceOrIdArgument` (reference-or-inline SNBT).
+- Row 5/6/8: already FIXED/stale in earlier passes; not re-audited.
+- Row 7: OPEN - `BlockEntity::mark_dirty` lives in `block/entities/mod.rs` (outside this unit); recorded as FIXED in native-1 pass via `inventory.mark_dirty()`.
+- Row 9: OPEN - maintenance dedup in `commands/item.rs`, no behavioural difference; outside this unit.
+
+Added one pure unit test to `item_modifier.rs` (it had none) guarding the vanilla reference-vs-inline parse decision: an id resolves to `ItemModifier::Reference`, an SNBT compound to `ItemModifier::Inline`. No duplicate of the existing `slot.rs` tests. Cannot compile here (worker shell denied); orchestrator runs the gate.

@@ -110,3 +110,61 @@ was added.
   No boat-specific gap found. No action.
 
 Fixed: 0. Open: 3. Files changed: this doc only. No .rs file touched, so rustfmt not run.
+
+
+## Result (2026-11-18, third pass)
+
+Re-verified the STILL OPEN rows against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/` (present in this worktree; the "no vanilla sources"
+note at the top is stale). None of the open rows land in this unit's editable files, so no
+source file was changed and no test was added.
+
+- Row 1 / h6 rider rotation (STILL OPEN): fully implemented in `entity/vehicle/boat.rs` (outside
+  this unit). `yaw_delta` (:232/:588), delta-applied clamp in `on_rider_positioned` (:851-894),
+  `on_passenger_turned` folding the clamp adjustment into `rider.y_rot_o` (:896-944), and unit
+  tests `rider_yaw_clamps_to_boat_heading_window`, `rider_yaw_follows_boat_yaw_delta_then_clamps`
+  and `rider_clamp_adjustment_feeds_previous_yaw` (:1033-1055) match
+  `AbstractBoat.positionRider`/`clampRotation`/`onPassengerTurned` (AbstractBoat.java:696-765,
+  `passenger.yRotO += yDelta` at :765). No longer a gap; no action possible from this unit.
+- Row 2 (dead code): already removed in `physics.rs` (outside this unit). No action.
+- Row 3 (boat gametest): left open. Needs a new function registered in the manual
+  `register_function_test` list in `server/builtin_game_tests/mod.rs` (:1272), outside this unit;
+  an unregistered `pub(super)` function fails `-D warnings` dead_code. Reason: requires files
+  outside this unit.
+- In-scope files match vanilla: `bubble_column.rs` constants (0.06/0.7, 0.1/1.8, -0.03/-0.3,
+  -0.9 surface cap) match `Entity.handleOnAboveBubbleColumn` / `handleOnInsideBubbleColumn`
+  (Entity.java:4149-4199) and already have nine pure unit tests. `move_vehicle.rs` is the generic
+  MoveVehicle handler (the boat-specific path was removed earlier) and matches the vanilla
+  clamp/wrap/controlling-passenger flow in `ServerGamePacketListenerImpl.handleMoveVehicle`
+  (:578-710). No boat-specific gap found.
+
+Fixed: 0. Open: 1 (Row 3, out of scope). Files changed: this doc only. No .rs file touched, so
+rustfmt not run.
+
+
+## Result (2026-11-18, second pass, expanded scope)
+
+Re-verified every STILL OPEN / remaining-gap row against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/`, now with permission to edit any file a row needs.
+
+- Row 1 / h6 rider rotation (STILL OPEN): already fully implemented in `entity/vehicle/boat.rs`
+  (outside this unit): `yaw_delta`, delta-applied +/-105 clamp in `on_rider_positioned`,
+  `on_passenger_turned` folding the clamp adjustment into `rider.y_rot_o`, plus three pure unit
+  tests. Matches `AbstractBoat.positionRider`/`clampRotation`/`onPassengerTurned`
+  (AbstractBoat.java:696-765). Verified correct; no action needed.
+- Row 2 (dead code): already removed in `physics.rs` before this pass. No action.
+- Row 3 (boat gametest): the seven existing `boat_block_effects.rs` tests already cover the
+  air->water snap, 60-tick submerged eject, and chest scatter on break. The one uncovered piece
+  was chest scatter on `/kill` (the guard for the `EntityBase::kill` container-scatter fix at
+  `entity/mod.rs:1491-1512`). Confirmed against decompiled vanilla:
+  `AbstractChestBoat.remove` (:71-76) calls `Containers.dropContents` whenever
+  `reason.shouldDestroy()`, and vanilla `Entity.kill` removes with `RemovalReason.KILLED`. Added
+  `test_chest_boat_scatters_slots_on_kill` to `boat_block_effects.rs` (summon oak chest boat with
+  3 NBT slots, `/kill` it, assert 3 diamond item entities scatter) and registered it in
+  `server/builtin_game_tests/mod.rs` (id list + `register_function_test`). This closes Row 3.
+
+Files changed: `boat_block_effects.rs`, `builtin_game_tests/mod.rs`, this doc. No unwrap/expect/panic,
+no printf, no em dashes; new test copies the existing in-file pattern. rustfmt run by orchestrator.
+Not compiled by this worker (per task).
+
+Fixed: 1 (Row 3 /kill guard gametest). Open: 0.

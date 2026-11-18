@@ -121,3 +121,15 @@ Fresh verification 2026-11-18 (second pass) against `.vendor/vanilla-decompiled/
 - Gap 4 (waterlogged neighbour odds): verified matching, no change. `getIgniteOdds(BlockState)` (vanilla:251-255) returns 0 for WATERLOGGED; Pumpkin `FireBlock::get_ignite_odds` (fire.rs:39-48) does the same and is shared by `is_flammable` and `get_burn_chance` (95-112). Pure test `waterlogged_flammable_has_zero_ignite_odds` (fire.rs:479-489) covers dry vs waterlogged oak slab.
 
 No new pure test seam exists for Gap 3: the re-age branch needs `World`, `set_block_state` and the random roll, so it cannot be isolated without a full gametest. Files touched: `crates/pumpkin-core/src/block/blocks/fire/fire.rs` only. Re-read the diff against the Worker compile pitfalls: comparison operand type matches the existing `old_block == &Block::TNT` at fire.rs:172, `new_age` remains used in the non-TNT branch (no unused-variable warning), `let mut fire_props` is still mutated, no unwrap/expect/panic, no em dashes, comment explains a non-obvious vanilla ordering. No cargo/git run, per instructions; verification is source-level only, compile UNVERIFIED.
+
+## Result
+
+Fresh verification 2026-11-18 (third pass), Paper/CraftBukkit FireBlock.java + BaseFireBlock.java + ServerLevel.canSpreadFireAround.
+
+- New parity fix (fire tick radius gate): vanilla wraps the whole FireBlock.tick body in canSpreadFireAround, so the gamerule freezes aging/burnout too, measured from the block corner with a strict radius and skip-spectator rule. Added FireBlock::can_spread_fire_around and an early return after scheduling the next tick; the old per-offset radius check is gone. lightning.rs spawn_fire now uses the same gate (vanilla LightningBolt.spawnFire).
+- New parity fix (soul fire placement state): BaseFireBlock.getState returns soul fire's default state on a soul base and getStateWithAge only sets AGE for plain fire. Added FireBlock::get_placement_state(world, pos, age) and routed try_spreading_fire, the spread loop, get_state_for_neighbor_update, lightning.rs, small_fireball.rs and ignition.rs through it; those call sites previously built FireLikeProperties from a soul fire state id.
+- Gap 3 (TNT before priming): FIXED, the nextInt(5) age roll now runs for TNT too (vanilla checkBurnOut:275-291) and TNT still ends as air plus a primed entity.
+- Gap 4 (waterlogged neighbour odds): verified matching, no change; test waterlogged_flammable_has_zero_ignite_odds covers it.
+- Sentinels: -1 unlimited, <=0 disabled now matches ServerLevel.canSpreadFireAround.
+- No new pure test: can_spread_fire_around needs World.players and get_placement_state needs a BlockAccessor; both are gametest-scale. Files touched: fire.rs, lightning.rs, small_fireball.rs, ignition.rs. No cargo/rustfmt/git run; compile UNVERIFIED.
+- Out of scope, left for a separate unit: `crates/pumpkin-core/src/world/explosion.rs:443-444` still calls `FireBlockBase::get_fire_type` plus `get_state_for_position`, so an explosion over a soul base builds `FireLikeProperties` for a soul fire state id. Route it through `FireBlock::get_placement_state(world, pos, 0)` in a later pass.

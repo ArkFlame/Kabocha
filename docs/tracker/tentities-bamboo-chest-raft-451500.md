@@ -181,3 +181,65 @@ under the player-only controller filter (returns false when the filter yields No
 change needed. No pure seam for a unit test (would need live BoatEntity and Player), so none added.
 
 No source file changed. rustfmt not applicable (no .rs edit). No cargo run (CODER rule).
+
+
+## Result (re-review 2026-11-18, scope player_auth_input.rs)
+
+Re-verified every row still marked STILL OPEN against .vendor/vanilla-decompiled, smallest first,
+and against the current on-disk Pumpkin source. This unit may edit only player_auth_input.rs; none
+of the open rows live in that file, so no source change was possible and no pure unit-test seam
+exists here.
+
+- Row 6 (CONTAINER_CLOSE, S): CONFIRMED OPEN. Vanilla AbstractChestBoat.stopOpen
+  (AbstractChestBoat.java:197-198) emits GameEvent.CONTAINER_CLOSE at this.position() with the
+  living-entity context. Current Pumpkin entity/vehicle/minecart/container.rs:210-211 on_closed
+  only calls self.inner.on_closed(player) and emits no CONTAINER_CLOSE. One-line reason: the close
+  hook lives in container.rs/player.rs, outside the editable file, and player_auth_input.rs handles
+  auth-input movement/inventory only, not screen-close; passing a block pos from container::open
+  would double-emit CONTAINER_OPEN.
+- Row 3 (bubble column, M): CONFIRMED ALREADY FIXED in boat.rs. Vanilla
+  handleBubbleColumnEffect (AbstractBoat.java:399-408) applies -0.7 add to current y on drag-down
+  and sets y to 0.6 on updraft; Pumpkin bubble_column_vertical_velocity (boat.rs:971-973) returns
+  current_y - 0.7 / 0.6 with a pure unit test, plus bubble fields, tick_bubble_column and
+  on_above_bubble_column. One-line reason: implemented in boat.rs/block wiring, outside the file.
+- Row 4 (leash, M): CONFIRMED ALREADY FIXED in boat.rs. Vanilla AbstractBoat implements Leashable
+  (AbstractBoat.java:54,428-449). Pumpkin wires write_leash_data/read_leash_data (:534-541),
+  tick_leash (:603-604), leash_to/unleash/get_leash_holder (:763-792) and support_quad_leash (:951).
+  One-line reason: lead interaction and NBT live in boat.rs, outside the editable file.
+- Row 8 (fluid push, L): engine-wide client-authority difference; per the vanilla-port guide it is
+  skipped unless server-side divergence is observed. One-line reason: not an input-codec bug.
+
+Row 7 caller recheck: apply_mount_move (player_auth_input.rs:514-516) reads
+get_controlling_passenger().is_some_and(|c| c.entity_id == rider.entity_id), which stays correct
+under the player-only controller filter (returns false when the filter yields None). No caller-side
+change needed. No pure seam for a unit test (would need live BoatEntity and Player), so none added.
+
+No source file changed. rustfmt not applicable (no .rs edit). No cargo run (CODER rule); compile
+UNVERIFIED.
+
+
+## Result (SECOND PASS 2026-11-18, expanded scope)
+
+SECOND PASS grants edits to any source file a row needs. Re-verified every STILL OPEN row against
+.vendor/vanilla-decompiled and the current on-disk Pumpkin source, smallest first.
+
+- Row 6 (CONTAINER_CLOSE, S): FIXED in current source. Player::open_container_entity_pos
+  (player.rs:762) is set from container_entity.pos in open_handled_screen_at (player.rs:7945-7946)
+  and read in on_handled_screen_closed (player.rs:7721, 7782-7793), which emits
+  GameEvent::ContainerClose at the vehicle exact position with the player as source. This matches
+  vanilla AbstractChestBoat.stopOpen (AbstractChestBoat.java:197-198). The field is cleared on every
+  close path (:7796, 8074, 8123). container::open passes block_pos=None, so CONTAINER_OPEN is not
+  double-emitted. No source change needed this pass.
+- Row 3 (bubble column, M): ALREADY FIXED in boat.rs (bubble_column_time/drag_down/above fields,
+  tick_bubble_column :429, on_above_bubble_column :642, on_inside_bubble_column :695,
+  bubble_column_vertical_velocity :971 with updraft 0.6 and drag-down current_y-0.7, pure unit test
+  :1071). Vanilla AbstractBoat.onAboveBubbleColumn/handleBubbleColumnEffect matched. No change.
+- Row 4 (leash, M): ALREADY FIXED in boat.rs (write_leash_data :534, read_leash_data :541,
+  tick_leash :604, leash_to/unleash :773/792, support_quad_leash :951). Vanilla AbstractBoat
+  implements Leashable. No change.
+- Row 8 (fluid push, L): engine-wide client-authority difference; skipped per the vanilla-port guide
+  unless server divergence is observed. No change.
+
+No source file changed (all STILL OPEN rows already resolved in current source). No pure unit-test
+seam exists for the close event (needs a live Player, world and screen handler). No cargo run
+(CODER rule); compile UNVERIFIED.

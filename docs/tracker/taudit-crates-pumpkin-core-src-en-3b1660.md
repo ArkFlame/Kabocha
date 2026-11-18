@@ -72,3 +72,23 @@ Re-checked the STILL OPEN rows against the decompiled vanilla now present at
 No `.rs` file changed, so no rustfmt was needed and no new unit test was added: the pure-function
 tests at `lie_on_back.rs:95-115` already cover the roll bounds and short-circuit seam, and no
 behaviour changed.
+
+
+## Result
+
+Independent verification against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java` (protocol 777). No `.rs` source edit was warranted in this unit's files; each STILL OPEN row is at parity or already resolved by infrastructure present in the main checkout.
+
+- Row 1 (random source): RESOLVED by existing infrastructure, no edit. The note claimed `Mob::get_random` returned a thread-local `ThreadRng`, so panda goals did not share vanilla's entity-owned `panda.random`. The main checkout now has `EntityRng`: every `Entity` owns a `StdRng` (`entity/mod.rs:1803`, seeded at `:2171-2173`) shared across all of its goals, and `Mob::get_random` (`mob/mod.rs:1672-1674`) returns a handle to it. `lie_on_back.rs:61,69` therefore routes both rolls through that entity-owned, tick-order-shared RNG, matching vanilla (`Panda.java:894,900-901`). LEFT OPEN (out of unit): the entity RNG is seeded from runtime entropy rather than the entity UUID, so exact seed replay differs; changing the seed source requires `entity/mod.rs`, outside this unit's files.
+- Row 2 (canPerformAction ordering): confirmed at parity, no edit. Decompiled `PandaLieOnBackGoal.canUse` (`Panda.java:890-895`) is `cooldown < tickCount && isLazy() && canPerformAction() && nextInt(reducedTickDelay(400)) == 1`; `may_lie_down` (`lie_on_back.rs:46-50`) plus the roll in `can_start` (`:54-63`) apply the same checks in the same order. `canPerformAction` (`Panda.java:695-697`) equals `panda.rs:654-660`.
+- Row 3 (tick_count): confirmed at parity, no edit. Vanilla reads the already-incremented `tickCount` and runs the selectors after the increment, so there is no off-by-one.
+
+No `.rs` file touched, so no rustfmt was needed and no new test added: the pure-function tests at `lie_on_back.rs:95-115` already cover the 200/300/1000 bounds and the short-circuit seam. No unwrap/expect/panic, println, or em dashes introduced.
+
+Status: PASS fixed=0 open=1 files=none
+
+
+## Result (second pass)
+- Row 1 (random source): Resolved by existing EntityRng infrastructure; `lie_on_back.rs:61,69` routes through entity-owned `StdRng` via `mob.get_random()`, matching vanilla `Panda.java:894,900-901`. Seed source difference (runtime entropy vs entity UUID) is out of this unit's scope (requires `entity/mod.rs` changes).
+- Row 2 (canPerformAction ordering): Confirmed at parity with decompiled vanilla; `canPerformAction` included in `canUse` with matching check order; `can_perform_action` (`panda.rs:647-660`) equals `Panda.java:695-697`.
+- Row 3 (tick_count): Confirmed at parity; vanilla increments `tickCount` before goal selectors, already-incremented count is correct.
+- No `.rs` files edited; existing tests at `lie_on_back.rs:95-115` cover the 200/300/1000 bounds and short-circuit seam.

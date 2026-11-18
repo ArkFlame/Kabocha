@@ -110,3 +110,65 @@ already fixed or parity-neutral in the current beacon.rs.
   `updateBase` on `!beamSections.isEmpty()` (line 215); beacon.rs gates on `beam_active`,
   which is committed from the same scan as `beam.sections`, so the two are equivalent.
   Parity matches.
+
+
+## Result (final verify pass, 2026-11-18)
+
+Re-read beacon.rs in full and re-checked every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeaconBlockEntity.java`.
+No code change needed: the fixable rows are already at parity; the only remaining row needs a
+client renderer outside this unit.
+
+- Row 36 (beam sections / client beam): server-side model is present and matches vanilla `tick`
+  (lines 184-211). `append_beam_block` pushes when `size <= 1`, grows a section on equal colour,
+  averages on colour change (`ARGB.average` = per-channel midpoint via `u32::midpoint`), and clears
+  on opaque non-bedrock; `get_beam_sections()` returns empty at level 0 (vanilla line 408).
+  `beam_active` is committed from the same scan as `beam.sections`. LEFT OPEN, one reason:
+  consuming these sections in a client-side beam renderer spans crates and is outside the
+  beacon.rs-only unit. The existing pure tests (merge / average / cut / average-math / beam colour)
+  already cover the seam, so no duplicate test was added.
+- Row 37 (spectator filter): VERIFIED no change. `apply_effects` (beacon.rs:284-296) uses the range
+  box with no spectator filter, matching `getHumansInRange` for ranges <= 128 (beacon range caps at
+  50; `NO_SPECTATORS` is only on the >128 global fallback, vanilla line 374).
+  `trigger_construct_beacon` (beacon.rs:319-324) iterates players with a bounds check only,
+  matching `getEntitiesOfClass(ServerPlayer, ...)` (vanilla line 243).
+- Row 38 (deferred BEACON_POWER_SELECT sound): VERIFIED no change. `set_property(DATA_PRIMARY)`
+  (beacon.rs:354-365) plays the sound immediately when the beam is active via the
+  `OnceLock<Weak<World>>` set by `set_world`, matching vanilla's `dataAccess.set` case 1 (lines
+  95-101). No `play_select_sound` flag remains; no pure unit-test seam exists (needs a live world).
+- Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla gates the 80-tick
+  `updateBase` on `!beamSections.isEmpty()` (line 215); beacon.rs gates on `beam_active`, committed
+  from the same scan as `beam.sections`, so parity holds.
+- Row 40: not STILL OPEN; documented upstream-vs-Paper difference, out of scope.
+
+
+## Result (second pass, 2026-11-18, expanded scope)
+
+Re-verified every STILL OPEN row against both decompiled references
+(`.vendor/vanilla-decompiled/net/minecraft/...` and `/run/media/linsaftw/SDD/tmp/mc-proof/ref/...`).
+No code change was needed: all fixable rows are at parity, and the one remaining row is a
+vanilla-client concern, not a Pumpkin server gap.
+
+- Row 36 (beam sections / client beam): VERIFIED no change. The server-side model is complete
+  and correct (`append_beam_block`, `argb_average`, `BeamSection`, `get_beam_sections`), with pure
+  tests for merge / average / cut / average-math / beam colour. `get_beam_sections()` has no
+  consumer in the repo, and that is correct: vanilla registers `BeaconBlockEntity::tick` as the
+  beacon block-entity ticker (`BeaconBlock.getTicker`, no client-side guard), so the vanilla
+  CLIENT runs the same column scan and renders the beam itself. A client beam renderer is a
+  subsystem that does not exist in this server and is not needed for parity. LEFT OPEN, one
+  reason: consuming these sections in a client renderer means adding a client-side subsystem
+  outside this server codebase, not a fixable Pumpkin parity bug.
+- Row 37 (spectator filter): VERIFIED no change, and CORRECTS earlier passes. Both `apply_effects`
+  and `trigger_construct_beacon` keep their `player.is_spectator()` skips. That matches vanilla:
+  `EntityGetter.getEntitiesOfClass(Class, AABB)` defaults to `EntitySelector.NO_SPECTATORS`
+  (EntityGetter.java:79-81 in BOTH references), and the >128-block fallback applies the same
+  predicate. The earlier note claiming the checks were "fixed" by removing them was wrong;
+  removing them would break parity, so they stay.
+- Row 38 (deferred BEACON_POWER_SELECT sound): VERIFIED no change. `set_property(DATA_PRIMARY)`
+  plays the sound immediately through the `OnceLock<Weak<World>>` populated by `set_world`, which
+  is invoked in `World::add_block_entity` (world/mod.rs:8472-8475). No pure unit-test seam
+  (needs a live World).
+- Row 39 (stale Levels while beam blocked): VERIFIED no change. Vanilla gates the 80-tick
+  `updateBase` on `!beamSections.isEmpty()`; Pumpkin gates on `beam_active`, committed from the
+  same scan as `beam.sections`, so parity holds.
+- Row 40: not STILL OPEN; documented upstream-vs-Paper difference, out of scope.

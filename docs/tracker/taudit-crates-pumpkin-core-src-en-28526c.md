@@ -115,3 +115,71 @@ No source change was required in this unit's files; the earlier Result above is 
   correctly (ids 79/80, names match MemoryModuleType.java:116-117). Vanilla populates them
   only in `PiglinSpecificSensor` (107-108) and `HoglinSpecificSensor` (56-57); those sensor
   files are outside this unit.
+
+
+## Result (final independent re-verification)
+
+Re-checked every STILL OPEN row against the vendored decompiled vanilla and the current
+`value.rs` / `types.rs`. No source change was required in this unit's files; the two files
+already match 1.21.x vanilla exactly.
+
+- empty-collection set semantics (value.rs:23-26, 81-83, 152-154, 170-172): NOT A GAP.
+  `Brain.setMemoryInternal` nulls out any empty `Collection` then calls `slot.clear()` in both
+  overloads (Brain.java:214-237, 239-262; `isEmptyCollection` at 573-575), and the load path
+  `setMemoryInternal(MemoryMap.Value)` routes through those same overloads (Brain.java:205-212).
+  Pumpkin's `MemoryValue::is_empty_collection` clearing matches vanilla. The tracker's suggested
+  fix (delete the special case) would have broken parity; kept as-is.
+- setMemoryInternal unregistered put (mod.rs:240-242): OUT OF UNIT. Vanilla
+  `getMemorySlotIfPresent` returns null for an unregistered type and both overloads return early
+  (Brain.java:215-216, 240-241), so Pumpkin's drop matches.
+- negative ttl (mod.rs:124-131): OUT OF UNIT. Vanilla `MemorySlot.hasExpired()` is `<= 0L`.
+- dump ttl wording (mod.rs:136-141): OUT OF UNIT (comment and code both in mod.rs).
+- VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (types.rs:122-123): declared correctly.
+  Vanilla `MemoryModuleType` registers them as ids 79/80 with names
+  `visible_adult_piglin_count` / `visible_adult_hoglin_count` (MemoryModuleType.java:116-117;
+  counted 79/80, total 115, matching `MEMORY_TYPE_COUNT` and Pumpkin's ids/names). Vanilla fills
+  them only in `PiglinSpecificSensor` / `HoglinSpecificSensor`; those sensor files are outside
+  this unit's allowed files (types.rs, value.rs), so left open.
+
+No pure unit test added: neither file has a genuine gap to test (asserting `is_empty()` on an
+empty `Vec` is formula-mirroring, forbidden by repo rules), and `mod.rs` already covers
+empty-collection clearing. Compile-pitfall table re-read: no code was edited, so no new imports,
+clones, initializers or clippy-pedantic concerns.
+
+
+## Result (second pass, cross-file scope unlocked)
+
+All five STILL OPEN rows re-verified against vendored vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/`. No source change was needed: every row is either an
+exact vanilla match or already implemented elsewhere in the checkout.
+
+- empty-collection set semantics (mod.rs:243,321 / value.rs:23-26,81-83,152-154,170-172): NOT A
+  GAP. `Brain.setMemoryInternal(nullable)` nulls any empty `Collection` then clears the slot
+  (Brain.java:239-262), the expiring overload does the same (Brain.java:214-237), and
+  `isEmptyCollection` is at Brain.java:573-575. `MemoryStore::set_with_expiry` / `load_packed`
+  call `is_empty_collection` and `slot.clear()` (mod.rs:255-258, 333-335). Exact match.
+- setMemoryInternal unregistered put (mod.rs:240-242): NOT A GAP. `getMemorySlotIfPresent` returns
+  null for an unregistered type (Brain.java:157-159) and both overloads guard with
+  `if (slot != null)` (Brain.java:215-216, 240-241). `set_with_expiry` early-returns on a missing
+  slot (mod.rs:252-254). Match.
+- negative ttl (mod.rs:124-131): NOT A GAP. `MemorySlot.hasExpired()` is `timeToLive <= 0L`
+  (MemorySlot.java:61-63) and `tick()` clears on `hasExpired()` (MemorySlot.java:16-24). Pumpkin's
+  `self.ttl <= 0` matches, including negative values.
+- dump ttl wording (mod.rs:136-141): NOT A GAP. `DebugBrainDump.accept(type, value, timeToLive)`
+  passes `timestamp` as the displayed ttl (DebugBrainDump.java:158-160) while `MemorySlot.toString`
+  prints the real ttl (MemorySlot.java:69-72). Pumpkin deliberately prints the real ttl and the
+  comment documents that vanilla quirk. No change.
+- VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (types.rs:122-123): now fully populated
+  AND consumed, matching vanilla. For hoglin brains, `HoglinSpecificSensor` writes both counts
+  (hoglin_specific.rs:111-114) exactly as vanilla HoglinSpecificSensor.java:56-57 (adult piglins
+  counted, first stored as nearest; adult-hoglin list size), using the same `!isBaby &&
+  (Piglin || Hoglin)` filter and registering the sensor in hoglin.rs:279-280. Piglins use goal AI:
+  `refresh_visible_adult_counts` (piglin.rs:532-580) stores both counts as entity fields and
+  `hoglins_outnumber_piglins` (piglin_ai.rs:74-78) reads them, matching PiglinAi.java:779-783
+  (brutes counted as piglins at piglin.rs:553-554, as in PiglinSpecificSensor.java:73-80).
+  Hoglins read the brain counts in `piglins_outnumber_hoglins` (hoglin.rs:38-62), matching
+  HoglinAi.java:179-181 (`piglinCount > hoglinCount + 1`). The existing test
+  `hoglin_sensor_counts_only_visible_adults` covers the sensor; no duplicate unit test added.
+
+Compile-pitfall table re-read: no source code edited, so no new imports, clones, struct
+initializers, macro paths or clippy-pedantic concerns.

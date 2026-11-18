@@ -75,3 +75,26 @@ those results. No new code changes this pass: the fixes and the two unit tests
 (`taming_persists_as_vanilla_owner_only`, `wild_adult_only_eats_taming_items`) are
 already in place. Helper paths and struct initializers were re-checked against the
 Worker compile pitfalls table.
+
+## Result (re-review 2026-11-18, file-level verification)
+
+Re-verified every STILL OPEN row directly against the decompiled vanilla files and
+the current Pumpkin source. No code changes were needed: each actionable row is
+already fixed, and the two unit tests plus the zombie-nautilus tests are present.
+
+| # | Result |
+|---...|
+| 1 | VERIFIED, no change. `nautilus.rs::new` registers EscapeDanger(1.6), Breed(0.4), Tempt(1.3, `MINECRAFT_NAUTILUS_FOOD`), FollowParent(1.3), RandomSwim(1.0/10), LookAround, plus look/melee and a Revenge target goal. These mirror `NautilusAi` (panic 1.6, make-love 0.4, temptation 1.3, stroll 1.0, fight 0.6) using Pumpkin's legacy goal system, which is the closest available seam to vanilla's Brain/Activity system. |
+| 2 | VERIFIED, no change. `handle_rider_start_jump` in both nautilus files plays the dash sound, scales the impulse by momentum (1.2 water / 0.5 land), `MOVEMENT_SPEED` and block speed factor, sets a 40-tick cooldown and starts dashing; this matches `AbstractNautilus.onPlayerJump`/`handleStartJump`/`executeRidersJump`. NOTE (not fixed, out of unit): vanilla dashes along the rider's `getLookAngle()` while the hook uses the mount's look vector; routing the rider angle needs a `Mob` trait/caller change in `mob/mod.rs` and `player.rs`, outside this unit. |
+| 3 | VERIFIED, no change. `getInventoryColumns()` returns 0 in `AbstractNautilus` and `NautilusInventoryMenu` derives its grid from it; the 9-slot field was correctly deleted from both mobs. The saddle/body equipment slots are handled by `EquipmentSlot`, not that field. NOTE (not fixed, out of unit): `NautilusInventoryScreenHandler` remains unused; wiring the tame shift-right-click screen touches `pumpkin-core` player/screen code outside this unit. |
+| 4 | VERIFIED, no change. `MINECRAFT_NAUTILUS_FOOD`, `MINECRAFT_NAUTILUS_TAMING_ITEMS` and `MINECRAFT_NAUTILUS_BUCKET_FOOD` exist in generated `tag.rs`; `is_food` picks the taming tag for a wild adult and the food tag otherwise, matching `AbstractNautilus#isFood`. |
+| 5 | VERIFIED, no change. `new()` matches the `AbstractNautilus` ctor: `SmoothSwimmingMoveControl(85,10,0.011,0,true)`, `SmoothSwimmingLookControl(10)`, WATER malus 0.0 and `WaterBoundPathNavigation`. |
+| 6 | LEFT OPEN, confirmed client-only. Whole-tree search finds `NAUTILUS_RIDING` only registered in `SoundEvents.java:139`, never played server-side; the riding loop is client code and is not vendored. The dash sound is played server-side from the jump hook, matching vanilla `handleStartJump`. No server seam. |
+| 7 | VERIFIED, no change. `check_spawn_rules` (`entity/type.rs:786-798`) uses sea-25..sea-5 with water below and above, matching `checkNautilusSpawnRules`; nautilus spawning is data-driven via biome `water_creature` spawns and zombie nautilus is MONSTER/Unrestricted with no biome entry. |
+| 8 | VERIFIED, no change. `TamableAnimal.addAdditionalSaveData` persists only `Owner`; `mob_write_nbt`/`mob_read_nbt` match, and tame/owner sync via `DATA_FLAGS_ID`/`DATA_OWNERUUID_ID`. Dash cooldown stays transient. |
+| 9 | VERIFIED, no change. `TamableAnimal.feed` heals `2.0 * nutrition` (fallback `1.0`) at `TamableAnimal.java:135-140`, matching the `feed(...,2.0,1.0)` call and the Rust heal. |
+
+Helper paths, struct initializers and method references (`get_attribute_value`,
+`get_block_speed_factor`, `get_looking_vector`, `add_velocity`,
+`player_jump_pending_scale`) were re-checked against the Worker compile pitfalls
+table and all resolve in-tree. No unwrap/expect/panic or stdout added.

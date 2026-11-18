@@ -190,3 +190,44 @@ All seven rows are now addressed (fixed or verified parity). No open rows remain
 in this unit's scope. Files changed this pass: none (fix already present at
 restart); unit doc updated with this Result.
 
+
+## Result (pass 4 verification, 2026-11-18)
+
+Independent re-verification of all seven rows against the decompiled 1.21 source
+(BucketItem.java use:45-106 / emptyContents:135-193, MobBucketItem.java:33-68,
+SimpleWaterloggedBlock.java:39-50) and the current Pumpkin code. No source edits
+this pass: every in-scope row was already fixed by earlier passes and the fixes match
+vanilla. No cargo/git run (forbidden for this worker).
+
+- Row 1 (waterlogged pickup, bucket.rs:310-332): VERIFIED. SimpleWaterloggedBlock.pickupBlock
+  sets WATERLOGGED=false, then destroyBlock(pos, true) when the dried state cannot survive.
+  Pumpkin's set_waterlogged(false) + can_place_at on the dried state + break_block with drops
+  reproduces this. Correct.
+- Row 2 (sneak waterlogging, bucket.rs:442): VERIFIED, no change. BucketItem.emptyContents:146
+  gates canPlaceFluidInsideBlock on (!shiftKeyDown || hitResult == null), so sneaking recurses
+  to the adjacent position (emptyContents:190). Pumpkin's !is_sneaking in
+  clicked_is_liquid_container matches; the doc's proposed removal would be WRONG. Keep.
+- Row 3 (ultrawarm mob bucket, bucket.rs:554-598): VERIFIED. BucketItem.emptyContents:158-170
+  takes the fire-extinguish branch and returns true WITHOUT playEmptySound; use():64 still
+  runs checkExtraContent, and MobBucketItem.checkExtraContent:34-39 spawns the mob. Pumpkin
+  skips the empty sound on evaporation and still spawns. Correct. Doc premise (no spawn) wrong.
+- Row 4 (mayInteract / spawn protection, bucket.rs:661/750): VERIFIED. BucketItem.use:60 gates
+  on level.mayInteract(player, pos). Pumpkin's is_in_spawn_protection gates match.
+  player.mayUseItemAt is region/spectator-only, covered upstream/by plugin events.
+- Row 5 (hardcoded Hand::Right, bucket.rs:835-839): VERIFIED. hand_holding(player, stack.item)
+  (item/mod.rs:28) derives the used hand and threads it into place_filled_bucket; off-hand
+  no longer edits the main-hand slot. No trait signature change needed.
+- Row 6 (event payload face/stack): VERIFIED end to end. Core player_bucket.rs carries bucket +
+  block_face; bucket.rs builds them via block_face_name(hit.direction/direction) and the bucket
+  registry key (:658/673-674/768-769). WIT v0.1/v0.2 event.wit records declare bucket and
+  block-face; both wasm hosts map the fields. Unit test block_face_names_match_bukkit (:918)
+  covers the six BlockDirection variants. Complete.
+- Row 7 (dispenser break_block drops, redstone/dispenser.rs:910-923): OUT OF SCOPE (basename not
+  permitted) and no fix needed. Vanilla filled-bucket dispensing runs
+  BucketItem.emptyContents:177 destroyBlock(pos, true) for replaceable blocks, so rolling loot
+  is correct; adding SKIP_DROPS would break parity. Doc premise wrong.
+
+No pure unit-test seam remains for the in-scope changes (spawn protection / sound / hand / event
+all require a live World or the existing face-name test); none added. Compile-pitfall re-check:
+this pass touched no Rust, so no new imports, helpers, struct initializers, clones, or pedantic
+issues. All seven rows addressed; nothing open in this unit's scope.

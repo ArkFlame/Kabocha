@@ -48,3 +48,32 @@ the vanilla source. No generated data, WIT, cross-crate or out-of-unit work need
 Rows 1-8 were not marked STILL OPEN and are out of scope for this pass.
 
 Re-verified against decompiled source this pass: `ServerClockManager.java:147` is `instance.totalTicks = Math.max(instance.totalTicks + ticks, 0L)`; Pumpkin's `max(0)` clamp matches, so no source change and no rustfmt needed.
+
+
+## Result (second pass)
+
+Only row 9 was marked STILL OPEN. No source change is needed. Re-verified against
+decompiled `ServerClockManager.addTicks` (`world/clock/ServerClockManager.java:146-148`),
+which is `instance.totalTicks = Math.max(instance.totalTicks + ticks, 0L)`. Vanilla
+clamps at 0 and never leaves a negative day time, so Pumpkin's
+`LevelTime::add_time` `(self.time_of_day + time).max(0)` already matches. The
+existing `level_time_set_and_add` unit test covers the negative clamp with the
+vanilla source annotated. No generated data, WIT, cross-crate or out-of-unit
+work was needed for the STILL OPEN row.
+
+Rows verified already fixed in the current checkout (no action this pass):
+- Row 2: `world/mod.rs:2777-2779` gates the skip with `advance_time &&
+  !has_fixed_time`; `LevelTime::is_night` uses the vanilla 12600..23400 window.
+- Row 3: `sleep_wake_marker`/`parse_sleep_wake_marker` resolve the datapack
+  `wake_up_from_sleep` marker; caller at `world/mod.rs:2795-2799`.
+- Row 4: `world/mod.rs:620-638` restores rate/partial_tick/paused and loads every
+  non-default clock from `world_clocks.dat` via `read_world_clocks`.
+- Row 5: `ServerClockManager` holds independent per-clock `ClockInstance`s.
+- Row 6: `send_game_time_sync` applies the per-player `/time` override.
+- Row 7: `default_clock_id` resolves the id from the `world_clock` registry.
+
+Rows left open (not STILL OPEN; cannot be closed this pass):
+- Row 1: Bedrock has no frozen-clock field; correct behavior cannot be decided
+  without a Bedrock client.
+- Row 8: whether Bedrock `CSetTime` expects day time or absolute time cannot be
+  decided without a Bedrock client.

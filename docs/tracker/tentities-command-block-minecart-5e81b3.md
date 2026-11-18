@@ -151,3 +151,66 @@ vanilla. No edits needed for these.
   `to_nbt_tag_for_version` (no version-free `to_nbt_tag`), so the version cannot be dropped locally.
 
 No .rs file touched this pass. No compile/test run by this worker (orchestrator compiles once).
+
+## Result (this pass: re-verification of the single STILL OPEN row)
+
+Re-read all three in-scope files (`command_block.rs`, `set_command_minecart.rs`,
+`command.rs`) and re-checked the only STILL OPEN row against decompiled vanilla
+`world/level/BaseCommandBlock.java` (now present in `.vendor`).
+
+- Row 4 (hardcoded `CURRENT_MC_VERSION` at `command_block.rs:242,256` to serialise
+  `CustomName`/`LastOutput`): STILL OPEN (BLOCKED). One-line reason: vanilla
+  `BaseCommandBlock#save` writes both fields with the version-agnostic
+  `ComponentSerialization.CODEC` (lines 53, 56) and takes no version parameter, while
+  Pumpkin's `TextComponent` exposes only `to_nbt_tag_for_version`/
+  `to_nbt_compound_for_version` (`pumpkin-util/src/text/mod.rs:401`); dropping the version
+  needs either a new version-free `TextComponent` API or threading the target version through
+  `EntityBase::write_nbt` and every caller, both outside this unit's files and a repo-wide
+  convention (16 sites). No vanilla-grounded fix exists inside `command_block.rs`.
+
+Other rows re-confirmed resolved, no change: Row 1 - vanilla clears `successCount` at line 105
+before the `isCommandBlockEnabled()` guard at 106; Pumpkin's reset at `command_block.rs:169`
+precedes its guard at 170. Row 2 - vanilla Searge branch returns at 99-102 before the
+`lastExecution` write at 134-138; Pumpkin returns at 161-166 before the write at 218-223.
+Row 3 - vanilla `BaseCommandBlock` owns its own `customName` field and
+`getName()` default "@" (lines 151-159); Pumpkin keeps its own `custom_name` at line 45.
+Row 5 - gamerule test `command_block_minecart_perform_command_gamerule` lives in `minecart.rs`
+(outside this unit's edit scope). Row 6 - risk only. `set_command_minecart.rs` still matches
+vanilla `handleSetCommandMinecart`.
+
+No .rs file touched this pass, so no rustfmt run. No compile/test run by this worker
+(orchestrator compiles once).
+
+
+## Result (second pass: Row 4 unblocked)
+
+Row 4 was the only STILL OPEN row; it was previously BLOCKED because dropping the hardcoded
+version was judged to need a cross-crate refactor of `EntityBase::write_nbt` plus a new
+`TextComponent` API, both outside this unit. The second-pass override permits editing files a
+row needs, so I added the missing version-free API and used it here.
+
+- Vanilla `BaseCommandBlock#save` (`.vendor/.../world/level/BaseCommandBlock.java:50-63`) writes
+  `CustomName` and `LastOutput` via the version-agnostic `ComponentSerialization.CODEC` and takes
+  no version parameter. Entity NBT is a storage format, not a per-client protocol payload, so the
+  current/latest component format is the correct one, exactly like the existing version-free
+  `TextComponent::encode()` and `TextComponentBase::to_nbt_compound()` helpers.
+- Added `pub fn to_nbt_tag(&self) -> NbtTag` to `impl TextComponent` in
+  `pumpkin-util/src/text/mod.rs`, delegating to `to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3)`,
+  mirroring `encode()` (line 1659) and `TextComponentBase::to_nbt_compound()` (line 68). It keeps
+  the `to_translated()` behaviour of `to_nbt_tag_for_version`, so output is byte-identical.
+- In `command_block.rs:write_nbt` switched `CustomName`/`LastOutput` to `to_nbt_tag()` and removed
+  the now-unused `use pumpkin_data::packet::CURRENT_MC_VERSION;`. The entity file no longer
+  hardcodes a protocol version; the version default lives once in pumpkin-util like `encode()`.
+
+No behaviour change (still the latest component format) and no generated data, WIT or
+`EntityBase::write_nbt` signature change, so no parity regression and no cross-crate refactor.
+
+No unit test added: `to_nbt_tag()` is a one-line delegation to the already-covered
+`to_nbt_tag_for_version`, so a test would be formula-mirroring/duplicate (MVP test rules). The
+existing `command_block_minecart_nbt_and_activation_cooldown` round-trip test still exercises this
+NBT path.
+
+Files touched: `pumpkin-util/src/text/mod.rs`, `command_block.rs` (plus this doc). rustfmt not run
+by this worker; no compile/test run by this worker (orchestrator compiles once).
+
+Status: PASS.

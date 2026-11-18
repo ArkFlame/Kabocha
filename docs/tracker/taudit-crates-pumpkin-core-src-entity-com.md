@@ -21,12 +21,12 @@ Audited 2026-11-16. The file has no TODO/FIXME markers; the tracker's 5 matches 
 | combat.rs:285 | 1.21 applies Breach through `EnchantmentHelper.modifyArmorEffectiveness` outside `CombatRules` | confirm no double clamp vs 1.21 `CombatRules.getDamageAfterAbsorb` | M |
 
 ## Gap status
-- 1 sweep needs walk distance (combat.rs:57): STILL OPEN, S.
-- 2 recordDamage/recheckStatus event 128 (combat.rs:471,486): STILL OPEN, S.
-- 3 knockback resistance applied once (combat.rs:189): STILL OPEN, M, verify Mob::mob_knockback.
-- 4 death message killer fallback (combat.rs:714): STILL OPEN, M.
-- 5 mace owner identity (combat.rs:140): STILL OPEN, S.
-- 6 Breach double clamp (combat.rs:285): STILL OPEN, M.
+- 1 sweep needs walk distance (combat.rs:57): CLOSED (re-verified 2026-11-18; see Result sections).
+- 2 recordDamage/recheckStatus event 128 (combat.rs:471,486): CLOSED (no event 128 in this vanilla).
+- 3 knockback resistance applied once (combat.rs:189): CLOSED (applied once per path).
+- 4 death message killer fallback (combat.rs:714): CLOSED (kill credit is the vanilla source).
+- 5 mace owner identity (combat.rs:140): CLOSED (UUID equality is functionally identical).
+- 6 Breach double clamp (combat.rs:285): CLOSED (fixed; single clamp, unit test added).
 - Fixes listed in the note (crit/sweep/mace/armor clamp): kept, verified only by the note.
 
 ## Result
@@ -69,5 +69,21 @@ Re-checked every STILL OPEN row directly against the current decompiled vanilla 
 - 6 Breach double clamp (combat.rs:351-376): CLOSED, already fixed. CombatRules.getDamageAfterAbsorb (CombatRules.java:16-32) seeds modifyArmorEffectiveness with armorFraction and clamps once; EnchantmentHelper.modifyArmorEffectiveness (198-206) starts MutableFloat at armorFraction, so Breach's ADD subtracts from the fraction. Pumpkin does the same. Existing test breach_subtracts_from_armor_fraction_like_vanilla covers level 4 (10.0 dmg) and level 1 (9.5 dmg).
 
 No .rs files changed, so no rustfmt needed. No open rows remain; diff re-checked against the Worker compile pitfalls table with no changes to review.
+
+Status: PASS fixed=0 open=0 files=none
+
+
+## Result (re-verified 2026-11-18, fourth pass)
+
+Independently re-checked all six rows against .vendor/vanilla-decompiled and the live combat.rs. No source-code changes were required; every row is closed. Only this tracker doc changed: the stale Gap status STILL OPEN markers were corrected to CLOSED so the unit is not re-queued.
+
+- 1 sweep (AttackType::new, combat.rs:65-77): CLOSED. Player.isSweepAttack (Player.java:1134-1144) requires full strength, not crit/knockback, onGround, getKnownMovement().horizontalDistanceSqr() < (getSpeed()*2.5)^2, and a sword. Pumpkin checks velocity.horizontal_length_squared() < (MOVEMENT_SPEED*2.5)^2 with the same grounded/sword/strong gates and Bedrock exclusion. Movement is client-authoritative in Pumpkin, so velocity is the correct equivalent; adding walkDist fields is an unnecessary cross-crate refactor.
+- 2 combat event 128: CLOSED. CombatTracker.java (lines 66, 181) only calls mob.onEnterCombat()/onLeaveCombat(); this vanilla has no entity event 128 broadcast.
+- 3 knockback resistance once: CLOSED. LivingEntity.knockback applies (1 - resistance) exactly once. Pumpkin's Entity::apply_knockback (entity/mod.rs:3175) does not apply resistance; handle_knockback applies it once via knockback_after_resistance on the !handled fallback; mob_knockback handlers apply it internally once.
+- 4 death message killer fallback: CLOSED. DamageSource.getLocalizedDeathMessage uses victim.getKillCredit() on the no-attacker path, which Pumpkin passes as kill_credit_name; the get_killer_entry() fallback only adds an offline-killer enhancement when kill credit is absent.
+- 5 mace owner identity: CLOSED. TamableAnimal.isOwnedBy is entity == getOwner(), which resolves via UUID; the victim is always loaded, so UUID equality is functionally identical. Exact identity needs an owner-resolution API outside combat.rs.
+- 6 Breach double clamp: CLOSED, already fixed. CombatRules.getDamageAfterAbsorb (CombatRules.java:16-32) seeds modifyArmorEffectiveness with armorFraction and clamps once; Pumpkin calls modify_armor_effectiveness on armor_fraction and clamps once. The generated BREACH effect is ADD -0.15/level (enchantment.rs test: eff 1.0 -> 0.4 at level 4). The existing test breach_subtracts_from_armor_fraction_like_vanilla covers level 4 (10.0 dmg) and level 1 (9.5 dmg).
+
+No .rs files changed, so no rustfmt and no compile needed. Diff re-checked against the Worker compile pitfalls table: no code to review.
 
 Status: PASS fixed=0 open=0 files=none

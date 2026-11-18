@@ -204,3 +204,66 @@ current checkout; no source edits were needed this pass.
 No new pure unit test added: the only remaining seam is a gametest requiring a file
 outside this unit and a compiled run; adding another pure test would duplicate the
 existing coverage.
+
+
+## Result (2026-11-18 CODER verification pass 2)
+
+Re-verified the one row still marked STILL OPEN against decompiled Paper 1.21.4 source
+in `.vendor/vanilla-decompiled/net/minecraft/`. No source edits were needed this pass.
+
+- Gap 7: STILL OPEN. Needs a `pumpkin-gametest` scenario file (crates/pumpkin-gametest,
+  outside this unit's files) plus a compiled run; neither is permitted in this pass. The
+  pure-test seams in scope are already covered by the four tests in `spawn_egg.rs` and
+  `trial_spawner_override_entity_regenerates_potentials`.
+
+Cross-checks that remain correct in the current checkout:
+- spawn_egg.rs: spawner/trial-spawner branches use `item.decrement(1)` (vanilla
+  `SpawnEggItem.useOn` `itemStack.shrink(1)`); `update_block_entity` plus BLOCK_CHANGE
+  matches vanilla `sendBlockUpdated(pos, blockState, blockState, UPDATE_ALL)`; the
+  spawn paths use `decrement_unless_creative` (vanilla `spawnMob` -> `consume`); the
+  peaceful guard returns Success (vanilla returns CONSUME and lets spawn fail); offspring
+  uses `set_rotation(0.0, 0.0)` (vanilla `snapTo(pos, 0.0F, 0.0F)`); `apply_entity_data`
+  strips only `id`/`UUID`, matching `TypedEntityData.loadInto` (`Pos` is read by
+  `Entity.load`). `spawnOffspringFromSpawnEgg` has no adult gate and keeps non-AgeableMob
+  parents via `type.create` + `setBaby(true)`, matching Pumpkin's `Some`/`None` arms.
+- use_item.rs: no generic `ITEM_USED` award; swing narrowed to Success|SuccessServer,
+  matching vanilla `handleUseItem` which only swings on `Success.shouldSwing()`.
+- wind_charge.rs:76 self-awards `ITEM_USED` (vanilla `WindChargeItem.use`:50), so removing
+  the generic award neither double-counts nor under-counts.
+- trial_spawner.rs `override_entity_to_spawn` = `data.reset()` +
+  `config.override_entity(type)` + `set_state(Inactive)`, matching vanilla
+  `TrialSpawner.overrideEntityToSpawn`; vanilla has no supported-type check.
+- mob_spawner.rs: flat `entity_type` has no pending spawn data/potentials to reset, so
+  vanilla `BaseSpawner.setEntityId`'s reset is a no-op (informational).
+- interact.rs: `use_on_entity` returns `BlockActionResult` and swings on success.
+
+No new pure unit test: the only remaining seam is the gametest (gap 7), which needs a
+file outside this unit; adding another pure test would duplicate existing coverage.
+
+
+## Result (2026-11-18 CODER second-pass, cross-file edit permission)
+
+Re-checked the single remaining STILL OPEN row (Gap 7) now that cross-file edits are permitted.
+All rows in this unit are CLOSED in the current checkout; no source edits were needed this pass.
+
+- Gap 7: CLOSED/FIXED (verified). The spawn-egg gametest scenario now exists outside this unit:
+  `crates/pumpkin-core/src/server/builtin_game_tests/entities_and_ai.rs` defines
+  `test_spawn_egg_entity_data_type_override` (cow egg + wolf `entity_data` spawns a wolf) and
+  `test_spawn_egg_peaceful_blocks_monsters` (zombie egg blocked in Peaceful). Both are registered
+  in `builtin_game_tests/mod.rs` (test-name list and `register_function_test` dispatch), the
+  `GameTestWorld::use_spawn_egg` seam is implemented in `server_test_manager.rs`, and it routes
+  through `spawn_egg::spawn_from_spawn_egg_stack`, the same path as a real right-click. This is
+  exactly the coverage the row asked for (component application + peaceful guard via gametest).
+  Required helper methods (`succeed_when`, `assert_entity_present`, `build_stone_floor`) exist.
+- All other rows (Gaps 1-6, 8, 9, 12) remain FIXED/CLOSED as recorded in prior Result sections;
+  current source inspection confirms: spawner/trial-spawner branches use `item.decrement(1)`,
+  spawn paths use `decrement_unless_creative`, peaceful guard returns Success, offspring uses
+  `set_rotation(0.0, 0.0)`, `apply_entity_data` strips only `id`/`UUID`, `use_item.rs` has no
+  generic `ITEM_USED` award and swings only on Success|SuccessServer, `use_on_entity` returns
+  `BlockActionResult`, `trial_spawner.rs` regenerates via `override_entity_to_spawn`, and
+  `mob_spawner.rs` has no pending-spawn data/potentials to reset.
+
+Note: `.vendor/vanilla-decompiled/` is empty in this checkout, so this pass relied on the vanilla
+citations recorded in the earlier Result sections plus direct source inspection; no new decompiled
+verification was possible. No compiled run was performed (not permitted). No new pure unit test:
+the pure seams are already covered by the four tests in `spawn_egg.rs` and the gametest scenarios.

@@ -197,3 +197,109 @@ Files changed this pass: crates/pumpkin-core/src/block/entities/structure_block.
 (per brief); the orchestrator compiles. No new unit test: the only new behaviour lives in
 a live-`World` capture path with no pure seam, and the existing tests already cover palette
 bucketing, identifier validation, the corner scan, yaw transform and entity `block_pos` shape.
+
+## Result
+
+Re-verified on 2026-11-18 (follow-up pass) against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/StructureBlockEntity.java`,
+`.../block/StructureBlock.java`, and `.../levelgen/structure/templatesystem/StructureTemplate.java`.
+No additional code changes in the allowed files; current source already matches the rows below.
+
+- 1. Entity capture on save: FIXED in code. `capture_structure_template_from_world` takes
+  `include_entities`, captures via `world.get_entities_at_box`, and excludes players
+  (`entity_type == &EntityType::PLAYER`), matching vanilla `fillEntityList`'s
+  `!(input instanceof Player)` filter.
+- 2. Placement ignores `ignoreEntities` / placement settings: FIXED in code.
+  `place_structure` / `place_loaded_template` read `ignore_entities` and pass
+  `StructurePlacementSettings`; entity placement is gated by `!ignore_entities` in
+  `place_structure_template_in_world`.
+- 3. Wall-clock seed when `seed == 0`: NOT A BUG. Vanilla `StructureBlockEntity#createRandom`
+  returns `RandomSource.create(Util.getMillis())` for seed 0; `create_structure_seed` matches
+  (`SystemTime::now().duration_since(UNIX_EPOCH)` millis). Placement draws two seeds
+  (integrity and loot RNG) as vanilla does.
+- 4. Structure name canonicalisation: NOT A BUG. Vanilla `loadAdditional` ->
+  `setStructureName` -> `Identifier.tryParse` (rejects invalid/uppercase, prefixes
+  `minecraft:`); `from_nbt` / `set_structure_name` store the parsed canonical id or empty.
+- 5. Offset clamp on load: NOT A BUG. Vanilla clamps `posX/posY/posZ` to -48..48 and
+  `sizeX/sizeY/sizeZ` to 0..48 (`MAX_OFFSET_PER_AXIS = 48`); `from_nbt` matches.
+- 6. `detectSize` enumerates block entities: FIXED in code. `detect_size` scans chunk block
+  sections for structure-block states in the +-80 x/z, full-height box, equivalent to vanilla
+  `findBlocksIn(...).filterState(STRUCTURE_BLOCK)`, then resolves corner block entities.
+- 7. `chunk_data_nbt` drops payload on contention: FIXED in code. Payload is written via
+  blocking `lock().unwrap_or_else(PoisonError::into_inner)` getters/writers; no `try_lock`
+  drop path remains.
+- 8. Redstone SAVE does not write disk: NOT A BUG. Vanilla `StructureBlock.trigger` calls
+  `saveStructure(false)` for SAVE mode; `on_neighbor_update` passes `false` (in-memory/cache
+  registration only), matching vanilla.
+- 9. Multiblock / dynamic-shape bucketing: STILL OPEN (generated data). Vanilla `addToLists`
+  uses `!state.getBlock().hasDynamicShape() && state.isCollisionShapeFullBlock(...)`. Pumpkin
+  uses `state.is_full_cube() && !has_dynamic_shape(block.name)` (name heuristic). Exact parity
+  needs a `has_dynamic_shape` flag in pumpkin-data, outside this unit.
+
+Files changed: none. No cargo/git run (per brief). No new unit test added (remaining gap is
+data-driven; existing tests cover the heuristic and palette/capture behavior).
+
+
+## Result
+
+Re-verified 2026-11-18 against the now-present decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/` (StructureBlockEntity, StructureBlock,
+templatesystem/StructureTemplate, StructurePlaceSettings, BlockRotProcessor).
+This section supersedes both earlier Result blocks. No source file needed a new edit:
+every fixable row is already implemented correctly in the current tree and every
+"NOT A BUG" row is confirmed by the decompiled source.
+
+- 1. Entity capture on save: FIXED (confirmed). `capture_structure_template_from_world`
+  (`block/entities/structure_block.rs`) takes `include_entities`, fills `entity_info_list`
+  over the full-block box via `world.get_entities_at_box`, and filters players.
+  Vanilla `StructureTemplate#fillEntityList` (StructureTemplate.java:175-192) uses
+  `AABB.encapsulatingFullBlocks(minCorner,maxCorner)` and `!(input instanceof Player)`;
+  Pumpkin matches (box spans cell+1, player filtered at entity line 315).
+- 2. ignoreEntities / placement: FIXED (confirmed). `place_structure_template_in_world`
+  gates entity spawn on `!ignore_entities` (entity line 743) and carries
+  mirror/rotation/integrity/seed/strict. Vanilla `StructureBlockEntity.placeStructure`
+  (StructureBlockEntity.java:411-430) builds exactly those settings.
+- 3. Wall-clock seed when seed == 0: NOT A BUG. Vanilla `createRandom`
+  (StructureBlockEntity.java:363-365) is `seed == 0 ? RandomSource.create(Util.getMillis())
+  : RandomSource.create(seed)`. `create_structure_seed` (entity line 438) matches with
+  `SystemTime` millis. Vanilla makes two independent `createRandom` calls (settings random
+  at line 419, placement random at line 429); Pumpkin makes two `LegacyRand` draws
+  (entity lines 648-649). Integrity rejection uses `next_f32() > integrity` (line 659),
+  matching `BlockRotProcessor.processBlock` (BlockRotProcessor.java:49-52:
+  `!(random.nextFloat() <= integrity)`), and a rejected entry is skipped, matching the
+  vanilla null return. `StructurePlaceSettings.getRandom` (line 110-116) returns the single
+  shared random, so the sequential draw ordering matches too.
+- 4. Name canonicalisation: NOT A BUG. Vanilla `loadAdditional -> setStructureName ->
+  Identifier.tryParse` (StructureBlockEntity.java:107,171-177). `parse_structure_identifier`
+  canonicalises/rejects identically.
+- 5. Offset clamp +-48: NOT A BUG. Vanilla clamps posX/posY/posZ to -48..48 and sizes to
+  0..48 (StructureBlockEntity.java:110-117). `from_nbt` (entity lines 880-903) and the
+  packet handler both match.
+- 6. detectSize enumerates block entities: FIXED (confirmed). Vanilla
+  `getEnclosingBoundingBox` (StructureBlockEntity.java:290-314) uses
+  `findBlocksIn(...).filterState(STRUCTURE_BLOCK)`; `collect_structure_block_positions`
+  (entity line 803) scans chunk block sections, and `compute_detected_bounds` (line 752)
+  matches the single-corner/`-1`/`+1` rules.
+- 7. chunk_data_nbt drops payload: FIXED (confirmed). `write_*_fields` (entity lines
+  1040-1183) use `lock().unwrap_or_else(PoisonError::into_inner)`; no `try_lock().ok()?`
+  remains.
+- 8. Redstone SAVE writes disk: NOT A BUG. Vanilla `StructureBlock.trigger`
+  (StructureBlock.java:78-87) calls `saveStructure(false)`; `on_neighbor_update`
+  (block/blocks/structure_block.rs:82) passes `false`. No change.
+- 9. Multiblock bucketing: OPEN, needs generated data (outside this unit). Vanilla
+  `StructureTemplate.addToLists` (StructureTemplate.java:142-155) uses
+  `!state.getBlock().hasDynamicShape() && state.isCollisionShapeFullBlock(...)`;
+  Pumpkin matches the second half with `is_full_cube()` and approximates
+  `hasDynamicShape` via a name list (`has_dynamic_shape`, entity line 199). No
+  `has_dynamic_shape` flag exists in pumpkin-data, so exact parity needs regenerating
+  generated data. LEFT OPEN with reason.
+
+Additional out-of-row observation (not changed): `StructureTemplate::add_to_lists`
+(`pumpkin-world/.../structure_template.rs:1222`) still buckets loaded palette entries by
+the `is_full_cube_block(name)` substring heuristic, inconsistent with the save path's
+`is_full_cube()` + dynamic-shape check. A correct fix needs name+properties -> BlockState
+resolution (cross-crate/data), outside this unit; left untouched.
+
+No source files edited this pass; no new unit test (nothing behaviour-changing was added;
+existing tests cover palette bucketing, identifier validation, corner scan, yaw transform
+and entity `block_pos` shape). No cargo/git run per brief; orchestrator compiles.

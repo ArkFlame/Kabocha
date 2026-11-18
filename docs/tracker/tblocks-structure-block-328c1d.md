@@ -156,3 +156,88 @@ row is already implemented and matches vanilla.
 No pure unit-test seam exists for the Arc<World> placement paths; the existing palette and
 loot_seed_only_for_randomizable_containers tests in structure_block.rs cover the data-only rows.
 No files edited this pass. Compile deferred to the orchestrator.
+
+
+## Result
+
+Fourth pass. Re-checked every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft
+(StructureTemplate.java, StructurePlaceSettings.java, StructureBlockEntity.java, ServerLevel.java,
+ServerGamePacketListenerImpl.java, BitRandomSource.java, Mth.java). One new mismatch found and fixed;
+the remaining rows stay verified as already implemented.
+
+- Row 49, entity capture and placement: VERIFIED, NO ACTION. capture_structure_template_from_world
+  fills entity_info_list (players excluded, AABB.encapsulatingFullBlocks, painting block_pos) matching
+  fillEntityList (StructureTemplate.java:175-193), and place_template_entities runs behind
+  !ignore_entities matching placeEntities (:511-552) including the UUID drop, Pos rewrite,
+  block_pos rewrite and the rotate-then-mirror yaw.
+- Row 50, collision-shape-full + hasDynamicShape: VERIFIED, NO ACTION. Palette split is
+  state.is_full_cube() && !has_dynamic_shape(name) (:287-289), matching addToLists (:150). The seven
+  .dynamicShape() declaration sites in Blocks.java (moving_piston, bamboo, scaffolding, powder_snow,
+  pointed_dripstone, sulfur_spike, shulkerBoxProperties) are all covered by has_dynamic_shape.
+- Row 51, non-strict shape reconnect: VERIFIED, NO ACTION. update_shape_at_edge then
+  update_from_neighbor_shapes with NOTIFY_LISTENERS | UPDATE_KNOWN_SHAPE (:734-747) matches
+  StructureTemplate.java:376-401 with updateMode & ~UPDATE_NEIGHBORS | UPDATE_KNOWN_SHAPE.
+- Row 52, LootTableSeed gating: VERIFIED, NO ACTION. is_randomizable_container_id covers exactly the
+  RandomizableContainer implementors and excludes the brushable block entities (:423-436).
+- Row 53, strict placement side effects: VERIFIED, NO ACTION.
+  WorldBlockPlacer::new_with_skip_side_effects(world, strict) suppresses drop callbacks and the NBT
+  pre-clear mirrors the BARRIER pre-set (StructureTemplate.java:293-295).
+- Row 54, handleSetStructureBlock trailing update: VERIFIED, NO ACTION. ServerLevel.sendBlockUpdated
+  only fires blockChanged plus path/navigation cache invalidation; register_block_change already does
+  both and sends no neighbour update.
+
+- NEW row, palette selection: FIXED. Vanilla gets its block list from
+  settings.getRandomPalette(palettes, position) (StructureTemplate.java:270), which draws
+  nextInt(palettes.size()) from the settings random when the rot processor installed one
+  (StructurePlaceSettings.java:150, StructureBlockEntity.java:419) and from
+  RandomSource.create(Mth.getSeed(position)) otherwise (:110-116). Pumpkin always used
+  palettes().first(), so multi-palette templates always loaded palette 0 and, whenever integrity was
+  below 1.0, the rot stream was missing the leading palette draw, shifting every integrity roll by one.
+  place_structure_template_in_world now derives the palette index from the same settings stream before
+  the rot pass (and from the position-seeded stream when no rot processor applies). Helpers
+  palette_index_from / palette_fallback_seed live in block/entities/structure_block.rs.
+
+Test: palette_selection_draws_from_the_vanilla_stream pins both streams against vanilla
+LegacyRandomSource.nextInt(3) values (seed 42 -> 2, Mth.getSeed(3,64,-7) -> 1), computed from the
+decompiled BitRandomSource/LegacyRandomSource algorithms. No cargo run was allowed for this unit, so
+the test is UNVERIFIED until the orchestrator batch-checks.
+
+File changed: crates/pumpkin-core/src/block/entities/structure_block.rs (the working file also carried an
+uncommitted `integrity_rot_applies` helper plus its test from another slice; this pass keeps and uses
+that helper instead of reverting it).
+
+
+## Result
+
+Fifth pass. Re-verified every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft
+(StructureTemplate.java, StructureBlockEntity.java, StructurePlaceSettings.java, BlockRotProcessor.java,
+Mth.java, ServerLevel.java, ServerGamePacketListenerImpl.java). All six rows are already implemented and
+match vanilla; no source behaviour change was required.
+
+- Row 49, entity capture and placement: VERIFIED. fillEntityList (StructureTemplate.java:175-192)
+  excludes players, uses AABB.encapsulatingFullBlocks and painting.getPos() for blockPos;
+  capture_structure_template_from_world (structure_block.rs:305-342) mirrors it and
+  place_template_entities (:461-512) mirrors placeEntities (:511-552) behind !ignore_entities,
+  including the UUID drop, Pos/block_pos rewrites and rotate-then-mirror yaw.
+- Row 50, collision-shape-full + hasDynamicShape: VERIFIED. addToLists (:142-155) uses
+  !hasDynamicShape() && isCollisionShapeFullBlock; the palette split at structure_block.rs:287-289
+  uses state.is_full_cube() && !has_dynamic_shape(name) and covers all dynamicShape sites.
+- Row 51, non-strict shape reconnect: VERIFIED. updateShapeAtEdge (:438-463) plus
+  Block.updateFromNeighbourShapes (:391-401) map to update_shape_at_edge + update_from_neighbor_shapes
+  + update_neighbors_at behind !strict (structure_block.rs:759-778).
+- Row 52, LootTableSeed gating: VERIFIED. placeInWorld (:319-324) seeds only RandomizableContainer
+  implementors; is_randomizable_container_id (structure_block.rs:423-436) matches exactly.
+- Row 53, strict placement side effects: VERIFIED. UPDATE_SKIP_ALL_SIDEEFFECTS maps to
+  WorldBlockPlacer::new_with_skip_side_effects(world, strict) (block_placer.rs:49); the NBT block-entity
+  pre-clear mirrors the BARRIER pre-set (:293-295).
+- Row 54, handleSetStructureBlock trailing update: VERIFIED NO ACTION. ServerLevel.sendBlockUpdated
+  fires blockChanged plus cache invalidation only, which register_block_change already covers.
+
+- Test correction: palette_selection_draws_from_the_vanilla_stream pinned the positional fallback
+  palette index to 1 for Mth.getSeed(3,64,-7), but the vanilla Mth.getSeed formula (Mth.java:332-336,
+  returns long with no int truncation) plus LegacyRandomSource.nextInt(3) yields 0. Corrected the
+  expected value to 0 and the comment. Cross-checked the RNG simulation against pumpkin-util's
+  LegacyRand::from_seed(0).next_bounded_i32(15) vector [0,13,4,2,5,8,11,6,9,14]. No cargo run was
+  permitted; compile and test are deferred to the orchestrator.
+
+File changed: crates/pumpkin-core/src/block/entities/structure_block.rs (test expectation only).

@@ -102,3 +102,48 @@ Verified each STILL OPEN row against
 
 No new pure unit test added for Row 2: the gate depends on live `World` block state and has no
 pure seam; the existing bounds and NBT tests remain the pinned pure tests for this file.
+
+## Result (worker recheck)
+
+Re-verified rows 1-7 against `crates/pumpkin-core/src/block/entities/beacon.rs` and
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeaconBlockEntity.java`
+(Paper patches noted). Row 2 beam gating is present (`update_base` and effects/ambient gated on
+`beam_active` in the `% 80` branch); rows 1, 3-7 remain correct with no source changes. No
+additional pure test seam found. Open rows: none.
+
+## Result (re-audit of the rows above)
+
+Re-checked every remaining item against .vendor/vanilla-decompiled, which is present in this
+checkout: BeaconBlockEntity.java, EntityGetter.java, EntitySelector.java, Level.java,
+BlockBehaviour.java (getLightDampening).
+
+- Row 1 (construct-beacon bounds): box NO CHANGE, spectator handling FIXED. new AABB(x, y, z,
+  x, y - 4, z) does not add 1 (only the AABB(BlockPos) constructor does), so the inflated box is
+  really (x-10, y-9, z-10)..(x+10, y+5, z+10) and construct_beacon_bounds plus its test are
+  correct. The earlier note that getEntitiesOfClass(ServerPlayer) includes spectators was wrong:
+  EntityGetter.getEntitiesOfClass(Class, AABB) delegates to the three-arg overload with
+  EntitySelector.NO_SPECTATORS. trigger_construct_beacon now skips spectators.
+- Row 2 (beam gating): NO CHANGE. tick gates updateBase on !beamSections.isEmpty() and
+  applyEffects plus BEACON_AMBIENT on levels > 0 with the same empty check, which is exactly
+  what beam_active reproduces.
+- Row 3 (beam obstruction): NO CHANGE. the generated BlockState.opacity is the light dampening
+  quantity and matches getLightDampening (stone 15, leaves and water 1, glass 0), so the >= 15
+  test with the BEDROCK exception is the vanilla condition verbatim.
+- Row 4 (pyramid base): NO CHANGE. BEACON_BASE_BLOCKS tag, the layer_y < min_y break and the
+  (2*step+1)^2 scan match updateBase line for line.
+- Row 5 (effect flags): FIXED for spectators only. MobEffectInstance(effect, duration, amp, true,
+  true) means ambient plus visible, and duration, range, amplifier at level 4 and the secondary
+  rule already match. getHumansInRange uses getEntitiesOfClass(Player.class, aabb), which is
+  NO_SPECTATORS at every range, so apply_effects now skips spectators instead of applying effects
+  they cannot see.
+- Row 6 (NBT shape): NO CHANGE. storeEffect and loadEffect reproduce unwrapKey().ifPresent(
+  putString) and the resource-location read; Levels is written and only read by the
+  CraftBukkit SPIGOT-5053 line, which is not vanilla.
+- Row 7 (on_block_replaced): NO CHANGE. the conditional form in the decompiled source sits inside
+  a Paper MC-153086 block, so the unconditional BlockBeaconDeactivate is the Spigot lineage for a
+  client-only sound; no vanilla-unpatched reference is available here.
+
+Files changed: crates/pumpkin-core/src/block/entities/beacon.rs (spectator filtering in
+apply_effects and trigger_construct_beacon). No new pure test: both call sites need a live World
+with joined Players, so there is no pure seam; the existing bounds, beam and NBT tests remain the
+pinned pure coverage.

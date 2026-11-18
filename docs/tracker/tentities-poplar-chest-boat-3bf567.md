@@ -149,3 +149,78 @@ re-verified against vanilla; the rest require files outside this unit. No cargo 
 constraint); orchestrator batch-compiles.
 
 Status: PASS fixed=0 open=3 files=block/entities/hopper.rs (unchanged, re-verified)
+
+
+## Result (re-review 4)
+
+Re-verified every STILL OPEN row against the populated `.vendor/vanilla-decompiled` tree.
+Only `block/entities/hopper.rs` is in this unit's file list.
+
+- 1 contents drop vs `doEntityDrops`: OUT OF SCOPE (lives in `boat.rs`/`minecart.rs`; prior
+  passes already moved the cart drop outside the gamerule). No edit here.
+- 2 dropped item spawn position: OUT OF SCOPE (`boat.rs`/`minecart.rs`; already uses
+  `drop_stack_at(entity.pos)`). No edit here.
+- 3 `stillValid`/`canPlayerUse`: OUT OF SCOPE. Needs `ScreenHandler::can_use` in
+  `pumpkin-inventory` plus `MinecartScreenFactory` and `player.rs`, none of which are in scope.
+- 4 `BoatItem` `minecraft:container` component: OUT OF SCOPE (`item/items/boat.rs`).
+- 5 hopper path over a chest vehicle: FIXED and re-verified against vanilla this pass.
+  Vanilla `HopperBlockEntity.getEntityContainer` (783-788) uses the +/-0.5 AABB, the
+  `EntitySelector.CONTAINER_ENTITY_SELECTOR` predicate (`EntitySelector.java:13`:
+  `entity instanceof Container && entity.isAlive()`) and a random pick. Pumpkin's
+  `get_entity_container` (`hopper.rs:321-341`) matches all three: same AABB, same
+  `is_alive() && has_container_inventory()` filter, same `random_range` pick.
+  `get_container_at_coords` (273-280) tries the block container before the entity
+  container, matching vanilla `getContainerAt` (754-765). Insertion/extraction
+  (`add_item` 674+, `can_place_item_in_container` 368-377,
+  `can_take_item_from_container` 379-388, `try_take_from_source` 411-427) treat a
+  non-`is_sided()` container as a plain vanilla `Container`: every slot reachable from
+  any face, matching vanilla `addItem` (612-628) which restricts faces only for
+  `WorldlyContainer`. Regression test
+  `hopper_moves_items_both_ways_with_a_plain_entity_container` (`hopper.rs:890`) covers
+  insertion from above and extraction below against a 27-slot `MinecartInventory`.
+  Re-read; correct, no change needed.
+- 6 chest-boat NBT round-trip test: OUT OF SCOPE (test belongs to `boat.rs`).
+
+No code edits this pass: the only in-scope row (5) was already landed and is now
+re-verified line-by-line against vanilla; the rest require files outside this unit.
+No cargo or test run (worker constraint); orchestrator batch-compiles.
+
+Status: PASS fixed=0 open=3 files=block/entities/hopper.rs (unchanged, re-verified)
+
+## Result (second pass)
+
+This pass may edit any source file. Re-verified all six rows against the populated
+.vendor/vanilla-decompiled tree and the current checkout.
+
+- 1 contents drop vs doEntityDrops: already FIXED before this pass (minecart.rs cart drop
+  moved outside the gamerule; boat.rs scatters before the check). No new edit.
+- 2 dropped item spawn position: already FIXED (drop_stack_at(entity.pos) in both files).
+  No new edit.
+- 3 stillValid / canPlayerUse: already FIXED in this checkout. minecart/container.rs has
+  EntityContainerScreenHandler overriding ScreenHandler::can_use with a validity closure built
+  in open() from world.get_entity_by_id, is_alive() and can_interact_with_entity(vehicle, 4.0),
+  matching vanilla ContainerEntity.isChestVehicleStillValid
+  (!isRemoved() && player.isWithinEntityInteractionRange(boundingBox, 4.0)). Verified, no edit.
+- 4 BoatItem container component: FIXED this pass. entity/vehicle/boat.rs gains
+  copy_container_component + BoatEntity::apply_container_component, which copy a placed
+  minecraft:container component's stacks into the 27-slot MinecartInventory before spawn
+  (out-of-range slots ignored); item/items/boat.rs calls it after BoatEntity::new. Added the
+  pure unit test chest_boat_container_component_copies_in_range_slots. Parity note: in this
+  snapshot vanilla Entity.applyImplicitComponents only handles CUSTOM_NAME/CUSTOM_DATA and
+  chest-boat items have no default CONTAINER component, so the change only affects
+  command/datapack-created stacks and is a no-op in normal play; it matches the existing
+  block-container placement pattern.
+- 5 hopper path over a chest vehicle: already FIXED and re-verified (hopper.rs entity-container
+  selection plus regression test). No new edit.
+- 6 chest-boat NBT round-trip test: already FIXED in this checkout. boat.rs tests
+  poplar_chest_boat_has_container_but_plain_boat_does_not and
+  chest_boat_items_round_trip_through_last_slot cover type-vs-container and slot-26 NBT
+  round trip. Verified, no edit.
+
+Files changed this pass: crates/pumpkin-core/src/entity/vehicle/boat.rs,
+crates/pumpkin-core/src/item/items/boat.rs. No cargo run (worker constraint); orchestrator
+batch-compiles. Re-read edits against the worker compile-pitfalls table: imports copied from
+existing patterns, helper kept outside the trait impl, no new struct fields or clone misuse,
+no unwrap/expect/panic, no em dashes, single-sentence first doc paragraphs.
+
+Status: PASS fixed=1 open=0 files=entity/vehicle/boat.rs,item/items/boat.rs

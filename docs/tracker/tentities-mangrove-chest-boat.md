@@ -132,3 +132,34 @@ cargo run was performed (workers may not run cargo).
   matching vanilla (:100-106), which has no rider/spectator check.
 
 Status: PASS fixed=0 open=0 files=none (no editable basenames; all STILL OPEN rows already fixed; no cargo run allowed for workers)
+
+
+## Result (re-review 4, 2026-11-18)
+
+Re-verified the three STILL OPEN rows against the decompiled vanilla tree
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java`)
+and the current Pumpkin source via read/grep only. This unit declares no editable source
+basenames, so no code edits were possible; every row is already fixed in the tree. No
+cargo run was performed (workers may not run cargo).
+
+- 1 chest contents scatter on any destroying removal: ALREADY FIXED, verified.
+  `AbstractChestBoat.remove` (AbstractChestBoat.java:71-77) drops contents for every
+  `reason.shouldDestroy()`. Pumpkin `BoatEntity::on_removed` (boat.rs:488-490) calls
+  `scatter_chest_contents` (boat.rs:272-288), guarded by `claim_drops`
+  (minecart/container.rs:39) so the scatter fires at most once; the damage path scatters
+  too (boat.rs:730). `World::remove_entity` (world/mod.rs:6649) invokes `on_removed` for
+  kill, void and discard. Matches vanilla `destroy` (:65-68) and
+  `ContainerEntity.chestVehicleDestroyed`.
+- 2 shared `getMaxPassengers` helper: ALREADY FIXED, verified.
+  `boat.rs::max_passengers` (boat.rs:95-101) is the single source of truth
+  (`CHEST_BOAT_MAX_PASSENGERS` = 1, `BOAT_MAX_PASSENGERS` = 2) and is reused by the
+  mob-push mounting path (entity/mod.rs:1337-1344). Matches
+  `AbstractChestBoat.getMaxPassengers` (:47-50). No behaviour change.
+- 3 interact deciding result on a failed mount: ALREADY FIXED, verified.
+  `AbstractChestBoat.interact` (:80-97) offers the container when the ride did not consume
+  the click. The pure `chest_opens_container` (boat.rs:135-141) feeds `boat_interact_outcome`
+  (boat.rs:161-177), used by `interact` (boat.rs:807-816), with pure unit tests in the boat
+  test module (boat.rs:1189-1258). `open_custom_inventory_screen` (boat.rs:290) keeps only
+  the alive guard, matching vanilla (:100-106), which has no rider/spectator check.
+
+Status: PASS fixed=0 open=0 files=none

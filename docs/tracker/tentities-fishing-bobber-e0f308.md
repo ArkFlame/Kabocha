@@ -159,3 +159,70 @@ already implemented in this unit's files; no new code change was required.
 
 No source files changed this pass. The two remaining open rows require files/APIs outside this
 unit; all pure seams for the in-scope fixes already have unit tests.
+
+
+## Result (independent verification pass)
+
+Re-read all source files in this unit (fishing_bobber.rs, fishing_rod.rs, predicates.rs,
+use_item.rs) against the decompiled FishingHook.java and FishingRodItem.java in
+.../mc-proof/ref/net/minecraft. Every in-scope STILL OPEN row is already implemented;
+no source file needed a change this pass.
+
+- Row 1 (predicates.rs open water, 364-454): verified fixed. is_open_water applies the
+  calculateOpenWater layer rule (dy -1..=2, uniform 5x5 layers, air only above water,
+  bottom water), and is_open_water_at downgrades non-source water via is_water_source.
+  Pure tests full_water_column_is_open_water / air_above_the_surface_is_open_water /
+  water_above_air_is_not_open_water / single_block_puddle_is_not_open_water cover it.
+  No new test seam.
+- Row 3 (fishing_bobber.rs Lured): verified fixed - PlayerFishState::Lured fires when
+  wait_countdown reaches 0 (784-791) and zeroes hook_countdown on cancel, matching
+  FishingHook.catchingFish:415-428.
+- Row 4 (fishing_rod.rs 68-128 cast): verified fixed - the cancellable FISHING event is
+  fired with the real hook UUID before the throw sound and bails on cancel; ITEM_USED is
+  awarded once (128), matching FishingRodItem.use:43-70. use_item.rs has no duplicate
+  fishing-rod ITEM_USED/FISHING logic (only the unrelated equippable stat at 169).
+- Row 5 (fishing_bobber.rs 535-540): verified fixed - check_block_collision and
+  update_rotation run after move_entity, matching FishingHook.tick:260-269.
+- Row 6 (fishing_bobber.rs 625-635, 914-926): verified fixed - discard() and on_removed()
+  both clear player.fishing_bobber via compare_exchange, matching preRemove/onClientRemoval.
+- Row 7 (fishing_bobber.rs 190-230): verified fixed - hooked entity re-read after the
+  CaughtEntity event and is_removed() gates the pull, matching FishingHook.retrieve:521-527.
+- Row 8 (fishing_bobber.rs FISHING_ROD_HOOKED trigger): STILL OPEN - collapsing the
+  per-item FishedItem triggers to one full-list trigger needs an
+  AdvancementTrigger::FishedItem API change in
+  entity/player/advancement/trigger.rs, outside this unit's files; per-item firing is
+  equivalent for the fishing_rod_hooked predicate.
+
+- Row 2 (entity/type.rs:143 bobber arm): STILL OPEN - needs entity/type.rs, outside this
+  unit's files; FishingBobberEntity::from_loaded already exists in fishing_bobber.rs
+  and only the from_type wiring is missing.
+
+No source files changed; the two open rows require files/APIs outside this unit and all
+pure seams for the fixed rows already have unit tests.
+
+
+## Result (second pass - cross-file rows closed)
+
+Verified the two rows that previous passes left open as out-of-unit. This pass may edit any
+file a row needs, so both are now closed against decompiled vanilla
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/FishingHook.java` and
+`.../advancements/triggers/FishingRodHookedTrigger.java`).
+
+- Row 2 (`entity/type.rs` bobber arm): VERIFIED already implemented in code - `from_type` has a
+  `FISHING_BOBBER` arm calling `FishingBobberEntity::from_loaded(entity)` (type.rs:269-270) and the
+  constructor exists (fishing_bobber.rs:148-172), defining both tracked values and leaving the
+  owner unset so an ownerless hook self-discards on its first tick (vanilla `FishingHook:170-172`).
+  No source change needed this pass.
+- Row 8 (single full-list `FISHING_ROD_HOOKED` trigger): FIXED. Vanilla `FishingHook.retrieve:537`
+  fires the trigger once with the whole caught-item list before the spawn loop, and
+  `FishingRodHookedTrigger.matches:65-82` matches the item predicate if ANY caught item qualifies;
+  the entity path fires once with an empty list (`retrieve:524`). Changed
+  `AdvancementTrigger::FishedItem` to carry `items: Vec<String>` instead of a single `item_id`,
+  updated the match arm to `items.iter().any(|id| pred.matches(id, 1, &[]))`, and rewired both
+  call sites in fishing_bobber.rs (entity path -> empty vec, item path -> one full-list event before
+  the loop instead of one event per item). All four `FishedItem` usages repo-wide were updated.
+
+Files changed: `crates/pumpkin-core/src/entity/player/advancement/trigger.rs`,
+`crates/pumpkin-core/src/entity/projectile/fishing_bobber.rs`. No tests added: the trigger matcher
+needs a live `Player` with advancement listeners (no pure seam), and the `.any(...)` logic is
+trivial. Not compiled by this worker per pass rules; orchestrator compiles once after all workers.

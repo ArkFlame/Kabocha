@@ -120,3 +120,70 @@ and `water_animal.rs::fish_keep_the_drowning_rule`); no new test added because
 no behaviour changed. No unwrap/expect/panic and no println introduced. No .rs
 file changed, so the compile-pitfalls table is not applicable and no rustfmt was
 run. No cargo/git per task rules.
+
+## Result
+
+Fourth re-review. Re-checked all three STILL OPEN rows against the vendored
+decompiled vanilla (Java 26.3) and the current Pumpkin source. No .rs edited:
+Pumpkin matches vanilla on every row.
+
+- Gap 1 (tadpole variant): CLOSED, false premise. Full `Tadpole.java` (260
+  lines) defines only `AGE_LOCKED` synched data (line 45). No `DATA_VARIANT`
+  accessor, no `TadpoleVariant` class, and no tadpole variant in `assets/`.
+  `tadpole.rs` correctly has none; a fix needs generated data and Extractor
+  assets outside this unit.
+- Gap 2 (age-up variant mapping): CLOSED, false premise. `Tadpole#ageUp`
+  (Tadpole.java:236-250) only calls `convertTo(FROG, ConversionParams.single)`
+  plus `finalizeSpawn` and no variant is carried over, so frog variant is
+  biome-selected. `tadpole.rs:120-146` matches. Also needs generated data
+  outside this unit.
+- Gap 3 (water animal max air): CLOSED, already correct. `WaterAnimal.java:39-49`
+  hardcodes `setAirSupply(300)` with no `getMaxAirSupply` override. Base
+  `Entity.getMaxAirSupply` returns 300; only Dolphin overrides to 4800
+  (Dolphin.java, and `dolphin.rs:39` sets 4800). `water_animal.rs:10` is 300,
+  `abstract_fish.rs:304-305` returns 300, `bucketable.rs:192` comment reads
+  (300), and `breath.rs:9 MAX_AIR=300` is player-only. Consistent.
+
+Also confirmed the fromBucket correction holds: `Tadpole.java:172-179` returns
+true and makes `setFromBucket` a no-op, and `tadpole.rs:260-267` matches.
+
+Existing tests cover the only seams; no new test added because no behaviour
+changed. No unwrap/expect/panic or println introduced. No .rs changed, so the
+compile-pitfalls table is not applicable and no rustfmt was run. No cargo/git
+per task rules.
+
+
+## Result
+
+Fifth re-review (second-pass scope: unrestricted source edits). Independently
+re-verified all three STILL OPEN rows against the vendored decompiled vanilla
+(Java 26.3) and the current Pumpkin source. No .rs file was edited: every row is
+a false premise or already matches vanilla.
+
+- Gap 1 (tadpole variant): CLOSED, false premise. Full `Tadpole.java` (260
+  lines) defines only `AGE_LOCKED` synched data (line 45). No `DATA_VARIANT`
+  accessor and no `TadpoleVariant` class exist in vanilla, and `assets/` has no
+  tadpole variant registry. `tadpole.rs` correctly has none; any fix would need
+  generated data and Extractor assets outside the permitted files.
+- Gap 2 (age-up variant mapping): CLOSED, false premise. `Tadpole#ageUp`
+  (Tadpole.java:236-250) converts to `FROG` with `ConversionParams.single(...)`
+  plus `finalizeSpawn`, persistence, position fudge and grow-up sound; no
+  variant is carried over (frog variant is biome-selected). `tadpole.rs:120-146`
+  matches. Also depends on generated data outside the permitted files.
+- Gap 3 (water animal max air): CLOSED, already correct. `WaterAnimal.java:39-49`
+  hardcodes `setAirSupply(300)` with no `getMaxAirSupply` override; base
+  `Entity.getMaxAirSupply` returns 300 and only `Dolphin` overrides to 4800
+  (Dolphin.java:78; `dolphin.rs:39` = 4800). `water_animal.rs:10` = 300,
+  `abstract_fish.rs:303-305` returns 300, `bucketable.rs:192` comment reads
+  (300), and `breath.rs:9 MAX_AIR` = 300 is player-only
+  (`BreathManager::tick(&Player)`). No stale 4800 in fish code.
+
+Also re-confirmed the fromBucket correction holds: `Tadpole.java:172-179`
+returns true and makes `setFromBucket` a no-op, and `tadpole.rs:260-267`
+matches, covered by `tadpole_is_always_from_bucket`.
+
+Existing tests cover the only seams (`tadpole.rs::tadpole_is_always_from_bucket`
+and `water_animal.rs::fish_keep_the_drowning_rule`); no new test added because
+no behaviour changed. No unwrap/expect/panic or println introduced. No .rs
+changed, so the compile-pitfalls table is not applicable and no rustfmt was
+run. No cargo/git per task rules.

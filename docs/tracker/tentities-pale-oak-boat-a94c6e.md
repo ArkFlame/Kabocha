@@ -78,3 +78,23 @@ fix was re-checked against them:
 | 4 | FIXED (verified). `passenger_seat_offset`/`passenger_attachment` in boat.rs are shared by `EntityBase::passenger_attachment_point` and `passengers.rs::get_passenger_attachment_point`; offsets 0.2/-0.6 plus the 0.2 animal shift and `yRot(-yaw)` match `AbstractBoat.getPassengerAttachmentPoint` lines 146-161. |
 
 Files touched this pass: this doc only. No source edit, no cargo/git (workers may not run them). Status: PASS (verified by reading source and decompiled vanilla; compile/test left to the orchestrator).
+
+## Result (dismount.rs second pass, 2026-11-18)
+
+Independently re-verified `dismount.rs` against the decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/`. No source edit was needed: every mapping matches.
+
+- `get_collision_horizontal_escape_vector` matches `Entity.getCollisionHorizontalEscapeVector`
+  (Entity.java:6645): `(w1 + w2 + 1e-5)/2`, `-sin/cos` scaled by `max(|x|,|z|)`; two pure tests cover it.
+- `get_dismount_location_for_passenger` matches `AbstractBoat.getDismountLocationForPassenger`
+  (AbstractBoat.java:709-738): escape vector from boat width * sqrt(2) and passenger yaw, water check on
+  `target_pos.down()`, valid-floor filter (finite and < 1.0) for the target and below blocks, per-pose
+  `canDismountTo`, and the `(x, bounding_box.max.y, z)` fallback equals `Entity.getDismountLocationForPassenger`
+  (Entity.java:6653) that vanilla's `super` returns.
+- `can_dismount_to` matches `DismountHelper.canDismountTo` (DismountHelper.java:42-54) via `getLocalBoundsForPose`;
+  the world-border max inset of 1e-5 matches `WorldBorder.isWithinBounds(AABB)` (WorldBorder.java:76-77).
+- Pose lists match `LivingEntity.getDismountPoses` / `Player.getDismountPoses` (STANDING, plus CROUCHING/SWIMMING for players).
+
+Rows 1-4 of the Remaining gaps table live in `boat.rs` / `physics.rs` / `vehicle.rs`, outside this unit's
+editable file (`dismount.rs`), and are already fixed there (see prior Result sections). No open row maps to `dismount.rs`.
+No cargo/git run (workers may not run them); compile/test left to the orchestrator. Status: PASS fixed=0 open=0 files=<doc only: docs/tracker/tentities-pale-oak-boat-a94c6e.md>

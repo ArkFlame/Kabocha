@@ -43,3 +43,13 @@ Verification is internal-contract parity only: telemetry is Pumpkin-owned and ha
 - G8 (unreadable key returned Err; duplicated resolution branches): FIXED. The candidate loop was already collapsed in the checkout; `load_existing_identity_key` now reads the seed directly instead of calling `load_or_generate_key`, so a corrupt or unreadable candidate is treated as missing, left untouched, and the loop falls through to the next location (preserving an existing fallback identity). New pure unit test: `corrupt_identity_key_is_treated_as_missing_without_overwrite`.
 
 Files touched this pass: none. All five STILL OPEN rows (G3, G4, G5, G6, G8) were already fixed and verified in the current checkout, so no source change was needed. `pumpkin.rs` untouched (G5 needs no call-site change). `crates/pumpkin-core/src/telemetry.rs` was re-read for verification only and remains rustfmt --edition 2024 clean.
+
+## Result (second pass)
+
+- G3 (whole-host RAM): already fixed. `read_process_ram_mb()` reports process RSS via sysinfo for this PID; no change.
+- G4 (collapsed `online_mode`/`max_players`): documented on `HeartbeatPayload` (lines 314-319) as the all-listeners summary. Per-listener fields would change the backend payload contract, so they stay open with that reason.
+- G5 (per-call key resolution): already fixed. `build_heartbeat_payload` caches the fallback salt in a `OnceLock` and reuses `LIVE_PLAYER_SALT`, so the identity key is resolved at most once per process.
+- G6 (silent truncation): already fixed. All three cap sites log at debug and `players_truncated` is serialized in the payload.
+- G8 (unreadable key returned Err; duplicated branches): already fixed. `load_existing_identity_key` treats unreadable or corrupt candidates as missing and the candidate list is a single loop.
+- G2 residual (rejected heartbeat still trusted the recommended interval): FIXED. `backend_accepted_heartbeat()` gates both session restore and interval adoption, so a non-"ok" status keeps the drained sessions and leaves the interval unchanged. Test: `only_ok_heartbeat_status_accepts_drained_sessions`.
+- No cargo/nextest run (forbidden by brief). Files touched: crates/pumpkin-core/src/telemetry.rs.

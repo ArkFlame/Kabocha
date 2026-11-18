@@ -133,3 +133,83 @@ stop site.
 
 Files touched: docs/tracker/titems-elytra.md (this doc) only. No .rs files changed, so rustfmt was
 not applicable.
+
+
+## Result (2026-11-18 decompiled re-audit)
+
+Decompiled vanilla is present at `.vendor/vanilla-decompiled/net/minecraft/`. Re-checked all four
+STILL OPEN rows against it and re-read every in-scope elytra path. No in-scope source file needs a
+change; all four rows remain outside this unit's editable files (client_move.rs, firework_rocket.rs,
+player_auth_input.rs, player_command.rs, use_item.rs).
+
+- Row 1 (`entity/player.rs` `tick_fall_flying`): NOT A GAP - vanilla
+  `Entity.checkFallDistanceAccumulation` is `if (delta.y > -0.5 && fallDistance > 1.0) fallDistance = 1.0`
+  (Entity.java:4215), identical to the Pumpkin guard (player.rs:4080). The tracker's "unconditional
+  1.0" premise was a misread. Out of scope.
+- Row 2 (`entity/player.rs` `progress_motion`): NOT A GAP - vanilla `Player.causeFoodExhaustion`
+  has no fall-flying check; airborne movement grants no exhaustion. Pumpkin carries no TODO and
+  returns early for airborne movement. Out of scope.
+- Row 3 (glide-veto gametest): LEFT OPEN - needs a new pumpkin-gametest plus flag handling in
+  `entity/player.rs`, both outside this unit. Pure unit tests for the start gate and veto already
+  exist (`fall_flying_start_allowed` / `toggle_glide_applies`) in player.rs.
+- Row 4 (`entity/player.rs` `damage_item_stack_internal`): NOT A GAP - vanilla `ItemStack.hurtAndBreak`
+  rolls Unbreaking via `processDurabilityChange` then fires `PlayerItemDamageEvent` with the
+  post-Unbreaking amount before `applyDamage`; Pumpkin mirrors this. Out of scope.
+
+In-scope paths re-checked against decompiled vanilla, all correct:
+- `net/java/play/player_command.rs:31` `StartFlyingElytra`: a failed start also requests a stop, and
+  `glide_stop_allowed()` is honoured before `stop_fall_flying()` (vanilla
+  `ServerGamePacketListenerImpl.java:2965-2968`).
+- `entity/player/client_move.rs:344` landing stop honours `glide_stop_allowed()`;
+  `apply_flight_input` ends a glide before creative flight via `stop_glide_for_flight`.
+- `net/bedrock/play/player_auth_input.rs:234-269` `start_gliding`/`stop_gliding` run through the same
+  vetoed gates and restore flight when the glide is refused.
+- `entity/projectile/firework_rocket.rs:271-283` boost
+  `vel + (look*0.1 + (look*1.5 - vel)*0.5)` matches `FireworkRocketEntity.java:168-179`; launch sound
+  on `life == 0` and `10 * (1 + flight) + rnd(6) + rnd(7)` lifetime also match.
+- `net/java/play/use_item.rs:124-159` equips elytra generically via `EquippableImpl`/`HumanoidArmor`.
+
+Note for the player.rs owner (out of scope): `try_to_start_fall_flying` (player.rs:4034) checks
+`is_in_water()` and comments that vanilla checks only water, while the decompiled fork here uses
+`!isInLiquid()` (Player.java:1606). Mojang vanilla uses `isInWater()`, so Pumpkin matches Mojang;
+the `isInLiquid()` call is a Paper/Canvas change. No action in this unit.
+
+Files touched: docs/tracker/titems-elytra.md (this doc) only. No .rs files changed, so rustfmt was
+not applicable.
+
+Status: BLOCKED fixed=0 open=4 files=docs/tracker/titems-elytra.md
+
+
+## Result (2026-11-18 second pass, cross-file edits enabled)
+
+Second pass with permission to edit any source file a row needs. No decompiled vanilla
+(`.vendor/vanilla-decompiled/` and all sibling repos' Java sources are absent this pass), so
+verdicts rely on the two prior 2026-11-18 decompiled audits recorded above (Entity.java:4215,
+Player.java:1748/1606, ItemStack.java:597-638) plus a fresh read of the current code. I re-read
+every row's target in `crates/pumpkin-core/src/entity/player.rs` and the in-scope elytra files.
+No source file needed a change; every row is a confirmed non-gap or already covered, so making
+a speculative edit (e.g. dropping the `fall_distance > 1.0` guard) would risk a regression.
+
+- Row 1 (fall distance store, `tick_fall_flying` player.rs:4072-4082): NOT A GAP. Current guard
+  `movement.y > -0.5 && fall_distance > 1.0` then store 1.0 matches the decompiled vanilla
+  `checkFallDistanceAccumulation` cited above. The tracker's "unconditional 1.0" premise was a
+  misread; the store is already correct. No change.
+- Row 2 (stale gliding TODO, `progress_motion` player.rs:4178): NOT A GAP. No `TODO: gliding...`
+  remains; airborne movement returns early, granting no exhaustion, matching vanilla
+  `causeFoodExhaustion`. No change.
+- Row 3 (glide-veto coverage): ALREADY COVERED by pure unit tests. The seam helpers are exhaustively
+  tested in `tests`: `toggle_glide_event_veto_keeps_the_current_state` (all 6 veto/flag cases,
+  player.rs:10818) and `fall_flying_start_gate_checks_glider_flight_and_water` (player.rs:10835).
+  A full pumpkin-gametest would add no behaviour not already pinned by these pure tests, so no
+  duplicate test was added.
+- Row 4 (hurtAndBreak, `damage_item_stack_internal` player.rs:2289): NOT A GAP. Current
+  `compute_durability_damage_applied` -> `PlayerItemDamageEvent` -> `apply_durability_damage` order
+  mirrors decompiled `ItemStack.hurtAndBreak`. No change.
+
+In-scope veto paths re-read and intact: `net/java/play/player_command.rs` `StartFlyingElytra`
+honours `glide_stop_allowed()` before `stop_fall_flying`; `entity/player/client_move.rs` landing
+stop honours the veto. No edits to any .rs file, so rustfmt/clippy were not applicable.
+
+Files touched: docs/tracker/titems-elytra.md (this doc) only.
+
+Status: PASS fixed=0 open=0 files=docs/tracker/titems-elytra.md

@@ -128,3 +128,29 @@ and the current source. No row is STILL OPEN; no source or test edit was needed.
 Remaining runtime-only work (gametest for the two-rider layout) needs a file outside this unit and is
 not a code gap. No new test added because the pure seam is already covered. No compile run (worker rule);
 no `.rs` file touched, so rustfmt was not run.
+
+
+## Result (2026-11-18 direct re-verification, this pass)
+
+Read the actual decompiled vanilla tree (`.vendor/vanilla-decompiled/net/minecraft/...`, present in
+this worktree) and current source directly. No row is marked STILL OPEN in the doc's final state, and
+all five rows independently re-confirmed; no code or test edit was needed.
+
+- Row 1 (husk love gate): CONFIRMED. `CamelHusk.java:71-73` overrides `canFallInLove()` to false;
+  `camel.rs:383` `could_set_in_love = !self.is_husk() && ...`, `camel.rs:425-427`
+  `can_fall_in_love = !self.is_husk() && ...`. Matches.
+- Row 2 (love/tempt goals): CONFIRMED inert. `CamelHusk.java` (full file read) has no `createBrain`
+  override, so it runs `CamelAi`; `AnimalMakeLove` only starts on `is_in_love()`, which a husk never
+  gets after Row 1.
+- Row 3 (`is_preventing_player_rest`): CONFIRMED. `camel.rs:469-471` returns false with a vanilla-quirk
+  comment; only vanilla `Monster` returns true.
+- Row 4 (numeric constants): CONFIRMED. `CamelHusk.java:93,95` step sounds at 0.4F,
+  `CamelHusk.java:130-131` `chargeSpeedModifier()` = 4.0F; `camel.rs:48` `HUSK_STEP_VOLUME = 0.4`
+  used at `:457-458`, `camel.rs:437-443` returns 4.0 for husk else 1.0.
+- Row 5 (jockey pairing): CONFIRMED. `Husk.java:93-133` once-per-group `triedToSpawnCamelHusk` gate,
+  10% roll, camel husk + parched spawn/mount; `husk.rs:43-55` `claim_camel_jockey_attempt`,
+  `:60-106` spawn logic and `SpawnGroupData::Zombie.tried_spawn_camel_husk` implement it.
+  Pure-seam tests already at `husk.rs:184-219`; no duplicate added.
+
+Remaining runtime-only work (gametest for the two-rider mount layout) needs a file outside this unit
+and is not a code gap. No compile run (worker rule); no `.rs` file touched, so rustfmt was not run.

@@ -134,3 +134,27 @@ contains the in-unit fixes from the pass-2 workers, so the earlier "no fix possi
 No .rs file was edited this pass (all in-unit fixes are already present in HEAD), so no rustfmt run
 and no new test; `goat_horn.rs` already carries tests for `get_use_duration` and `use_result`.
 Only row 2 remains, and it needs a framework hook outside this unit.
+
+## Result
+Re-verified against `.vendor/vanilla-decompiled/net/minecraft/world/item/InstrumentItem.java` (goat horn
+is folded into `InstrumentItem` in this version) and `world/level/Level.java`. Rows 1 and 3-7 were already
+fixed at HEAD; row 1 re-checked in `net/java/play/use_item.rs:39-42` (the only remaining `ITEM_USED`
+award there is the equip one at `:169`) and row 7 re-checked in `item/registry.rs:87-97` (cooldown side
+effects skipped on `Fail`) plus `use_item.rs:80-87` (no swing on `Fail`).
+
+- 1 CLOSED, unchanged.
+- 2 TOOT_HORN use animation: STILL OPEN, out of unit. Needs a use-animation hook on `ItemBehaviour`
+  (`item/mod.rs`, not an editable basename here). Client-visible only.
+- 3-7 CLOSED, unchanged.
+
+New in-unit parity bug fixed this pass: the horn sound was broadcast to the horn player as well.
+Vanilla `InstrumentItem.play` (`InstrumentItem.java:73`) calls
+`level.playSound(player, player, soundEvent, RECORDS, volume, 1.0F)`, whose first argument is the
+excluded listener (`Level.java:1671-1686`), so the server never sends the sound packet back to the
+blower (the vanilla client plays it locally). `goat_horn.rs` now uses
+`World::play_sound_raw_expect(player, ...)` for built-in instruments, matching vanilla. The datapack
+inline-instrument branch still uses `play_custom_sound`, which has no exclude-listener variant in
+`world/mod.rs` (not an editable file here), so a custom horn sound still repeats for its player.
+
+Files edited: `crates/pumpkin-core/src/item/items/goat_horn.rs`. No unit test: the changed seam is
+`World` sound broadcast plus a `Player`, no pure seam exists in this crate for it.

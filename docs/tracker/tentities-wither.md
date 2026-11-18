@@ -55,3 +55,17 @@ Independent verification against `.vendor/vanilla-decompiled/net/minecraft/world
 - Row 9 (projectile immunity): MATCH. `hurtServer` lines 504-508 block `AbstractArrow`/`WindCharge`. `is_projectile_immune_to_powered_wither` (wither.rs:65-69) uses the arrows tag plus TRIDENT and WIND_CHARGE; BREEZE_WIND_CHARGE is correctly not immune. The existing unit test (wither.rs:739-756) covers the type set.
 
 Files touched this pass: `docs/tracker/tentities-wither.md` only (no source edits). No build run (task rules); compile verification left to the orchestrator.
+
+
+## Result (re-review pass 3, 2026-11-18)
+
+Independent re-verification of the STILL OPEN rows (2, 3, 5, 7, 8, 9) against `.vendor/vanilla-decompiled/net/minecraft/world/entity/boss/wither/WitherBoss.java` and `.../ai/control/FlyingMoveControl.java`. Every row already matches vanilla; no source edits were needed this pass.
+
+- Row 2 (WitherDoNothingGoal): MATCH. Vanilla registers the goal at priority 0 with MOVE/JUMP/LOOK while Invul > 0 (lines 102, 613-620), but its own hand-written `aiStep` movement still runs regardless of invul (lines 164-184). Pumpkin gates LOOK via `disable_control(Controls::LOOK)` while invul > 0 and runs `tick_wither_movement` unconditionally (wither.rs:651-662). The goal's MOVE/JUMP flags only suppress goal-driven navigation; Pumpkin has none, so the guard is reproduced.
+- Row 3 (gravity): NOT A GAP. The constructor sets `FlyingMoveControl(this, 10, false)` (line 87) with no `setNoGravity`. `FlyingMoveControl.tick` calls `setNoGravity(false)` in WAIT when `hoversInPlace` is false (FlyingMoveControl.java:48-51), so gravity stays on; adding `set_has_no_gravity(true)` would be wrong.
+- Row 5 (bossbar progress): MATCH. Spawn phase uses `1 - newCount/220` (line 273; wither.rs:441-442); post-spawn uses `health/maxHealth` (line 391; wither.rs:602-609).
+- Row 7 (idle head offsets): NOT A GAP. Lines 319-321 use uniform `Mth.nextDouble` over x+/-10, y+/-5, z+/-10; Pumpkin's `random_range(-10.0..10.0)` etc. (wither.rs:485-489) is the same distribution. Vanilla fires side shots as `performRangedAttack(i+1, ...)` (lines 322, 330) while Pumpkin uses head `i`; these are geometrically identical because `getHeadX/Z` use `180*(index-1)` (lines 421-428), so vanilla head 3 wraps to head 1. No off-by-one gap.
+- Row 8 (peaceful): MATCH. `tick_wither_lifecycle` (wither.rs:414-422) clears the bossbar and removes the entity on Peaceful, matching the observable shared despawn path.
+- Row 9 (projectile immunity): MATCH. `hurtServer` lines 504-508 block only `AbstractArrow` and `WindCharge`. `is_projectile_immune_to_powered_wither` (wither.rs:65-69) uses the arrows tag plus TRIDENT and WIND_CHARGE and correctly excludes BREEZE_WIND_CHARGE; the unit test (wither.rs:739-756) covers the type set.
+
+Files touched: `docs/tracker/tentities-wither.md` only (no source edits). No build run (task rules); compile verification left to the orchestrator.

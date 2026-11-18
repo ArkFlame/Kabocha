@@ -7,9 +7,15 @@ Workers only edit (no cargo, no git). State: /tmp/kabocha-runs/pool/<unit>.{log,
 import glob, os, re, signal, subprocess, sys, time
 ROOT = os.environ.get('KAB_ROOT', os.getcwd()); RUNS = '/tmp/kabocha-runs/pool'; os.makedirs(RUNS, exist_ok=True)
 TIMEOUT = int(os.environ.get('KAB_OC_TIMEOUT', '1200'))
-LANES = {'hy4': {'model': 'opencode-go/hy4-flash-free', 'cap': int(sys.argv[1]) if len(sys.argv) > 1 else 40},
-         'ds': {'model': 'open-design/deepseek-v4.1-flash', 'cap': int(sys.argv[2]) if len(sys.argv) > 2 else 10}}
-for L in LANES.values(): L.update(hits=0, cool=0, done=0, fail=0, secs=0.0)
+LANES = {'hy4': {'model': 'openrouter/tencent/hy4-flash', 'cap': int(sys.argv[1]) if len(sys.argv) > 1 else 40},
+         'ds': {'model': 'open-design/deepseek-v4.1-flash', 'cap': int(sys.argv[2]) if len(sys.argv) > 2 else 10},
+         'ic': {'model': 'opencode-go/iceman-contributor-free', 'cap': int(sys.argv[3]) if len(sys.argv) > 3 else 0},
+         'er': {'model': 'openrouter/baidu/ernie-5.5-flash-preview:free', 'cap': int(sys.argv[4]) if len(sys.argv) > 4 else 0},
+         'nm': {'model': 'opencode/nemotron-3.5-lightning-free', 'cap': int(sys.argv[5]) if len(sys.argv) > 5 else 0},
+         'dsf': {'model': 'opencode/deepseek-v4.1-flash-free', 'cap': int(sys.argv[6]) if len(sys.argv) > 6 else 0},
+         'fl': {'model': 'opencode/flint-40b-free', 'cap': int(sys.argv[7]) if len(sys.argv) > 7 else 0},
+         'pa': {'model': 'openrouter/particle-ai/particle-1:free', 'cap': int(sys.argv[8]) if len(sys.argv) > 8 else 0}}
+for L in LANES.values(): L.update(hits=0, cool=0, done=0, fail=0, secs=0.0, last=time.time(), max=L['cap'])
 HDR = open(f'{ROOT}/docs/POOL_BRIEF.md').read()
 units = []
 GLOB = os.environ.get('KAB_POOL_GLOB', 'docs/tracker/*.md'); MARK = os.environ.get('KAB_POOL_MARK', 'STILL OPEN')
@@ -58,12 +64,21 @@ while queue or running:
         tail = open(f'{RUNS}/{name}.log').read()[-600:]
         if timed or (rc != 0 and re.search(r'usage limit|Insufficient balance|rate.?limit|429|timed out|timeout|tier_limit_exceeded|concurrency limit|rpm limit|Provider blocked', tail, re.I)):
             queue.insert(0, by[name]); del running[name]; L['hits'] += 1; L['cool'] = time.time() + 120 * L['hits']
-            L['cap'] = max(0, L['cap'] // 2) if r['lane'] == 'ds' else max(2, L['cap'] * 3 // 4)
+            L['cap'] = max(1, L['cap'] - 1); L['last'] = time.time()  # lower by one per hit; ramps back +1 per 180s
             print(time.strftime('%H:%M:%S'), name, r['lane'], 'LIMIT/TIMEOUT -> requeued, lane cap now', L['cap'], flush=True); continue
         open(f'{RUNS}/{name}.exit', 'w').write(str(rc)); del running[name]
         L['done' if rc == 0 else 'fail'] += 1; L['secs'] += el
+        # Approximate realtime commit: workers cannot run git, so the supervisor commits the whole tree per finished unit (collisions are fine).
+        try:
+            env = dict(os.environ, KAB_AGENT='opencode')
+            subprocess.run(['git', 'add', '-A', '--', 'crates', 'docs'], cwd=ROOT, env=env, capture_output=True, timeout=120)
+            subprocess.run(['git', 'commit', '-q', '-m', f'fix(tracker): {name} parity pass ({r["lane"]})'], cwd=ROOT, env=env, capture_output=True, timeout=120)
+        except Exception as e:
+            print('commit failed', name, e, flush=True)
         print(time.strftime('%H:%M:%S'), name, r['lane'], 'exit', rc, f'{el:.0f}s | running', len(running), 'queued', len(queue), flush=True)
     for u in list(queue):
+        for l in LANES.values():
+            if l['cap'] < l['max'] and time.time() - l['last'] > 180 and time.time() >= l['cool']: l['cap'] += 1; l['last'] = time.time()
         ok = [l for l in LANES if lane_n(l) < LANES[l]['cap'] and time.time() >= LANES[l]['cool']]
         lane = min(ok, key=lambda l: lane_n(l) / max(1, LANES[l]['cap'])) if ok else None  # fill lanes proportionally
         if lane is None: break

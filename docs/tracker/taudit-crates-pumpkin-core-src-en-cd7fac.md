@@ -100,3 +100,88 @@ correct; the two STILL OPEN rows need write/read sites that live in other files.
   absent and lives outside this unit; `ai/sensing.rs` is only a line-of-sight cache.
 
 No source files changed; no rustfmt needed.
+
+
+## Result (2026-11-18, re-verified against .vendor/vanilla-decompiled, no in-scope fix)
+
+Re-read `PiglinSpecificSensor.java`, `HoglinSpecificSensor.java`, `HoglinAi.java` and the
+current `hoglin.rs`, `hoglin_specific.rs`, `sensing.rs` and `types.rs`.
+
+Verified both STILL OPEN rows are the piglin half only; the hoglin half is complete:
+- `hoglin_specific.rs` writes NEAREST_REPELLENT, NEAREST_VISIBLE_ADULT_PIGLIN,
+  NEAREST_VISIBLE_ADULT_HOGLINS, VISIBLE_ADULT_PIGLIN_COUNT and
+  VISIBLE_ADULT_HOGLIN_COUNT with the same filters/8-4 box as vanilla; it is wired into
+  the hoglin brain (`hoglin.rs make_brain` registers SensorType::HoglinSpecific).
+- `hoglin.rs` reads both counts in `piglins_outnumber_hoglins` and
+  `outnumbered_by_piglins(p, h) = p > h + 1` matches vanilla `HoglinAi.java:179-181`
+  (memory count + 1 for self). No change needed.
+- `types.rs` declares all 115 vanilla memory types with matching ids/codecs; the
+  count/list/zombified/nemesis entries this unit owns are all present. `sensing.rs`
+  is only a line-of-sight cache. No seam for a fix here.
+
+Remaining open (both need files outside this unit, so left open):
+- VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (M): STILL OPEN for the
+  piglin side only. Needs a `PiglinSpecificSensor` (new file in `brain/sensing/`) writing
+  both memories and the `PiglinAi` retreat call site, both outside this unit.
+- NEARBY_ADULT_PIGLINS / NEAREST_VISIBLE_ADULT_PIGLINS (L): STILL OPEN. Written only by
+  `PiglinSpecificSensor.java:105-106` in `brain/sensing/` (outside this unit); the
+  hoglin equivalents are done. No piglin brain sensor exists.
+
+No source files changed; no rustfmt needed.
+
+
+## Result (2026-11-18, final re-verify; decompiled tree present)
+
+Re-checked both STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/`
+and the four files in this unit (`hoglin.rs`, `hoglin_specific.rs`, `ai/sensing.rs`,
+`brain/memory/types.rs`). The hoglin half of both rows is complete and correct:
+`HoglinSpecificSensor.doTick` writes NEAREST_REPELLENT plus the four adult/list/count
+memories; `hoglin.rs` reads both counts in `piglins_outnumber_hoglins`
+(`piglin_count > hoglin_count + 1`, matching `HoglinAi.java:174-182`) and registers
+`SensorType::HoglinSpecific`; `types.rs` declares all entries with vanilla ids and
+`None` codecs; `ai/sensing.rs` is a line-of-sight cache. No change needed in any of
+the four files.
+
+Both rows remain STILL OPEN only on the piglin side and need files outside this unit:
+- VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (M): STILL OPEN. Needs
+  `PiglinSpecificSensor` to write both counts (`PiglinSpecificSensor.java:107-108`)
+  and the `PiglinAi` retreat call site, in `brain/sensing/` and `mob/piglin.rs`,
+  outside this unit.
+- NEARBY_ADULT_PIGLINS / NEAREST_VISIBLE_ADULT_PIGLINS (L): STILL OPEN. Needs the
+  `PiglinSpecificSensor` brain sensor (`PiglinSpecificSensor.java:105-106`), a new
+  `SensorType` variant and piglin brain wiring, all outside this unit; `ai/sensing.rs`
+  offers no seam.
+
+No source files changed; no rustfmt needed.
+
+
+## Result (2026-11-18, second pass with cross-file edits; vanilla .vendor re-verified)
+
+Re-read `PiglinSpecificSensor.java`, `PiglinAi.java` (retreat/anger broadcast and helper
+section) and Pumpkin's `piglin.rs`, `piglin_ai.rs`, `hoglin.rs` and `sensing/`. Both
+STILL OPEN rows are the piglin half; Pumpkin piglins use goal AI, so the sensor's effect
+is reproduced with entity fields rather than brain memories (the hoglin half already uses
+brain memories via `hoglin_specific.rs`).
+
+- Row 1 (VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT, M): FIXED (already in
+  tree, verified). `piglin.rs::refresh_visible_adult_counts` computes both counts from
+  visible, non-baby PIGLIN/PIGLIN_BRUTE and HOGLIN in follow range with a line-of-sight
+  clip, matching `PiglinSpecificSensor.doTick`; `piglin_ai.rs::hoglins_outnumber_piglins`
+  reads them (`hoglin_count > piglin_count + 1`, matching `PiglinAi.java:779-783`).
+  The stale `types.rs` TODO cited in the row is long gone; `types.rs` needs no change.
+- Row 2 (NEAREST_VISIBLE_ADULT_PIGLINS / NEARBY_ADULT_PIGLINS, L): partially fixed.
+  Added `PiglinEntity.visible_adult_piglins: Mutex<Vec<Weak<dyn EntityBase>>>`, populated
+  in `refresh_visible_adult_counts` from the same visible-adult scan (the functional
+  equivalent of writing `NEAREST_VISIBLE_ADULT_PIGLINS`), and made `was_hurt_by` consume
+  it by broadcasting the hoglin retreat to every visible adult piglin, matching
+  `PiglinAi.broadcastRetreat`/`retreatFromNearestTarget` (`PiglinAi.java:747-761,605`).
+  Extracted the shared effect into `PiglinEntity::start_retreat_from_hoglin`. Added pure
+  behaviour test `retreat_broadcasts_to_visible_adult_piglins`.
+  NEARBY_ADULT_PIGLINS remains open: its only vanilla consumer is
+  `PiglinAi.broadcastAngerTarget` (`PiglinAi.java:659-660,688-697`), which needs a whole
+  anger/retaliation memory subsystem Pumpkin's goal AI does not have. Not adding an
+  unpopulated/unread field.
+
+Files changed: `crates/pumpkin-core/src/entity/mob/piglin.rs` only (plus this doc).
+No generated pumpkin-data, WIT or cross-crate changes. Not compiled by worker (orchestrator
+batch-check). Skipped: the anger-broadcast subsystem (missing subsystem, out of scope).

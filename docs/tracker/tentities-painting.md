@@ -151,3 +151,31 @@ Both remaining STILL OPEN rows re-checked directly against decompiled vanilla at
   yaw via `facing_to_yaw`/`set_facing`, `is_in_build_limit` check in the painting branch,
   support check on tick 100). No generated-data, WIT or cross-crate change made. No new test
   seam for rows 3/5.
+
+## Result (2026-11-18 SECOND PASS, cross-file edits allowed)
+
+Re-verified both STILL OPEN rows against vendored decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/`.
+
+- Row 3 (front-space check): PARTLY FIXED. Vanilla `HangingEntity.isSupportingBlock`
+  (HangingEntity.java:91-92) is `state.isSolid() || DiodeBlock.isDiode(state)`; `painting.rs`
+  `painting_fits` checked only `is_solid()` on the wall cells, so a painting could not be
+  placed on (or stay attached to) a repeater/comparator wall. Added `is_supporting_block`
+  helper (solid || `is_diode`) and used it in `painting_fits`, mirroring the existing
+  `item_frame.rs` `has_valid_support`. Added pure test `diode_blocks_support_hanging_entities`.
+  The row's original `is_air()` front-cell premise remains rejected: vanilla `survives()`
+  uses collision shapes (`hasLevelCollision` -> `noBlockCollision`), not an is-air cell test;
+  Pumpkin already enforces that via `World::is_space_empty` in `survives()`, and switching
+  `painting_fits` front cells to `is_air()` would wrongly reject torches/signs/water.
+  A faithful voxel-shape check at filter time is still OPEN: `World::check_collision`
+  (world/mod.rs:3210) short-circuits on `!state.is_solid()`, so non-solid blocks with a
+  collision shape are ignored; fixing that shared collision routine would affect all entity
+  movement/collision (whole-subsystem change), out of scope for this unit.
+- Row 5 (variant RNG): remains OPEN by design, premise does not hold in this source.
+  `Painting.create` samples with `Util.getRandomSafe(potentialVariants, candidate.random)`
+  (Painting.java:112); `Entity.random = SHARED_RANDOM` (Entity.java:356), which in this
+  bundled Paper/Folia build is `ThreadLocalRandomSource.INSTANCE` (Entity.java:175), i.e.
+  thread-local, not world-seeded. Rust `rand::rng()` is functionally equivalent; no
+  world-seeded seam exists to adopt.
+- Rows 1, 2, 4, 6 re-confirmed fixed. No generated-data / WIT change. Only `painting.rs`
+  edited (plus this doc); no shared file rewritten. UNVERIFIED (no cargo by worker).

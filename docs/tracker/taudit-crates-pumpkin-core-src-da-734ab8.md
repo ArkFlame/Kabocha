@@ -66,3 +66,47 @@ Out of scope (left STILL OPEN, one-line reasons):
 - mod.rs:500, 884 (`get_tag_values`/`get_tag_entries` return raw refs): fix lives in `mod.rs`;
   outside the editable file.
 - mod.rs:2409 (incompatible `pack_format` accepted): fix lives in `mod.rs`; outside the file.
+
+
+## Result - second pass (cross-file)
+
+Verified every STILL OPEN row against the current code in
+`crates/pumpkin-core/src/data/datapack/mod.rs` (this shared checkout has already advanced
+that file well past the line numbers in the table above).
+
+Resolved already in `mod.rs` (no new edit needed this pass):
+
+- mod.rs:122 (maxCommandChainLength ignored): `chain_budget()` reads the
+  `max_command_sequence_length` game rule per chain (`mod.rs:1538-1544`), and
+  `enter_with_budget` threads the value into the thread-local budget.
+- mod.rs:2409-2421 (description stored as raw JSON): `read_pack_mcmeta` parses the
+  description into `pumpkin_util::text::TextComponent` and keeps `get_text()`
+  (`mod.rs:2841-2853`).
+- mod.rs:1459-1483, 2423 (hard-coded pack_format 61): all defaults now use
+  `CURRENT_MC_VERSION.data_pack_format()` (`mod.rs:1721,1728,1748,2854`).
+- mod.rs:1729 (Java Double/Float.toString): verified against decompiled vanilla
+  `MacroFunction` (`net/minecraft/commands/functions/MacroFunction.java:31-33,84-94`):
+  `DECIMAL_FORMAT` is `new DecimalFormat("#")` with
+  `setMaximumFractionDigits(15)`, NOT `Double.toString`. Vanilla therefore stringifies
+  `1.0` to `1`, so the tracker premise was outdated. `stringify_macro_argument`
+  (`mod.rs:2002-2021`) already mirrors this format and
+  `stringify_macro_matches_vanilla_decimal_format` (`mod.rs:3034`) locks it in. No change.
+- mod.rs:1130 (function suggestions in HashMap order): `get_function_names` calls
+  `names.sort_unstable()` (`mod.rs:1349`).
+- mod.rs:500,884 (tag values return raw refs): `get_tag_values`/`get_tag_entries` flatten
+  nested references via `collect_generic_tag_values` (`mod.rs:700`).
+- mod.rs:2409 (incompatible pack_format accepted): enabling a pack checks
+  `pack_format_compatibility` and warns on a mismatch (`mod.rs:1823-1830`).
+
+Still BLOCKED (require generated data or a whole missing subsystem):
+
+- mod.rs:2079,1384 (zip datapacks listed but never loaded): no zip/`ZipArchive` reader
+  exists; `scan_datapacks_dir` and `find_bundled_datapack_dir` are directory-only.
+  Requires a new read-only pack filesystem abstraction threaded through every loader, i.e.
+  a whole missing subsystem.
+- mod.rs:2000-2003,1352+ ("bundle" feature pack): "bundle" is absent from both bundled
+  lists (`mod.rs:1588-1592,2396-2400`) and no bundled assets datapack exists; adding the
+  name alone would load nothing. Needs generated assets data plus the load path.
+- mod.rs:1806 (u8 saturating custom damage ids): `pumpkin_data::damage::DamageType.id` is
+  `u8` in `crates/pumpkin-data/src/generated/damage_type.rs` (generated, forbidden to
+  edit); widening the id requires regenerating generated data.

@@ -94,3 +94,15 @@ Reworked `crates/pumpkin-core/src/entity/vehicle/boat/dismount.rs` against
 - Not changed on purpose: vanilla calls `passenger.setPose(dismountPose)` for every rider,
   but Pumpkin's `set_pose` also refreshes dimensions and fires a cancellable pose event, so
   the set stays player-only; a mob rider is already `Standing`, so behaviour is the same.
+
+
+## Result (second pass 2026-11-18)
+
+Only STILL OPEN row is line 16 (c:boats missing poplar_chest_boat). Verified against source, not a hand-editable gap:
+
+- Source asset `assets/datapack/data/c/tags/entity_type/boats.json` already lists `minecraft:poplar_chest_boat` (line 17). The generated `crates/pumpkin-data/src/generated/tag.rs` C_BOATS list (line 20874) is stale and omits it. The fix is `cargo run --locked -p pumpkin-codegen` followed by committing the regenerated file; generated data must not be hand-edited and I cannot run cargo. Row marked BLOCKED: it requires regenerated pumpkin-data fields.
+- No functional gap: boat.rs is_boat (89-91) is `has_tag(EntityType::C_BOATS) || is_chest_boat(...)` and is_chest_boat (76-79) matches the `_chest_boat` suffix, so poplar_chest_boat is already recognised as a boat regardless of the stale tag.
+
+Re-verified dismount.rs (the in-scope file) against vanilla `AbstractBoat.getDismountLocationForPassenger` (Java 709-738) and DismountHelper: escape vector from getBbWidth()*SQRT_OF_TWO plus passenger yaw, target built at boat bounding-box maxY, water-at-below early return, valid floor targets (above then below, is_finite && < 1.0), getDismountPoses pose order, getDimensions(pose) used for every rider, and canDismountTo collision/world-border checks all match. The earlier fixes (dismount_poses helper, per-pose dimensions for all riders) and the two pure unit tests are present and correct. No source gap, no edit needed.
+
+No .rs file edited this pass (only the doc Result appended), so rustfmt is not applicable. Skipped: codegen regeneration and its build gate, which the orchestrator must run.

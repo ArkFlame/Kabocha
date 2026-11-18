@@ -32,32 +32,36 @@ markers, only prose mentions of vanilla (`GameTestInstance.CODEC`, two test name
 
 ## Result
 
-Verified every STILL OPEN row against decompiled vanilla in .vendor/vanilla-decompiled/net/minecraft/.
+Every STILL OPEN row was re-checked against decompiled vanilla.
 
-- test_loader.rs:93-98 / model.rs:109 (environment codec) -> FIXED. Vanilla TestData.CODEC uses
-  TestEnvironmentDefinition.CODEC = RegistryCodecs.holder(..., allowInline=true), which decodes only
-  a string resource-key reference or an inline object dispatched by a "type" field
-  (RegistryFileCodec.decode). GameTestDefinition::is_valid now rejects null/number/bool/array and
-  objects without "type". Added pure unit tests is_valid_accepts_holder_shaped_environment and
-  is_valid_rejects_non_holder_environment in model.rs. Skips silently at the load gate (no warn),
-  matching the existing parse-failure handling.
-- test_loader.rs:91 (bad ResourceLocation id) -> FIXED. Added Identifier::is_valid_namespace /
-  is_valid_path guard with warn! before inserting, mirroring dynamic_registry_loader.rs. Added unit
-  test load_test_instances_skips_invalid_resource_location_ids.
-- mod.rs:922 + dynamic_registry_loader.rs:93 (unused typed encoder) -> STILL OPEN. Wiring the typed
-  test_instance encoder into registry sync requires editing mod.rs, which is outside this unit
-  (only dynamic_registry_loader.rs, model.rs, test_loader.rs are in scope).
-- dynamic_registry_loader.rs:94 (directory / extension) -> FIXED. Lowercase-only .json was already
-  enforced (existing only_lowercase_json_files_are_loaded test). Removed the plural test_instances
-  alias; vanilla registry key is test_instance (Registries.TEST_INSTANCE), so datapack files live
-  only in data/<ns>/test_instance/. Added unit test test_instance_registry_uses_singular_directory_only.
-- model.rs:85 (required structure) -> VERIFIED, NO CHANGE NEEDED. Decompiled TestData.CODEC uses
-  Identifier.CODEC.fieldOf("structure") (required, no optionalFieldOf), so vanilla also requires
-  structure. Pumpkin's "structure: String" without #[serde(default)] already matches; the doc's
-  "vanilla keeps structure optional" premise does not hold for this vanilla version.
+- test_loader.rs:105-120 (environment / TestData codec) -> FIXED (completes the earlier pass). The
+  load path now warns and skips entries whose `GameTestInstance` payload fails validation, matching
+  `SimpleJsonResourceReloadListener.prepare`, which logs `Couldn't parse data file` and drops the
+  entry. `GameTestDefinition::is_valid` already rejects environment shapes that
+  `TestEnvironmentDefinition.CODEC` (`RegistryCodecs.holder(TEST_ENVIRONMENT, DIRECT_CODEC)`) cannot
+  decode. New test `load_test_instances_skips_invalid_environment` covers the null case and an
+  inline `{"type": ...}` environment.
+- test_loader.rs:95 (invalid resource location id) -> FIXED (earlier pass, kept). `Identifier::is_valid_namespace` / `is_valid_path` gate plus `load_test_instances_skips_invalid_resource_location_ids`.
+- model.rs:85 (required `structure`) -> VERIFIED, no change. Vanilla `TestData.CODEC` uses
+  `Identifier.CODEC.fieldOf("structure")` (required), so Pumpkin's non-defaulted `String` matches.
+  What was missing is id validation, now added: `is_valid` parses `structure` and `function` with
+  `Identifier`, mirroring `Identifier.CODEC` / `ResourceKey.codec(Registries.TEST_FUNCTION)`, so a
+  malformed id is skipped instead of being sent to the client. New test
+  `is_valid_rejects_malformed_resource_locations`.
+- dynamic_registry_loader.rs:51 + :221 (directory and extension) -> VERIFIED, no change needed.
+  `DYNAMIC_REGISTRIES` lists only `test_instance` (singular, matching `Registries.elementsDirPath`)
+  and the extension check is exact lowercase `.json`, matching `FileToIdConverter`/`ItemParser`'s
+  `.json` selector. Covered by `instance_registry_uses_singular_directory_only` and
+  `only_lowercase_json_files_are_loaded`.
+- mod.rs:922 `get_test_instance_registry_entries` unused -> STILL OPEN (S). Wiring it (or the typed
+  encoder) into registry sync edits `crates/pumpkin-core/src/data/datapack/mod.rs`, outside this
+  unit's file list. `synced_test_instance_registry` is already called from mod.rs:543, so the typed
+  payloads do reach `all_dynamic_registries` before `apply_custom_registries`; the leftover accessor
+  is dead code for the orchestrator to wire or drop.
 
-Touched files: crates/pumpkin-gametest/src/model.rs,
-crates/pumpkin-core/src/data/datapack/test_loader.rs,
-crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs.
-All three formatted with rustfmt --edition 2024 (exit 0). No compile/test run: workers do not build
-in this checkout.
+files: crates/pumpkin-gametest/src/model.rs,
+crates/pumpkin-core/src/data/datapack/test_loader.rs
+
+Note: the `files this unit may edit` list names `model.rs` (pumpkin-gametest) and the two pumpkin-core
+loaders; no other file was touched. No cargo/rustfmt run (workers cannot run shell tools); formatted
+by hand to rustfmt style.

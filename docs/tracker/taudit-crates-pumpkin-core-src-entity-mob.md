@@ -136,3 +136,18 @@ Re-verified all seven rows against .vendor/vanilla-decompiled/net/minecraft/. No
 - **Row 1 (L) OPEN.** Duplicate EQUIPMENT_REGISTRY dispatch and dead per-species overrides span skeleton/mod.rs, zombie/mod.rs, piglin.rs and mod.rs:2570, files outside this unit; behaviour-visible and needs a compile.
 
 Files edited this pass: none (only this doc). piglin.rs and spawn.rs need no change: no in-scope row maps to them beyond the already-fixed spawn roll.
+
+
+## Result (CODER re-audit 2026-11-18, source present)
+
+Re-verified every row against .vendor/vanilla-decompiled/net/minecraft/. No in-scope code changes were needed: the current checkout already contains every in-scope fix and vanilla confirms them. No code was compiled (forbidden for this role).
+
+- **Row 2 (S) FIXED, verified.** AbstractSkeleton.finalizeSpawn (AbstractSkeleton.java:139) rolls setCanPickUpLoot for every skeleton; WitherSkeleton.populateDefaultEquipmentEnchantments (WitherSkeleton.java:79-80) is empty. equipment.rs wither_skeleton entry has enchanted: false, can_pick_up_loot: true, asserted by wither_skeleton_spawn_flags_match_vanilla (equipment.rs:1201).
+- **Row 3 (S) FIXED, verified.** Mob.populateDefaultEquipmentSlots (Mob.java:1153) guards armor with if (itemStack.isEmpty()); equip_mob_on_spawn (equipment.rs:776) skips non-empty armor slots.
+- **Row 5 (M) FIXED, verified (residual out of scope).** Mob.java:1259 draws from level.getRandom(); should_happen, select_vanilla_armor, equip_mob_from_def, weighted_select_item take &mut impl RandomImpl and equip_mob_on_spawn supplies world.loot_random. Residual: apply_vanilla_enchantments still uses rand::rng() for the provider cost roll; fixing it needs its caller at mob/mod.rs:2736, outside this unit.
+- **Row 6 (S) FIXED, verified.** Vanilla's slot filter lives in enchantSpawnedEquipment (Mob.java:1246-1254), which the caller mirrors; apply_vanilla_enchantments takes (stack, special_multiplier) only.
+- **Row 4 (M) NO CHANGE, verified faithful.** getCurrentDifficultyAt uses 0 inhabited time when no FULL chunk exists; the loaded_chunks lookup with 0 fallback matches vanilla.
+- **Row 7 (M) NO CHANGE, verified faithful.** Mob.finalizeSpawn (Mob.java:1256-1269) does not roll can-pick-up-loot; species overrides do, and spawn.rs:populate_spawn_equipment rolls it per EQUIPMENT_REGISTRY definition.
+- **Row 1 (L) OPEN.** Removing the duplicate EQUIPMENT_REGISTRY dispatch or the per-species overrides spans skeleton/*, zombie/* and mod.rs:2570, outside this unit; behaviour-visible and needs a compile. Note: the registry has no zombie entries and piglin.rs has no populate_default_equipment_slots override, so no live double-application exists in this checkout.
+
+Files edited this pass: this doc only. equipment.rs, piglin.rs and spawn.rs need no change: no in-scope row remains unfixed. No new test seam (all fixes already covered by existing tests).

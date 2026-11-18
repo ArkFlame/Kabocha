@@ -125,3 +125,69 @@ row is already addressed in the current tree.
   `ignore_visibility()` + `ignore_distance_scaling_factor()`) is therefore more permissive
   than this vanilla snapshot. Left as-is: it is a FIXED row with an existing test and
   outside this pass's STILL OPEN scope. Flagged for a follow-up audit.
+
+## Result
+
+2026-11-18 third pass, against `.vendor/vanilla-decompiled` (`AvoidEntityGoal.java`,
+`TargetingConditions.java`, `Wolf.java`). Rows 2, 3 and 4 re-verified as already fixed;
+one real mismatch was found in the targeting predicate and fixed.
+
+- Default targeting conditions: FIXED (regression). The decompiled
+  `AvoidEntityGoal` constructor builds `TargetingConditions.forCombat().range(maxDist).selector(...)`
+  only: `checkLineOfSight` and `testInvisible` stay at their `true` defaults, and this
+  `TargetingConditions` snapshot has no `allowUnseeable` method at all. The tree
+  carried `.ignore_visibility().ignore_distance_scaling_factor()`, making every flee
+  trigger through walls. Removed both flags so the predicate keeps line of sight
+  (`has_line_of_sight`) and the visibility percent range scaling, as vanilla does.
+- Row 2 (confirm on ranked nearest only): still FIXED, no change. `Wolf.WolfAvoidEntityGoal.canUse`
+  is `super.canUse() && toAvoid instanceof Llama && !isTame() && avoidLlama(toAvoid)`; the
+  5-arg super sets `avoidPredicate = t -> true` and `predicateOnAvoidEntity = NO_CREATIVE_OR_SPECTATOR`,
+  so `avoidLlama` runs on the already-ranked nearest after `createPath`, one `nextInt(5)` draw.
+  `can_start` applies `confirm` in the same position; `llama::scares_wolves` draws once.
+- Row 3 (tick_reach range): still FIXED. No `per_type` field exists, `tick_reach` reports
+  `flee_distance`, which is the radius `find_threat` searches, so reach and search agree.
+- Row 4 (drop_target per-tick clear): still FIXED. `Wolf` overrides `start()` and `tick()`,
+  each calling `setTarget(null)`; `start` and `tick` here both clear when `drop_target` is set.
+- Row 1 (brain-sensor threats): still LEFT OPEN, out of scope. The old `nearest_of`/`per_type`
+  code is gone; villager hostile fleeing lives in `entity/ai/brain/behavior/crisis/set_walk_target_away_from.rs`
+  and `entity/passive/villager/ai.rs`, files outside this unit.
+- Test: replaced `creeper_flees_an_ocelot_without_line_of_sight` (it asserted the old,
+  wrong allowUnseeable behaviour) with `creeper_does_not_flee_an_ocelot_it_cannot_see`,
+  which puts a stone wall between creeper and ocelot, asserts `find_threat` finds nothing
+  and `can_start` is false. It fails without this fix.
+- Files touched: crates/pumpkin-core/src/entity/ai/goal/avoid_entity.rs. Not compiled or
+  formatted here (worker rules); the orchestrator batch-checks and runs rustfmt.
+
+## Result
+
+2026-11-18 fourth pass (second-pass expansion: may now edit files outside the unit).
+Re-verified all four STILL OPEN rows against `.vendor/vanilla-decompiled`
+(`AvoidEntityGoal.java`, `TargetingConditions.java`, `Wolf.java`,
+`SetWalkTargetAwayFrom.java`, `VillagerHostilesSensor.java`,
+`VillagerGoalPackages.java`, `VillagerCalmDown.java`). Row 1's fix was fully
+ported by a later worker, so no source change was needed this pass.
+
+- Row 1 (brain-sensor threats / villager hostile fleeing): RESOLVED in tree, no
+  change needed. The old `AvoidEntityGoal.nearest_of`/`per_type` code is gone;
+  hostile fleeing now runs through the vanilla plumbing:
+  `entity/ai/brain/sensing/villager_hostiles.rs` (`VillagerHostilesSensor`,
+  exact per-type distance table + inclusive `<= dist^2` + nearest visible),
+  `entity/ai/brain/behavior/crisis/set_walk_target_away_from.rs`
+  (`SetWalkTargetAwayFrom.entity`: no walk target / inside 6 blocks / walk-away
+  dot >= 0 / 10 `get_pos_away(16,7)` attempts), wired in
+  `entity/passive/villager/ai.rs` (sensor registered in `make_brain`, panic
+  package at priority 0/1/1/3 matches `VillagerGoalPackages.getPanicPackage`).
+  Pure unit tests already exist in both ported files. No cross-file refactor
+  remains, so the row is closed rather than BLOCKED.
+- Row 2 (confirm on ranked nearest only): still FIXED. `can_start` applies
+  `confirm` after `find_threat` + `create_path`, one draw; `llama::scares_wolves`
+  draws `random_range(0..5)` once for a llama. Matches `Wolf.WolfAvoidEntityGoal.canUse`.
+- Row 3 (tick_reach range): still FIXED. `tick_reach` reports `flee_distance`,
+  the same radius `find_threat` searches via `SearchArea::from_feet`.
+- Row 4 (drop_target per-tick clear): still FIXED. Both `start()` and `tick()`
+  clear the mob target when `drop_target` is set, matching `Wolf`'s overrides.
+- Default targeting predicate: still `create_attackable().set_base_max_distance(flee_distance)`
+  (line-of-sight and visibility scaling kept), matching the third-pass fix.
+- Files touched: none (all rows already fixed in tree). No `.rs` changed, no
+  test added (pure seams already covered). Not compiled/formatted here per
+  worker rules; orchestrator batch-checks.

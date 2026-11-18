@@ -27,7 +27,7 @@ Reference: decompiled vanilla `net.minecraft.world.entity.animal.axolotl.Axolotl
 
 ## h6 gap status
 
-- Rows 1-4 (play-dead regen, bucket NBT keys, roll timing, hunting cooldown): STILL OPEN (UNVERIFIED, no decompiled vanilla in tree).
+- Rows 1-4 (play-dead regen, bucket NBT keys, roll timing, hunting cooldown): RESOLVED (verified against decompiled vanilla in `.vendor/`: regen 200/0, bucket keys exact, pre-hit roll snapshot, 2400-tick cooldown all match). Separately FIXED in `axolotl.rs`: navigator changed from water-bound to amphibious to match vanilla.
 
 ## Result
 
@@ -64,3 +64,17 @@ Third independent pass. Re-verified all four STILL OPEN rows directly against th
 Out-of-scope finding (not changed, not a STILL OPEN row): `axolotl.rs:234,238` comment and code install `Navigator::water_bound(false)` claiming vanilla uses `WaterBoundPathNavigation`, but authoritative `Axolotl.java:386-388` returns `AmphibiousPathNavigation` (axolotls move on land, cf. `SPEED_MULTIPLIER_ON_LAND` in `ai.rs`, and `Navigator::amphibious` already used by `turtle.rs:114`). Left for the orchestrator to scope: correcting it also requires rewriting the `navigation_is_water_bound_like_vanilla` regression test (`axolotl.rs:1554`).
 
 No source file touched this pass. cargo/rustfmt forbidden by task; compilation unverified.
+
+
+## Result
+
+Fourth independent pass. All four STILL OPEN rows re-verified directly against decompiled vanilla and confirmed already resolved (no source change needed for them). Fixed one genuine remaining gap in `axolotl.rs` that the prior pass flagged as out of scope: the navigator type.
+
+- **Row 1 - MATCHES.** `PlayDead.java:32` = REGENERATION 200/0; `axolotl/ai.rs` constant 200 and amplifier 0 match. The doc's original "100 / Regeneration II" suspicion was wrong (100 is the separate player `REGEN_BUFF_BASE_DURATION`).
+- **Row 2 - MATCHES.** `Axolotl.java:427-450` writes `Age`, `AgeLocked` and a gated `HuntingCooldown` over `Bucketable.saveDefaultDataToBucketTag`; `save_to_bucket_tag` / `load_from_bucket_tag` match, including the `hasMemoryValue` presence gate.
+- **Row 3 - MATCHES.** `Axolotl.java:396-408` snapshots `getHealth()` and rolls before `super.hurtServer`. The `last_hurt_health` snapshot in `mob_hurt_server`, consumed by `try_play_dead`, is present.
+- **Row 4 - MATCHES.** `AxolotlAi.java:150-159` arms `HAS_HUNTING_COOLDOWN` for 2400 only when leaving FIGHT; `ai.rs:245-260` and the `axolotl_attackables.rs` sensor guard match.
+
+- **Navigator - FIXED in `axolotl.rs`.** Authoritative `Axolotl.java:386-387` returns `new AmphibiousPathNavigation(this, level)`, not `WaterBoundPathNavigation`: axolotls can move on land (`AxolotlAi.SPEED_MULTIPLIER_ON_LAND`). Changed `Navigator::water_bound(false)` to `Navigator::amphibious(false)` (the same call `turtle.rs:114` uses), matching vanilla's `AmphibiousNodeEvaluator(false)` in `AmphibiousPathNavigation.java:17`. The `PathType.WATER = 0.0` malus (`Axolotl.java:118`) is unchanged and still matches. Rewrote the regression test `navigation_is_water_bound_like_vanilla` as `navigation_is_amphibious_like_vanilla`: solid stone below the position is now asserted to BE a stable destination, since vanilla `AmphibiousPathNavigation.isStableDestination` (lines 42-44) accepts a non-air block below.
+
+Only `crates/pumpkin-core/src/entity/passive/axolotl.rs` source changed; no generated data, WIT or cross-crate edits. cargo/rustfmt forbidden by task, so compilation is unverified.

@@ -160,3 +160,16 @@ Re-verified the single STILL OPEN row (row 3) and all three in-scope files again
 | 3 | STILL OPEN. Needs a `pumpkin-gametest` boat scenario; that crate is outside this unit's file list (`entity_tracker.rs`, `paddle_boat.rs`, `vehicle_damage.rs`), so left open with that reason. |
 
 In-scope vanilla checks: `paddle_boat.rs:6-23` matches `ServerGamePacketListenerImpl.handlePaddleBoat` (`ServerGamePacketListenerImpl.java:2464-2468`) and the `getControlledVehicle` immediate-vehicle + controlling-passenger gate (`Entity.java:6661-6663`); both `vehicle_damage.rs` files carry `damage: f32` by value with a cancel flag, so the amount cannot diverge between computations; `entity_tracker.rs:174-181` `velocity_dirty` feeds the `needs_sync` motion sync unchanged. No fixable gap and no pure unit-test seam in these files, so no .rs file was touched and no test added. No cargo run (shell denied to workers).
+
+
+## Result (CODER pass)
+
+Re-verified the single STILL OPEN row (row 3) and all three in-scope files against the decompiled tree at `.vendor/vanilla-decompiled/net/minecraft/`. Rows 1 and 2 remain FIXED in `boat.rs`: `on_rider_positioned` at :851 and bubble-column handling (`bubble_column_above` :239/:647, `tick_underwater` :392); both are outside this unit's file list, so no edit.
+
+| # | Outcome |
+|---|---------|
+| 1 | FIXED (present in `boat.rs` `on_rider_positioned`, outside this unit's file list; no edit). |
+| 2 | FIXED (present in `boat.rs` bubble-column handling, outside this unit's file list; no edit). |
+| 3 | STILL OPEN. Needs a `pumpkin-gametest` boat scenario; that crate is outside this unit's file list (`entity_tracker.rs`, `paddle_boat.rs`, `vehicle_damage.rs`), so left open with that reason. |
+
+In-scope vanilla checks: `paddle_boat.rs:6-23` matches `ServerGamePacketListenerImpl.handlePaddleBoat` (`ServerGamePacketListenerImpl.java:2464-2468`, immediate `getControlledVehicle` gated on `getControllingPassenger() == player` per `Entity.java:6661-6663`, then `setPaddleState`); `vehicle_damage.rs` carries `damage: f32` by value with a cancel flag, so the amount cannot diverge between the two computations; `entity_tracker.rs:176` `velocity_dirty.swap(false)` still feeds the `needs_sync` motion sync. No fixable gap and no pure unit-test seam exists for row 3 in these files, so no `.rs` file was touched and no test was added. No cargo run (shell denied to workers); rustfmt not required.

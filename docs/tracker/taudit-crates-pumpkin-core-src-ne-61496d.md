@@ -135,3 +135,36 @@ were already fixed in passes 1-2 and need no further change.
 
 No source files edited this pass; no new test (no safe pure seam inside the two
 allowed files for the out-of-unit chain state).
+
+
+## Result (pass 4)
+
+Re-verified the only remaining STILL OPEN row against the mc-proof reference tree
+(`.vendor/vanilla-decompiled` has no Java sources in this checkout). The four
+smaller rows fixed in passes 1-2 are still correct in the current source; no
+change needed.
+
+- Message signature verification / per-player `SignedMessageChain` (L): LEFT OPEN.
+  Reason: needs persistent chain state (`lastTimeStamp` and a chain-broken flag)
+  on `ChatSession` in `entity/player.rs`, a `SignatureUpdater` in `net/chat`, and
+  the real `session_id` in the outgoing link in `world/mod.rs`, all outside this
+  unit's two files. Confirmed in `ServerGamePacketListenerImpl.java`:
+  `handleChat` (line 2552) calls `getSignedMessage` (line 2815), which builds
+  `SignedMessageBody(message, timeStamp, salt, lastSeenMessages)` and calls
+  `signedMessageDecoder.unpack`, while `handleMessageDecodeFailure` (line 2676)
+  reports the decode failure. Pumpkin's `ChatSession` (`entity/player.rs:9809`)
+  has no `last_time_stamp` or chain-broken field, so OUT_OF_ORDER_CHAT and
+  CHAIN_BROKEN cannot be tracked from the two allowed files.
+
+No source files edited and no new unit test this pass (no pure seam exists inside
+chat_message.rs / chat_command.rs for state owned in other modules). No source
+diff, so no compile-pitfall items apply.
+
+
+## Result (pass 5)
+
+Verified the last STILL OPEN row against the mc-proof reference tree (/.vendor/vanilla-decompiled has no Java sources in this checkout). The four smaller rows were already fixed in passes 1-2 and need no further change.
+
+- Message signature verification / per-player `SignedMessageChain` (L): LEFT OPEN. Verified `SignedMessageChain.java` (`Decoder#unpack` needs mutable `nextLink` and `lastTimeStamp`), `PlayerChatMessage.updateSignature` (SHA256withRSA over `[0,0,0,1]` + link + body) and `ServerGamePacketListenerImpl#getSignedMessage`. Implementing full parity needs new persistent chain state (`lastTimeStamp` and a chain-broken flag) on `ChatSession` in `entity/player.rs`, a `SignatureUpdater` in `net/chat`, and the real `session_id` in the outgoing link in `world/mod.rs` — all outside this unit's two files, so it cannot be completed here. `hasExpiredServer` (5 min) is only a warning and does not change acceptance.
+
+No source files edited and no new unit test this pass (no pure seam exists inside chat_message.rs / chat_command.rs for state owned in other modules). No source diff, so no compile-pitfall items apply.

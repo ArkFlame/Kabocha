@@ -146,3 +146,90 @@ need a `CommandContext`, so no seam. Files changed this pass: none (unit doc onl
 
 ## Result (native-4 cross-file pass)
 - Row 5 (`pumpkin-unit-test` exposed): BLOCKED-L, the expose point is `data/datapack/mod.rs` `get_enabled_packs`; not closed in this pass.
+
+## Result
+
+Verification pass against `.vendor/vanilla-decompiled` (26.3, protocol 777) and vanilla
+`DataPackCommand` / `FileUtil` / `PackFormat` / `SharedConstants`. Both in-scope files
+(datapack.rs, version.rs) already contain the fixes; no source edits were needed this pass.
+
+- 1. `pack_format` hardcode - VERIFIED FIXED. Vanilla `SharedConstants.DATA_PACK_FORMAT_MAJOR = 121`,
+  `DATA_PACK_FORMAT_MINOR = 0`; `PackFormat.lastPreMinorVersion(SERVER_DATA) = 81`.
+  `version.rs::data_pack_format()` returns 121 for V_26_3, `LAST_PRE_MINOR_DATA_PACK_FORMAT = 81`.
+  `pack_mcmeta_content` writes integer `min_format`/`max_format` (minor == defaultMinor), matching
+  vanilla `PackFormat` as encoded in `createPack`. No `61` literal remains in datapack.rs.
+- 2. Duplicate enable/disable - VERIFIED FIXED. Executors call `DatapackManager::enable_pack_checked`
+  / `disable_pack_checked`; all six `DatapackError` variants are mapped by `error_type_for`.
+- 3. Anchor known-but-not-enabled - VERIFIED MATCHING. Vanilla `getPack(context, name, false)` throws
+  ERROR_PACK_ALREADY_DISABLED (`commands.datapack.disable.failed`) for a known-but-unselected anchor
+  and ERROR_UNKNOWN_PACK (`commands.datapack.unknown`) for an unknown id; Pumpkin maps `NotEnabled`
+  to `ERROR_DISABLE_FAILED` and `UnknownAnchor` to `ERROR_UNKNOWN_DATAPACK`.
+- 4. `reload_datapacks` result - VERIFIED NO CHANGE. Vanilla `enablePack`/`disablePack` call
+  `ReloadCommand.reloadPacks(...)` (void, failures reported asynchronously); the command returns
+  `selected.size()`. Propagating a `Result` would diverge from vanilla.
+- 5. `pumpkin-unit-test` exposed - LEFT OPEN. `get_enabled_packs` lives in `data/datapack/mod.rs`
+  (basename mod.rs, outside this unit's files: datapack.rs, version.rs).
+- 6. Suggestion ids - VERIFIED FIXED. Each provider suggests each id once, quoting ids containing
+  spaces or slashes; matches vanilla `escapeIfRequired` over `getAvailableIds`/`getSelectedIds`.
+- 7. `is_valid_pack_name` - VERIFIED FIXED. Matches vanilla `FileUtil.isValidPathSegment`
+  (`[-._a-z0-9]+`, rejects `.`/`..`) and `isPathPartPortable` (trailing dot plus reserved
+  device names COM/CLOCK$/CON/PRN/AUX/NUL/COM[1-9]/LPT[1-9] with optional extension); covered by
+  `valid_pack_name_check`.
+- 8. Pack order model - LEFT OPEN. Truly preceding `vanilla` requires modeling selection order in
+  `LevelData` inside `data/datapack/mod.rs` (outside this unit); current clamp to the first
+  configurable slot is the smallest in-scope behaviour.
+
+No source edits this pass. Pure unit-test seams are already covered (`is_valid_pack_name`,
+`pack_mcmeta_content`, `data_pack_format`, `valid_pack_name_check`); suggestion providers need a
+`CommandContext`, so no seam. Files changed this pass: unit doc only.
+
+## Result (coder pass)
+
+In-scope verification of `crates/pumpkin-core/src/command/commands/datapack.rs` and `crates/pumpkin-util/src/version.rs` against `.vendor/vanilla-decompiled` (26.3); no source edits needed.
+
+- 1. pack_format hardcode: VERIFIED FIXED. `version.rs` provides `data_pack_format()` = 121 for V_26_3 and `LAST_PRE_MINOR_DATA_PACK_FORMAT` = 81; `pack_mcmeta_content` writes integer `min_format`/`max_format`.
+- 2. Duplicate enable/disable logic: VERIFIED FIXED. Command uses `DatapackManager::enable_pack_checked` / `disable_pack_checked` with `error_type_for` mapping.
+- 3. Anchor known but not enabled: VERIFIED MATCHING. `NotEnabled` -> `ERROR_DISABLE_FAILED`, `UnknownAnchor` -> `ERROR_UNKNOWN_DATAPACK`.
+- 4. `reload_datapacks` result: VERIFIED NO CHANGE (vanilla reloads asynchronously/void in command path).
+- 5. `pumpkin-unit-test` exposed: STILL OPEN. `get_enabled_packs` lives in `data/datapack/mod.rs`, outside allowed files.
+- 6. Suggestion ids: VERIFIED FIXED. One suggestion per id, quoted when containing spaces or slashes.
+- 7. `is_valid_pack_name`: VERIFIED FIXED. Matches vanilla segment/portable rules; covered by `valid_pack_name_check`.
+- 8. Pack order model / `before vanilla`: STILL OPEN. Requires selection-order modeling in `LevelData` / `data/datapack/mod.rs`, outside allowed files.
+
+Pure unit-test seams already covered (`is_valid_pack_name`, `pack_mcmeta_content`, `data_pack_format`); no new seam. Files changed: `docs/tracker/taudit-crates-pumpkin-core-src-co-ee4197.md`.
+
+
+## Result (second pass, cross-file permitted)
+
+Re-verified against `.vendor/vanilla-decompiled` (26.3) and the unmodded 26.2 `DataPackCommand`
+(`Inserter`: first `l.add(0,p)`, last `List::add`, `before` `l.add(indexOf(anchor),p)`,
+`after` `l.add(indexOf(anchor)+1,p)`). No source edits were needed: every in-scope source fix is
+already present in the checkout. Cross-file edits were permitted this pass; only one row needs work
+that exceeds a minimal edit.
+
+- 1. `pack_format` hardcode: VERIFIED FIXED. `version.rs::data_pack_format()` = 121 for V_26_3,
+  `LAST_PRE_MINOR_DATA_PACK_FORMAT` = 81.
+- 2. Duplicate enable/disable logic: VERIFIED FIXED. Command calls `enable_pack_checked` /
+  `disable_pack_checked` and maps typed `DatapackError` via `error_type_for`.
+- 3. Anchor known-but-not-enabled: VERIFIED MATCHING. Vanilla `getPack(..., false)` throws
+  ERROR_PACK_ALREADY_DISABLED / ERROR_UNKNOWN_PACK; `NotEnabled` -> `ERROR_DISABLE_FAILED`,
+  `UnknownAnchor` -> `ERROR_UNKNOWN_DATAPACK`.
+- 4. `reload_datapacks` result discarded: VERIFIED NO CHANGE. Vanilla reload is void/async in the
+  command path; propagating a `Result` would diverge.
+- 5. `pumpkin-unit-test` exposed: VERIFIED FIXED in this checkout. `DatapackManager::is_hidden_test_pack`
+  filters it from both `compute_enabled_packs` and `get_all_known_packs` in release builds, covered by
+  `enabled_pack_list_filters_hidden_test_pack_and_disabled_packs` and `only_vanilla_pack_is_required`.
+- 6. Suggestion ids: VERIFIED FIXED. One suggestion per id, escaped like
+  `StringArgumentType::escapeIfRequired`; no internal `file/<name>` duplicates.
+- 7. `is_valid_pack_name`: VERIFIED FIXED. Matches vanilla `FileUtil.isValidPathSegment` plus
+  `isPathPartPortable`; covered by `valid_pack_name_check`.
+- 8. Pack order model / `before vanilla`: BLOCKED. True `before vanilla` needs a `PackRepository`-style
+  selected-order model stored in LevelData plus a `load_all` rewrite: bundled/embedded packs are always
+  loaded first (`load_bundled_datapacks`), so a world pack in `data_packs.enabled` can never precede
+  `vanilla`, and `configurable_index` clamps the insert to the configurable slice. Adding that ordering
+  is a whole selection-order subsystem and a cross-cutting refactor across `data/datapack/mod.rs` and
+  `server/mod.rs`, beyond a minimal single-pass edit; not attempted.
+
+Files changed this pass: tracker doc only (no source edits). No new pure unit-test seam exists;
+existing seams (`is_valid_pack_name`, `pack_mcmeta_content`, `data_pack_format`,
+`valid_pack_name_check`, `compute_enabled_packs`) already cover the in-scope logic.

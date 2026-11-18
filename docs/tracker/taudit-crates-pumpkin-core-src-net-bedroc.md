@@ -98,3 +98,37 @@ input lacks, so the flag/echo signal substitutes.
 No .rs files changed. 0 newly fixed, 0 left open, 6 confirmed fixed against
 vanilla. All pure seams already carry tests; no new test needed. rustfmt not
 applicable (no .rs touched).
+
+
+## Result (verification pass 2, current checkout)
+
+Re-read all three named source files (player_auth_input.rs, client_push.rs,
+net/java/play/player_command.rs) and re-verified every STILL OPEN row against
+decompiled vanilla `ServerGamePacketListenerImpl`. All six rows are already
+implemented and carry pure unit tests; no source change was needed this pass.
+
+Vanilla facts re-confirmed:
+- handleMoveVehicle (591) gates on getControllingPassenger() == player; (606-607)
+  takes the mount yaw/pitch from the packet's targetYRot/targetXRot; (582) rejects
+  invalid values. Matches apply_mount_move's controlling-passenger check,
+  vehicle_id_matches, finite/step clamp and mount_rotation mapping.
+- handleAcceptTeleportPacket (859) correlates the ack by id, which Bedrock auth
+  input lacks, so the HandledTeleport flag / echoed server_position signal is the
+  correct substitute; proximity + 20-input resend is the fallback.
+- handlePlayerCommand START_RIDING_JUMP (2947-2953) gates on a controlled
+  PlayerRideableJumping, canJump() and data > 0, matching the held JumpDown charge
+  swap into start_riding_jump (clamped 0..90); START/STOP_SPRINTING (2935-2940)
+  set sprinting, matching the edge-first then held SprintDown fallback.
+
+| row | outcome |
+|---|---|
+| 1 await_teleport / Teleport ack | Verified fixed. Clears on HandledTeleport, echoed server_position, or proximity, with 20-input resend. Tests present. |
+| 2 StartJumping on saddled mounts | Verified fixed. Held JumpDown charge swapped into start_riding_jump with the vanilla gates. |
+| 3 vehicle_rotation / vehicle_unique_id | Verified fixed. Mismatched id rejected; mount snapped to vehicle_rotation (x=pitch, y=yaw) with rider-yaw fallback. Tests present. |
+| 4 on_ground zero delta | Verified fixed. is_on_ground keeps stored ground state on zero delta. Tests present. |
+| 5 sprint SprintDown fallback | Verified fixed. Edges win, then held SprintDown state. |
+| 6 unclamped stored delta | Verified fixed. store_input_state zeroes non-finite / over-budget deltas via MAX_CLIENT_STEP_SQUARED. |
+
+No .rs files changed. 0 newly fixed, 0 left open, 6 confirmed fixed against
+vanilla. All pure seams already carry tests; no new test needed. rustfmt not
+applicable (no .rs touched).

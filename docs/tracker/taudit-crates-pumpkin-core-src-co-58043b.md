@@ -32,9 +32,9 @@ Doc comment says "first (overworld) world" but `server.worlds.load().first()` is
 `crates/pumpkin-core/src/command/mod.rs:120-124` comment mentions command block minecarts, but there is no sender variant; `MinecartCommandBlock` (`BaseCommandBlock`) is not implemented. Tracked with the minecart work, not this file.
 
 ## Gap status
-- 1. Command block custom name ignored (M): STILL OPEN.
-- 2. `LastOutput` plain text not text-component JSON (M): STILL OPEN.
-- 3. Player source text name (`command/mod.rs`): STILL OPEN.
+- 1. Command block custom name ignored (M): FIXED. In-unit `custom_name` field + CustomName NBT + actor wiring (command_block.rs, set_command_block.rs); the formerly out-of-unit `into_source` now uses `command_block_name()` (custom name, `@` fallback) in command/mod.rs.
+- 2. `LastOutput` plain text not text-component JSON (M): FIXED. `last_output` is `Option<TextComponent>` written via `to_nbt_tag_for_version(V_26_3)`; all consumers updated.
+- 3. Player source text name (command/mod.rs): FIXED. `player_source` passes the plain profile name for textName.
 
 ## Result
 
@@ -78,3 +78,14 @@ Re-read all four in-unit files and decompiled vanilla `BaseCommandBlock.java` / 
 - Row 3 (player source text name): FIXED outside this unit (`command/mod.rs#player_source`), no action needed.
 
 Compilation not run (worker shell denied; orchestrator compiles once).
+
+
+## Result (final CODER pass, all rows verified FIXED)
+
+Re-verified all three rows against decompiled vanilla (`BaseCommandBlock.java#getName/save/load/sendSystemMessage`, `CommandBlockEntity.java#createCommandSourceStack`) and against the current source. No source edits were needed; every row is fully fixed in the checkout.
+
+- Row 1 (custom name): FIXED. In unit: `block/entities/command_block.rs` holds `custom_name: StdMutex<Option<TextComponent>>`, saves/loads `CustomName` via `CustomNameImpl` (String/Compound codec == vanilla `ComponentSerialization.CODEC`), and feeds it to `build_command_block_actor`; `net/java/play/set_command_block.rs` initialises it from the old entity. Previously out-of-unit: `command/mod.rs#command_block_name` now returns the custom name with `@` fallback, used by both `into_source` (line 394) and `Display`, matching vanilla `BaseCommandBlock#getName` (`this.getName().getString()` as source name).
+- Row 2 (`LastOutput` text component): FIXED. `last_output` is `StdMutex<Option<TextComponent>>` written via `to_nbt_tag_for_version(V_26_3)` (== `CURRENT_MC_VERSION`: bare String for collapsible plain text, Compound otherwise) and only when TrackOutput is set, read via `TextComponent::from_nbt`; matches vanilla `BaseCommandBlock#save/load`. `command/mod.rs#send_message` appends the `[HH:mm:ss] ` prefix child using local time (`now_local`, `now_utc` fallback), matching `sendSystemMessage`. Consumers in `block/blocks/command.rs` and both `pumpkin-wasm-host-v0_1/v0_2/src/block_entity.rs` use the new type. Round-trip unit tests exist in `command_block.rs`.
+- Row 3 (player source text name): FIXED. `command/mod.rs#player_source` passes `player.get_name().get_text()` for textName and `get_display_name()` for the display name, matching vanilla `ServerPlayer#createCommandSourceStack`.
+
+No remaining in-scope STILL OPEN rows; no new unit-test seam (all seams already covered by existing round-trip tests). Compilation not run (worker shell denied; orchestrator compiles once).

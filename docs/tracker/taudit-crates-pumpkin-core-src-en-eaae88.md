@@ -68,3 +68,16 @@ Fresh verification against `.vendor/vanilla-decompiled/net/minecraft/advancement
 - Row 13 (effects_changed distance): already fixed. `matches_effects_changed_condition` takes source_distance and the trigger passes it.
 
 Formatting: `rustfmt --edition 2024` run on predicate.rs and trigger.rs (both rc 0). Cargo check not run (worker must not compile); orchestrator will batch compile.
+
+
+## Result
+
+Fresh pass on the three still-open items against '.vendor/vanilla-decompiled/net/minecraft/advancements/predicates/entity/' (VehiclePredicate.java, PassengerPredicate.java, EntityPredicate.java, EntitySubPredicates.java) and the current source. This section supersedes earlier Result sections.
+
+- Row 3 (EntityPredicate fields): PARTIALLY FIXED. Vanilla 'VehiclePredicate.matches' calls its nested predicate with 'entity.getVehicle()' and fails when the entity has no vehicle. Added 'EntityState.vehicle_type', populated from 'living.entity.get_vehicle()' in 'EntityState::from_living', and 'EntityPredicate::matches_entity' now enforces the parsed 'vehicle' type against it (no vehicle -> false). Added the pure unit test 'entity_vehicle_predicate_is_enforced'. Still OPEN in this row: 'nbt', 'slots', 'type_specific' and the parsed 'passenger_type' / 'looking_at' / 'feet_item' remain unevaluated. 'passenger_type' is parsed from 'vehicle.passenger.type', i.e. a passenger of the vehicle rather than of the target, so matching it needs the vehicle's passengers plus a nested-predicate model; 'looking_at'/'nbt'/'slots' need further entity state. That is a larger state/predicate refactor spanning these files and their callers, not a safe compile-less pass.
+- Row 7 (PlacedBlock actual stack): OPEN, BLOCKED by scope. The predicate side already accepts item_count + enchantments, but 'AdvancementTrigger::PlacedBlock' carries only 'block_id' and 'trigger.rs' passes count 1. The emitter is 'block/registry.rs:964', outside this unit.
+- Row 8 (item condition count): OPEN, BLOCKED by scope. 'matches_item_condition' accepts count, but the ConsumeItem / FilledBucket / FishingRodHooked / UsedTotem / ShotCrossbow enum variants carry only 'item_id' and pass count 1; their emitters ('entity/living.rs', 'item/items/' with bucket/crossbow, 'entity/projectile/fishing_bobber.rs') are outside this unit.
+
+No generated data, WIT or cross-crate changes were made. rustfmt was not run (shell denied for this worker); inserted code follows the surrounding style and was verified by read-back. The orchestrator will compile and rustfmt.
+
+Status: UNVERIFIED fixed=1 open=3 files=predicate.rs

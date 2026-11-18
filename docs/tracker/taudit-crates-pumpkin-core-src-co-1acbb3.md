@@ -228,3 +228,50 @@ summon.rs; no compile was run per unit rules, the orchestrator batch-checks.
 
 - Row 4 (`if function` gap) and row 3 are unchanged from the previous pass.
 - Row 7 (store score into orphan objective): BLOCKED-M. Vanilla `Scoreboard.removeObjective` removes the objective's scores (`.vendor/vanilla-decompiled/net/minecraft/world/scores/Scoreboard.java:302-314`) and a stored score can still target the orphan `Objective` instance. Pumpkin's `Scoreboard` keys scores by holder name and objective name, so an orphan score has no identity to live under. `write_stored_score` in `commands/execute.rs:938-968` therefore keeps skipping inactive objectives. Fix needs an objective-identity model in `world/scoreboard.rs`.
+
+## Result (native-2 / final re-audit)
+
+Re-checked every STILL OPEN row against the decompiled tree and the current checkout. The
+native-1 "BLOCKED-M" note for row 7 went stale: an objective-identity model now exists in
+`world/scoreboard.rs` (`ScoreboardObjective.identity` + `is_same`, `orphan_scores`,
+`set_orphan_score`/`get_orphan_score`), and `write_stored_score` (execute.rs:938) writes into
+the captured objective when it is no longer live. This matches vanilla
+`storeValue` -> `getOrCreatePlayerScore(name, capturedObjective)` (ExecuteCommand.java:426-436,
+Scoreboard.java:121-130,156), where a removed objective's score is still created on the
+captured instance. All other rows (1-6, 8) remain implemented as logged previously.
+
+- 1. if blocks block-entity comparison: FIXED (already in code). `count_blocks_match` compares
+  state ids then source/destination `resource_location()` and `write_nbt` payload
+  (ExecuteCommand.java:977-1005). No data-components API in Pumpkin.
+- 2. Predicate reference/inline shape: FIXED (already in code). Reference predicates resolve via
+  `datapack_manager.get_predicate` with ORIGIN/THIS_ENTITY params; an unknown id raises
+  `argument.resource_or_id.no_such_element`; a bare inline list matches nothing.
+- 3. `if items` / 4. `if function`: STALE, already implemented and covered by the parse tests.
+- 5. `on origin`: FIXED (already in code). `traceable_owner` covers projectiles/items via
+  `get_owner_entity` plus the `EntityReference` of TNT, area effect clouds and evoker fangs.
+  Vex still has no owner tracking in Pumpkin.
+- 6. Positioned over ocean_floor: FIXED (already in code). `get_ocean_floor_height` scans the
+  column with the `blocks_motion_in_heightmap` tag; `heightmap_kind` accepts only the four
+  kept heightmaps.
+- 7. store score orphan objectives: FIXED (identity model present). Additionally fixed a latent
+  bug in `load_saved_nbt` (world/scoreboard.rs:1013): it cleared objectives/scores/display
+  slots/teams but left stale `orphan_scores`, contradicting its "replaces the contents" contract.
+  Added `self.orphan_scores.clear();`.
+- 8. execute summon duplicate UUID: FIXED (already in code). `ERROR_DUPLICATE_UUID` refusal in
+  `execute_summon_modifier`.
+
+Added the pure unit test `loading_saved_nbt_discards_orphan_scores` in execute.rs (the only seam
+that needs no live world for the scoreboard change). `unwrap` in tests is allowed by
+`#![cfg_attr(test, allow(clippy::unwrap_used, ...))]` in pumpkin-core/src/lib.rs. No compile run
+per unit rules; orchestrator batch-checks. No em dashes, no println, no generated/WIT/data edits.
+\n## Result (verification pass)
+
+- 1. if blocks block-entity comparison: FIXED. count_blocks_match (execute.rs:1484) compares state ids, then source/destination block entity resource_location() and write_nbt payload. Vanilla also compares data components, which Pumpkin has no API for. No further changes needed.
+- 2. Predicate reference and inline shape: FIXED. test_predicate (execute.rs:328) resolves LootPredicate::Reference through datapack_manager.get_predicate with ORIGIN/THIS_ENTITY loot params. An unknown id raises argument.resource_or_id.no_such_element; a bare inline list matches nothing (vanilla parses inline predicate as one LootItemCondition).
+- 3. if items missing: FIXED (already implemented). literal("items") tree registers entity and block sources with slots and item_predicate arguments plus the numeric conditional executor. Parse test covers it.
+- 4. if function missing: FIXED (already implemented). function_condition_value and literal("function") trees report the function's return value. Covered by parse tests.
+- 5. on origin exact only for projectiles: FIXED. traceable_owner (execute.rs:1880) covers projectiles and item entities through get_owner_entity plus the EntityReference of primed TNT, area effect clouds and evoker fangs. Vex still has no owner tracking in Pumpkin.
+- 6. Positioned over ocean_floor fallback: FIXED. get_ocean_floor_height scans the column with the blocks_motion_in_heightmap tag; execute_positioned_over_modifier uses it. Heightmap ids now resolve through heightmap_kind, which accepts exactly the four keepAfterWorldgen types and rejects *_wg ones.
+- 7. store score orphan objectives: FIXED. Identity model in world/scoreboard.rs (ScoreboardObjective.identity + is_same, orphan_scores, set_orphan_score/get_orphan_score) enables write_stored_score to write into the captured objective when it is no longer live, matching vanilla storeValue -> getOrCreatePlayerScore. Added self.orphan_scores.clear() fix in load_saved_nbt. Pure unit test loading_saved_nbt_discards_orphan_scores added in execute.rs.
+
+No source files needed editing this pass. rustfmt --edition 2024 was previously run on execute.rs and summon.rs. No compile run per unit rules; orchestrator batch-checks.

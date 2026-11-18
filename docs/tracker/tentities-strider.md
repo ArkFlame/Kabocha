@@ -41,3 +41,11 @@ Source: `crates/pumpkin-core/src/entity/passive/strider.rs` (registered at `crat
 - Verified no server change (row strider.rs:178 passenger attachment): vanilla `getPassengerAttachmentPoint` applies the rider offset only when `level().isClientSide()`; the server path returns `super`, so there is no server behaviour to port.
 - No pure unit-test seam (world/RNG/plugin/event driven); skipped per MVP test rules.
 - No .rs source edits this pass (all fixable rows already present in tree); no rustfmt run needed.
+
+## Result (second pass: vanilla navigation verification)
+- RESOLVED (row `strider.rs:35` navigation) against `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Strider.java`: vanilla `Strider.createNavigation` returns `StriderPathNavigation extends GroundPathNavigation` whose `createPathFinder` installs a `WalkNodeEvaluator` (Strider.java:388-389, 523-532). That is exactly Pumpkin's default walk navigator, so the doc's proposed `Mob::create_navigation` hook + `AmphibiousPathNavigation` would be a parity regression, not a fix.
+- All extra vanilla `StriderPathNavigation` behavior is already present in tree: `isStableDestination` treating lava as stable (Strider.java:534-537) = `Mob::is_stable_destination` in `strider.rs:251`, consumed by wander target selection via `ai/util/goal_utils.rs:40` (`default_random_pos.rs:128`, `land_random_pos.rs:172`); constructor pathfinding maluses WATER -1.0 / LAVA 0.0 / FIRE_IN_NEIGHBOR(DangerFire) 0.0 / FIRE(DamageFire) 0.0 (Strider.java:96-99) = `strider.rs:56-64`; `getWalkTargetValue` seeks lava (Strider.java:393-399) = `strider.rs:262`. Lava nodes are emitted by `pathfinding_context.rs:134` at 0.0 cost, so striders already target and path across lava. No code change.
+- CONFIRMED no server change (row `strider.rs:178` passenger attachment): vanilla `getPassengerAttachmentPoint` returns `super` when `!level().isClientSide()` (Strider.java:190-199); the rider offset is a client-only visual effect.
+- No .rs edits this pass and no pure unit-test seam (navigation/world/plugin driven); skipped per MVP test rules.
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tentities-strider.md

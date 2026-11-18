@@ -147,3 +147,72 @@ full paths in tests, `#[must_use]`/`const fn` where applicable, `unwrap_or_else(
 instead of unwrap, `tracing`-free, and re-export via `pub use recipe_book_add::*;` (play/mod.rs:173)
 so recipe.rs imports resolve. No rows remain open. No .rs file edited, so rustfmt not run; the two
 pure unit tests and compilation are left to the orchestrator batch check.
+
+
+## Result
+
+Fourth verification pass (worker, direct). Re-checked rows still marked STILL OPEN in "## Gap
+status" (1-5) against current sources and available vanilla refs in .vendor (no decompiled
+`RecipeCommand`/`ServerRecipeBook` found; compared to vanilla semantics documented in header).
+
+- 5. Raw argument in error text (XS): VERIFIED, no code change. `get_argument::<Identifier>`
+  parsed id is rendered with namespace (`Identifier::to_string()`), matching parsed
+  `ResourceLocation` echo; `ERROR_RECIPE_NOT_FOUND` passes that string.
+- 4. Suggestion provider ids (S): VERIFIED fixed in allowed files. `recipe_suggestion_ids`
+  (`recipe.rs:99`) filters `SpecialCrafting`, dedupes via `HashSet`, suggests only manager
+  `recipe_id()` keys; provider uses it (`:125`). Pure test
+  `recipe_suggestions_are_unique_and_skip_special` at `:360`.
+- 3. Display-id layout duplicated (S): VERIFIED fixed in allowed files.
+  `static_recipe_display_count`/`dynamic_recipe_has_display`/`dynamic_recipe_display_ids`
+  (`recipe_book_add.rs:71,87,98`) are shared: writer total/count/skip/increment at
+  `:567-575,:613-615,:664`; `take` uses `dynamic_recipe_display_ids` (`recipe.rs:242`). Static
+  writer returns `Ok(false)` for `CraftingSpecial`/`CraftingDecoratedPot` (`:502-503`), aligned
+  with dynamic display set (crafting/cooking only).
+- 1. No server-side recipe book (M): VERIFIED fixed; persistence outside unit
+  (`Player.known_recipes` in `player.rs:884`, used by give/take `:174,:266`). Give uses
+  `new_learnable_recipes`/`learnable_recipe_id`, inserts only unknown non-special ids, sends
+  `CRecipeBookAdd` only when added non-empty, returns added count, throws
+  `COMMANDS_RECIPE_GIVE_FAILED` when total == 0 (`:177-195`), matching
+  `ServerRecipeBook.addRecipes` semantics.
+- 2. take remove packet / wrong count (M): VERIFIED fixed in allowed files.
+  `take_display_ids` removes only known ids with display (`:73-96`), `take` sends
+  `CRecipeBookRemove` only when removed non-empty, returns removed count, throws
+  `COMMANDS_RECIPE_TAKE_FAILED` when total == 0 (`:269-281`), matching
+  `ServerRecipeBook.removeRecipes` semantics. Pure test
+  `take_removes_only_known_recipes_with_displays` at `:396`.
+
+No .rs edits in this pass (all fixes/tests present). No rustfmt/cargo run per worker rules;
+compilation and unit tests deferred to orchestrator batch check. No rows remain open.
+
+
+## Result
+
+Fifth verification pass (worker, direct, no cargo/git). Rows re-checked against decompiled
+`server/commands/RecipeCommand.java` (found in .vendor) and `stats/ServerRecipeBook.java`.
+
+- 1. No server-side recipe book (M): VERIFIED fixed outside unit. `Player.known_recipes`
+  (player.rs:884) is persisted and used by give/take; give adds only unknown learnable ids,
+  sends CRecipeBookAdd only when something was added, returns the added count and throws
+  give.failed at 0, matching `ServerRecipeBook.addRecipes`.
+- 2. take remove packet / count (M): VERIFIED fixed. `take_display_ids` removes only known
+  learnable ids that have a display, sends CRecipeBookRemove only when non-empty, returns the
+  removed count, throws take.failed at 0.
+- 3. Display-id layout duplicated (S): VERIFIED fixed. `static_recipe_display_count`,
+  `dynamic_recipe_has_display`, `dynamic_recipe_display_ids` (recipe_book_add.rs:71/87/98) are the
+  single source for the writer's entry count and skip set and for `/recipe take`.
+- 4. Suggestion provider ids (S): VERIFIED fixed. `recipe_suggestion_ids` suggests manager keys
+  only, skips special crafting, dedupes.
+- 5. Raw argument in error text (XS): VERIFIED, no change. The parsed Identifier is echoed.
+
+New this pass (parity bug in the same rows): both executors matched the recipe argument through
+`get_recipe_id`, which falls back to the result item id for crafting recipes without a manager key.
+Vanilla resolves the argument with `RecipeManager` keys only, so `/recipe give @a minecraft:dirt`
+could match a keyless recipe and report "No new recipes were learned" instead of "Unknown recipe".
+Replaced with `recipe_matches` (key equality only) and added the pure unit test
+`recipe_matching_uses_manager_keys_only`.
+
+Files touched:
+- crates/pumpkin-core/src/command/commands/recipe.rs
+
+Checks: none run (worker rules forbid cargo/git; rustfmt deferred to orchestrator). Compilation and
+the three recipe unit tests are left to the orchestrator batch check.

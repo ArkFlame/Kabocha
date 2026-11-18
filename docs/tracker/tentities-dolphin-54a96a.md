@@ -201,3 +201,15 @@ drifted. No source file (dolphin.rs / squid.rs) was changed.
   `MoveToItemGoal.stop()` (`:578-581`), `PlayWithItemsGoal` drops in both `stop()` and `tick()`
   (`:613-620`). Pumpkin's split matches; the proposed merge would diverge.
 - Files touched: doc only. rustfmt not applicable. No unit test added: no code seam to guard.
+
+
+## Result (CODER re-verify 2)
+
+No row is marked STILL OPEN (the Gap status section lists 1-4 CLOSED/NO GAP), so per task scope there is nothing to fix. Independently re-verified all four against the decompiled tree at `.vendor/vanilla-decompiled/net/minecraft/`, smallest-first; every row is NO GAP and current Pumpkin source has not drifted. No source file (dolphin.rs / squid.rs) changed; no test seam exists.
+
+- Row 2 (FISHES vs dolphin_food, S): NO GAP. `Dolphin.java:323` is `itemStack.is(ItemTags.FISHES)`; Pumpkin `dolphin.rs:414` is `item.has_tag(&tag::Item::MINECRAFT_FISHES)`. No `dolphin_food` check in vanilla; do not hardcode ids.
+- Row 3 (DolphinJumpGoal grouping, S): NO GAP. `DolphinJumpGoal.java:56-59` is `(!(yd*yd < 0.03F) || getXRot()==0 || !(abs(getXRot())<10) || !isInWater()) && !onGround()`, the OR grouping Pumpkin uses (`goals.rs:427-435`). Keep the current condition.
+- Row 4 (PlayWithItemsGoal split 7/8, S): NO GAP. `Dolphin.java:176-177` registers `MoveToItemGoal` at 7 and `PlayWithItemsGoal` at 8 as two separate goals. Pumpkin's split matches; a merge would diverge.
+- Row 1 (ageable, M): NO GAP. `Dolphin.java:74` is `public class Dolphin extends AgeableWaterCreature`, with `canAgeUp()`/`ageUp()` at `:328-330`. Pumpkin `impl AgeableMob` (`dolphin.rs:148`), `impl AgeableWaterCreature` (`:158`) and age-up branch (`:417-423`) match. Do NOT de-ageable or touch `entity/type.rs`.
+- Verification source: `Dolphin.java` and `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/DolphinJumpGoal.java`.
+- Files touched: doc only. rustfmt not applicable. No unit test added: no code seam to guard.

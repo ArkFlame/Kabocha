@@ -127,3 +127,24 @@ read only; no generated data, WIT or cross-crate changes were involved.
 
 No pure seam exists for `is_scared_by`, so no new unit test was added. No edits made this pass.
 Per unit rules no cargo/git was run; compilation is left to the orchestrator.
+
+
+## Result (re-audit 2026-11-18, third pass)
+
+Re-verified rows 1-6 against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/armadillo/Armadillo.java`.
+Rows 1-5 stay CONFIRMED with no code change (gating on `isScared()`, `(damage - 1.0) / 2.0`, 5-tick
+`ARMADILLO_SCARE_DETECTED` sensor, `actuallyHurt` branch order, three `isScaredBy` clauses,
+`BABY_ID` const assert). Row 6 stays CONFIRMED by the existing pure state-id test. `ageable.rs`
+was not touched; no generated data, WIT or cross-crate changes.
+
+Two unlisted parity gaps found while reading the same vanilla class and fixed in `armadillo.rs`:
+
+- `getMaxHeadYRot` (Armadillo.java:367-369) returns 0 while scared and 32 otherwise. Pumpkin had no
+  override, so the head turned freely while rolled up. Added `Mob::get_max_head_rotation` returning
+  `0.0` when `is_scared()` else `32.0`.
+- `canFallInLove` (Armadillo.java:337-339) is `super.canFallInLove() && !isScared()`, and
+  `Animal.canFallInLove` (Animal.java:175-177) is `inLove <= 0`. Added the `Animal::can_fall_in_love`
+  override `!is_scared() && !is_in_love()`, so a scared armadillo ignores food breeding.
+
+No pure seam exists for `is_scared_by`; the state-id test already covers the pure armadillo logic.
+No cargo/git run per unit rules; compilation and rustfmt are left to the orchestrator.

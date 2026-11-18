@@ -165,3 +165,29 @@ Open rows:
 
 ## Result (native-4 cross-file pass)
 - Datapack/modded structures (`wanted_structures`): BLOCKED-DATA. Needs a dynamic `worldgen/structure` registry in generated pumpkin-data.
+
+
+## Result (locate deep-audit continuation)
+
+Re-verified every STILL OPEN row against the decompiled vanilla tree in
+`.vendor/vanilla-decompiled/net/minecraft`
+(`server/commands/LocateCommand.java`, `world/level/chunk/ChunkGenerator.java`,
+`core/SectionPos.java`). One new parity fix applied this pass; no compile run
+(workers do not compile, orchestrator batch-checks).
+
+| Row | Outcome |
+|---|---|
+| Stronghold blocking search (`locate.rs`) | Already matches Canvas (`LocateCommand.java:109-112`): the `StructureSearch::Pending` arm sends "Searching for <name>..." and returns 0. No change. |
+| Datapack/modded structures via registry (`wanted_structures`) | OPEN (out of scope): resolving custom `worldgen/structure` ids needs a dynamic registry in generated `pumpkin-data`; `StructureKeys::from_name` only knows vanilla ids (generated-data / cross-crate change). |
+| POI argument type (`resource_or_tag.rs`) | Already fixed: `ResourceOrTagArgument::parse` rejects unknown POI ids via generated `pumpkin_data::poi_type::PoiType::from_name` (`:162-164`) plus `poi_ids_are_validated_at_parse_time`; matches vanilla `resourceOrTag(POINT_OF_INTEREST_TYPE)`. |
+| All placements per structure set | Already fixed: `structure_sets_containing` returns every set index (vanilla `getPlacementsForStructure` returns a list); `all_sets_containing_a_structure_are_returned` test. |
+| Random-spread nearest ordering (`structure_finder.rs`) | Already fixed: `find_nearest_structure` evaluates every placement at a radius, keeps the nearest, and advances only after the whole ring (vanilla `ChunkGenerator.java:242-271`). |
+| Stronghold distance ranking (`find_nearest_concentric`) | FIXED (this pass): vanilla ranks ring candidates at the chunk CENTER `(chunk<<4)+8, y=32, (chunk<<4)+8` (`ChunkGenerator.java:296`, `SectionPos.sectionToBlockCoord(chunk,8)` = `sectionToBlockCoord` + 8 at `SectionPos.java:133-138`); Pumpkin ranked at chunk min x/z. Distance now uses `(bx + 8, 32, bz + 8)` while the reported position stays `(bx, 0, bz)` (`getLocatePos`). No pure seam for a unit test (needs a populated `GlobalStructureCache`). |
+| Structure arm placement candidates (`locate.rs:273-279`) | No change: verified the premise is invalid. `findNearestMapStructure` -> `getNearestGeneratedStructure` -> `getStructureGeneratingAt` calls `checkStructurePresence` (`ChunkGenerator.java:349-362`), so only real starts are reported; the start-resolving code already matches. |
+| Bedrock success arguments (`locate.rs`) | Already fixed: `send_success` uses `translate_cross_with` with `bedrock_success_args`, and the cross-cutting split now exists in `pumpkin-util/src/text/mod.rs` (`bedrock_with` field threaded through Java/Bedrock packets; `legacy.rs` reads the Java `with`). The tracker's "STILL OPEN" note is stale. |
+
+Files changed this pass: `crates/pumpkin-world/src/generation/generator/structure_finder.rs`,
+`docs/tracker/taudit-crates-pumpkin-core-src-co-e958f4.md`.
+
+Open rows:
+- Datapack/modded structures: needs a dynamic `worldgen/structure` registry in generated `pumpkin-data` (generated-data / cross-crate change).

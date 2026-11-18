@@ -140,3 +140,81 @@ cargo or git run per task.
 ## Result (native-4 cross-file pass)
 - Row 6 (ClientboundExplodePacket blockCount): FIXED (present). `world/mod.rs:5140` sends `result.block_count`; `world/explosion.rs:822-833` counts air positions when fire is created, covered by test `incendiary_block_count_includes_air_positions` (explosion.rs:1114).
 - Row 8 (finalizeExplosion particles/sound): FIXED (present), see `world/mod.rs:5124-5130`.
+
+## Result (block_explode.rs pass 2026-11-18)
+
+Checked the STILL OPEN rows of this unit against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/ServerExplosion.java` (Paper/CraftBukkit
+instrumented) and `.../block/state/BlockBehaviour.java`.
+
+- Row 1 (block list + yield): VERIFIED applied upstream of this file. Vanilla
+  `interactWithBlocks` (:610-643) fires the event with the non-air list and
+  `yield = 1.0/radius` only for `DESTROY_WITH_DECAY` (:317-319), then rebuilds `targetBlocks`
+  from `event.blockList()` and re-reads `event.getYield()`; `explosion.rs:905-923` already does
+  exactly that. FIXED in this pass: `BlockExplodeEvent` was missing the `BlockEvent` trait impl
+  that Paper's `org.bukkit.event.block.BlockExplodeEvent` inherits (`getBlock()` = block at the
+  explosion centre, `ServerExplosion.java:632`), so plugins resolving the event through the
+  generic block-event path got nothing. Added `impl BlockEvent for BlockExplodeEvent`
+  (`block_explode.rs:39-44`); every other block event in this crate already has it.
+- Row 2 (unloaded-chunk force-load): LEFT OPEN, not this file. `load_chunk_for_explosion`
+  (`explosion.rs:127-151`) already force-loads via `get_or_fetch_chunk`; the remaining
+  current-thread-runtime fallback is a `Level` change outside this unit.
+- Row 4 (seeded level RNG): LEFT OPEN, not this file. `world.explosion_random` exists
+  (`world/mod.rs:376,700`) and is already used at `explosion.rs:497-502,822-831`.
+- Row 6 (`ClientboundExplodePacket.blockCount`): LEFT OPEN, not this file (packet built in
+  `world/mod.rs`). Vanilla `explode()` returns `toBlow.size()` after the event filter, while
+  Pumpkin returns the pre-filter count; the fix belongs to `explosion.rs`/`world/mod.rs`.
+- Row 8 (`finalizeExplosion` particles/sound): LEFT OPEN, not this file (`world/mod.rs`).
+- New sub-gap recorded, not fixed: Paper's `BlockExplodeEvent` also carries the exploded
+  `BlockState` snapshot (`ServerExplosion.java:632-634`); adding a field changes
+  `BlockExplodeEvent::new` arity, and the only call site is `explosion.rs`, outside this unit.
+- Rows 3, 5, 7: unchanged from earlier passes (VERIFIED MATCHING / FIXED).
+
+Changed: `crates/pumpkin-core/src/plugin/api/events/block/block_explode.rs`.
+No pure unit test added: the only new behaviour is a world lookup inside a data holder, with no
+seam that is not a World-backed integration test. No rustfmt/cargo/git run (per task brief).
+
+
+## Result (SECOND PASS, cross-file permitted, 2026-11-18)
+
+Allowed to touch any cross-file row this pass; re-verified every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/ServerExplosion.java`,
+`.../damagesource/DamageSources.java` and the current Pumpkin source. `explosion.rs` is being
+edited concurrently by another worker, so no shared-file edit was attempted.
+
+- Row 1 (block list + yield, block_explode.rs): VERIFIED applied and correct. Vanilla
+  `interactWithBlocks` (:610-643) fires the event with the non-air block list, reads
+  `event.blockList()`/`event.getYield()` and rebuilds the target list; `explosion.rs:915-923`
+  mirrors this, and `BlockExplodeEvent` exposes mutable `blocks`/`yield_rate`. `BlockEvent`
+  impl present (:41-44). New sub-gap (Paper's `BlockState` snapshot at :632-634) LEFT OPEN:
+  no `getExplodedBlockState` API seam in this crate and adding a field changes `new()` arity
+  at the `explosion.rs` call site (concurrently edited); a spec-only change without the
+  CraftEventFactory source would be a guess.
+- Row 2 (unloaded-chunk force-load): force-load is present and tested
+  (`load_chunk_for_explosion` at explosion.rs:127-151, test at :1267). Only the
+  current-thread-runtime fallback remains (:140-149), which keeps the air fallback to avoid a
+  `block_on`/`block_in_place` deadlock. Fixing it needs an async chunk prefetch before the sync
+  tick (a Level-wide subsystem change), so it is BLOCKED here, not a minimal edit.
+- Row 3 (entity blast resistance with custom calculator): VERIFIED MATCHING. Pumpkin applies
+  `source.get_block_explosion_resistance` only when `damage_calculator.is_none()`
+  (explosion.rs:568-572), matching `ServerExplosion` wrapping the source only when the
+  calculator is null. Doc premise was inverted; no change.
+- Row 4 (seeded level RNG): VERIFIED FIXED. `World::explosion_random` is seeded from
+  `level.seed.0` (world/mod.rs:700) and drives ray power (explosion.rs:497-501) and fire rolls
+  (:824-830), matching vanilla `level.getRandom()` (:410,674).
+- Row 5 (`is_small` Keep clause): VERIFIED MATCHING. Vanilla `radius < 2.0 || !interactsWithBlocks()`
+  (:770-772) == Pumpkin `power < 2.0 || Keep` (explosion.rs:395-397). No change.
+- Row 6 (`ClientboundExplodePacket.blockCount`): LEFT OPEN as a deliberate client-visual
+  divergence. Vanilla Mojang `explode()` returns `toBlow.size()` from
+  `calculateExplodedPositions()` BEFORE the (CraftBukkit-only) event filter, including air
+  positions when fire (:371-468, :694, :711); Pumpkin returns the same pre-filter count
+  (explosion.rs:611,984), locked by `incendiary_block_count_includes_air_positions` (:1123).
+  Paper's post-event-filter count (:640-643) would regress that test and is client-visual only.
+- Row 7 (damage type): VERIFIED FIXED. `DamageSources.explosion` selects `PLAYER_EXPLOSION`
+  when both direct and indirect sources exist (DamageSources.java:251-256); `damage_type()`
+  gates on exactly that (explosion.rs:346-354). No change.
+- Row 8 (`finalizeExplosion` particles/sound): VERIFIED FIXED in world/mod.rs:5122-5147
+  (packet carries particle/sound and `play_sound = !source.is_silent()`). No change.
+
+No `.rs` source edited this pass (no safe minimal fix found in the designated file;
+`explosion.rs` is concurrently owned), so no rustfmt/cargo/git run.

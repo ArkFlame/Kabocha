@@ -158,3 +158,54 @@ registry-id validation paths match vanilla (TimeCommand.java:104,281,295 and the
 
 No pure seam for a new test; existing tests unchanged. No compile run (orchestrator builds all).
 Files touched: docs/tracker/taudit-crates-pumpkin-core-src-co-122988.md (this Result only).
+
+## Result (pass 4)
+
+Re-checked the three STILL OPEN rows. This unit now also covers `data.rs`, so gap 8
+was fixable by reuse instead of duplication. Smallest first:
+
+- 8. rate float formatting: FIXED. Vanilla `setRate` passes a raw float to
+  `Component.translatable("commands.time.rate", clock, rate)` (TimeCommand.java:294),
+  which Java renders with `Float.toString`; Rust `{rate:?}` diverges for rates in
+  [1e-5, 1e-3) (e.g. "1e-5" vs Java "1.0E-5") within the valid [1e-5, 1000] range.
+  Exposed the existing `java_float_to_string` in data.rs as `pub(crate)` and replaced all
+  six `format!("{rate:?}")` call sites in time.rs (469/476/483/645/655/662) with
+  `super::data::java_float_to_string(rate)`. Added pure test
+  `java_float_to_string_matches_java_format` in data.rs covering 1.0/0.5/1000/1e-5/1e-4.
+- 6. Bedrock rate key: LEFT OPEN. Needs a new generated translation key
+  (crates/pumpkin-data/src/generated, outside this unit); `COMMANDS_TIME_SET` fallback kept.
+- 7. query day/daytime for arbitrary timelines: LEFT OPEN. Needs the timeline registry and
+  world/time.rs (outside this unit); `ensure_day_timeline_clock` still covers `minecraft:day`
+  and the vanilla `wrong_timeline_for_clock` path.
+
+No compile run (orchestrator builds all). Files touched: data.rs (visibility + test),
+time.rs (6 call sites), this Result.
+
+## Result (pass 5, second pass - full file scope)
+
+Re-verified the two STILL OPEN rows against vanilla
+`.vendor/vanilla-decompiled/net/minecraft/server/commands/TimeCommand.java` (26.3) and the
+generated translation table. Smallest first. No source change was possible without a
+generated pumpkin-data field or a whole missing subsystem, so both are BLOCKED.
+
+- 6. Bedrock `/time rate` message: BLOCKED. Vanilla Java has `commands.time.rate` with
+  doc "Clock %s will now advance at %sx normal rate" and `commands.time.rate.already_same`;
+  the generated Bedrock table has NO rate key (only CLOCK_SET/ADDED/PAUSED/RESUMED/
+  QUERY_TIME/FAILED/NUM_TOOSMALL/TIMEMARKER_*). A correct Bedrock message therefore needs
+  a new generated translation key in crates/pumpkin-data/src/generated (off-limits, needs the
+  Extractor); the `COMMANDS_TIME_SET` ("Set the time to <rate>") fallback is kept as-is.
+- 7. query day/daytime for arbitrary timelines: BLOCKED. Vanilla `queryTimelineTicks`/
+  `queryTimelineRepetitions` (TimeCommand.java:170-193) resolve a `timeline` resource through
+  `Registries.TIMELINE` and reject a clock mismatch with `wrong_timeline_for_clock`. Implementing
+  arbitrary timelines needs the timeline registry subsystem (holder lookup, `getTimeline`
+  argument, `suggestTimelines`, `repetition` subcommand and `getCurrentTicks`/`getPeriodCount`
+  routed per clock) which Pumpkin does not have; it is not a small change. Existing
+  `ensure_day_timeline_clock` still covers the `minecraft:day` timeline and the vanilla
+  mismatch error path, so no parity is lost by leaving this open.
+
+Also re-checked the already-CLOSED rows; no regressions. Gap 8 fix is intact in the tree:
+data.rs:588 exposes `java_float_to_string` as pub(crate) with the Java-format test at :1263,
+and time.rs uses it at the six rate call sites (469/476/483/645/655/662).
+
+No pure seam for a new test; no source files edited this pass (doc Result only).
+No compile run (orchestrator builds all).

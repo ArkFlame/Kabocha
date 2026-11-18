@@ -119,3 +119,40 @@ this checkout), target `V_26_3`. Smallest rows first.
 
 Files changed this pass: `crates/pumpkin-core/src/block/entities/structure_block.rs` (row 43 RNG
 ordering only). `rustfmt --edition 2024` applied. No compile run (worker restriction).
+
+
+## Result
+
+Re-verified every row still marked STILL OPEN in the table against the decompiled
+Paper/Canvas tree at `/run/media/linsaftw/SDD/tmp/mc-proof/ref/net/minecraft`
+(`.vendor/vanilla-decompiled` is absent here), target V_26_3. Smallest first.
+
+- Row 46 (empty palette + entities, S): ALREADY FIXED, no new change.
+  `place_structure_template_in_world` returns false only when the palette is empty AND
+  (`ignore_entities` OR no entities), matching StructureTemplate.java:271 and the
+  placeEntities call at :414-425.
+- Row 45 (LootTableSeed, S): ALREADY FIXED, no new change. `is_randomizable_container_id`
+  gates the seed (StructureTemplate.java:322-324). Verified the id set against vanilla's
+  RandomizableContainer implementors: Chest (incl. TrappedChest), Barrel, Dispenser,
+  Dropper (extends DispenserBlockEntity), Hopper, Crafter, DecoratedPot, ShulkerBox.
+- Row 44 (structure_void, S): NON-GAP, no change. Vanilla ignores STRUCTURE_VOID only at
+  capture (StructureBlockEntity.java:348-350); placeInWorld has no void filter
+  (StructureTemplate.java:288-311), and Pumpkin places every palette entry.
+- Row 43 (LegacyRand / integrity RNG, M): one real gap FIXED. Confirmed the base behaviour is
+  correct: RandomSource.create(seed) is LegacyRandomSource for this target, so Pumpkin's
+  48-bit LCG matches; StructureBlockEntity.java:418-420,428-430 builds two independent
+  streams from the same seed, and processBlockInfos (StructureTemplate.java:485-501) draws
+  BlockRotProcessor RNG for every palette entry because placeStructure never sets a
+  bounding box (chunkBb == null), matching Pumpkin's draw at the top of the placement loop.
+  NEW GAP: the guard used `clamped_integrity < 1.0`, where NaN was clamped to 0.0.
+  Vanilla gates on the raw `this.integrity < 1.0F` (StructureBlockEntity.java:418);
+  NaN < 1.0 is false, so vanilla adds no rot processor and drops nothing. A NaN integrity
+  packet (ServerGamePacketListenerImpl.java:1288 stores it unclamped) therefore made Pumpkin
+  drop every block. Added `integrity_rot_applies(integrity)` (raw `integrity < 1.0`)
+  as the guard plus a pure unit test for the NaN/1.0/below-one boundaries.
+- Row 42 (non-strict neighbour shapes, M): ALREADY FIXED, no new change. The `!strict` pass
+  runs update_shape_at_edge then update_from_neighbor_shapes and update_neighbors_at per
+  placed position (structure_block.rs:729-748), matching StructureTemplate.java:376-411,434-463.
+
+File changed: `crates/pumpkin-core/src/block/entities/structure_block.rs` (row 43 NaN guard
+and one pure unit test). No compile run (worker restriction); rustfmt applied by orchestrator.

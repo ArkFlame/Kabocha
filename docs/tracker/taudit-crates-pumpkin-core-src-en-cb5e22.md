@@ -100,3 +100,22 @@ Files changed: `crates/pumpkin-core/src/entity/decoration/display.rs`. `rustfmt 
 
 ## Result (native-4 cross-file pass)
 - Row 4 (`set_brightness` pre-packed int): BLOCKED-L. Correct fix needs an additive WIT change (`display.set-brightness` taking a plain level) applied to v0_1 and v0_2 host, SDK and runtime together, then `cargo run --locked -p pumpkin-codegen -- wit` (not run by the CODER; orchestrator must run it). Current `display.rs` already re-packs non -1 values, so behaviour is mitigated meanwhile.
+
+
+## Result (coder pass)
+- Re-verified rows 1-3 against decompiled vanilla: still fixed/matching (explosion immunity false on all three displays; TextDisplay flags rebuilt from zero with unknown alignment leaving bits unset; `text` NBT key always written with empty-string fallback).
+- Row 4 (`set_brightness` pre-packed int): STILL OPEN, out of scope for this unit. Needs WASM host API changes in `pumpkin-wasm-host-v0_1/-v0_2` display.rs and likely WIT/codegen; `crates/pumpkin-core/src/entity/decoration/display.rs` already mitigates by re-packing non -1 values and exposing `set_brightness_override(block, sky)` with clamping.
+- NEW FINDING, FIXED: display NBT reads now reset all fields to vanilla defaults when keys are missing or invalid, matching `Display.readAdditionalSaveData` (Display.java:212-224). Base: `interpolation_duration`/`start_interpolation` default 0, `view_range` 1.0, `shadow_radius` 0.0, `shadow_strength` 1.0, `width`/`height` 0.0, `glow_color_override` -1, `billboard` fixed, and `transformation` resets to identity on missing or malformed decode (vanilla `orElse(Transformation.IDENTITY)`). BlockDisplay: missing `block_state` defaults to air. ItemDisplay: missing/unreadable `item` defaults to empty and missing `item_display` defaults to none. TextDisplay: missing `line_width`/`background`/`text_opacity` default to 200/1073741824/-1; `text` remains set only when present and parseable, matching vanilla.
+- No new unit-test seam: `read_display_nbt`/`read_custom_nbt` require `DisplayEntity`/`Entity` construction tied to live entity state, so no pure test added.
+- Files changed: `crates/pumpkin-core/src/entity/decoration/display.rs`.
+
+
+## Result (second pass, cross-file scope)
+- Row 4 (`set_brightness` pre-packed int): FIXED in the current checkout, verified against decompiled vanilla. No new source change was needed this pass; the earlier BLOCKED-L entry was already resolved by an additive WIT + host change:
+  - WIT `crates/pumpkin-plugin-wit/v0.1/display.wit:99` and `v0.2/display.wit:103` both declare `set-brightness-override: func(block: s32, sky: s32)` (additive; `display` interface keeps its `/// @since 0.1.0`).
+  - WASM hosts `crates/pumpkin-wasm-host-v0_1/src/display.rs:448` and `v0_2/src/display.rs:451` both implement `set_brightness_override` and forward to the core. The plugin-api crates re-export the generated `DisplayEntity`, so the method is available to plugins directly.
+  - Core `display.rs:278` clamps block/sky to 0..=15 and packs; `display.rs:261` re-packs any non -1 value from its own 4-bit fields so the legacy packed-int setter cannot corrupt the bits.
+  - Vanilla `Display.setBrightnessOverride(@Nullable Brightness)` (Display.java:311-312) packs `Brightness(block, sky)`; the 0..=15 field range comes from `Brightness.CODEC`. Our API matches.
+- Rows 1-3 and the two NEW FINDINGS remain fixed/matching: explosion immunity false on all three displays; TextDisplay flags rebuilt from zero with unknown alignment leaving bits unset; `text` NBT key always written with empty-string fallback; brightness uses `LightCoordsUtil` packing (`block<<4 | sky<<20`, FULL_BRIGHT 15728880); NBT reads reset all fields to vanilla defaults. Unit test at display.rs:1280 asserts exact pack values.
+- No remaining STILL OPEN rows; no new unit-test seam (packing already covered). Source files changed this pass: none (all fixes already present); tracker doc updated. Orchestrator must regenerate WIT bindings via `cargo run --locked -p pumpkin-codegen -- wit` (not run by this worker).
+Status: PASS fixed=1 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-en-cb5e22.md

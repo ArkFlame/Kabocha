@@ -155,3 +155,35 @@ Reference: `.vendor/vanilla-decompiled/net/minecraft/` read directly for every S
 4. Per-world scoreboards vs server-wide vanilla (L): RESOLVED in current code, no change needed. Verified `ObjectiveArgument.java:34` reads `source.getServer().getScoreboard()`. Pumpkin now owns one shared scoreboard: `server/mod.rs:210-211` `pub scoreboard: Arc<Mutex<Scoreboard>>` ("The single scoreboard shared by every world, matching vanilla's server-wide scoreboard"), and `world.scoreboard = server.scoreboard.clone()` at `server/mod.rs:543,933`. Every world's `Scoreboard` is an `Arc` clone of the server's, so objectives are visible cross-dimension, matching vanilla.
 
 No code change and no new test: rows 1/2/4 are resolved in code with existing coverage, row 3 is parity or a cross-crate refactor outside this unit. No compile/test run (worker rule); orchestrator batch-checks.
+
+
+## Result (final verification, fresh read)
+
+Re-read all four STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/` and the current Pumpkin source; no code change was needed.
+
+1. Prefix matching on `filter_and_suggest*` call sites (S): RESOLVED, no change. `objective.rs:61` uses `filter_and_suggest_one`, which matches vanilla `ObjectiveArgument.listSuggestions:61` -> `SharedSuggestionProvider.suggest` (segment-aware `matchesSubStr`, `MATCH_SPLITTER` = `._/`). The earlier prefix variant was correctly reverted. Resource-id sites (`template.rs`, `resource_key.rs`) keep `filter_and_suggest_iter` for vanilla `suggestResource`/`filterResources`.
+
+2. Criteria as raw strings / no registry (M): RESOLVED, no change. `world/scoreboard.rs:1157 resolve_criterion` is the `ObjectiveCriteria.byName` equivalent (custom names, teamkill/killedByTeam colours, stat names with `:`); `commands/scoreboard.rs:72` validates it on `objectives add` and uses `resolved.render_type`. `objective.rs:25` derives read-only from the same table. Existing coverage in `world/scoreboard/tests.rs`.
+
+3. Argument errors without cursor context (M): no change in this unit. The audit premise is false for this version: vanilla `ObjectiveArgument.getObjective/getWritableObjective` (lines 37, 46) uses `DynamicCommandExceptionType.create(id)` WITHOUT a reader, so `objective.rs:85,99 create_without_context` is exact parity. Parse-time errors in `entity.rs:137`, `game_profile.rs:264`, `operation.rs:96` and `scoreboard_slot.rs:72` already use `.create(reader, ...)`; `error_types.rs:323` exposes the context-aware `.create(context_provider, ...)`. The only vanilla `createWithContext` case is `ObjectiveCriteriaArgument.parse:51`; Pumpkin has no such argument type (criteria resolve at execution time in `commands/scoreboard.rs`). LEFT OPEN, out of scope: needs a dedicated ObjectiveCriteriaArgument type plus parser/command wiring, a cross-crate refactor outside this unit.
+
+4. Per-world scoreboards vs server-wide vanilla (L): RESOLVED, no change. `server/mod.rs:211` owns one shared `Arc<Mutex<Scoreboard>>` cloned into every world at `:543`, matching vanilla `source.getServer().getScoreboard()` (`ObjectiveArgument.java:34`).
+
+No code change and no new test: rows 1/2/4 are resolved in code with existing coverage, row 3 is exact vanilla parity here with the sole residual gap an out-of-unit cross-crate refactor. No compile/test run (worker rule); orchestrator batch-checks.
+
+
+## Result (second pass, current-code recheck)
+
+Reference: `.vendor/vanilla-decompiled/net/minecraft/commands/arguments/ObjectiveCriteriaArgument.java` and `ObjectiveArgument.java` read directly; current Pumpkin source re-grepped.
+
+Re-verified every STILL OPEN row against the live tree; no code change was needed in this pass.
+
+1. Prefix matching on `filter_and_suggest*` call sites (S): RESOLVED, no change. `objective.rs:61`, `team.rs:37`, `operation.rs:122`, `scoreboard_slot.rs:85`, `score_holder.rs:134` and `parser.rs:610` all use `filter_and_suggest_one`, matching vanilla `SharedSuggestionProvider.suggest` (segment-aware `matchesSubStr`, `MATCH_SPLITTER` = `._/`). Resource-id sites (`template.rs:28`, `resource_key.rs:56,76,103`) keep `filter_and_suggest_iter` for vanilla `suggestResource`/`filterResources`. The earlier prefix variant was correctly reverted; `filter_and_suggest_one_prefix` remains only as an unused helper in `suggestions.rs` (its test lives outside this unit).
+
+2. Criteria raw strings / no vanilla registry (M): RESOLVED, no change. `world/scoreboard.rs:1162 resolve_criterion` is the `ObjectiveCriteria.byName` equivalent (custom names, teamkill/killedByTeam colours via `TEAM_COLORS`, stat names containing `:`, `None` otherwise); `commands/scoreboard.rs:72` resolves/validates on `objectives add` and stores `resolved.render_type`; `objective.rs:24-26` derives read-only from the same table. Matches `ObjectiveCriteriaArgument.parse:49` and `ScoreboardCommand.addObjective`. Covered by `world/scoreboard/tests.rs`.
+
+3. Argument errors without cursor context (M): STILL OPEN, out of scope. Re-read `ObjectiveCriteriaArgument.java:41-52`: parse consumes to whitespace, and on `byName` miss resets the cursor and calls `ERROR_INVALID_VALUE.createWithContext(reader, id)`. Pumpkin's `ObjectiveArgument` (`objective.rs:35-38,80-101`) uses `create_without_context`, which is exact parity for `ObjectiveArgument.getObjective/getWritableObjective` (vanilla lines 37,46 use `create(id)` WITHOUT a reader). The only vanilla `createWithContext` case is `ObjectiveCriteriaArgument.parse:51`, and Pumpkin has no `ObjectiveCriteriaArgument` type (criteria resolve at execution time in `commands/scoreboard.rs:72`). Reproducing the cursor needs a dedicated argument type plus parser/command wiring, a cross-crate refactor outside this unit. LEFT OPEN.
+
+4. Per-world scoreboards vs server-wide vanilla (L): RESOLVED, no change. `server/mod.rs:211` owns one shared `pub scoreboard: Arc<Mutex<Scoreboard>>` cloned into every world at `:543`, matching vanilla `ObjectiveArgument.java:34` `source.getServer().getScoreboard()`.
+
+No code change and no new test: rows 1/2/4 are resolved in code with existing coverage, row 3 is exact vanilla parity for `ObjectiveArgument` with the sole residual an out-of-unit cross-crate refactor. No compile/test run (worker rule); orchestrator batch-checks.

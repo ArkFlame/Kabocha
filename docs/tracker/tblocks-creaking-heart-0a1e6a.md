@@ -91,3 +91,33 @@ Re-checked every STILL OPEN row against `.vendor/vanilla-decompiled`. No source 
 | 6 piston push | VERIFIED (already correct) | Vanilla `PistonBaseBlock.java:284` `isPushable` returns `!state.hasBlockEntity()`; Pumpkin `piston.rs:92-99` uses the equivalent `!has_block_block_entity(block)`, and `CREAKING_HEART` carries a block entity, so it is already unpushable. |
 
 Also re-verified comparator rounding: vanilla `getAnalogOutputSignal` (`CreakingHeartBlockEntity.java:337-348`) is `SIGNAL_MAX - (int)floor(clamp(distance,0,32)/32*15)`, matching `blocks/creaking_heart.rs:141-148`. No test seam exists for rows 4/5 (live-world goal behaviour / client-only effects). No `.rs` touched, so no rustfmt. Not compiled in this role; orchestrator batch check.
+
+
+## Result (isActive target gate pass)
+
+Re-checked the sole STILL OPEN row (4) against decompiled vanilla (`CreakingAi.java:39-55,79-85`,
+`Creaking.java:499-519`). Found and fixed an in-unit parity gap in `creaking.rs`.
+
+| row | outcome | evidence |
+|---|---|---|
+| 4 creaking wander/melee goals | PARTLY FIXED (in unit) | Vanilla gates IDLE `StartAttacking` on `mob.isActive()` (`CreakingAi.java:44-46`) and gives a dormant creaking no attack behaviour (`updateActivity`, `CreakingAi.java:79-85`); `activate()` assigns the attack target directly (`Creaking.java:499-504`). Pumpkin's `ActiveTargetGoal` had no isActive gate, so a dormant creaking auto-acquired a nearby player and melee-attacked before ever being looked at. Added the `creaking_is_active` gate to the target goal in `creaking.rs` plus pure-in-file test `dormant_creaking_disables_target_gate`. Melee/wander gating on canMove, 40-tick interval, 0.3 idle speed and the 32-block home path rule were already correct. Full Brain/Activity behaviour-tree parity still needs new goal types under `entity/ai/goal/` (outside this unit), but the observable activation/targeting gating is now reproduced. |
+| 5 hurt particle / `setChanged` | STILL OPEN (client-only, out of unit) | Vanilla `creakingHurt` only emits client particles and seeds an emitter; no server divergence. |
+| 6 piston push | VERIFIED (already correct, no change) | `PistonBaseBlock.isPushable` = `!state.hasBlockEntity()`; Pumpkin `piston.rs:92-99` uses the equivalent `!has_block_block_entity` and the heart carries a block entity. |
+
+Rows 1-3 re-verified as already fixed (heart spawn/despawn, `is_protector` UUID match, mob teardown). No generated data, WIT or cross-crate change. Not compiled here (orchestrator batch check). Edits written via the context-mode sandbox Python runtime because no dedicated edit/write tool is exposed to this worker.
+
+
+## Result (second pass, cross-file edits enabled)
+
+Re-checked the three STILL OPEN rows against `.vendor/vanilla-decompiled`. One small in-unit parity
+gap was found and fixed; the rest are a whole missing subsystem or deliberate no-ops.
+
+| row | outcome | evidence |
+|---|---|---|
+| 4 creaking wander/melee goals | PARTLY FIXED (game-event parity); remainder BLOCKED | `Creaking.java:499-511` emits `GameEvent.ENTITY_ACTION` in `activate`/`deactivate`, `:224` on every `canMove` flip and `:166` on the invulnerability shake. Pumpkin emitted none. Added `GameEvent::EntityAction` via `world.emit_game_event(...)` in `creaking.rs` `activate`, `deactivate`, `mob_tick` canMove flip and `pre_damage_with_context` shake. This is server-observable (sculk sensors react). Full Brain/Activity/CORE/IDLE/FIGHT behaviour-tree parity (`CreakingAi.java:30-85`) still needs the whole Brain/Activity subsystem wired to this mob; Pumpkin's `entity/ai/brain` tree exists but is not wired to `CreakingEntity` and would require a cross-crate AI migration, so it is BLOCKED as a whole missing subsystem. The observable gating already present (canMove gating, 40-tick melee interval, 0.3 idle speed, isActive target gate, 32-block home path rule) was re-verified. |
+| 5 hurt particle / `setChanged` | NO-OP (verified) | `CreakingHeartBlockEntity.java:228-250` `creakingHurt` only emits client particles and seeds an emitter; it does not call `setChanged`. Server-observable parts (2-3 resin clumps, `RESIN_PLACE` sound, `BLOCK_PLACE` game event while awake) are already in `entities/creaking_heart.rs:253-277`. No server divergence. |
+| 6 piston push | VERIFIED (no change) | `PistonBaseBlock.java:284` `isPushable` = `!state.hasBlockEntity()`; Pumpkin `piston.rs:92-99` uses the equivalent `!has_block_block_entity` and the heart carries a block entity, so it is already unpushable. |
+
+Rows 1-3 re-verified as already fixed (heart spawn/despawn, `is_protector` UUID match, mob teardown).
+No generated-data, WIT or cross-crate change. No pure-test seam exists for the game-event emission
+(it needs live world state), so no unit test was added. Not compiled in this role; orchestrator batch check.

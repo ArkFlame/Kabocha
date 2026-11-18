@@ -50,7 +50,7 @@ entities or packets; the synced `EAT_COUNTER`/`SNEEZE_COUNTER` are assumed to dr
 client animation. Needs a client to confirm, no server behaviour change.
 
 ## Gap status
-- 1-6 (panda.rs and panda/goals.rs, sneeze.rs): STILL OPEN (file is in the h6 excluded list; not touched)
+- 1-6 (panda.rs and panda/goals.rs, sneeze.rs): RESOLVED (re-verified at parity against decompiled vanilla; no source change needed)
 
 ## Result
 
@@ -71,3 +71,40 @@ contradicted by the decompiled class.
 | 6 | at parity / safe | `afterSneeze` (Panda.java:506-531) jumps pandas within `inflate(10.0)` with `!isBaby() && onGround() && !isInWater() && canPerformAction()`. Rust `after_sneeze` (sneeze.rs:96-121) uses the same predicates with `expand(SNEEZE_JUMP_RANGE=10.0)`. Panda has no `has_audited_tick` override, so the conservative entity-island reach applies; `PandaSneezeGoal::tick_reach` (sneeze.rs:186-188) reports the jump reach while sit/breed goals keep the default `None`. Revisit only if audited. |
 
 Resolution: fixed=0 (no code defects remained), open=0 (all rows verified at parity or already fixed). No source files changed.
+
+## Result
+
+Independent re-verification against the decompiled vanilla sources now present at
+`.vendor/vanilla-decompiled/net/minecraft/...`. Every STILL OPEN row is at parity; no source change
+or new test was warranted (no behaviour change, and the existing tests already cover the seams).
+
+| # | verdict | evidence |
+|---|---|---|
+| 1 | at parity | `Panda.playAttackSound` (Panda.java:332-335) plays `PANDA_BITE`; `Mob.doHurtTarget` (Mob.java) calls it only when the hit lands. Rust `bite()` (goals.rs:224-235) calls `panda.on_attack` only when `try_attack` returns true, and `on_attack` (panda.rs:877-879) plays `EntityPandaBite`; Panda does not override `play_attack_sound`, so no duplicate sound. |
+| 2 | at parity, original claim wrong | `PandaBreedGoal.canFindBamboo` (Panda.java:834-852) scans Chebyshev rings r=0..7 at yOff=0..2, whose union is the full x,z in -7..=7, y 0..2. `can_find_bamboo` (goals.rs:146-159) scans that same box with `BAMBOO_SEARCH_RADIUS=7`, `BAMBOO_SEARCH_HEIGHT=2`; the boolean result is identical regardless of iteration order. |
+| 3 | at parity, original claim wrong | `setGeneFromParents` (Panda.java:566-590) uses two independent `if (nextInt(32) == 0)` statements (lines 583-589), not else-if. `genes_from_parents` (panda.rs:151-171) rolls both mutations independently with `MUTATION_CHANCE=32`. |
+| 4 | at parity, original claim wrong | `Panda.mobInteract` food branch (Panda.java:626-660) is gated by `isSitting() || isInWater()` (line 644), not `canPerformAction()`. `sit_and_eat` (panda.rs:622-636) gates on `is_baby() || is_sitting() || is_in_water()`, which matches. |
+| 5 | at parity, verified | `handleEating`/`addEatingParticles` (Panda.java:397-426): `PANDA_EAT` when `getEatCounter() % 5 == 0`, volume `0.5 + 0.5*nextInt(2)`, pitch `(nextFloat-nextFloat)*0.2+1`, odds 80/20 and thresholds 80/20/100. `handle_eating_with` (panda.rs:569-607) matches with constants 80/20/100/5 at lines 98-105. |
+| 6 | at parity / safe | `afterSneeze` (Panda.java:506-531) jumps pandas within `inflate(10.0)` when `!isBaby() && onGround() && !isInWater() && canPerformAction()`. Rust `after_sneeze` (sneeze.rs:96-121) uses the same predicates with `SNEEZE_JUMP_RANGE=10.0`; panda keeps the conservative unaudited reach and `PandaSneezeGoal::tick_reach` reports the jump. |
+
+Status: PASS fixed=0 open=0 files=none
+
+## Result
+
+Second pass: independently re-verified all six STILL OPEN rows against the authoritative decompiled
+vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java` and
+`world/entity/Mob.java`, and cross-checked each claim against the current Pumpkin source
+(`panda.rs`, `panda/goals.rs`, `panda/sneeze.rs`, `entity/mob/mod.rs`). Every row is at parity;
+the original remembered-vanilla claims for rows 2, 3 and 4 are contradicted by the decompiled class.
+No source change or new test is warranted (no behaviour change; existing tests cover each seam).
+
+| # | verdict | evidence |
+|---|---|---|
+| 1 | at parity | Vanilla `Mob.doHurtTarget` (Mob.java:1611-1624) calls `playAttackSound()`/`PANDA_BITE` only inside `if (wasHurt)`. Rust `bite()` (goals.rs:224-235) sets `did_bite` before the swing but calls `panda.on_attack` (which plays `EntityPandaBite`, panda.rs:879-881) only when `try_attack` returns `damaged` (mob/mod.rs:1166,1224 = whether `damage_with_context` landed). Panda does not override `play_attack_sound`; no duplicate sound. |
+| 2 | at parity, original claim wrong | `PandaBreedGoal.canFindBamboo` (Panda.java:834-852) scans Chebyshev rings r=0..7 at yOff=0..2; the union is exactly x,z in -7..=7, y 0..2. `can_find_bamboo` (goals.rs:146-159) scans the same box (`BAMBOO_SEARCH_RADIUS=7`, `BAMBOO_SEARCH_HEIGHT=2`); the boolean result is identical regardless of iteration order. |
+| 3 | at parity, original claim wrong | `setGeneFromParents` (Panda.java:566-590) uses two independent `if (nextInt(32) == 0)` statements (lines 583-589), not else-if; both genes may mutate. `genes_from_parents` (panda.rs:151-171) rolls both independently with `MUTATION_CHANCE=32`. |
+| 4 | at parity, original claim wrong | `Panda.mobInteract` food branch (Panda.java:626-660) is gated by `isSitting() || isInWater()` (line 644), not `canPerformAction()`. `mob_interact` (panda.rs:883-901) routes the non-breed food case to `sit_and_eat`, gated on `is_baby() || is_sitting() || is_in_water()` (panda.rs:627), which matches. A rolling panda still takes food in vanilla. |
+| 5 | at parity, verified | `handleEating`/`addEatingParticles` (Panda.java:397-426) plays `PANDA_EAT` when `getEatCounter() % 5 == 0`, volume `0.5 + 0.5*nextInt(2)`, pitch `(nextFloat-nextFloat)*0.2+1`, start odds 80, stop odds 20, thresholds 80/100. `handle_eating_with` (panda.rs:569-609) matches with constants 80/20/100/5 (panda.rs:98-105). |
+| 6 | at parity / safe | `afterSneeze` (Panda.java:506-531) jumps pandas within `inflate(10.0)` when `!isBaby() && onGround() && !isInWater() && canPerformAction()`. Rust `after_sneeze` (sneeze.rs:96-121) uses the same predicates with `SNEEZE_JUMP_RANGE=10.0`; panda keeps the conservative unaudited reach and `PandaSneezeGoal::tick_reach` reports the jump. |
+
+Status: PASS fixed=0 open=0 files=none

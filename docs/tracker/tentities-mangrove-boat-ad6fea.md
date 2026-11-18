@@ -27,4 +27,6 @@ Verification against decompiled vanilla (`net/minecraft/world/entity/EntityTypes
 
 No source fix was required; both rows were verification-only. One test added.
 
+Re-checked 2026-11-18 against `.vendor/vanilla-decompiled/net/minecraft/world/entity/EntityTypes.java:674-689`: `MANGROVE_BOAT` and `MANGROVE_CHEST_BOAT` are both `.sized(1.375F, 0.5625F).eyeHeight(0.5625F).clientTrackingRange(10)`, matching `entity_type.rs` lines 6918-6919 and 6975-6976. `is_chest_boat` (suffix `_chest_boat`) and `max_passengers` (2 plain, 1 chest) still match `AbstractBoat`/`AbstractChestBoat`. Both rows stay CLOSED; no new gap.
+
 Status: PASS fixed=0 open=0 files=crates/pumpkin-core/src/item/items/boat.rs

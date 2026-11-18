@@ -111,3 +111,11 @@ Observation outside scope (marked Fixed previously): decompiled vanilla `SulfurC
 returns `true` for the `SULFUR_CUBE_WITH_BLOCK_IMMUNE_TO` tag after knockback
 (`SulfurCube.java:254-260`); the current `sulfur_cube.rs:1007` returns `Some(false)`. Flagged
 for a follow-up tracker entry; not changed here because that row is closed and out of scope.
+
+## Result (worker pass 2026-11-18)
+
+STILL OPEN row `9728ac352` (apply sulfur cube body state on item pickup): VERIFIED, no code change needed.
+Re-checked current sources in allowed files (`sulfur_cube.rs`, `cube_mob.rs`, `slime.rs`):
+- `sulfur_cube.rs:903-937` `pick_up_item` writes `EquipmentSlot::BODY` via `set_item_slot_and_drop_when_killed` (922-923), calls `detect_body_item_change()` immediately (924), then plays absorb sound and finalizes the item entity. This matches the equip/shear paths (590, 604) and removes the one-tick lag.
+- `sulfur_cube.rs:387-400` `detect_body_item_change` diffs `last_body_item` and applies `on_body_item_changed` (402+) for goal/archetype/attribute state; `mob_tick` still calls it at 839 as the per-tick collection point.
+No decompiled SulfurCube.java source is present under `.vendor/` in this checkout, so vanilla method-level line verification could not be reopened here; the existing doc's decompiled references and the in-tree code path confirm the body state is applied on pickup. No pure unit-test seam exists for this live pickup path in the allowed files. No rows marked STILL OPEN remain in this unit; remaining gaps 3-8 were left as previously documented (outside STILL OPEN scope or requiring generated/shared changes).

@@ -186,3 +186,32 @@ No source files changed this pass; only this Result section was appended.
 ## Result (native-3: lid event viewer count row)
 
 - **Row 3 (lid event viewer count truncated to u8): NOT A GAP.** Vanilla keeps `b1` as an int in memory, but the wire packet writes it as a byte: `.vendor/vanilla-decompiled/net/minecraft/network/protocol/game/ClientboundBlockEventPacket.java:17-18` (`int b0`, `int b1`) and `:37-38` (`output.writeByte(this.b0)`, `output.writeByte(this.b1)`). Pumpkin's `CBlockEvent` (`crates/pumpkin-protocol/src/java/client/play/block_event.rs`, `write_u8` for `action_parameter`) matches that wire format, so `as u8` at `chest_like_block_entity.rs:344` and `ender_chest.rs:85` produces the same bytes vanilla does. Widening the sink to `i32` would change nothing on the wire and would need a protocol change, so no code edit.
+
+
+## Result (chests re-verify 2026-11-18)
+
+Re-checked all four rows against decompiled vanilla present this pass under
+`.vendor/vanilla-decompiled/`. No cargo/git/shell was run (per unit rules).
+Every row is resolved in the current tree; no source file needed a change.
+
+- **Row 1 (partner half detached on non-player removal): FIXED, in tree.**
+  All three chest blocks wire `get_state_for_neighbor_update` to
+  `chest_state_for_neighbor_update` (chests.rs:666,850,922), a port of vanilla
+  `ChestBlock.updateShape`. No change.
+- **Row 2 (blocked-chest predicate): FIXED, in tree.** `has_block_on_top` uses
+  `state.is_full_cube()` (chests.rs:1109), matching vanilla
+  `isBlockedChestByBlock` -> `isRedstoneConductor`. No change.
+- **Row 3 (lid event viewer count truncated to u8): CONFIRMED NOT A GAP.**
+  Vanilla `ChestBlockEntity.signalOpenCount` sends `current` as an int
+  (`ChestBlockEntity.java:232-234`), but `ClientboundBlockEventPacket.write`
+  emits it with `output.writeByte(this.b1)` (`:37-38`), so only the low 8 bits
+  reach the wire. Pumpkin's `new as u8` (chest_like_block_entity.rs:344,
+  ender_chest.rs:85) writes identical bytes; widening to i32 would not change the
+  wire format and would need a protocol/cross-crate change outside this unit. No change.
+- **Row 4 (double-chest menu title): FIXED, in tree.** `chest_display_name`
+  (chests.rs:81) uses `container.chestDouble` for double chests and resolves both
+  halves' custom names (chests.rs:491-493); unit test
+  `chest_menu_title_matches_vanilla` (chests.rs:1144) present. No change.
+
+No source files changed this pass; only this Result section was appended to the
+unit doc. All four rows are closed; none remain STILL OPEN.

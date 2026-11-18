@@ -124,3 +124,70 @@ all six rows are closed. Only this doc was edited (no .rs file touched, so no ru
 
 Compile-safety check by inspection: get_mob, is_sneaking, mark_hurt, is_invulnerable_to and
 leash_to_if_held_by all exist on Entity/EntityBase (entity/mod.rs:528, 4543, 2606, 5212, 5447).
+
+
+## Result (CODER re-audit, 2026-11-18)
+
+Re-verified all six rows against decompiled vanilla at .vendor/vanilla-decompiled/
+(LeashFenceKnotEntity.java, BlockAttachedEntity.java, Leashable.java, SoundEvents.java).
+The doc's "final verification" claim that row 3 was already fixed was false: the code had no
+MOB_GRIEFING gate. Only leash_knot.rs was changed (one gate + a corrected comment); no unit test
+added because the gate needs a live World plus a Mob cause, so there is no pure seam.
+
+- Row 3 (damage_with_context) - FIXED. Decompiled BlockAttachedEntity.hurtServer lines 134-136
+  gate mob-caused damage on MOB_GRIEFING via `source.getEntity() instanceof Mob`. Pumpkin maps
+  `cause` to `DamageSource.getEntity()` (see is_invulnerable_to doc, entity/mod.rs:5221; arrow
+  passes the owner as cause, explosion passes indirect_source which is the creeper/living source).
+  Added `let mob_griefing = world.level_info.load().game_rules.mob_griefing; if !mob_griefing &&
+  cause.is_some_and(|attacker| attacker.get_mob().is_some()) { return false; }` after the
+  invulnerability check, and replaced the incorrect comment claiming mob_griefing does not apply.
+  mark_hurt() and LEAD_UNTIED were already present and remain.
+- Row 1 (interact) - CLOSED, no change. Decompiled LeashFenceKnotEntity.interact lines 87-112:
+  no knot discard when nothing moves; re-homing is gated by
+  `!attachedMob && !player.isSecondaryUseActive()`. Pumpkin already has the equivalent sneaking
+  guard (leash_knot.rs:131). No pure seam (needs a live Player).
+- Row 2 (sounds) - CLOSED, no change. SoundEvents has only LEAD_TIED/LEAD_UNTIED; Pumpkin plays
+  Sound::ItemLeadTied/ItemLeadUntied at placement, interact and hurt. Generated sound.rs untouched.
+- Row 4 (tick) - CLOSED, no change. BlockAttachedEntity.tick lines 43-78 discards on !survives();
+  LeashFenceKnotEntity.dropItem plays LEAD_UNTIED. Pumpkin tick removes the knot on a missing
+  fence tag and plays the same sound; no retained_leash early return remains. No pure seam.
+- Row 5 (get_knot) - CLOSED, verified. knot_search_box matches AABB(x-1,y-1,z-1,x+1,y+1,z+1)
+  with the block-position filter; the existing unit test covers it.
+- Row 6 (transfer box) - LEFT OPEN. Decompiled Leashable.leashableInArea (Leashable.java:390-397)
+  now scans AABB.ofSize(center, 32, 32, 32); interact uses two such scans centered on the player
+  and on the knot (leashableLeashedTo(player) / leashableLeashedTo(this)), not the doc's 7-block
+  box. Pumpkin's single 7-block transfer_search_box under-searches. Full parity needs a two-scan
+  restructure of interact plus a gametest, so it is deferred rather than changed unverified.
+
+Compile-safety re-read: get_mob (EntityBase, entity/mod.rs:528) is in scope via the existing
+`use crate::entity::{Entity, EntityBase, ...}`; the game_rules load pattern matches
+effect/weaving.rs:18 exactly; no unwrap/expect/panic, no println, no new imports. Not compiled by
+worker (orchestrator batch build).
+
+
+## Result (SECOND PASS, 2026-11-18)
+
+Re-checked the only row left open by the prior CODER pass (row 6, transfer box) and the five
+"closed" rows against decompiled vanilla at .vendor/vanilla-decompiled/net/minecraft/
+(LeashFenceKnotEntity.java, BlockAttachedEntity.java, Leashable.java, SoundEvents.java).
+
+- Row 6 (transfer box) - VERIFIED FIXED in code; pure unit test added. Decompiled
+  Leashable.leashableInArea (Leashable.java:386-397) uses AABB.ofSize(bbox.getCenter(),32,32,32),
+  and LeashFenceKnotEntity.interact (lines 87-108) makes two such scans:
+  leashableLeashedTo(player) then, only when nothing moved and !isSecondaryUseActive(),
+  leashableLeashedTo(this). The old single 7-block transfer_search_box is gone: Pumpkin interact
+  (leash_knot.rs:100-132) now calls player.get_entity().leashable_leashed_to() and
+  self.entity.leashable_leashed_to(), and Entity::leashable_leashed_to builds a centre +/-16
+  (32-block) box around bounding_box.get_center() filtered by holder entity id. This matches
+  vanilla; the prior note claiming a 7-block box remained is stale. Extracted the box math into
+  pure helper Entity::leashable_scan_box (entity/mod.rs) and added unit test
+  leashable_scan_box_is_32_block_cube_centered_on_position to lock the 32-block semantics
+  without a live world.
+- Rows 1-5 - RE-VERIFIED CLOSED, no code change. interact sneaking guard, LEAD_TIED/LEAD_UNTIED
+  sounds, damage_with_context mob_griefing gate + mark_hurt, tick removal on missing fence, and
+  knot_search_box +/-1 (with its unit test) all still match the decompiled classes.
+
+No generated pumpkin-data fields, WIT changes or missing subsystem are involved, so no row is
+BLOCKED. Changed: entity/mod.rs (one small helper extraction + one unit test) and this doc.
+No unwrap/expect/panic, no println, no em dashes, no new imports (Vector3/BoundingBox already in
+scope). Not compiled by worker (orchestrator batch build).

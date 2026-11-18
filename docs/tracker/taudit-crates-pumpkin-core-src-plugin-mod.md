@@ -80,3 +80,28 @@ unload removes both the primary root and its explicit alias from the tree, so no
 residual label can reach the plugin executor (Paper `CommandMap.unregister` parity).
 
 Files touched this pass: `crates/pumpkin-command/src/node/dispatcher.rs` (test only).
+
+
+## Result (verification pass 3)
+
+Re-checked every row. The `Gapwave2-2 status (h3)` STILL OPEN markers are stale:
+the command-node removal is implemented across all three of this unit's files and
+was verified line by line against the current source (Paper `CommandMap.unregister`
+is the behavioural reference; vanilla has no plugin system).
+
+| Row | Result |
+|---|---|
+| Remove plugin command nodes from the tree after reload | FIXED. `Tree::remove_root_command` (tree.rs) detaches the primary root, redirecting aliases and subtrees, replaces removed nodes with inert literals that hold no executor or predicate, and clears cached names and global ids. `CommandDispatcher::remove_commands_from_source` (dispatcher.rs) drives it by source; `Context::unregister_commands` (context.rs) calls it on unload; `release_library` (mod.rs, outside this unit) no longer returns early for commands. |
+| Blocking/non-blocking dispatch order | Already FIXED in b9ab007b1; unchanged |
+| Per-handler panic isolation | Already FIXED in b9ab007b1; unchanged |
+
+Hardening this pass: `remove_root_command` previously removed `command_node_mappings[name]`
+for every node in the removed subtree, including literal and argument descendants.
+A descendant named like an unrelated plugin's root command could silently drop that
+other command's mapping. It now only removes a mapping that actually points at a node
+being removed. Added `removing_plugin_command_keeps_other_command_sharing_a_descendant_name`
+in `dispatcher.rs` to pin this. Also corrected the now-false doc comments on `register`
+and `register_with_aliases` claiming commands cannot be unregistered.
+
+Files touched this pass: `crates/pumpkin-command/src/node/tree.rs`,
+`crates/pumpkin-command/src/node/dispatcher.rs` (code, doc, test), and this doc.

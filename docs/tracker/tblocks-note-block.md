@@ -51,3 +51,26 @@ silent failure, all copper trumpet instruments treated as tunable base blocks.
   Pumpkin `range: None` (note.rs:188) writes an absent fixed range (sound_effect.rs:51-54), matching
   vanilla. No change needed; leaving the explanatory comment in place. data_component.rs sound
   converters copy `range` verbatim (:34-59), so no fix or pure test seam there.
+
+### Third pass 2026-11-18 (both earlier premises re-checked)
+- Row 1 (custom head sound) was genuinely wrong, just not in the way the first audit said. Vanilla
+  `ServerLevel#playSeededSound` broadcasts to `sound.value().getRange(volume)`
+  (ServerLevel.java:3412), and `SoundEvent#getRange` returns `16 * volume` when volume > 1
+  (SoundEvent.java:43-45). With the note block volume of 3 that is a 48-block radius (3 chunks).
+  The old path went through `play_sound_event_fine`, whose `sound_event_audible_chunks`
+  returns 1 chunk for an absent fixed range (world/mod.rs:9547-9556), so the custom head sound was
+  cut off at 16 blocks. Switched `note.rs` to `World::play_custom_sound`, the same variable-range
+  path with `audible_chunks(volume)`. The encoded `range: None` is unchanged (data_component.rs and
+  sound_effect.rs still write an absent fixed range), so this is a radius fix only, not a protocol
+  change. FIXED.
+- Removed the per-play NOTE particle added in the first pass. `NoteBlock#triggerEvent` calls
+  `level.addParticle` (NoteBlock.java:160), and `Level#addParticle` has an empty body with no
+  `ServerLevel` override (Level.java:1712-1714), so it is a client-only effect the vanilla client
+  runs from the block event; the contrasting `JukeboxSongPlayer` uses `sendParticles`
+  (JukeboxSongPlayer.java:87) precisely because that one has to be server-sent. Pumpkin broadcast
+  the particle to every player in the world, at y + 0.7 instead of + 1.2, for every instrument
+  instead of tunable ones only. FIXED (removed).
+- Row 2 stays fixed: `note.rs:37` passes `props.instrument.to_value()`, the vanilla serialized id.
+- No unit test: the remaining code is a live `World` call inside `on_synced_block_event`, and the
+  only pure helpers here are the instrument tables, which a test would merely mirror.
+- Rows: fixed=2, open=0. Files: note.rs (plus this doc).

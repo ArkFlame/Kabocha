@@ -156,3 +156,18 @@ Also confirmed the cure duration is `random_range(3600..=6000)` inclusive, i.e. 
 `nextInt(2401) + 3600`; the doc's earlier "exclusive upper bound" note was wrong.
 
 No .rs files touched this pass; no build run per worker rules.
+
+
+## Result (decompiled-vanilla verification, current pass)
+
+Re-verified all five STILL OPEN rows against .vendor/vanilla-decompiled/net/minecraft/. Every row is already fixed in the current source; no new source edits were needed.
+
+1. Strength amplifier: matches. startConverting (ZombieVillager.java:209) uses Math.min(getDifficulty().getId() - 1, 0) = -1 on Peaceful, 0 elsewhere. cure_strength_amplifier maps Peaceful -> None (no bonus, hostile mobs removed there) and the others -> Some(0). Pure unit test cure_strength_skipped_only_on_peaceful covers it. No change.
+2. Special-block scan: matches. getConversionProgress (ZombieVillager.java:312-335) guards each of the three loops with specialBlocksCount < 14 and iterates X-4..X+4. conversion_progress uses special_blocks >= MAX_SPECIAL_BLOCKS_COUNT (14) and radius 4, so at most 14 blocks get the 30% roll. No change.
+3. Equipment on cure: matches. finishConversion (ZombieVillager.java:240-252) calls dropPreservedEquipment(level, stack -> !has(PREVENT_ARMOR_CHANGE)); Mob.dropPreservedEquipment (Mob.java:1092-1113) keeps slots failing the shouldDrop predicate (binding curse) and drops only when isPreserved (byEquipment > 1.0F, DropChances.java:46). Pumpkin prevents_armor_change / drop_chance(slot) > 1.0 match. A cure gametest would live outside this unit files. No change.
+4. Cured villager effects: matches. ConversionType.convertCommon (ConversionType.java:98-100) copies every active effect; Pumpkin convert_common (conversion.rs:145-154) does the same. No change.
+5. set_villager_data offers: matches. setVillagerData (ZombieVillager.java:373-379) nulls tradeOffers when the profession changes; Pumpkin removes the stored Offers. No change.
+
+Also confirmed cure duration nextInt(2401) + 3600 (ZombieVillager.java:171) = 3600..=6000 inclusive, matching random_range(3600..=6000).
+
+No .rs files touched; no build run per worker rules.

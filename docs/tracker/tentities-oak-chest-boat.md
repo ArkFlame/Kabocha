@@ -188,3 +188,87 @@ Remaining gaps:
 
 No source files edited; unit allows no source files (basenames: none). No rustfmt needed. No tests
 run (worker rule: orchestrator compiles).
+
+
+## Result (assigned CODER verification pass)
+
+Re-verified every row marked STILL OPEN and all four Remaining gaps against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java` and
+`.../vehicle/ContainerEntity.java`, plus the current Pumpkin sources. This unit declares no
+editable source files (basenames: none); every row and gap already matches vanilla, so no source
+edit was needed this pass.
+
+STILL OPEN table rows (verified, no edit needed):
+- 27-slot inventory: VERIFIED. Vanilla `CONTAINER_SIZE = 27` / `getContainerSize() = 27`
+  (AbstractChestBoat.java:33,114-116); Pumpkin `CHEST_BOAT_CONTAINER_SIZE = 27` is returned only
+  for chest boats by `boat_container_size()` (boat.rs:44,84-86).
+- Single passenger seat: VERIFIED. Vanilla `getMaxPassengers() = 1`
+  (AbstractChestBoat.java:48-50); Pumpkin `max_passengers()` returns
+  `CHEST_BOAT_MAX_PASSENGERS = 1` for chest boats vs `BOAT_MAX_PASSENGERS = 2` otherwise
+  (boat.rs:47-48,95-101).
+- Seat offset 0.15: VERIFIED. Vanilla `getSinglePassengerXOffset() = 0.15F`
+  (AbstractChestBoat.java:43-45); Pumpkin consumes generated `single_passenger_x_offset` via
+  `passenger_seat_offset` / `passenger_attachment` (boat.rs:181-222). Generated data is
+  off-limits and already correct; not edited.
+
+Remaining gaps (all already fixed in the checkout by other workers; re-verified here):
+- Gap 1 (screen validity): FIXED. `EntityContainerScreenHandler` in
+  `minecart/container.rs:179-254` wraps the 9x3 handler with a validity closure checking
+  `is_alive()` and `can_interact_with_entity(..., 4.0)` (container.rs:281-290). This matches
+  decompiled vanilla `ContainerEntity.isChestVehicleStillValid = !isRemoved() &&
+  player.isWithinEntityInteractionRange(boundingBox, 4.0)` (ContainerEntity.java:181-182); the
+  tracker's "squaredDistanceTo <= 64.0 / 8 blocks" wording was stale.
+- Gap 2 (chest open states): FIXED. `chest_opens_container` (boat.rs:135-141) opens only on
+  secondary use or when no seat is free, matching vanilla `AbstractChestBoat.interact`
+  (AbstractChestBoat.java:79-97); pure tests at boat.rs:1212-1269.
+- Gap 3 (spill position): FIXED. Both boat.rs:287 and minecart.rs:985 call `scatter_inventory_at`
+  at the entity position, matching vanilla `Containers.dropContents(level, entity, container)`.
+- Gap 4 (chest-boat test): FIXED. `seat_and_container_tests` (boat.rs:1203+) covers container
+  size, NBT round trip, single-use scatter claim and interact outcomes.
+
+No source files edited (unit allows none; nothing needed a fix). No rustfmt needed. No tests run
+(worker rule: orchestrator compiles).
+
+## Result (second-pass CODER verification, full edit scope)
+
+Re-verified every STILL OPEN table row and all four Remaining gaps against decompiled vanilla
+AbstractChestBoat.java, AbstractBoat.java, ContainerEntity.java and current Pumpkin sources.
+All are genuinely fixed in the checkout; no source edit was needed this pass. Edit scope was
+granted over any file a row needs, so no row was left open for scope reasons.
+
+STILL OPEN table rows (verified, no edit needed):
+- 27-slot inventory: VERIFIED. Vanilla CONTAINER_SIZE = 27 / getContainerSize() = 27
+  (AbstractChestBoat.java:33,114-116). Pumpkin CHEST_BOAT_CONTAINER_SIZE = 27 is returned only
+  for chest boats by boat_container_size() (boat.rs:44,84-86).
+- Single passenger seat: VERIFIED. Vanilla getMaxPassengers() = 1 (AbstractChestBoat.java:48-50).
+  Pumpkin max_passengers() returns CHEST_BOAT_MAX_PASSENGERS = 1 vs BOAT_MAX_PASSENGERS = 2
+  (boat.rs:47-48,95-101).
+- Seat offset 0.15: VERIFIED. Vanilla getSinglePassengerXOffset() = 0.15F
+  (AbstractChestBoat.java:43-45). Pumpkin consumes generated single_passenger_x_offset via
+  passenger_seat_offset / passenger_attachment (boat.rs:181-222). Generated data is off-limits
+  and already correct; not edited.
+
+Remaining gaps (all confirmed fixed in the checkout, traced end to end):
+- Gap 1 (screen validity): FIXED. EntityContainerScreenHandler.can_use (container.rs:206-208)
+  runs the validity closure built in open() (container.rs:277-290), which checks the tracked
+  entity is_alive() and can_interact_with_entity(..., 4.0). Confirmed the handler is polled
+  every tick in player.rs:3584-3595 (can_use false closes the screen), so the screen really
+  closes on death or walking away. Matches vanilla
+  ContainerEntity.isChestVehicleStillValid = !isRemoved() &&
+  player.isWithinEntityInteractionRange(getBoundingBox(), 4.0) (ContainerEntity.java:181-182).
+  The tracker's original 8 blocks / squaredDistanceTo <= 64.0 wording was stale.
+- Gap 2 (chest open states): FIXED. Traced boat_interact_outcome (boat.rs:161-177) against the
+  vanilla chain: AbstractBoat.interact (AbstractBoat.java:779-787) returns SUCCESS only when
+  secondary use, out-of-control and failed startRiding are all absent, else PASS; then
+  AbstractChestBoat.interact (AbstractChestBoat.java:79-97) opens the container on secondary use
+  or when canAddPassenger is false. can_add_passenger = seat_available && !eye_in_water matches
+  vanilla canAddPassenger (AbstractBoat.java:836-838). Pure tests cover the chain
+  (boat.rs:1213-1280).
+- Gap 3 (spill position): FIXED. scatter_chest_contents scatters at entity.pos.load()
+  (boat.rs:279-287) and the chest minecart at entity.pos.load() (minecart.rs:985), both via
+  scatter_inventory_at, matching vanilla Containers.dropContents(level, entity, container).
+- Gap 4 (chest-boat test): FIXED. seat_and_container_tests (boat.rs:1203+) covers container size,
+  NBT round trip and interact outcomes; container.rs:350-426 covers item/loot NBT round trips.
+
+No source files edited; only this doc. No rustfmt needed (no .rs file touched). No tests run
+(worker rule: orchestrator compiles).

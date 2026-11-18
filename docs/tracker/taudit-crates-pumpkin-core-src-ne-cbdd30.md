@@ -164,3 +164,24 @@ every in-scope row is already fixed. fixed=0 new this pass.
 - Row 4 (ban date tz name): BLOCKED-L. Needs a timezone-abbreviation source; no tz crate in the workspace (`grep chrono|time-tz Cargo.toml` empty). Cosmetic kick text only.
 - Row 5 (PlayerConfig defaults): FIXED (present). `net/mod.rs:131-145` matches vanilla `ClientInformation.createDefault()` (en_us, chat Enabled, colors on, skin_parts 0, Right hand, filtering off, listing off); `for_server` at `net/mod.rs:111` seeds view distance.
 - Row 6 (try_enqueue_spawn_packet not fallible): FIXED. The no-op `try_` alias was removed from `net/mod.rs`; caller `world/entity_tracker.rs:609` now calls `enqueue_spawn_packet`. Commit landed via a sweep commit (see native-4 summary).
+## Result (native pass, 2026-11-18)
+- Row 2 (server-full before ban/whitelist): VERIFIED FIXED in-scope; login_start.rs holds only the
+  name check, proxy handoff and profile creation, matching ServerLoginPacketListenerImpl#handleHello.
+- Row 3 (op bypass): OPEN, outside unit (server/mod.rs join_rejection).
+- Row 4 (ban date tz name): OPEN, outside unit (net/mod.rs FORMAT_DESCRIPTION; needs a tz source).
+- Row 5 (PlayerConfig defaults): VERIFIED FIXED (net/mod.rs, earlier pass).
+- Row 6 (try_enqueue_spawn_packet): VERIFIED FIXED (alias removed, entity_tracker calls
+  enqueue_spawn_packet).
+- New, FIXED (move_vehicle.rs): vanilla ServerGamePacketListenerImpl#handleMoveVehicle only runs
+  the body when !updateAwaitingTeleport() && hasClientLoaded(); Pumpkin applied vehicle moves while
+  a teleport was unconfirmed and before the client-reported load, so a stale post-teleport packet
+  could rewind the vehicle. Added the guard, plus the vehicle.isRemoved() early return from the
+  same vanilla branch.
+- New, FIXED (entity_tracker.rs): ServerEntity#sendPairingData returns before any packet when the
+  entity is removed; add_pairing now returns early instead of sending a spawn/velocity/metadata
+  burst for a dead entity.
+- Left open (needs a JavaClient field): vanilla's "expected to be controlling vehicle but was not"
+  reset sends ClientboundMoveVehiclePacket after 20 ticks or >1 block of drift; it needs a
+  vehicle_position_last_reset_at counter on JavaClient, outside the three granted files.
+- No pure unit test seam: both changes need a JavaClient plus a live entity/network, so none added.
+- No cargo/git run (forbidden for this worker): UNVERIFIED.

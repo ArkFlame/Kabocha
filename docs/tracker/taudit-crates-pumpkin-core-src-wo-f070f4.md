@@ -44,3 +44,67 @@ Re-checked both rows marked STILL OPEN against the current code and decompiled v
 - STILL OPEN "score map orientation": VERIFIED FIXED, no change. `ScoreboardBuilder::score` (`world/scoreboard.rs:1492-1496`) inserts `.entry(obj_s).or_default().insert(entity_s, score)`, i.e. objective as the outer key, matching every reader (`get_score` `:187-189` indexes `self.scores.get(objective_name)?.get(entity_name)`). `world/scoreboard/tests.rs:352` (`builder_scores_are_keyed_by_objective`) already pins the orientation.
 
 Also re-confirmed the single `mod tests;` declaration at `:30` with no inline duplicate. No source file changed, so no rustfmt run and no new test added.
+
+## Result (deep-audit pass 2026-11-18)
+
+Worked the "Remaining gaps" table smallest-first against decompiled vanilla in
+`.vendor/vanilla-decompiled/net/minecraft/`. Only `crates/pumpkin-core/src/world/scoreboard.rs` was
+edited; no generated data, WIT or cross-crate files touched.
+
+- Row 3 (S) Bedrock team display slots: FIXED. Added `bedrock_display_slot`, which maps only
+  List/Sidebar/BelowName to Bedrock slots. `set_display_objective` and `send_to_player` now send a
+  JE-only packet for `sidebar.team.*` instead of a Bedrock `SetDisplayObjective(sidebar)`, so a
+  team display no longer overwrites the real Bedrock sidebar. Pinned by the pure unit test
+  `bedrock_slot_tests::team_display_slots_have_no_bedrock_slot` added in the same file.
+- Row 4 (S) number formats dropped on save/load: FIXED. Vanilla `Objective.Packed.CODEC`
+  (`Objective.java:148-159`) and `Score.Packed.MAP_CODEC` (`Score.java:68-77`) both use
+  `NumberFormatTypes.CODEC.optionalFieldOf("format")`, a tagged compound (`type` = blank/styled/
+  fixed, `value` component for fixed). Added `number_format_to_nbt`/`number_format_from_nbt` and
+  persisted `format` for both objectives and scores. `styled` is skipped because Pumpkin's `Style`
+  has no NBT codec (same reason its network writer has a TODO).
+- Row 1 (M) teams not persisted: FIXED. Vanilla `ScoreboardSaveData.Packed.CODEC`
+  (`ScoreboardSaveData.java:41-55`) writes a `Teams` list using `PlayerTeam.Packed.CODEC`
+  (`PlayerTeam.java:271-302`). `to_saved_nbt` now emits `Teams` and `load_saved_nbt` rebuilds every
+  team with Name, DisplayName, TeamColor, AllowFriendlyFire, SeeFriendlyInvisibles,
+  MemberNamePrefix/Suffix, NameTagVisibility, DeathMessageVisibility, CollisionRule and Players.
+- Row 6 (S) reset packet for a score that does not exist: already fixed before this pass.
+  `remove_score` returns early when the score is absent, matching
+  `ServerScoreboard.removePlayerScore`.
+- Row 2 (M) Bedrock add/update objective broadcasts a sidebar display: LEFT OPEN. Fixing it means
+  changing the shared JE add/update path and reconciling it with the `BedrockObjectivePacket`
+  remove/redisplay/restore-row sequence in `BedrockScoreboard`, a cross-cutting Bedrock protocol
+  change beyond a single smallest fix.
+- Row 5 (S) duplicate team membership via the plugin API: LEFT OPEN. Decompiled
+  `Scoreboard.addPlayerToTeam` (`:385-404`) removes the holder from the previous team, but the
+  bundled `ServerScoreboard.addPlayerToTeam` (`:121-131`) does not broadcast a `RemovePlayers`
+  packet for that old team, so the exact client-facing parity behaviour is ambiguous and needs a
+  dedicated vanilla check.
+- Row 7 (S) `get_objective_mut` desyncs the map key: LEFT OPEN. It is currently unused, but changing
+  or removing this public API is a cross-crate API change outside this unit.
+- Prior STILL OPEN verification items remain VERIFIED FIXED (see the two earlier Result sections).
+
+No cargo/rustfmt run: worker tool restriction, so the batch compile is the verification gate.
+
+## Result (gap sweep 2026-11-18)
+
+Re-read every row of the Remaining gaps table against the current `world/scoreboard.rs` and decompiled vanilla (`.vendor/vanilla-decompiled/net/minecraft/`, target V_26_3). Smallest rows first.
+
+- Row 1 (M, Teams persistence): ALREADY FIXED, no change. `to_saved_nbt` writes the `Teams` list (`scoreboard.rs:950-994,1007`) and `load_saved_nbt` reads it back (`:1075-1123`), covering Name, DisplayName, Prefix/Suffix, friendly-fire/invisibles flags, name-tag/collision strings, colour and Players.
+- Row 3 (S, Bedrock `sidebar.team.*` slot): ALREADY FIXED, no change. `set_display_objective` maps only List/Sidebar/BelowName to Bedrock and sends Java-only for team slots (`:326-356`); `bedrock_display_slot` returns `None` for all `Team*` slots (`:835-842`). `bedrock_slot_tests` pins it.
+- Row 4 (S, number_format persistence): ALREADY FIXED, no change. Criterion plus objective/score `format` are written (`:903-920,941-945`) and read (`:1033-1034,1056`) via `number_format_to_nbt`/`from_nbt`. `Styled` is intentionally omitted (no Style NBT codec).
+- Row 6 (S, removePlayerScore reset): ALREADY FIXED, no change. `remove_score` returns early when the score does not exist (`:512-535`), matching vanilla `ServerScoreboard.removePlayerScore`.
+- Row 5 (S, one team per holder): FIXED. Verified vanilla `Scoreboard.addPlayerToTeam` (`.vendor/.../world/scores/Scoreboard.java:385-404`) removes the holder from any previous team's player list before adding, and `ServerScoreboard.addPlayerToTeam` (`.vendor/.../server/ServerScoreboard.java:122-131`) broadcasts only the ADD packet (the Java client removes the old membership itself). `add_player_to_team` now retains-filter the holder out of every team before adding to the target; no extra RemovePlayers packet is sent, matching vanilla. Added pure unit test `team_membership_tests::joining_a_team_removes_the_holder_from_its_previous_team` (uses `NoTarget`, no live player). Note: the row's "old team gets a RemovePlayers packet" claim is not present in this decompiled vanilla, so no such packet was added.
+- Row 7 (S, objective name immutability): FIXED. `get_objective_mut` was unused across the whole repo and let callers desynchronise the `objectives` map key; removed it. Immutable `get_objective`/`get_objectives` remain.
+- Row 2 (M, Bedrock add/update objective clobbers display): LEFT OPEN, reason: the JE `Scoreboard` has no Bedrock state, so replacing its naive `BSetDisplayObjective(sidebar)` with the remove+redisplay+row-restore sequence would require tracking Bedrock display state across the JE/Bedrock scoreboard split (out of this file's scope). Bedrock lifecycle is already handled correctly by `BedrockScoreboard::objective_packets` (`:1398-1444`); changing the JE path without that state risks leaving Bedrock clients with stale objectives.
+
+Files changed: `crates/pumpkin-core/src/world/scoreboard.rs` only. No generated data, WIT, or cross-crate edits. No unwrap/expect/panic, no stdout, no em dashes. rustfmt and tests not run by this worker (orchestrator compiles once).
+
+
+## Result (second pass 2026-11-18)
+
+Closed Row 2 (M, Bedrock add/update objective clobbers display), the only gap still LEFT OPEN. Re-verified all other rows, which remain fixed.
+
+- Row 2 (M): FIXED. Scoreboard.add_objective and update_objective broadcast a Bedrock SetDisplayObjective(sidebar) on every add/update, which reveals an undisplayed objective and clobbers the real Bedrock sidebar. Vanilla ServerScoreboard.onObjectiveAdded / onObjectiveChanged (.vendor vanilla-decompiled net minecraft server ServerScoreboard.java lines 172-187) broadcast only ClientboundSetObjectivePacket, never a display packet, and send_to_player in this same file already documents and implements that rule. Changed both methods to send_je with the Java update and removed the Bedrock packets; Bedrock displays are now written only by the explicit set_display_objective and the send_to_player slot loop. Pinned by the pure unit test add_and_update_objective_do_not_write_a_bedrock_display (counts editioned vs Java-only sends via a DisplaySendTarget), added to scoreboard/tests.rs.
+- Rows 1,3,4,5,6,7 and the earlier STILL OPEN wrapping and orientation items: re-read, all still fixed, no change this pass.
+
+Files changed: world/scoreboard.rs and world/scoreboard/tests.rs. No generated data, WIT or cross-crate edits. No unwrap/expect/panic, no stdout, no em dashes. No cargo or rustfmt run (worker restriction; orchestrator compiles once). Known limitation: a displayed objective Bedrock title is not refreshed on update, matching the existing send_to_player Java-only objective handling; the reported clobbering bug is removed.

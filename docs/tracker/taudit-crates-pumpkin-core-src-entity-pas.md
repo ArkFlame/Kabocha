@@ -131,3 +131,15 @@ Also re-checked the two "Fixed in this pass" claims in the note: the claimed rol
 push there (`Panda.java:497-501`); `roll_velocity` (`roll.rs:84-94`) already zeroes it, so no change.
 The `thunder_scares` fix is already present (`panda.rs:185-205`). No unwrap/expect/panic, no println
 and no em dashes introduced; no .rs file touched.
+## Result
+
+Resumed pass: verified all STILL OPEN rows against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java` (protocol 777). No source edits made to `panda.rs`, `roll.rs`, or `sneeze.rs`.
+
+- Row 1 (genes, `panda.rs:151-171`): matches vanilla `setGeneFromParents`/`getOneOfGenesRandomly`/`Gene.getRandom` (`Panda.java:566-594,755-770`) including RNG order and mutation rolls. Existing `foal_genes_come_from_the_parents_and_mutate_independently` covers it. No edit.
+- Row 2 (bamboo range, `goals.rs:134-159`, out of scope): vanilla ring walk `r in 0..8`, `yOff in 0..3` (`Panda.java:834-852`) covers the same block set as `x,z in -7..=7`, `y in 0..=2`; bamboo at +/-7 is in range. No edit.
+- Row 3 (mobInteract/sit_and_eat, `panda.rs:622-638,883-902`): decompiled vanilla gates the adult non-breeding food branch on `isSitting() || isInWater()` after `isBaby()`/breeding handling (`Panda.java:635-657`); current behavior matches and is covered by existing tests. No edit.
+- Row 4 (attack sound, `panda.rs:879-881`, `goals.rs`): vanilla sets `didBite` on every swing (`Panda.java:324-329`) and plays bite sound only on landed hit via `LivingEntity.doHurtTarget`; Rust sets `did_bite` on every swing and calls `on_attack`/`EntityPandaBite` only when `try_attack` succeeds. No edit.
+- Row 5 (sneeze reach, `sneeze.rs:96-121,186-188`): `after_sneeze` matches vanilla jump/gift behavior (`Panda.java:506-531`) and goal reports `SNEEZE_JUMP_RANGE=10` entity reach. LEFT OPEN: enabling `has_audited_tick` requires a full panda tick/AI/Brain audit and cross-crate entity-island reach work, outside this unit.
+
+Status: fixed=0, open=1 (row 5, out of scope). No unwrap/expect/panic, no println, no em dashes introduced; no .rs file touched.
+

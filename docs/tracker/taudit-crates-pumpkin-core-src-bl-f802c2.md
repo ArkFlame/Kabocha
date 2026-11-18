@@ -48,10 +48,10 @@ All in `crates/pumpkin-core/src/block/entities/furnace_like_block_entity.rs`
 
 ## Gap status
 - Shared cooking macro gaps (`furnace_like_block_entity.rs:609-624,661-664` snake_case NBT keys): FIXED (keys now snake_case, see furnace row above).
-- `:555-557` lit with blocked output: STILL OPEN (S).
-- `:558-569` cool-down branch: STILL OPEN (S).
+- `:555-557` lit with blocked output: CLOSED (verified against decompiled vanilla; no change needed).
+- `:558-569` cool-down branch: CLOSED (verified against decompiled vanilla; no change needed).
 - `:200-202` result merge requires component equality: FIXED (`:229,261` component-aware compare).
-- `:112-145` XP float accumulation: STILL OPEN (S).
+- `:112-145` XP float accumulation: CLOSED (verified against decompiled vanilla; no change needed).
 
 
 ## Result
@@ -97,3 +97,50 @@ file needed editing; the existing `## Result` above is confirmed accurate.
 
 No pure seam needed: the tick reset/cool-down decisions live in the macro-generated `tick` that
 requires `Arc<World>` + plugin manager. Files changed: none. rustfmt: not applicable.
+
+
+## Result (CODER re-verification, 2026-11-18)
+
+Checked every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java` (1.21.x decompile, Canvas/Paper patches included) and the current shared cooking macro in `crates/pumpkin-core/src/block/entities/furnace_like_block_entity.rs`.
+
+- `:555-557` lit with blocked output: CLOSED, no change. Vanilla `serverTick` `canBurn(...)` false arm is `:319-321` `entity.cookingTimer = 0;`; Pumpkin's `else if is_top_items_empty || furnace_recipe.is_some()` arm (`:727-731`) resets on blocked output and on empty input, and freezes only on a null recipe (vanilla has no else there, `:251-322`). The row premise (vanilla leaves progress untouched) is false for this source.
+- `:558-569` cool-down branch: CLOSED, no change. Vanilla `:326-327` `else if (cookingTimer > 0) cookingTimer = Mth.clamp(cookingTimer - 2, 0, cookingTotalTime)` has no `canAcceptRecipeOutput`/non-empty guards; Pumpkin `:732-743` does `saturating_sub(2).min(total)` on the same `!(isLit || hasFuel && hasIngredient)` condition.
+- `:112-145` XP float accumulation: CLOSED, no change. `extract_experience_from_recipes` (`:247-268`) derives XP from `RecipesUsed` at take time via `experience_per_recipe`/`split_experience` (floor plus one fraction roll per recipe id) and clears the map, matching `getRecipesToAwardAndPopExperience` (`:535-548`), `createExperience` (`:550-555`) and `awardUsedRecipesAndPopExperience` `:528`. Direct unit tests exist (`:1033-1062`, `:1181-1187`).
+- Re-confirmed the two rows already marked FIXED: `saveAdditional` (`:221-231`) uses `cooking_time_spent`/`cooking_total_time`/`lit_time_remaining`/`lit_total_time`, matching `read_saved_short`; `canBurn` `:364` uses `ItemStack.isSameItemSameComponents`, matching `are_items_and_components_equal` at `:299,331`.
+
+No source file changed. The remaining tick decisions live inside the macro-generated `tick` that needs `Arc<World>` plus the plugin manager, so there is no pure seam for a new unit test; the arithmetic seams (`cooking_total_time`, `rescale_cooking_after_relight`, `split_experience`, `experience_per_recipe`, `read_saved_short`) are already covered.
+
+Note (not a gap, no action): a relight whose fuel reports 0 burn ticks skips Pumpkin's rescale, while vanilla rescales `cookingTotalTime` before resetting `cookingTimer` at `:317`. Both end with 0 spent progress; only the stored total differs until the next recipe.
+
+
+## Result (SECOND PASS, independent re-verification)
+
+Re-read the three STILL OPEN rows against decompiled
+.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+(serverTick lines 250-328, createExperience lines 550-555) and the current shared macro in
+furnace_like_block_entity.rs. All three row premises are false for this source; the code already
+matches vanilla. No source edit or new test was required.
+
+- :555-557 lit with blocked output: CLOSED, no change. Vanilla canBurn false arm is
+  :319-321 entity.cookingTimer = 0;, so vanilla DOES reset on blocked output. Pumpkin's
+  else if is_top_items_empty || furnace_recipe.is_some() arm (:727-731) resets on blocked
+  output and empty input, freezing only on a null recipe (vanilla has no else at :322). Match.
+- :558-569 cool-down branch: CLOSED, no change. Vanilla's outer else if (cookingTimer > 0)
+  (:326-327) has no canAcceptRecipeOutput/non-empty guard; an unloadable input keeps the outer
+  if (isLit || hasFuel && hasIngredient) true and freezes via the recipe-null path. Pumpkin's
+  else if !is_burning && cooking_time_spent > 0 (:732-743) reaches only on the same negated
+  outer condition and does saturating_sub(2).min(total). Match.
+- :112-145 XP float accumulation: CLOSED, no change. extract_experience_from_recipes
+  (:247-268) derives XP from RecipesUsed at take time via experience_per_recipe /
+  split_experience (floor plus one fraction roll per recipe id) and clears the map, matching
+  getRecipesToAwardAndPopExperience (:535-548) and createExperience (:550-555). Direct
+  unit tests exist: split_experience_adds_the_fraction_only_when_the_roll_is_under_it (:1034),
+  experience_per_recipe_returns_one_amount_for_each_used_recipe (:1042),
+  read_saved_short_prefers_the_vanilla_key_over_the_legacy_one (:1065),
+  stored_experience_floors_each_recipes_accrued_xp (:1224).
+
+Also confirmed vanilla decompile writes snake_case NBT keys (cooking_time_spent,
+cooking_total_time, lit_time_remaining, lit_total_time at :205-208,223-226), matching
+Pumpkin's read_saved_short/saveAdditional. No generated-data, WIT or cross-crate change needed.
+
+Files changed: none (tracker doc status lines updated to CLOSED to stop re-dispatch). rustfmt: N/A.

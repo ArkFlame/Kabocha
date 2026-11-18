@@ -104,3 +104,34 @@ Left open: nothing in this unit. Not attempted: chest `Inventory::is_empty` not
 unpacking pending loot (vanilla `RandomizableContainerBlockEntity.isEmpty` does), since
 `Inventory` has no world handle; hopper paths call `take_loot_table` instead.
 `rustfmt --edition 2024` run on `piston.rs` (exit 0). Build not run (worker).
+
+
+## Result (pass 4)
+
+Re-verified against `.vendor/vanilla-decompiled` (`PistonMovingBlockEntity.java`,
+`Direction.java`, `RandomizableContainer.java`, `RandomizableContainerBlockEntity.java`).
+No STILL OPEN row remains in this unit, so no source file was edited.
+
+- Row `mod.rs:571-590` (moving-piston facing from state): already FIXED in tree, outside
+  this unit's scope. `block/entities/mod.rs:598-613` has the `"piston" if block ==
+  &Block::MOVING_PISTON` arm reading `MovingPistonLikeProperties::from_state_id(state_id).facing`
+  and constructing a fresh `PistonBlockEntity` (progress 0, air pushed state). Vanilla
+  `MovingPistonBlock.newMovingBlockEntity` -> `PistonMovingBlockEntity(pos, state)` derives
+  facing from the state; confirmed in `block/entities/mod.rs`, no edit made here.
+- Row `v1_18.rs:166-175` (chunk block entity registry id): verified FIXED. `block_entity_type_id`
+  (`v1_18.rs:309-315`) resolves the NBT id against `BLOCK_ENTITY_TYPES`; the writer filters
+  unknown ids before writing the count (`v1_18.rs:154-171`) and `unknown_block_entity_id_is_dropped`
+  (`v1_18.rs:328-334`) covers Pumpkin-only `bed`/`map`.
+- Pass-3 `piston.rs` fixes re-checked for compile safety: `get_numeric_float`/`get_numeric_short`
+  exist on `NbtCompound`, `set_velocity`/`on_ground`/`get_entities_at_box`/`get_block_collision_shapes(_at)`
+  and `BoundingBox::{at_pos,shift,stretch,minmax}` all exist with matching signatures.
+  `facing_from_data_value` matches vanilla `Direction.from3DDataValue` = `BY_3D_DATA[abs(data % 6)]`
+  (`Direction.java:341-343`). No change needed.
+- `block_direction.rs`: `to_index`/`from_index` use the vanilla 0..=5 order
+  (`Direction.java:33-38`); no gap. `block.rs` (generated `pumpkin-data/src/generated/block.rs`) is
+  forbidden to edit and needs no change.
+- `chest_like_block_entity.rs`: `is_empty` cannot unpack a pending loot table without a world
+  handle (vanilla `RandomizableContainer.isEmpty` calls `unpackLootTable(null)`, which no-ops
+  without a level); hoppers already call `take_loot_table`, so no observable gap. Left open with
+  this reason; no edit.
+- No `.rs` file modified, so rustfmt was not run. Status: PASS.

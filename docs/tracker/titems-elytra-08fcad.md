@@ -162,3 +162,36 @@ Re-checked the STILL OPEN row and every in-scope file against .vendor/vanilla-de
   a compute_lifetime test would be formula-mirroring, discouraged by the test rules.
 
 Status: BLOCKED fixed=0 open=5 files=docs/tracker/titems-elytra-08fcad.md
+
+
+## Result (second pass, cross-file edits permitted)
+
+Re-verified every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft with the
+decompiled reference now available, and fixed the one genuine parity gap found in the start gate.
+
+- Row `ee43e7835` "vanilla-parity fixes for gliding and flight state (#3459)": VERIFIED in code.
+  Its sole source change (crates/pumpkin-wasm-host-v0_2/src/player.rs, set_flying delegates to
+  player.set_flying) is present; no further edit needed.
+- firework_rocket.rs boost/acceleration, player_command.rs StartFlyingElytra, utility.rs elytra
+  profile field: re-verified against vanilla FireworkRocketEntity / ServerGamePacketListenerImpl /
+  PlayerSkin.Patch; no change.
+- Gap 1 (fall-distance clamp): CLOSED. Entity.java:4215-4219 checkFallDistanceAccumulation is
+  "if (delta.y > -0.5 && fallDistance > 1.0) fallDistance = 1.0"; player.rs:4080-4082 matches
+  exactly. The original gap hypothesis was wrong (vanilla does guard on > 1.0).
+- Gap 2 (gliding exhaustion): CLOSED. ServerPlayer.java:2868-2870 isFallFlying only awards
+  AVIATE_ONE_CM, no exhaustion; progress_motion returns early while airborne. Stale TODO already gone.
+- Gap 4 (Unbreaking/durability): CLOSED. ItemStack.java:629-638 processDurabilityChange ->
+  EnchantmentHelper.processDurabilityChange rolls per damage point; Pumpkin
+  compute_durability_damage_applied (pumpkin-data/item_stack/mod.rs:473) does the same via
+  UNBREAKING.modify_durability_damage. Already implemented and unit-tested.
+- FIXED (gap 3 subject, glide start gate): vanilla Player.java:1605-1606 tryToStartFallFlying
+  checks `!isInLiquid()` and Entity.java:2323-2325 isInLiquid = isInWater || isInLava. Pumpkin
+  checked only is_in_water (its comment wrongly claimed lava does not block the start). Changed
+  crates/pumpkin-core/src/entity/player.rs to pass the existing Entity::is_in_liquid() helper to
+  fall_flying_start_allowed; renamed the param in_water -> in_liquid, updated the gate comment and
+  the pure unit test fall_flying_start_gate_checks_glider_flight_and_liquid. Lava now blocks the start.
+- No gametest added: glide stop/start needs a plugin EntityToggleGlideEvent harness plus live entity
+  state, so no pure seam exists; the existing pure unit test covers the gate. Left as the one open item.
+- Compile/rustfmt not run (worker shell denied); orchestrator compiles once after all workers.
+
+Status: UNVERIFIED fixed=1 open=1 files=crates/pumpkin-core/src/entity/player.rs,docs/tracker/titems-elytra-08fcad.md

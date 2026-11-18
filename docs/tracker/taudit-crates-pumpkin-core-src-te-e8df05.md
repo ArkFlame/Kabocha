@@ -88,3 +88,23 @@ edited, so rustfmt was not needed.
 | One-off signing key reuse (44) | FIXED in tree | resolve_identity_key prefers LIVE_SIGNING_KEY via choose_signing_key (:782-784, :858-864), set at startup (:1142), so /pumpkin one-off sends and server-link reuse the live key; test live_signing_key_is_preferred_over_disk present (:1797). |
 
 No rows remain open. Files touched: this doc only (no .rs edits were needed).
+
+
+## Result (second pass verification)
+
+Re-verified all seven STILL OPEN rows against the current tree. Telemetry has no
+decompiled-vanilla analogue, so Paper/Spigot bStats and the module documented wire
+format remain the reference. Every row is already resolved in-tree; this pass made
+no new .rs edits, so no rustfmt was needed. No cargo or git was run by this worker.
+
+| Row (doc line) | Result | Evidence |
+|---|---|---|
+| Short-form shutdown route (38) | FIXED in tree | `shutdown_url_for` is applied to both the stripped prefix and the no-suffix branch in `resolve_telemetry_urls` (:540-566); short-form `host/heartbeat` resolves to `host/v1/shutdown`. |
+| online_mode aggregation (39) | FIXED in tree | Field doc states true only when every enabled listener enforces online mode (:317-318); the builder matches per-listener enabled flags (:1042-1049). |
+| read_used_ram_mb naming/doc (40) | FIXED in tree | Renamed `read_process_ram_mb` (:928), field doc "Resident memory of the server process in MiB" (:328), cached `sysinfo::System` refreshed with `refresh_processes`. |
+| Replay nonce (41) | FIXED in tree | `NONCE_FIELD`, `generate_nonce`, `serialize_signed_body`, `NonceCache`, `verify_telemetry_request_with_replay_protection` and replay tests present (:49, :375-394, :471-534, :1813+); nonce is inside the signed body and the 600s cache TTL covers the 300s drift window. |
+| TelemetryConfig::validate (42) | FIXED in tree | Cross-file row now addressed: `pumpkin-config/src/telemetry.rs::validate` rejects empty/non-http endpoints at load (`lib.rs:139,489`) and telemetry.rs keeps a graceful runtime guard `telemetry_endpoint_is_valid` (:1096-1121); interval clamped at :1152. |
+| online_players vs capped players (43) | FIXED in tree | `players_truncated` field (:340), populated in `collect_players_telemetry` (:995-1016, :1051-1067), serialized and asserted in tests (:1371). |
+| One-off signing key reuse (44) | FIXED in tree | `resolve_identity_key` prefers `LIVE_SIGNING_KEY` via `choose_signing_key` (:782-784, :858-864), set at startup (:1142); test `live_signing_key_is_preferred_over_disk` present (:1800). |
+
+No rows remain open. Files touched this pass: this doc only (no .rs edits were needed).

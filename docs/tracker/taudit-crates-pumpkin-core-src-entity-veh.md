@@ -286,3 +286,129 @@ No code changes: both in-scope rows are already faithful.
 
 No pure unit test added: `explosion_strength` already has one and the remaining seams require live
 entities/world. No repo tools were run by this worker.
+
+
+---
+
+## Result (pass 4, CODER unit scoped to rideable.rs + tnt.rs)
+
+Re-verified the two in-scope STILL OPEN rows directly against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/`
+(`Minecart.java`, `MinecartTNT.java`). Both are already faithful; no source edit was needed.
+The other 13 STILL OPEN rows need files outside this unit and are left open with one-line reasons below.
+No source files changed; only this doc's Result section was appended.
+
+- minecart 10 (TNT priming, `minecart/tnt.rs`): verified faithful, NO change. Decompiled
+  `MinecartTNT.java`: `primeFuse` is a no-op when TNT_EXPLODES is off and callers guard `fuse < 0`;
+  `TntMinecart::prime` guards `fuse >= 0 || !tnt_explodes`. `tick` decrements a positive fuse and
+  emits one SMOKE particle at `y + 0.5` with zero velocity, and explodes at `fuse == 0` with
+  `x*x + z*z` (= `getDeltaMovement().horizontalDistanceSqr()`). `explode` uses
+  `base + factor * rand(0..1) * 1.5 * min(sqrt(speedSqr), 5)`, preserves rails while primed, and
+  removes a primed cart when TNT_EXPLODES is off. NBT keys/defaults (`fuse` -1,
+  `explosion_power` 4.0, `explosion_speed_factor` 1.0) match. The fuse `rand(20)+rand(20)`,
+  burning-arrow immediate explode and horizontal-collision `>= 0.01` explode live in `minecart.rs`
+  (out of scope). `tnt_minecart_explosion_bonus_is_speed_capped` pins the speed cap.
+- minecart 12 (sneak interact, `minecart/rideable.rs`): verified faithful, NO change. Vanilla
+  `Minecart.interact` (Java 25-32) returns PASS when `isSecondaryUseActive()` or `isVehicle()`;
+  `RideableMinecart::interact` returns false on `player.is_sneaking()` or non-empty passengers,
+  matching. The extra `player.has_vehicle()` guard only prevents a mounted player from switching
+  carts and is benign.
+- block_effects 1 (non-lily-pad dispatch): STILL OPEN, M, needs `block_effects.rs` (out of scope).
+- block_effects 2 (endpoint double dispatch): STILL OPEN, M, needs `block_effects.rs` (out of scope).
+- block_effects 3 (chunk loaded guard): out of scope (`block_effects.rs`); prior pass added the guard.
+- block_effects 4 (take before early return): out of scope; prior pass verified faithful.
+- block_effects 5 (requested-movement axis split): out of scope; prior pass verified faithful.
+- block_effects 6 (gametest): STILL OPEN, M, needs a `pumpkin-gametest` harness (out of scope).
+- minecart 3 (activator rail ejects riders): out of scope (`minecart.rs`); prior pass verified vanilla ejects.
+- minecart 4 (push direction): out of scope (`minecart.rs`); prior pass verified faithful.
+- minecart 5 (powered-rail boost): out of scope (`minecart.rs`); prior pass fixed it.
+- minecart 6 (container friction): out of scope (`minecart/container.rs`); prior pass verified faithful.
+- minecart 7 (passenger repositioning): out of scope (`minecart.rs`); prior pass verified faithful.
+- minecart 8 (slope tests): out of scope (`minecart.rs`); prior pass added the tests.
+- minecart 9 (double move_entity): out of scope (`minecart.rs`); prior pass verified faithful.
+- minecart 11 (portal): BLOCKED-DATA, needs entity dimension change (out of scope).
+
+No pure unit test added: `explosion_strength` already has one; `interact`/`prime`/`tick`/`explode`
+need live entities/world, so no new pure seam exists in these two files.
+
+
+---
+
+## Result (pass 5, CODER unit scoped to rideable.rs + tnt.rs)
+
+Independent re-verification against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/`
+(`Minecart.java`, `MinecartTNT.java`). Reconfirmed both in-scope STILL OPEN rows are faithful;
+no source edit was needed. The other 14 STILL OPEN / BLOCKED rows need files outside this unit
+(`block_effects.rs`, `minecart.rs`, `minecart/container.rs`, a pumpkin-gametest harness) or entity
+dimension change, so they remain open with the one-line reasons below. No cargo/git/fmt tools were
+run by this worker.
+
+- minecart 10 (TNT priming, `minecart/tnt.rs`): verified faithful, NO change. `prime` guards
+  `fuse >= 0 || !tnt_explodes` (vanilla `MinecartTNT.primeFuse` no-ops when TNT_EXPLODES is off;
+  callers `activateMinecart`/`destroy` gate on `fuse < 0`), stores the fuse and emits the TNT_PRIME
+  status/sound. `tick` decrements a positive fuse, spawns one SMOKE particle at `y + 0.5` with zero
+  velocity and explodes at `fuse == 0` using `x*x + z*z` (= `getDeltaMovement().horizontalDistanceSqr()`).
+  `explode` uses `base + factor * rand(0..1) * 1.5 * min(sqrt(speedSqr), 5)`, preserves rails while
+  primed (vanilla `getBlockExplosionResistance`/`shouldBlockExplode` rail checks) and discards a primed
+  cart when TNT_EXPLODES is off. NBT keys/defaults (`fuse` -1, `explosion_power` 4.0 clamped 0..128,
+  `explosion_speed_factor` 1.0 clamped 0..128) match. `tnt_minecart_explosion_bonus_is_speed_capped`
+  pins the speed cap. The fuse `rand(20)+rand(20)`, burning-arrow immediate explode and the
+  horizontal-collision `>= 0.01` explode live in `minecart.rs` (out of scope).
+- minecart 12 (sneak interact, `minecart/rideable.rs`): verified faithful, NO change. Vanilla
+  `Minecart.interact` (Minecart.java:25-32) returns PASS when `isSecondaryUseActive()` or `isVehicle()`;
+  `RideableMinecart::interact` returns false on `player.is_sneaking()`, non-empty `passengers` or
+  `player.has_vehicle()`, matching. The `has_vehicle()` guard only prevents a mounted player from
+  switching carts, which vanilla `startRiding` rejects as well.
+- block_effects 1,2,3,4,5,6: STILL OPEN, out of scope (block_effects.rs / gametest harness).
+- minecart 3,4,5,7,8,9: out of scope (minecart.rs); prior pass verdicts stand.
+- minecart 6 (container friction): out of scope (minecart/container.rs); prior pass verified faithful.
+- minecart 11 (portal): BLOCKED-DATA, needs entity dimension change (out of scope).
+
+No pure unit test added: the only pure seam here, `explosion_strength`, already has
+`tnt_minecart_explosion_bonus_is_speed_capped`; another formula-mirroring test is discouraged, and
+`interact`/`prime`/`tick`/`explode` need live entities/world, so no new pure seam exists.
+
+
+---
+
+## Result (pass 6, SECOND PASS with cross-file scope restored)
+
+All previously STILL OPEN code rows are already resolved in the current checkout. Independent
+verification against `.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java`
+(Canvas/Paper 26.x) and `.../vehicle/minecart/{Minecart,MinecartTNT}.java` found no remaining
+source change to make this pass. No cargo/git/fmt tools were run by this worker.
+
+- block_effects 1 (non-lily-pad dispatch): FIXED in current tree. `apply_effects_from_blocks`
+  (`block_effects.rs:78-118`) dispatches `on_entity_collision` for every non-air block whose
+  inside collision shape the path enters, not only LILY_PAD, matching vanilla
+  `Entity.checkInsideBlocks` (`Entity.java:2037-2047`), which calls `entityInside` for each
+  entered block.
+- block_effects 2 (endpoint double dispatch): FIXED in current tree. The sweep skips every
+  position inside the final standing box (`block_effects.rs:72-77,106-114`), leaving those
+  blocks to the generic `tick_block_collisions` endpoint pass (`entity/mod.rs:3282`), which
+  runs immediately after (`boat.rs:623,626`). Vanilla dedupes the same blocks via
+  `Entity.visitedBlocks` (`Entity.java:1953,1977`); no block fires twice.
+- block_effects 3 (chunk loaded guard): FIXED in current tree (`block_effects.rs:84-89`),
+  matching `getChunkIfLoaded` treating unloaded chunks as air (`Entity.java:2021-2027`).
+- block_effects 4 (take before early return): verified faithful, no change. Vanilla clears the
+  movement queue before the `isAffectedByBlocks` early return (`Entity.java:1521-1529`).
+- block_effects 5 (requested-movement axis split): verified faithful, no change. Matches
+  `Entity.java:1959-1970` gating the per-axis split on axis-dependent movement plus delta > 0.
+- block_effects 6 (gametest): STILL OPEN, M. Needs a boot-driven `pumpkin-gametest` scenario
+  (boat over lily pads / campfire). The harness exists (`crates/pumpkin-gametest`) but no pure
+  unit-test seam in these files drives a live world, so this cannot be a minimal unit test.
+- minecart 1 (rideable damage): FIXED in current tree (`minecart.rs:456-460`), parity restored.
+- minecart 3,4,6,7,9: verified faithful in prior passes, no change.
+- minecart 5 (powered rail boost): FIXED in current tree, including the standing-cart fallback,
+  which now uses `stopped_powered_rail_velocity(..., rail_shape_of(state_id, false), ...)`
+  derived from rail shape rather than entity yaw (`minecart.rs:418-424`).
+- minecart 8 (slope tests): FIXED in current tree
+  (`all_ascending_rails_snap_center_to_vanilla_height`,
+  `rail_position_snap_covers_north_south_and_curve`, `minecart.rs:1128,1148`).
+- minecart 10 (TNT priming, `tnt.rs`) and minecart 12 (sneak interact, `rideable.rs`): verified
+  faithful again, no change. `prime`/`tick`/`explode` and the `is_sneaking()` gate match vanilla.
+- minecart 11 (portal): BLOCKED, needs the entity dimension-change subsystem (not present).
+
+No pure unit test added: `explosion_strength`, the block_effects traversal helpers and the
+minecart rail/boost helpers already have unit tests; the remaining dispatch/interact seams need
+live entities/world, so no new pure seam exists in these files.

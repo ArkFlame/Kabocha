@@ -203,3 +203,34 @@ Cross-crate check: World.find_free_position exists at world/mod.rs:3289, so the
 call compiles. Tests present and type-correct (BlockState::from_id returns
 &'static BlockState, matching the &BlockState parameter). No new edits, no build
 run (orchestrator compiles).
+
+## Result (2026-11-18, worker pass)
+
+Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled` and fixed the two
+remaining real gaps in nether.rs.
+
+Fixed:
+- Frame block is a tag. `PortalShape.FRAME` (PortalShape.java:31) tests
+  `BlockTags.NETHER_PORTAL_FRAME`, not obsidian; the `FRAME_BLOCK` const is gone and all four
+  frame checks now call `NetherPortal::is_frame`, so a datapack swap works.
+- Portal floor predicate. `canHostFrame` (PortalForcer.java:250) uses `BlockState#isSolid`,
+  the `legacySolid` collision-shape test (BlockBehaviour.java:615-634: merged shape bounds
+  average side >= 0.7291666666666666, or height >= 1.0), so slabs and snow layers can carry
+  a portal while carpets and torches cannot. `is_solid_block()` replaced with
+  `is_legacy_solid` built from `get_block_collision_shapes()`.
+- `is_valid_portal_air` now tests the real fluid state
+  (`fluid_state_from_block_state(..).1.is_empty`) instead of `!is_liquid()`, matching
+  `canPortalReplaceBlock` getFluidState().isEmpty() for waterlogged and fluid-logged states.
+  Dropped `const` because it now reads the fluid table.
+
+Tests added (pure): `frame_check_follows_nether_portal_frame_tag`,
+`portal_floor_uses_legacy_solid_collision_shape`.
+
+Still open / no change:
+- 45-65 yaw, 103-106 perp offset, 488-495 axis quirk, 714 fallback_y, 732-769 volume and
+  flags: confirmed already matching vanilla in the previous pass.
+- 497-595 stricter POI re-validation and 526-542 on-demand chunk loading: retained
+  (stricter than vanilla, avoids stale records; chunk loading is a design choice).
+- 148-189 / 191-220: `find_open_position` already uses `World.find_free_position`.
+
+No build or test run (workers do not compile; the orchestrator batch-checks).

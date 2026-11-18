@@ -142,3 +142,50 @@ vanilla-correct, a client-only particle effect, or outside this unit's files. No
 No pure-test seam exists for any remaining row (they require a live world/target or an inventory
 instance), and the existing codec/damage tests already cover the pure seams, so no test added.
 Unverified by compilation (worker may not run cargo); all edits are read-only verification.
+
+## Result (re-verification pass 4)
+
+Re-verified every STILL OPEN row against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/arrow/AbstractArrow.java`
+(lines 437, 463-512, 653-730) and re-read all four in-unit files (`abstract_arrow.rs`, `arrow.rs`,
+`trident.rs`, `item/items/projectile_weapon.rs`). No code changed: no safe fix remains inside this
+unit, and the remaining rows are either vanilla-correct, client-only, no-ops, or outside the four
+permitted files.
+
+| Row | Verdict | Evidence |
+|---|---|---|
+| 29 (enchant ordering, M) | open, no fix needed | `AbstractArrow.java:466-474` calls `modifyDamage` on `baseDamage` before `pow * base` and `ceil`; `projectile_weapon.rs:67-70` applies the same target-independent Power adjustment at fire time into `base_damage`, so the pre-ceil value matches. Applying `modify_damage_against` at hit time (Smite/Bane) risks double-counting Sharpness (its `modify_damage_against` delegates to `modify_damage`, already applied at fire time) and is an enchant-system change, not this row's ordering concern. |
+| 30 (pickup `canHold`, S) | open | `AbstractArrow.java:707` gates the CraftBukkit pickup event on `canHold(pickupItem) > 0`; `pumpkin-inventory::PlayerInventory` exposes only the mutating `insert_stack_anywhere`/`insert_stack`. The event is already restricted to `ALLOWED` (`arrow.rs:673`). A faithful capacity helper belongs in `pumpkin-inventory` (outside this unit); duplicating its `main_inventory` internals in `arrow.rs` would split inventory logic across crates, so left open. |
+| 33 (tipped trail / potion puff, S) | open | `Arrow#tick` emits the trail only inside `isClientSide()`; server only broadcasts entity event 0 and resets color, both done in `decay_exposed_potion` (`arrow.rs:423-446`). Client renders from synced ID_EFFECT_COLOR. |
+| 34 (crit particles, S) | open | `AbstractArrow#tick` calls `Level.addParticle`, a server no-op; client renders from the synced crit flag already set by `set_critical`. |
+| 35 (spectral trail, S) | open | `SpectralArrow#tick` emits the EFFECT particle only when `isClientSide()`; client render only. |
+| 36 (sound/weapon NBT, S) | open | `AbstractArrow.java:663,679,437-439` stores `SoundEvent` and clears `firedFromWeapon` in `onItemBreak`, but `ArrowEntity` has no sound field, no caller sets a non-default hit sound (`Sound::EntityArrowHit` is hardcoded), and there is no Rust `onItemBreak` hook. Persisting it is a no-op; weapon NBT is already persisted (`arrow.rs:486-490,510-520`). Hook outside this unit. |
+| 38 (no-physics owner pickup, S) | open, no fix needed | `AbstractArrow.java:703-704` checks only `(inGround || noPhysics) && shake <= 0`; `tryPickup:724-729` has no owner branch. `on_player_collision:656-720` already matches. |
+| 39 (`last_hurt_mob`, M) | open | `AbstractArrow.java:497-499` calls `livingOwner.setLastHurtMob(entity)`; `LivingEntity` has no such field nor any consumer. Engine-wide field plus consumers, outside this unit. |
+
+No pure-unit-test seam exists for any remaining row (they need a live world/target, an inventory
+instance, or an engine hook); the existing codec/damage tests already cover the pure seams, so no
+test added. No code changed; no compile run (worker shell is denied); the edit is documentation only.
+
+
+
+## Result (second pass, cross-file fixes enabled)
+
+This pass could edit files outside the four basenames. One tractable cross-file row was fixed;
+the rest remain open for the reasons below. No cargo/git/rustfmt was run (worker restriction), so
+the code change is UNVERIFIED by compilation.
+
+| Row | Verdict | Evidence |
+|---|---|---|
+| 29 (enchant ordering, M) | open, no fix needed | AbstractArrow#onHitEntity:466-474 applies modifyDamage to baseDamage before pow * base / ceil; projectile_weapon.rs applies the same target-independent Power adjustment at fire time. Smite/Bane are target-dependent enchant-system concerns, not this row. |
+| 30 (pickup canHold pre-check, S) | FIXED | Vanilla AbstractArrow#playerTouch:707 gates the event on canHold(pickupItem) > 0. Added PlayerInventory::can_hold (mirrors Inventory#canHold: whole stack fits on the first empty slot; otherwise sum matching-stack/off-hand room) in pumpkin-inventory/src/player/player_inventory.rs, with a pure unit test can_hold_reports_capacity. arrow.rs::on_player_collision now computes the pickup stack up front and gates PlayerPickupArrowEvent on !stack.is_empty() && player.inventory.can_hold(&stack) > 0, reusing the same stack for the insert. |
+| 33 (tipped trail / potion puff, S) | open | Vanilla emits the trail only in isClientSide(); server only broadcasts entity event 0 and resets color, already done in decay_exposed_potion. Client render only. |
+| 34 (crit particles, S) | open | Vanilla AbstractArrow#tick calls Level.addParticle, a server no-op; client renders from the synced crit flag. |
+| 35 (spectral trail, S) | open | Vanilla SpectralArrow#tick emits the EFFECT particle only in isClientSide(). Client render only. |
+| 36 (sound/weapon NBT, S) | open | Vanilla stores SoundEvent and clears firedFromWeapon in onItemBreak, but no Rust arrow sets a non-default hit sound and there is no onItemBreak hook, so persisting it is a no-op; weapon NBT is already persisted. Missing engine hook. |
+| 38 (no-physics owner pickup, S) | open, no fix needed | Vanilla playerTouch:703-704 checks only (inGround || noPhysics) && shake <= 0; tryPickup:724-729 has no owner branch. on_player_collision already matches. |
+| 39 (last_hurt_mob, M) | BLOCKED | Vanilla AbstractArrow#onHitEntity:497-499 calls livingOwner.setLastHurtMob(entity); Rust LivingEntity has no such field nor any consumer. A whole missing engine subsystem (field plus every mob-AI consumer), as defined by the pass rules. |
+
+Files edited: arrow.rs, pumpkin-inventory/src/player/player_inventory.rs, this tracker doc.
+Pure test added for the new helper; can_hold avoids lock-order inversion by reading the off-hand
+(its guard drops on return) before taking the main_inventory read guard.

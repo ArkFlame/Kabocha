@@ -238,3 +238,46 @@ table above is stale; all rows are resolved in code.
 
 No new pure test needed: all seams are already covered. No build run (worker rule: orchestrator
 compiles); no source edit so no rustfmt needed.
+
+
+## Result
+
+Independent verification of every STILL OPEN row against `.vendor/vanilla-decompiled`, smallest
+rows first. This unit may edit only `owner.rs`; that file already matches vanilla, so no source
+edit was needed.
+
+- Row 7 (drop item resolution): OUT OF SCOPE (in `boat.rs`, not editable in this unit); left as
+  recorded in the prior Result sections.
+- Row 5 (instabuild destroy skip): OUT OF SCOPE (in `boat.rs`); left as recorded.
+- Row 6 (passenger damage to own boat): VERIFIED MATCHING in `owner.rs`. Vanilla
+  `Projectile.canHitEntity` (Projectile.java:551-567) returns
+  `owner == null || leftOwner || !owner.isPassengerOfSameVehicle(entity)`. Pumpkin
+  `ProjectileOwner::can_hit` (owner.rs:239-251) mirrors it: the Paper vanish check first, then
+  `left_owner || owner.get(world).is_none_or(|owner| !owner.is_passenger_of_same_vehicle(entity))`.
+  Vanilla `isPassengerOfSameVehicle` (Entity.java:6602-6604) is
+  `getRootVehicle() == other.getRootVehicle()`; Pumpkin's `root_vehicle_id()` equality
+  (entity/mod.rs:6100-6102) is the equivalent. A rider shares its root vehicle with the chest boat,
+  so `can_hit` is false and the mounted boat is not damaged; no `hurtServer` guard is needed.
+  `can_hit_entity` (projectile/mod.rs:215-217) also applies `can_be_hit_by_projectile` first,
+  matching vanilla's `isAlive() && isPickable()` precheck.
+- Row 2 (failed boarding result): OUT OF SCOPE (in `boat.rs`); left as recorded.
+- Row 1 (chest boat interact ordering): OUT OF SCOPE (in `boat.rs`); left as recorded.
+- Row 3 (canPlayerUse / stillValid): OUT OF SCOPE (in `minecart/container.rs`); left as recorded.
+- Row 4 (container-entity loot tables): OUT OF SCOPE (in `boat.rs` / `minecart/container.rs`);
+  left as recorded.
+
+No pure test added: `can_hit` needs a live `World` and is not a pure seam; the pure seams in
+`owner.rs` (NBT round trip, defaults, `remove_nbt`, `restore_from`) are already covered by its four
+unit tests. No `.rs` file touched, so rustfmt is not needed. No build run (worker rule: orchestrator
+compiles).
+
+## Result
+Independent re-verification of every STILL OPEN row against `.vendor/vanilla-decompiled` and the current main-checkout source, smallest rows first. This unit permits no source edits (basenames: none) and all seven rows are resolved in code; no `.rs` file was touched. The "Gap status" table above is stale; all rows are resolved in code.
+- Row 7 (drop item resolution): OUT OF SCOPE (in `boat.rs`, not editable in this unit); left as recorded in the prior Result sections.
+- Row 5 (instabuild destroy skip): OUT OF SCOPE (in `boat.rs`); left as recorded.
+- Row 6 (passenger damage to own boat): VERIFIED MATCHING in `owner.rs`. Vanilla `Projectile.canHitEntity` returns `owner == null || leftOwner || !owner.isPassengerOfSameVehicle(entity)`. Pumpkin `ProjectileOwner::can_hit` mirrors it: the Paper vanish check first, then `left_owner || owner.get(world).is_none_or(|owner| !owner.is_passenger_of_same_vehicle(entity))`. Vanilla `isPassengerOfSameVehicle` is `getRootVehicle() == other.getRootVehicle()`; Pumpkin`s `root_vehicle_id()` equality is the equivalent. A rider shares its root vehicle with the chest boat, so `can_hit` is false and the mounted boat is not damaged; no `hurtServer` guard is needed. `can_hit_entity` (projectile/mod.rs:215-217) also applies `can_be_hit_by_projectile` first, matching vanilla`s `isAlive() && isPickable()` precheck.
+- Row 2 (failed boarding result): OUT OF SCOPE (in `boat.rs`); left as recorded.
+- Row 1 (chest boat interact ordering): OUT OF SCOPE (in `boat.rs`); left as recorded.
+- Row 3 (canPlayerUse / stillValid): OUT OF SCOPE (in `minecart/container.rs`); left as recorded.
+- Row 4 (container-entity loot tables): OUT OF SCOPE (in `boat.rs` / `minecart/container.rs`); left as recorded.
+No pure test added: `can_hit` needs a live `World` and is not a pure seam; the pure seams in `owner.rs` (NBT round trip, defaults, `remove_nbt`, `restore_from`) are already covered by its four unit tests. No `.rs` file touched, so rustfmt is not needed. No build run (worker rule: orchestrator compiles).

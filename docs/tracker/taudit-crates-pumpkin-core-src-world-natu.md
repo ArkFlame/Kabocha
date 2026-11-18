@@ -292,3 +292,21 @@ already resolved by other workers.
   continues). after_spawn matches NaturalSpawner.java:754-775. No change.
 
 No new pure unit test: no seam was added this pass. Files changed: this doc only.
+
+## Result (second pass, cross-file permission)
+
+Row 7 (chunk-gen vs live adjust_spawn_position) was the only STILL OPEN row. FIXED
+without a cross-crate change: get_top_non_colliding_pos already receives world:
+&World, so adjust_spawn_position_cache now takes that &World and uses the same
+world.block_registry.is_pathfindable(state_id.to_block(), state_id.to_state(),
+PathComputationType::Land) predicate as the live adjust_spawn_position path. The
+block and state still come from the in-progress GenerationCache (the generated block),
+so this matches vanilla level.getBlockState(below).isPathfindable(LAND) and drops
+the !is_full_cube() approximation that ignored isPathfindable overrides (fences,
+walls, and so on). The shared adjust_spawn_position_down helper and its existing
+test are unchanged. No new pure unit test: the only pure seam is already covered,
+and exercising the cache path needs a live World plus GenerationCache.
+
+Rows 1-6, 8-11 and the h3-sweep row remain resolved/matching as recorded in the
+earlier Result sections (row 9 and the h3 gate were resolved in world/mod.rs by
+another worker). Files changed this pass: natural_spawner.rs and this doc.

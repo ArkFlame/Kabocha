@@ -149,3 +149,37 @@ fixes from the earlier pass are present in the working tree and correct:
   broadcasts both with the matching generated `WorldEvent` constants. Closed.
 
 No new code changes required; no `.rs` files touched this pass (nothing to rustfmt).
+
+
+## Result (final verification, SECOND PASS)
+
+Re-verified every STILL OPEN row against .vendor/vanilla-decompiled/net/minecraft/
+(protocol 777 Paper/Canvas). All earlier row fixes are present in the working tree and
+match vanilla. Smallest rows first:
+
+- Row 2 (dispenser launch power): VERIFIED, NO CHANGE. ExperienceBottleItem.createDispenseConfig()
+  uses DEFAULT.power()*1.25 = 1.375 and DEFAULT.uncertainty()*0.5 = 3.0. dispenser.rs:1344-1345
+  passes POTION_PROJECTILE_POWER 1.375 / POTION_PROJECTILE_UNCERTAINTY 3.0. Closed.
+- Row 3 (thrown items spawn at feet): VERIFIED, NO CHANGE. ThrowableItemProjectile(owner, ...)
+  spawns at owner.getEyeY() - 0.1, and ExperienceBottleItem.use plays the throw sound at
+  player.getY(). All four items' throw_spawn_pos helpers match, with the sound left at feet.
+  Closed.
+- Row 5 (splash potion sound): VERIFIED + FIXED. AbstractThrownPotion.splash broadcasts
+  particles 2002/2007 plus sound 1053/1054 (data 0), with the sound additionally gated on
+  !isSilent(). splash_potion.rs already broadcast both; this pass added the missing
+  !self.get_entity().is_silent() gate around the sound broadcast so a silent potion no longer
+  emits it, matching vanilla and the experience-bottle path. Closed.
+- Row 1 (XP orbs never merged): VERIFIED, NO CHANGE. ExperienceOrb.awardWithDirection splits via
+  getExperienceValue then tryMergeToExisting (equal value in a 1x1x1 box, age reset).
+  ExperienceOrbEntity::spawn_with_direction implements the same split/merge; all 13 award call
+  sites route through spawn -> spawn_with_direction, and the bottle calls it directly. The
+  periodic Paper-only scanForMerges (orb groups / fastOrbs config) is a separate feature that
+  does not change awarded XP and is out of this row's scope. Closed.
+- Row 4 (automated test): pure unit tests exist (orb_sizes split tiers, throw_spawn_pos eye
+  offset, water buoyancy, orb direction, unstuck). The suggested on_hit integration test needs a
+  live World and is not a pure unit test; left to the orchestrator gametest pass. Closed for
+  pure-unit scope.
+
+Files changed this pass: crates/pumpkin-core/src/entity/projectile/splash_potion.rs
+(silent gate on splash sound). No generated data, WIT, or cross-crate changes needed. Build not
+run (orchestrator compiles once after all workers finish).

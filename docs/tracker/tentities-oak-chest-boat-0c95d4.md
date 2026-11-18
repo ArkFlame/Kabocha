@@ -110,3 +110,54 @@ All eight STILL OPEN rows were re-verified against `.vendor/vanilla-decompiled/n
 - 8 pick result / drop item: FIXED - `boat_drop_item` uses `BoatItem::entity_to_item` with registry fallback; matches vanilla `getDropItem`/`getPickResult` `dropItem.get()` supplier.
 
 No cargo run (orchestrator batch-compiles); no new source files touched. Row 4 stays open only for the engine API reason above.
+
+## Result (third re-review)
+
+Decompiled vanilla confirmed present at `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/`
+(`AbstractBoat.java`, `AbstractChestBoat.java`, `VehicleEntity.java`, `ContainerEntity.java`), target 26.3
+(Paper + CraftBukkit patches). All eight STILL OPEN rows re-checked directly against those classes.
+
+Every fix from the earlier passes is present in the current source; no source edits were needed this pass.
+
+- 1 canPlayerUse: MATCH - `container.rs` `EntityContainerScreenHandler.can_use` runs the validity
+  closure installed in `open` (`is_alive() && can_interact_with_entity(vehicle, 4.0)`), matching
+  `ContainerEntity.isChestVehicleStillValid` = `!isRemoved() && player.isWithinEntityInteractionRange(bb, 4.0)`
+  (`ContainerEntity.java:181-183`).
+- 2 instabuild named: MATCH - `drops_item_when_destroyed(creative, _named) -> !creative`. Vanilla
+  `VehicleEntity.hurtServer` (`VehicleEntity.java:59-80`) discards on an instabuild hit without
+  `destroy`, so no named item drops; `destroy(level, item)` copies the name only in the non-creative
+  path (`VehicleEntity.java:94-101`). Test `creative_boat_drops_no_item_even_when_named` covers this.
+- 3 passenger immunity: MATCH - no `isPassengerOfSameVehicle` early-return in
+  `damage_with_context`. `VehicleEntity.hurtServer` has no such branch and `AbstractBoat` does not
+  override `hurt`, so a rider's own projectile may damage the boat.
+- 4 destroying removal spills container: RESOLVED (was open) - the earlier "engine API change needed"
+  concern does not hold in the current engine. `World::remove_entity` (`world/mod.rs:6625-6649`) sets
+  `removal_reason = Discarded` (should_destroy = true) via `compare_exchange` immediately before the
+  sole generic `on_removed()` call; if a reason is already set the method returns early without calling
+  it. Non-destroying removals (`UnloadedToChunk`, `world/mod.rs:6706-6721`) never invoke `on_removed()`.
+  So `BoatEntity::on_removed -> scatter_chest_contents` (with its `claim_drops` guard) runs only on
+  destroying removals, matching vanilla `AbstractChestBoat.remove`'s `reason.shouldDestroy()` gate.
+- 5 interact open condition: MATCH - `boat_interact_outcome` mirrors `AbstractBoat.interact`
+  (`AbstractBoat.java:779-787`) then `AbstractChestBoat.interact` (`AbstractChestBoat.java:79-97`);
+  `canAddPassenger` = seat count + eye-in-water only (`AbstractBoat.java:836-838`).
+- 6 bubble time publish: MATCH - `tick_bubble_column` writes `ID_BUBBLE_TIME`, `tick_underwater` does
+  not; vanilla `setBubbleTime` calls occur only in `onAboveBubbleColumn`/`tickBubbleColumn`
+  (`AbstractBoat.java:170,365,370,373`), never in the tick's out-of-control path.
+- 7 container entity line: MATCH - chest boats keep `LootTable`/`LootTableSeed` via `MinecartInventory`
+  save/load and unpack on open/scatter, matching `ContainerEntity` (`unpackChestVehicleLootTable`,
+  `addChestVehicleSaveData`).
+- 8 pick result / drop item: MATCH - `boat_drop_item` uses `BoatItem::entity_to_item` with registry-key
+  fallback, equivalent to `AbstractBoat.getDropItem`/`getPickResult` `dropItem.get()`
+  (`AbstractBoat.java:861-869`).
+
+Status: all 8 rows verified against decompiled vanilla, none open. No cargo run (orchestrator
+batch-compiles), so tests remain unexecuted here. No new source edits this pass.
+
+
+## Third-pass Result (row 4 gate fix)
+
+All eight STILL OPEN rows re-verified against `.vendor/vanilla-decompiled/net/minecraft/` (Paper 26.3). Rows 1-3 and 5-8 remain fixed in current source; no edits needed.
+
+- 4 destroying removal spills container: FIXED (in scope) - `BoatEntity::on_removed` now gates `scatter_chest_contents` on `removal_reason.load().is_some_and(|reason| reason.should_destroy())`. `World::remove_entity` (world/mod.rs:6630-6649) sets `removal_reason = Some(RemovalReason::Discarded)` via compare_exchange BEFORE invoking `on_removed`, so the field is always present at the hook; `RemovalReason::should_destroy()` already distinguishes KILLED/DISCARDED from unload/dimension-change. This matches vanilla `AbstractChestBoat.remove` (`reason.shouldDestroy()`) and clears the earlier blocker without any cross-crate or engine-signature change.
+
+Files edited: `crates/pumpkin-core/src/entity/vehicle/boat.rs` (on_removed gate). No new imports, no unwrap/expect/panic, no em dashes. No new pure test: the gate delegates to the already-existing `RemovalReason::should_destroy()`, so a test here would only mirror that function. Cargo/rustfmt not run (worker rule; orchestrator batch-compiles).

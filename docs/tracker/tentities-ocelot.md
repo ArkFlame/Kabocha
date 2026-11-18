@@ -121,3 +121,25 @@ signatures in `mob/mod.rs:2445-2451` and the
 Generated `entity_type.rs:7743-7745` confirms Ocelot hurt/death/ambient sounds
 are populated, so no `CustomSound` impl is needed. Row 4 re-checked against
 `Entity.java:3936` (`isSteppingCarefully()` = `isShiftKeyDown()`).
+
+## Result
+
+Final verification pass (1.21 decompiled vanilla `Ocelot.java` + current source).
+
+1. `mob_interact` distance gate — **VERIFIED, no change**. Vanilla requires
+   `player.distanceToSqr(this) < 9.0` (`Ocelot.mobInteract`), and Pumpkin keeps
+   `dist_sqr < 9.0` (`ocelot.rs:197`). Gap-status claim that the gate was 1.12-only
+   was incorrect.
+2. `get_breed_offspring` trust inheritance — **VERIFIED, no change**. Vanilla
+   returns a plain `EntityTypes.OCELOT` on breeding with no trust copy, matching
+   inherited `Animal::get_breed_offspring` behaviour.
+3. Mob sounds — **ALREADY FIXED in source**. `OcelotEntity` implements
+   `get_ambient_sound()` (`entity_type.ambient_sound`) and
+   `get_ambient_sound_interval()` returning `OCELOT_AMBIENT_SOUND_INTERVAL = 900`,
+   with unit tests for despawn and ambient interval constants (`ocelot.rs`).
+   Hurt/death resolve from generated entity-type data; no `CustomSound` impl needed.
+4. `mob_is_stepping_carefully` — **VERIFIED, no change**. Vanilla returns
+   `isCrouching() || super.isSteppingCarefully()` (shift/sneaking), matching
+   Pumpkin `pose == Crouching || is_sneaking()`; cat uses the same override pattern.
+
+Fixed=1 (row 3, already present), open=0. Files: `crates/pumpkin-core/src/entity/passive/ocelot.rs`, `docs/tracker/tentities-ocelot.md`. No other allowed source files changed. Not compiled (orchestrator gate). No generated data/WIT/cross-crate changes.

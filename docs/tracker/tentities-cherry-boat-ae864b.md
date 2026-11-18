@@ -122,3 +122,31 @@ resides in boat.rs. Verified `boat/dismount.rs` line-by-line against decompiled 
   Rust does so only for players; non-player dismount poses are exclusively Standing (no-op),
   so behaviour is observably equivalent. Not changed to avoid untestable churn in a file with
   no open row. No code change; no compile needed (no .rs file edited).
+
+
+## Result (second-pass verification 2026-11-18)
+
+Re-verified all four "Remaining gaps" plus the h6 delta-rotation note against decompiled vanilla
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`. No code
+change was warranted, so no .rs file was edited (rustfmt not applicable).
+
+- Row 1 / h6 "Delta-rotation accumulation not added: STILL OPEN": VERIFIED ALREADY FIXED.
+  `BoatEntity` tracks `last_yaw`/`yaw_delta` (boat.rs:231-232, init :257-258); `tick` recomputes the
+  delta each tick (boat.rs:586-588); `on_rider_positioned` applies it to non-player riders and mob
+  heads then clamps (boat.rs:851-889); `clamp_rider_yaw`/`clamp_head_to_body` pure tests exist
+  (boat.rs:1033-1067). Matches `AbstractBoat.positionRider` (adds deltaRotation, then clampRotation).
+- Row 2 "drop ticks_underwater / is_eye_in_water from mounting gate": doc claim CONTRADICTED by
+  vanilla; no change. `AbstractBoat.interact` (:784) keeps `!(outOfControlTicks < 60.0F)` and
+  `canAddPassenger` (:836-837) keeps `!isEyeInFluid(WATER)`. `boat_interact_outcome` (boat.rs:161,
+  :818-820) matches: a submerged or long-out-of-control boat refuses riders in vanilla too.
+- Row 3 "increment outOfControlTicks only for UnderWater": doc claim CONTRADICTED; no change.
+  `AbstractBoat.tick` (:243-247) increments for BOTH UNDER_WATER and UNDER_FLOWING_WATER.
+  `BoatStatus::is_underwater` (physics.rs:22-24) covers both; `tick_underwater` (boat.rs:392-402)
+  uses it: correct.
+- Row 4 "chest contents scatter only in damage path": VERIFIED ALREADY FIXED. `BoatEntity::on_removed`
+  (boat.rs:488-499) calls `scatter_chest_contents`, invoked centrally for every removal reason;
+  `claim_drops` (boat.rs:272-276) makes the 27-slot scatter run at most once. Matches vanilla
+  `AbstractChestBoat.remove(RemovalReason)`.
+- `boat/dismount.rs` (the only file in this unit's allowlist) has no STILL OPEN row and was verified
+  line-by-line in the prior pass; unchanged.
+- No BLOCKED rows: none require generated pumpkin-data fields or a missing subsystem.

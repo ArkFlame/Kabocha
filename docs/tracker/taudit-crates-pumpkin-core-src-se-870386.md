@@ -171,3 +171,43 @@ Rows left OPEN (files outside this unit):
   `catch (Throwable)` and writes `crash-reports/crash-<date>-server.txt` (1413-1424).
   Needs `catch_unwind` plus cross-crate wiring to the `pumpkin` binary's panic hook
   and `CrashReport`; not reproducible in ticker.rs alone. Size L.
+
+## Result
+
+Second pass with cross-file edits permitted. Both remaining STILL OPEN rows were
+re-verified against `.vendor/vanilla-decompiled/net/minecraft/server/MinecraftServer.java`
+(`runServer` 1357-1435, `tickServer` 1603-1757, classic `++tickCount` at 1705).
+
+- FIXED (M) tick_count-at-start, previously left open as cross-file:
+  - `server/ticker.rs:136-143` - advance `tick_count` at the top of the tick loop via
+    `super::advances_tick_count(runs_normally, is_sprinting)`, before `manager.tick()`,
+    matching vanilla `++tickCount` before `tickRateManager.tick()`/`tickChildren`.
+    In-tick readers (`ScheduledFunctionQueue::tick`, `autosave_if_due`) now see the
+    1-based current tick like vanilla.
+  - `server/mod.rs:2064-2068` - removed the local `+ 1` patch in `sync_game_time`;
+    the 20-tick cadence (tick_count % 20 == 0) is unchanged.
+  - `server/mod.rs:2079-2084` - `update_tick_times` no longer increments `tick_count`;
+    it reads the already-current value for ring indexing (now `(tick_count % N)`,
+    matching vanilla's 1-based `tickTimes[tickCount % 100]`).
+  - `server/ticker.rs:186-190,213-219` - tick start/end events now report `tick_count`
+    directly (already 1-based); removed the obsolete `tick_event_number` helper and
+    its `tick_events_report_one_based_tick_number` test (the +1 conversion no longer
+    exists). `scheduler.rs` and `/schedule` read the same in-tick counter, so trigger
+    ticks stay consistent. No new unit test: the observable behaviour needs a runtime
+    `/schedule`/autosave scenario, not a pure seam; the existing
+    `advances_tick_count` test still covers the freeze/sprint gate.
+
+Rows re-verified, no change needed:
+
+- try/catch crash report (`ticker.rs:87-203`): not a missing subsystem. The global
+  panic hook in `crates/pumpkin/src/main.rs:83,311-383` already catches panics on the
+  ticker thread, sets CRASH_REPORT and calls `stop_server()`; graceful shutdown in
+  `crates/pumpkin-core/src/lib.rs:601-613` then prints/saves the crash report and sets
+  exit code 1. A panic in `server.tick()` therefore already yields an orderly stop and
+  a `crash-reports/crash-*.txt` file. `catch_unwind` in ticker.rs would be redundant
+  (and vanilla stops, not continues). CrashReport's exact text is fork API.
+
+No compile/test run (unit rules); rustfmt is run by the orchestrator. Risk: the
+`tick_count` increment moved from end-of-tick to top-of-tick, so a `/tick freeze` or
+sprint issued mid-tick now settles one tick as vanilla does; pause-tick counting is
+unchanged (update_tick_times was previously called unconditionally on paused ticks).

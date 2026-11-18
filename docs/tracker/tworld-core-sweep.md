@@ -37,3 +37,15 @@ Scope: `crates/pumpkin-core/src/world/` (time, weather, sleeping, random tick, s
 
 - Difficulty effects in entity code (STILL OPEN): left open, because hunger, regeneration and per-difficulty damage live in `crates/pumpkin-core/src/entity/` (vanilla `Player`/`FoodData`/`DamageSource`), files outside this unit (`border.rs`, `time.rs`, `weather.rs`, `weather_profile.rs`).
 - Verified every other row stays resolved: `time.rs` `is_night` uses the overworld night window 12600..23401 with its test; `border.rs` `new` defaults damage 0.2 / safe zone 5.0; `weather_profile.rs` rain and thunder timings match vanilla. No in-scope source change needed, no `.rs` file touched, so rustfmt is not applicable.
+
+
+## Result (second pass)
+
+- Difficulty effects in entity code (the last STILL OPEN row): VERIFIED against decompiled vanilla; no bug found, no source change needed. Checked all three sub-areas:
+  - Hunger: `entity/hunger.rs::tick` matches `world/food/FoodData.java::tick` exactly (EXHAUSTION_DROP 4.0, saturation -1 before food -1, non-Peaceful only; MAX_EXHAUSTION 40.0; NBT keys/defaults 20/5.0/0.0/0).
+  - Natural regeneration: saturated (tick%10, spend min(sat,6), heal spent/6, +exhaustion spent), unsaturated (level>=18, tick%80, heal 1, +exhaustion 6), and `can_food_heal()` == vanilla `isHurt()` all match `FoodData.tick`.
+  - Peaceful regen: `player.rs::tick` (`tick_count%20` heal 1 + saturation+1<20; `%10` food+1<20) matches `ServerPlayer.tickRegeneration`; Regeneration mob effect `50 >> amplifier` with heal 1 matches `RegenerationMobEffect`.
+  - Per-difficulty damage: `player.rs::difficulty_scaled_damage` + `damage_scales_with_difficulty` in `damage_with_context` match vanilla `Player.hurtServer` (Peaceful negates, Easy `min(amount/2+1, amount)`, Hard `*1.5`, scale only when `source.scalesWithDifficulty()`); unit test `difficulty_scaling_matches_vanilla_hurt_server` exists.
+  - Starvation: `should_starve` (health>10 || Hard || health>1 && Normal), 1.0 STARVE damage, 80-tick timer match `FoodData.tick` line 89.
+- All three sub-areas already carry smallest pure unit tests where a seam exists; `hunger.rs`, `effect/{hunger,regeneration,saturation}.rs` and `player.rs` tests cover them. No new test needed.
+- Every other row remains resolved (time window, border defaults, weather timings). No `.rs` file touched, so rustfmt is not applicable.

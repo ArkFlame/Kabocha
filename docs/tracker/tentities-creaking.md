@@ -98,3 +98,91 @@ other rows confirmed already-correct or intentionally left open.
   implemented in code (`new()` goals at lines ~164-178, `try_spawn_creaking` -> `set_creaking_uuid` at line 199).
 - creaking loot (row 32): LEFT OPEN. Loot tables are generated/data-driven outside `creaking.rs`/`creaking_heart.rs`;
   one-line reason: needs generated loot-table data (outside unit).
+
+
+## Result (final re-verify)
+
+Re-verified every remaining-gaps row against `.vendor/vanilla-decompiled/` (Creaking.java, CreakingAi.java,
+LivingEntity.java:2276, Entity.java:2725). The prior fixes are intact and match vanilla: `is_looking_at_me`
+uses a constant cone threshold `1.0 - GAZE_CONE_SIZE` (coneSize 0.5, adjustForDistance=false), the vanilla
+`calculateViewVector` sign convention, three gaze heights and `ClipBlock::Visual` LOS; `do_hurt_target` sets
+the 15-tick animation and broadcasts entity event 4; melee is `MeleeAttackGoal::new(1.0, false)` gated by
+`can_move` at a 40-tick interval; idle wander uses 0.3 speed gated by `can_move`; disguise gating is
+`(!active || !is_disguised)`; heart UUID binding and `try_despawn_creaking` counter/LOS behaviour are correct;
+death-sound ordering is correct (vanilla intentionally plays CREAKING_DEATH twice via `die()` and `tearDown()`).
+
+- unused eye-glow fields (row 31, was LEFT OPEN): FIXED by dropping the dead client-only code from
+  `creaking.rs`. Vanilla `setupAnimationStates` / `checkEyeBlink` run only when `level().isClientSide()`
+  (Creaking.java:262-265), and a workspace-wide grep confirmed `eyes_glowing`, `next_flicker_time`,
+  `has_glowing_eyes()` and `check_eye_blink()` had zero callers. Removed the two fields, their `new()`
+  initializers and both methods; `death_time` stays for the tear-down countdown and the atomic imports stay
+  in use. No pure unit test: deletion of uncalled client-only code has no seam. UNVERIFIED (no compile here).
+- creaking loot (row 32, still LEFT OPEN): one-line reason: needs generated loot-table data (outside unit).
+
+## Result (CODER re-verify pass)
+
+Re-checked every row against `.vendor/vanilla-decompiled/` (Creaking.java, CreakingHeartBlockEntity.java,
+LivingEntity.java:226/2276). No source change: all rows were already resolved in earlier passes and the
+current code matches decompiled vanilla.
+
+- row 25 `is_looking_at_me` (h2 STILL OPEN): already FIXED. Vanilla `LivingEntity.isLookingAtMe` (2276-2299)
+  uses `dot > 1.0 - coneSize/(adjustForDistance?dist:1)`; `Creaking.checkCanMove` (476-478) passes coneSize
+  0.5, adjustForDistance=false, so the threshold is the constant 0.5. Rust `dot > 1.0 - GAZE_CONE_SIZE`
+  matches. Look vector follows vanilla `calculateViewVector` sign convention; the three gaze heights match;
+  LOS uses `ClipBlock::Visual` (vanilla seeThroughTransparentBlocks=true). Minor known approximation, not a
+  row: Pumpkin `has_line_of_sight` uses eye-to-eye endpoints, not vanilla's per-gaze-height endpoint. No pure
+  unit test (world/player state required; a dot-product helper would be a formula-mirroring test).
+- row 30 death-sound ordering (h2 STILL OPEN): verified NO change. `creakingDeathEffects` -> `die()`
+  broadcasts EntityEvent.DEATH (client plays CREAKING_DEATH) then plays CREAKING_TWITCH; `tearDown`
+  (Creaking.java:325) plays `getDeathSound()` again. Vanilla intentionally plays CREAKING_DEATH twice;
+  Pumpkin's `on_die`/`creaking_death_effects`/`tear_down` flow matches.
+- row 31 unused eye-glow fields (h2 STILL OPEN): already FIXED; fields/methods absent from `creaking.rs`.
+  Vanilla `setupAnimationStates`/`checkEyeBlink` run only client-side (Creaking.java:262-265).
+- rows 24/26/27/29: confirmed already handled. `player_is_stuck_in_you` counter matches vanilla
+  (`Creaking.java:363-381`, `>4`); `do_hurt_target` sets 15 ticks + broadcasts event 4 + plays
+  CREAKING_ATTACK; melee/wander gated by `can_move` with 0.3 idle speed; heart UUID bound on spawn and
+  cleared on teardown; disguise gating `(!active || !is_disguised)`.
+- row 32 creaking loot: LEFT OPEN. One-line reason: needs generated loot-table data (outside unit).
+- Observation only (not a row, no change): `tear_down()` particles diverge from vanilla (Creaking.java:292-323),
+  which spawns 100 BLOCK_CRUMBLE particles with PALE_OAK_WOOD plus 10 with CREAKING_HEART/AWAKE at the
+  bounding-box center; Rust spawns a single 100-count CREAKING_HEART burst at `pos`. Client-only visual effect,
+  out of scope, no testable server seam.
+
+Status: PASS (all unit rows already fixed; verification only). No source files edited. UNVERIFIED (no compile
+in this role; orchestrator batch-checks). Skipped: no tests added (no pure seam for the verified rows).
+
+
+## Result (second pass, expanded cross-file scope)
+
+Re-verified every remaining-gaps row against `.vendor/vanilla-decompiled/`
+(Creaking.java:140-497, LivingEntity.java:2276, CreakingHeartBlockEntity.java) and the
+generated pumpkin-data. No source files required changes: this pass is verification only.
+
+- Row 24 `player_is_stuck_in_you`: already correct. Vanilla `Creaking.playerIsStuckInYou`
+  (Creaking.java:363-381) checks `ownBox.contains(player.getEyePosition())`, increments the
+  counter on the first enclosed player and returns `counter > 4`. Rust matches (manual AABB
+  bounds test, `MAX_PLAYER_STUCK_COUNTER = 4`) and it is driven from the heart despawn tick
+  (`creaking_heart.rs:238`), not `checkCanMove`, matching vanilla.
+- Rows 25/26/27/28/29/30/31: already resolved in earlier passes. Re-checked against
+  `Creaking.java`: gaze cone constant `1.0 - GAZE_CONE_SIZE` (coneSize 0.5,
+  adjustForDistance=false, Creaking.java:475-478); `do_hurt_target` sets 15 ticks and
+  broadcasts entity event 4 (Creaking.java:140-147); melee/wander gated on `can_move` with 0.3
+  idle speed; `MeleeAttackGoal::new(1.0, false)`; heart UUID bound on spawn and cleared on
+  teardown; death-sound ordering (vanilla intentionally sounds CREAKING_DEATH twice via
+  `die()` and `tearDown()`); dead client-only eye-glow code removed (runs only when
+  `level().isClientSide()`, Creaking.java:262-265). All match, no change.
+- Row 32 `creaking loot` (previously LEFT OPEN as "needs generated loot-table data"): RESOLVED
+  by generated data, no source change needed. `pumpkin-data/src/generated/loot_table.rs:55841`
+  `ENTITIES_CREAKING` has `pools: &[]` (drops nothing) and `entity_type.rs:2800` gives CREAKING
+  `experience_reward: 0` (drops no XP), matching vanilla `xpReward = 0` (Creaking.java:91).
+- `tear_down` particles (observation only, not a row): still a client-only visual divergence
+  (Rust: one 100-count CREAKING_HEART burst at `pos`; vanilla: 100 PALE_OAK_WOOD + 10
+  CREAKING_HEART/AWAKE crumble bursts at the bounding-box center, Creaking.java:292-323).
+  No testable server seam; client-only, do not block.
+- No pure unit test added: every seam with a pure helper (`heart_shake_allowed`,
+  `is_creaking_too_far`, `has_face`/`set_face`, `is_protector`, `creaking_can_move`,
+  `creaking_is_active`) already has a test; the remaining logic needs live world/player state
+  or is generated data.
+
+Files edited: none. Skipped: no tests added (no new pure seam). UNVERIFIED in this role
+(no compile; orchestrator batch-checks).

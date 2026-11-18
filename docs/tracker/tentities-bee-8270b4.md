@@ -162,3 +162,30 @@ Re-verified the remaining STILL OPEN rows against `Bee.java` (MC 26.3). Files ed
   the night/rain proxy for `BEES_STAY_IN_HIVE` remain as before; neither was flagged STILL OPEN.
 - **No unwrap/expect/panic added**; all new tests are pure helpers. Files: `bee.rs`,
   `pollinate_flower.rs`.
+
+
+## Result (second-pass open-row sweep, 2026-11-18)
+
+Re-verified both remaining STILL OPEN rows against `Bee.java` (MC 26.3). Files edited:
+`pollinate_flower.rs`, `grow_crop.rs`. No compile run (worker restriction); the orchestrator
+runs rustfmt and the build.
+
+- **Gap 2c (`canBeeContinueToUse` 20% hover roll): FIXED.** Decompiled `BeePollinateGoal`
+  (Bee.java:1151-1156) continues after 400 ticks with `random.nextFloat() < 0.2F` and only
+  grants nectar in `stop()` (Bee.java:1180-1183). Pumpkin stopped at 401 and called
+  `on_pollinated` every tick past 400. `should_continue` now applies a pure
+  `keeps_hovering_after_pollination` 20% roll instead of the hard 401 cut-off, and
+  `on_pollinated` moved from `tick()` into `stop()` gated by `pollination_complete`, so nectar
+  is granted exactly once and the `can_pollinate` gate stays true for the whole hover (the
+  goal selector reliably calls `stop()` when `should_continue` is false).
+  Pure test: `hover_roll_keeps_twenty_percent_of_pollinating_bees`.
+- **Gap 3 (pitcher crop / two-block plants): FIXED.** `pitcher_crop` is in the generated
+  `MINECRAFT_BEE_GROWABLES` tag (tag.rs:2638), but `grow_crop.rs` excluded it because writing
+  the age directly would desync its upper half, and `PitcherCropBlock::grow` already syncs both
+  halves through the bonemeal path. Removed the exclusion in `is_growable_block` and made
+  `grown_state_id` return `None` for `PITCHER_CROP` (alongside cave vines) so growth routes
+  through `block_registry.bone_meal` -> `perform_bonemeal` -> `grow` and keeps the upper half
+  in sync. Pure test: `grown_state_id_defers_pitcher_crop_to_bonemeal`.
+
+No unwrap/expect/panic added; both new tests are pure helpers. Both rows are now CLOSED within
+this unit; no generated-data or whole-subsystem blocker remains.

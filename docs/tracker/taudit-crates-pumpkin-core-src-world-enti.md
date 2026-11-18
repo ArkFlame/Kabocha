@@ -169,3 +169,47 @@ vanilla. Files were read only.
 Status: PASS fixed=0 (all rows already resolved and re-verified) open=0
 files=crates/pumpkin-core/src/world/entity_tracker.rs (no edits this sweep).
 No build run (CODER cannot compile); orchestrator to check.
+
+
+## Result (final vanillarecheck)
+
+Independent recheck of every row against the local decompile. All rows were
+already resolved in code; no source edits were needed this sweep.
+
+- Marker (pack_degrees) - verified fixed. entity_tracker.rs uses
+  pack_degrees at lines 31, 117-119, 182-183, 221, 341-343, 620, 629, 1507;
+  no TODO or hand-rolled rem_euclid(256) remains.
+- Row 1 (velocity resend cadence) - verified, no change.
+  ServerEntity.sendChanges (ServerEntity.java:194-248) gates motion on
+  diff > 1e-7 || diff > 0 && movement.lengthSqr() == 0. Pumpkin
+  velocity_changed_since_sent (entity/mod.rs:2599-2603) matches exactly, and
+  send_motion is inside the throttled block (entity_tracker.rs:199-201). The
+  separate syncVelocity/hurtMarked path (vanilla 279-301) is mirrored by
+  sync_velocity (entity_tracker.rs:233-235).
+- Row 2 (CHeadRot cadence) - verified fixed. ServerEntity.java:268-272 emits
+  ClientboundRotateHeadPacket inside the throttled block guarded by
+  Math.abs(yHeadRot - lastSentYHeadRot) >= 1. Pumpkin (entity_tracker.rs:218-228)
+  sends CHeadRot only when the packed head yaw differs, inside the if, with
+  corrected comments. Test head_rotation_is_throttled_with_tracker_interval
+  (line 1484) present and uses Result/?.
+- Row 3 (duplicate player metadata) - verified fixed.
+  ServerEntity.sendPairingData (ServerEntity.java:392-446) sends the entity-data
+  packet once (403-405). add_pairing (entity_tracker.rs:659-673) now sends a
+  single CSetEntityMetadata from synched data; the duplicate explicit
+  skin-parts send and the bytes::BufMut/Metadata imports are gone.
+- Row 4 (passenger-widened range) - verified, no change.
+  ChunkMap$TrackedEntity.getEffectiveRange (ChunkMap.java:1446-1465) raises
+  range to max indirect-passenger clientTrackingRange() << 4. Pumpkin
+  get_effective_range (entity_tracker.rs:418-430) raises to max
+  client_tracking_range and multiplies by 16 at line 481. Matches.
+- Row 5 (removal as viewer) - verified, no change.
+  ChunkMap.removeEntity (ChunkMap.java:1014-1042) removes the player as viewer
+  from each tracked entity then calls broadcastRemoved(). Pumpkin
+  remove_entity (entity_tracker.rs:1251-1262) mirrors this; no duplicate
+  despawn packet.
+- Compile-pitfall recheck: no new code, imports/helper placement/macro paths,
+  struct initializers, clones and clippy pedantic concerns unchanged.
+
+Status: PASS fixed=0 (all rows already resolved and re-verified) open=0
+files=crates/pumpkin-core/src/world/entity_tracker.rs (no code edits this sweep;
+doc only). No build run (CODER cannot compile); orchestrator to check.

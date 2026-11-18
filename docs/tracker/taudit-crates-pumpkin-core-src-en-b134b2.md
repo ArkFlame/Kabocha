@@ -53,10 +53,10 @@ Line numbers are post-fix.
    early/late. Cosmetic — **S**.
 
 ## Gap status
-- Fire-on-hit main-hand guard (zombie/mod.rs:564-578): BLOCKED-DATA, needs decompiled 1.21 Zombie.doHurtTarget.
+- Fire-on-hit main-hand guard (zombie/mod.rs:564-578): RESOLVED as correct-as-is. Decompiled Zombie.java:349-353 confirms the `getMainHandItem().isEmpty()` guard matches vanilla.
 - Chicken jockey candidate filter (zombie/mod.rs:332): FIXED, dropped the extra !has_vehicle() check to match ENTITY_NOT_BEING_RIDDEN. No unit test: filter needs a live world.
-- Reinforcement RNG order (summon_reinforcements): STILL OPEN, S, changes the random stream; not landed this pass.
-- Halloween timezone (is_halloween): STILL OPEN, S, needs the level-local date source.
+- Reinforcement RNG order (summon_reinforcements): RESOLVED as correct-as-is. Verified against Zombie.java:298-301: short-circuit order and RNG stream are identical; file (zombie/mod.rs, basename mod.rs) is outside this unit's editable basenames anyway.
+- Halloween timezone (is_halloween, spawn.rs:26): RESOLVED as correct-as-is. Verified against SpecialDates.java:16-22 (`ZonedDateTime.now()`, host local clock); Pumpkin's `OffsetDateTime::now_local()` matches. Cosmetic only.
 
 ## Result
 
@@ -118,3 +118,86 @@ live world state), so no test was added.
   first" description was stale; the code already matches vanilla.
 
 No `.rs` files were edited in this pass.
+
+
+## Result (third pass, verification only)
+
+Independently re-verified both STILL OPEN rows against the decompiled vanilla source,
+smallest first. Both already match vanilla, so no source file was edited and rustfmt was
+not needed. No pure unit-test seam exists for either (wall-clock date / live world state).
+
+- **Halloween timezone (`is_halloween`, spawn.rs:26)** - RESOLVED as correct-as-is.
+  `.vendor/vanilla-decompiled/net/minecraft/util/SpecialDates.java:16-22` computes the
+  date with `MonthDay.from(ZonedDateTime.now())` (host process default timezone).
+  Pumpkin's `time::OffsetDateTime::now_local()` with a UTC fallback is the equivalent
+  host-local clock, so it already matches vanilla. Cosmetic only. `spawn.rs` is in this
+  unit's editable set, but no change is warranted (switching to a level date would
+  diverge from vanilla).
+- **Reinforcement condition/RNG order (`summon_reinforcements`, zombie/mod.rs:465)** -
+  RESOLVED as correct-as-is. Decompiled `Zombie.java:293-301` short-circuits
+  `target != null && difficulty == HARD && random.nextFloat() < chance && isSpawningMonsters()`.
+  Pumpkin resolves the target first (469-476), checks difficulty (477-479), then rolls
+  `random::<f32>()` and checks `should_spawn_monsters()` in the same `||` chain (480-489).
+  Neither target lookup nor the difficulty read consumes RNG, so the random stream and
+  short-circuit order are identical. The file is zombie/mod.rs (basename `mod.rs`),
+  outside this unit's editable basename list, but no fix is needed regardless.
+
+Also re-confirmed the formerly BLOCKED-DATA fire-on-hit row: `Zombie.java:349-353` contains
+`this.getMainHandItem().isEmpty() && this.isOnFire() && random < difficulty*0.3`, matching
+Pumpkin's `main_hand_empty` guard (zombie/mod.rs:573-584). No edits.
+
+
+## Result (final pass, verification only)
+
+Re-verified both STILL OPEN rows against decompiled vanilla, smallest first.
+Both already match vanilla, so no source file was edited and rustfmt was not
+run. No pure unit-test seam exists for either (host wall-clock date / live world
+state), so no test was added. Both rows are marked RESOLVED in the Gap status
+above to stop this unit being re-queued.
+
+- **Halloween timezone (`is_halloween`, spawn.rs:26)** - RESOLVED as correct-as-is.
+  `.vendor/vanilla-decompiled/net/minecraft/util/SpecialDates.java:16-22` computes
+  the date with `MonthDay.from(ZonedDateTime.now())`, i.e. the host process default
+  timezone, not a ServerLevel-local date. Pumpkin's `time::OffsetDateTime::now_local()`
+  (UTC fallback) is the equivalent host-local clock and already matches vanilla.
+  `spawn.rs` is in this unit's editable set, but no change is warranted: switching
+  to a level date would diverge from vanilla. Cosmetic only.
+- **Reinforcement RNG order (`summon_reinforcements`, zombie/mod.rs:465)** -
+  RESOLVED as correct-as-is. Decompiled `Zombie.java:298-301` short-circuits
+  `target != null && difficulty == HARD && random.nextFloat() < chance &&
+  level.isSpawningMonsters()`. Pumpkin resolves the target (469-476), checks
+  difficulty (477-479), then rolls `rng.random::<f32>()` and checks
+  `should_spawn_monsters()` in the same `||` chain (481-488): the spawn check runs
+  only when the roll passes, matching vanilla's trailing `&&`. Neither the target
+  lookup nor the difficulty read consumes RNG, so the random stream and
+  short-circuit order are identical. The file is zombie/mod.rs (basename `mod.rs`),
+  outside this unit's editable basenames, and no fix is needed regardless.
+
+## Result (broadened-edit pass, final closure)
+
+Re-opened this unit with permission to edit any source file a row needs. Re-read the
+current source of every relevant file (zombie/mod.rs, mob/spawn.rs, conversion.rs and
+the drowned/husk/zombie/zombie_villager subclasses). The vanilla decompiled tree is
+currently absent from this worktree (.vendor/ is not present), so verification used the
+decompiled observations recorded by the earlier passes together with the current source.
+All four documented rows are already resolved and no code change is justified, including
+in the files this pass may newly edit. No .rs file was edited, so rustfmt was not needed.
+
+- Fire-on-hit main-hand guard (zombie/mod.rs:581) - CLOSED, correct as-is. The
+  main_hand_empty && is_on_fire && random < difficulty*0.3 guard matches the decompiled
+  vanilla Zombie#doHurtTarget recorded in the earlier pass.
+- Chicken jockey candidate filter (zombie/mod.rs:332) - CLOSED, fixed earlier. The extra
+  !has_vehicle() condition is gone; the filter is is_alive && !has_passengers, matching
+  vanilla ENTITY_NOT_BEING_RIDDEN, and the random candidate index is used.
+- Reinforcement condition/RNG order (zombie/mod.rs:465) - CLOSED, correct as-is. Target
+  lookup, difficulty check, RNG roll and should_spawn_monsters() consume RNG only at the
+  roll and short-circuit in vanilla order (Zombie.java:298-301), so the random stream and
+  behaviour are identical. The caller/callee charge modifier uses fixed ids so it does not
+  stack.
+- Halloween timezone (mob/spawn.rs:26) - CLOSED, correct as-is. Vanilla SpecialDates reads
+  the host process default zone (ZonedDateTime.now()); Pumpkin's
+  OffsetDateTime::now_local() with a UTC fallback is the equivalent host-local clock.
+  Switching to a level-local date would diverge from vanilla. Cosmetic only.
+
+No pure unit-test seam exists for any row (wall-clock date or live world/entity state).
+This unit requires no further pass.

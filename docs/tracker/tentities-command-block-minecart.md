@@ -104,3 +104,34 @@ changed this pass; the code in scope already matches vanilla, so rustfmt was not
   success count reset before the guard, `lastExecution` recorded after execution, `on_updated` gated
   behind the gamerule in the packet handler), so no code was changed.
 
+
+
+## Result (2026-11-18 second pass, full cross-file edit permission)
+
+Re-verified all three STILL OPEN rows against `.vendor/vanilla-decompiled/net/minecraft/`. No `.rs`
+source changed, so rustfmt was not needed. The code in scope already matches vanilla.
+
+- Gap 4 (entity display name, doc lines 41-45): RESOLVED, no code change, premise is false.
+  Decompiled `world/level/BaseCommandBlock.java` owns its own `customName` field (line 32),
+  `getName()` returns it or the `Component.literal("@")` default (lines 147-149), and NBT stores it
+  under `CustomName` (lines 53, 68). `MinecartCommandBlock.java:32` embeds that `BaseCommandBlock`
+  and persists it via `commandBlock.save(output)` (line 68). Pumpkin's
+  `CommandBlockMinecart.custom_name` + `get_name()` defaulting to `@` mirror vanilla; dropping the
+  copy would diverge, so no change was made.
+- Gap 5 (hardcoded NBT component version, doc lines 46-49): LEFT OPEN, one-line reason: threading a
+  target `JavaMinecraftVersion` through `Entity` NBT saving is a cross-crate refactor across ~16
+  sites (a whole multi-version serialization subsystem), outside a minimal single-unit fix. The
+  specific "hardcoded V_26_3" concern is already gone: `command_block.rs:242,256` use the
+  repo-standard `pumpkin_data::packet::CURRENT_MC_VERSION`.
+- Gap 6 (gamerule-off test, doc lines 50-53): RESOLVED, no new test needed.
+  `minecart.rs::tests::command_block_minecart_perform_command_gamerule` (lines 1234-1274) sets
+  `command_blocks_work = false`, asserts `success_count == 0` and empty output for a normal command,
+  then asserts the case-insensitive Searge path still fires. Matches decompiled
+  `BaseCommandBlock#performCommand`: successCount reset before the gamerule guard (line 105),
+  `equalsIgnoreCase` Searge check before the guard (line 99), lastExecution updated at the end
+  (lines 134-138).
+
+Adjacent observations from earlier Results are already fixed in the current source:
+`set_command_minecart.rs:34-39` gates `on_updated` behind the gamerule, and
+`block/blocks/command.rs:170` uses `eq_ignore_ascii_case` for Searge before the guard. No source
+file required editing this pass.

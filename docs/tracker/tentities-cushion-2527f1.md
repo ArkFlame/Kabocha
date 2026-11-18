@@ -110,3 +110,127 @@ compile; orchestrator verifies in the batch check.
 
 - mount/dismount game events: NOT A GAP. Already emitted at `crates/pumpkin-core/src/entity/mod.rs:6214` (`EntityMount`) and `:6467` (`EntityDismount`). Line refs in the row are stale.
 - Details: docs/investigations/native-2.md
+
+## Result (re-review pass 3)
+
+Re-checked every STILL OPEN row against decompiled vanilla in
+`.vendor/vanilla-decompiled/net/minecraft/`. Smallest first:
+
+- `cushion.rs` `drop_and_remove` break sound (row 4, FIXED this pass):
+  Pumpkin gated `EntityCushionBreak` on `entity_drops`, but vanilla
+  `Cushion.dropItem` (`Cushion.java:58-69`) calls
+  `playSound(CUSHION_BREAK)` and `showBreakingParticles()` BEFORE the
+  `GameRules.ENTITY_DROPS` check; only the `spawnAtLocation` is gated
+  (and skipped for a creative attacker). Painting is the opposite:
+  `Painting.dropItem` (`Painting.java:182-191`) puts the sound INSIDE
+  the check. The earlier commit mirrored the painting path into the cushion by
+  mistake. Moved `world.play_sound` above the `if entity_drops` block in
+  `drop_and_remove` so the sound is heard with drops disabled. Sound-only
+  change; no vanilla source needed for the (unported, client-only) particles.
+  No new import/field/helper, so no compile-pitfall exposure; rustfmt not run
+  (CODER cannot compile), orchestrator formats/builds in the batch check.
+- `cushion.rs` `drop_and_remove` cancelled dismount (row 4): CONFIRMED
+  FIXED. No early return on `has_passengers()`; vanilla
+  `BlockAttachedEntity.hurtServer` (`BlockAttachedEntity.java:166-168`)
+  does `kill()` then `dropItem()` unconditionally after the break-event
+  cancellation check, and `Entity.setRemoved` dismounts riders but removes
+  regardless. Existing test
+  `breaking_an_occupied_cushion_detaches_its_passenger` still holds.
+- `cushion.rs` `interact` seat (row 2): CONFIRMED FIXED. Uses
+  `crate::entity::position_rider(vehicle.as_ref(), passenger.as_ref())`;
+  vanilla `Entity.positionRider` (`Entity.java:3540-3544`) seats the
+  rider at `vehicle.pos + getPassengerRidingPosition - getVehicleAttachmentPoint`,
+  exactly what `entity/mod.rs:1648-1674` computes. `awaiting_teleport`
+  target still updated.
+- `entity/mod.rs:6217/5883` mount/dismount game events (row 1): LEFT OPEN -
+  needs `entity/mod.rs` and possible `pumpkin-data` `GameEvent`
+  additions, both outside this unit's two files. Current checkout already
+  emits `GameEvent::EntityMount`/`EntityDismount` upstream; verify at
+  integration.
+- `cushion.rs` placement/support gametests (row 3): LEFT OPEN - needs
+  `pumpkin-gametest` world manipulation (cross-crate). Pure unit seams
+  already cover `canBePlacedAt`/`wouldSurviveAt` (anchor required,
+  suffocating cover rejected, buried-anchor subtraction). No clean pure seam
+  for the break-sound fix (would require intercepting `play_sound`), so no
+  new test added.
+
+Files edited this pass: `crates/pumpkin-core/src/entity/decoration/cushion.rs`
+and this doc. `painting.rs` left unchanged (its sound gating already matches
+`Painting.dropItem`). No build/tests run: CODER cannot compile.
+
+
+## Result (re-review pass 4)
+
+All STILL OPEN rows re-checked against decompiled vanilla in
+`.vendor/vanilla-decompiled/net/minecraft/`. Smallest first:
+
+- Row 2 `cushion.rs:394` (`interact` seat): CONFIRMED FIXED. `interact` calls
+  `crate::entity::position_rider(vehicle, passenger)`; vanilla `Cushion.interact`
+  (`Cushion.java:93`) calls `player.startRiding(this)`, which seats via
+  `Entity.positionRider` using the cushion `passenger` point minus the rider
+  `vehicle` point. `awaiting_teleport` target still updated.
+- Row 4 `cushion.rs:176-214` (`drop_and_remove`): CONFIRMED FIXED. No early
+  return on `has_passengers()`; passengers detached in a loop, then the cushion
+  still breaks. Vanilla `BlockAttachedEntity.hurtServer`
+  (`BlockAttachedEntity.java:166-168`) does `kill()` then `dropItem()`
+  unconditionally, and `Entity.setRemoved` dismounts riders but removes
+  regardless of a cancelled dismount. Break sound sits above the `entity_drops`
+  check, matching vanilla `Cushion.dropItem` (`Cushion.java:59-61`), which plays
+  CUSHION_BREAK before the gated `spawnAtLocation`. Painting keeps its sound
+  inside the check (`Painting.java` and `painting.rs:283-288`): correct, left
+  unchanged.
+- Row 3 `cushion.rs` placement/support tests: one missing case added this pass.
+  Added `placement_accepts_a_slab_anchor` using the existing `PlacementWorld`
+  seam: a bottom `OAK_SLAB` at (0,64,0) anchors a cushion whose lower face is at
+  y=64.5, exercising `Cushion.hasAnchorBelow` (`Cushion.java:181-189`) with a
+  partial-block outline shape. Existing tests already cover full-block anchor,
+  no-anchor rejection, suffocating-cover rejection and buried-anchor detection.
+  Still OPEN: the 100-tick post-support-removal item drop needs the `tick()`
+  method's `&Server` and world item-drop observation (pumpkin-gametest,
+  cross-crate); no pure-unit seam exists for it.
+- Row 1 `entity/mod.rs:6217/5883` (mount/dismount game events): LEFT OPEN - needs
+  `entity/mod.rs` and possible `pumpkin-data` `GameEvent` additions, both outside
+  this unit's two files. Current checkout already emits
+  `GameEvent::EntityMount`/`EntityDismount` upstream; verify at integration.
+
+Re-read the diff against the worker compile-pitfall table: no new imports
+(`BoundingBox`, `Vector3`, `BlockPos`, `Block` already in scope), no helper or
+field changes, no `unwrap`/`expect`/`panic`, `assert!` only. Files edited this
+pass: `crates/pumpkin-core/src/entity/decoration/cushion.rs` and this doc.
+No build/tests run: CODER cannot compile; orchestrator formats/builds in the
+batch check.
+
+
+## Result (second-pass cross-file verification 2026-11-18)
+
+Granted cross-file edits this pass. Re-checked every STILL OPEN row against
+decompiled vanilla in `.vendor/vanilla-decompiled/net/minecraft/`, smallest
+first. No code change was needed: every fixable row is already in the working
+tree.
+
+- Row 1 `entity/mod.rs` mount/dismount game events: NOT A GAP. Both are already
+  emitted at the vehicle position: `GameEvent::EntityMount` at
+  `entity/mod.rs:6234` (`add_passenger`) and `GameEvent::EntityDismount` at
+  `entity/mod.rs:6489` (`remove_passenger_internal`). The row's line refs are
+  stale. Matches vanilla `Entity.startRiding`/`stopRiding`. No edit required.
+- Row 2 `cushion.rs:394` interact seat: CONFIRMED FIXED. `interact` calls
+  `crate::entity::position_rider(vehicle.as_ref(), passenger.as_ref())`, which
+  is vanilla `Entity.positionRider` (`Entity.java:3540-3544`): vehicle `passenger`
+  point minus rider `vehicle` point. `awaiting_teleport` target still updated.
+- Row 4 `cushion.rs:176-214` drop_and_remove: CONFIRMED FIXED. No early return on
+  `has_passengers()` (vanilla `BlockAttachedEntity.hurtServer`
+  `BlockAttachedEntity.java:166-168` kills then drops unconditionally); break
+  sound sits above the `entity_drops` check, matching vanilla `Cushion.dropItem`
+  (`Cushion.java:58-69`). Painting keeps its sound inside the check, correct.
+- Row 3 `cushion.rs` placement/support tests: all pure-unit cases are present
+  (full-block anchor, slab anchor, no-anchor rejection, suffocating cover,
+  buried-anchor subtraction). The remaining 100-tick post-support-removal item
+  drop is LEFT OPEN: it needs the running-server gametest harness
+  (`builtin_game_tests` / `server_test_manager`), a whole subsystem, and
+  `tick()` requires a full `&Server` with no test-only constructor, so no pure
+  unit seam exists. No new test added.
+
+Files edited this pass: this doc only. `painting.rs` unchanged. No code edits,
+no build/tests run: CODER cannot compile; orchestrator verifies in the batch
+check. Re-read against the worker compile-pitfall table: no new imports,
+helpers, fields, or `unwrap`/`expect`/`panic` introduced.

@@ -199,3 +199,59 @@ carry the settled state, so no source file was edited and no new test was added.
 - interact.rs / panda.rs / pillager.rs callers all pass `false`, matching vanilla.
 
 No rows remain open. `fixed=0 open=0` for this continuation pass (prior passes hold the edits).
+
+## Result (post-restart verification continuation)
+
+Re-read the final on-disk source for every in-scope file after the restart; the settled
+state documented by the four prior passes is present and no source file needed editing.
+No .rs file was touched, so no rustfmt and no new test were required (no behaviour changed).
+Verified against the current files:
+
+- look_at_entity.rs: create_target_predicate uses TargetPredicate::create_non_attackable() with
+  base_max_distance = f64::from(range) (visibility and 2-block floor kept); tick_reach declares
+  players: range (row 2 fix); SearchArea::from_eyes(..., 3.0) kept (row 1, vanilla
+  inflate(lookDistance, 3.0, lookDistance)); EntityPredicate::Rides rider filter kept (row 4,
+  vanilla notRiding); slot target set without clamp and dropped past range in should_continue
+  (row 5, vanilla PandaLookAtPlayerGoal); goal_control: Controls::LOOK (row 6, vanilla
+  setFlags(LOOK)); look_forward drives own-eye-Y in tick (row 3). Three tests present.
+- shulker.rs:94-100 passes 8.0 / 0.02 / true (sole vanilla onlyHorizontal=true caller), row 3 closed.
+- wandering_trader.rs LookAtTradingPlayerGoal::can_start only requires a trading player;
+  should_continue keeps the 8-block test (prior-pass fix), confirmed present.
+- interact.rs / panda.rs / pillager.rs callers pass false, matching vanilla.
+
+No rows remain open. fixed=0 open=0 for this continuation pass; prior passes hold the edits.
+
+
+## Result (decompiled-vanilla re-verification pass)
+
+Re-verified every STILL OPEN row directly against the vendored decompiled vanilla
+(.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/LookAtPlayerGoal.java,
+ai/targeting/TargetingConditions.java, animal/panda/Panda.java, monster/Shulker.java).
+All rows are already correct in Pumpkin; no source file needed editing.
+
+- Row 1 (box 3.0 vertical) - CONFIRMED VANILLA. LookAtPlayerGoal.java:67 uses
+  getBoundingBox().inflate(lookDistance, 3.0, lookDistance). look_at_entity.rs:193
+  SearchArea::from_eyes(..., 3.0) matches. Keep 3.0.
+- Row 2 (player reach) - CONFIRMED. tick_reach declares players: range (f64), matching
+  TargetingConditions.range(lookDistance); the old 10x MAX_VISIBILITY bound is gone.
+- Row 3 (look_forward) - CONFIRMED. LookAtPlayerGoal.java:97 uses own eye Y when
+  onlyHorizontal; tick drives it identically. Shulker.java Shulker passes onlyHorizontal=true
+  and shulker.rs:94-100 passes 8.0/0.02/true; all in-scope callers pass false.
+- Row 4 (rider filter) - CONFIRMED VANILLA. LookAtPlayerGoal.java:43 applies
+  EntitySelector.notRiding(mob); EntityPredicate::Rides keeps non-riders. Keep the filter.
+- Row 5 (slot target range) - CONFIRMED VANILLA. Panda.java:82 BREED_TARGETING range 8.0,
+  :276 look goal 6.0, :940 canUse only searches when lookAt is null and does not recheck a
+  preset target, :930-932 drops it past 6.0 via super. look_at_entity.rs sets the slot target
+  without a clamp and should_continue drops it past range. Do not clamp.
+- Row 6 (Controls::LOOK) - CONFIRMED VANILLA. LookAtPlayerGoal.java:41 setFlags(LOOK);
+  goal_control: Controls::LOOK matches.
+- Visibility / distance scaling - CONFIRMED VANILLA. TargetingConditions.java:26 forNonCombat
+  leaves checkLineOfSight/testInvisible true; :88-89 scale range by visibility with a 2.0 floor.
+  create_target_predicate uses create_non_attackable() (respects_visibility +
+  use_distance_scaling_factor both true, MIN_DISTANCE=2.0); test
+  an_invisible_target_is_only_found_within_two_blocks locks the floor.
+- Wandering trader - CONFIRMED. LookAtTradingPlayerGoal::can_start only requires a trading
+  player; should_continue keeps the 8-block test.
+
+No .rs file changed; rustfmt not needed and no new test added (behaviour already locked by
+the three existing look_at_entity tests). fixed=0 open=0.

@@ -53,3 +53,13 @@ Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/s
 - **7 end-to-end sniff -> walk -> dig test (M): STILL OPEN.** Reason: needs a `pumpkin-gametest` over a dirt pad with multi-tick state transitions; no minimal pure unit-test seam exists in these files, and it exceeds this pass's scope.
 
 Files edited this pass: none (all six S rows were verified against vanilla and need no source change; current `sniffer.rs` already returns the correct 120). Only this unit doc was updated for accuracy. Row 7 needs a `pumpkin-gametest`, outside this pass. No generated data, WIT, or cross-crate changes; no other basename in this unit needed edits.
+
+
+## Result
+Re-review pass (this assignment). Decompiled vanilla is present at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/sniffer/Sniffer.java` (read directly; glob does not follow the `.vendor` symlink).
+
+Only row 7 is marked STILL OPEN in Gap status. Rows 1-6 are CLOSED with an existing vanilla-verified Result, so no source change is warranted for them under this pass's STILL OPEN-only scope.
+
+- 7 end-to-end sniff -> walk -> dig test (M): STILL OPEN, no code change. Reason: needs a `pumpkin-gametest` driving a dirt pad across many ticks of Searching -> Digging transitions; that test file is outside the four allowed basenames (camel.rs, sniffer.rs, sound.rs, turtle.rs) and this checkout has no gametest crate to host it. `sniffer.rs` tests are pure state/NBT/tick unit tests with no end-to-end seam, and a real-world pad scenario is not a minimal pure unit test.
+
+No source files edited. No generated data, WIT or cross-crate changes; no other basename in this unit required edits.

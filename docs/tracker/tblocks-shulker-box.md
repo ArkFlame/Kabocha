@@ -107,3 +107,51 @@ edit made and no new test needed (the pure seams are already covered).
 
 No .rs file touched; rustfmt not applicable. Verified by reading, not compiled (worker cannot
 run cargo), so reported UNVERIFIED.
+
+## Result (independent verification, 2026-11-18)
+
+Re-verified h6 STILL OPEN rows (1, 2, 4) against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/ShulkerBoxBlock.java` and `.../block/entity/ShulkerBoxBlockEntity.java` and current `blocks/shulker_box.rs` / `block/entities/shulker_box.rs`. Smallest first (2, 4, 1). No source edits; all already match vanilla.
+
+- Row 4 (S, `is_sided`): Vanilla `ShulkerBoxBlockEntity` implements `WorldlyContainer` (entity:35) with `getSlotsForFace` returning all 27 slots (309-311), `canPlaceItemThroughFace` rejecting `instanceof ShulkerBoxBlock` (313-316), `canTakeItemThroughFace` true (318-321). Pumpkin `is_sided()==true`, `get_slots_for_face` returns `SHULKER_SLOTS` 0..27, `is_valid_slot_for` rejects `MINECRAFT_SHULKER_BOXES` tag, default face take/place semantics align. Behaviourally correct; no change.
+- Row 2 (S, `canOpen` early return): Vanilla `canOpen` (block:78-85) returns true when `animationStatus != CLOSED`, else requires `level.noCollision(lidOpenBoundingBox)`. Pumpkin `normal_use` (blocks/shulker_box.rs:134-153) treats `!animation.is_closed()` as openable without the `lid_open_box` space check but still opens the screen, and checks obstruction only when closed. Status-based gate matches vanilla; the original `progress >= 1.0` phrasing in the gap was not vanilla's condition. No change.
+- Row 1 (M, OPENING while CLOSING): Vanilla `triggerEvent` (entity:205-225) unconditionally sets `CLOSING` for count 0 and `OPENING` for count 1, leaves other counts unchanged, always returns true. It does not ignore OPENING while closing. Pumpkin `AnimationState::on_open_count` (0->Closing,1->Opening,_->{}) and `on_synced_block_event` always applying/updating + returning true match. Covered by `opening_event_reverses_closing_and_extra_viewers_keep_status`. No change.
+
+Tests not added/changed (existing seams cover rows 1/2); no compile possible. Files read only (plus this doc).
+
+
+## Result (independent verification, second pass, cross-file scope)
+
+Independently re-verified all three h6 STILL OPEN rows (2, 4, 1) against the
+decompiled vanilla in `.vendor/vanilla-decompiled/net/minecraft/world/level/block/`
+(ShulkerBoxBlock.java, entity/ShulkerBoxBlockEntity.java) and the current
+`blocks/shulker_box.rs` / `block/entities/shulker_box.rs`. Smallest first.
+No source change required; every row already matches vanilla. Also resolved the
+only suspicion found: `normal_use` reads facing via `EndRodLikeProperties`,
+which is a type alias of `ShulkerBoxProperties` in generated `block.rs`, so
+the lid-open box uses the correct facing.
+
+- Row 2 (S, canOpen early return): no change. Vanilla `canOpen` (block:78-85)
+  returns true for any status != CLOSED and only runs the lid collision test for
+  a CLOSED box. Pumpkin `normal_use` (blocks/shulker_box.rs:134-153) skips
+  `is_space_empty` when `!animation.is_closed()` and still opens the screen;
+  a closed box still respects obstruction. The status-based gate is the correct
+  reading of vanilla; the original `progress >= 1.0` guess was not vanilla's
+  condition.
+- Row 4 (S, is_sided): no change. Vanilla `ShulkerBoxBlockEntity implements
+  WorldlyContainer` (entity:35) with `getSlotsForFace` = all 27 slots
+  (309-311), `canPlaceItemThroughFace` rejecting `instanceof ShulkerBoxBlock`
+  (313-316) and `canTakeItemThroughFace` = true (318-321). Pumpkin
+  `is_sided()` true, `get_slots_for_face` = `SHULKER_SLOTS` 0..27,
+  `is_valid_slot_for` rejecting `MINECRAFT_SHULKER_BOXES`, and default face
+  take/place semantics map onto these. Behaviourally correct.
+- Row 1 (M, OPENING while CLOSING): no change. Vanilla `triggerEvent`
+  (entity:205-225) sets CLOSING for count 0 and OPENING for count 1
+  unconditionally, leaves other counts unchanged and always returns true; it
+  does NOT ignore OPENING while CLOSING (the original gap premise was wrong).
+  Pumpkin `AnimationState::on_open_count` (0->Closing, 1->Opening, _->{}) plus
+  `on_synced_block_event` applying the event and returning true match. Covered
+  by `opening_event_reverses_closing_and_extra_viewers_keep_status`.
+
+Existing pure unit tests already cover the animation seams for rows 1/2; no new
+test added (no constant/mirror/getter seam). No .rs file edited; rustfmt not
+applicable. Verified by reading only (worker cannot compile), so UNVERIFIED.

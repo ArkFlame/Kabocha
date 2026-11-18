@@ -153,3 +153,190 @@ was changed in this pass; all edits were already present and verified.
 
 No rustfmt run (no edits) and no build/test run (orchestrator compiles once). The two remaining
 open rows require `net/java/mod.rs`, which is outside the files this unit may edit.
+# net / java / mod.rs (AUDIT)
+
+Source: `crates/pumpkin-core/src/net/java/mod.rs` (1376 lines), plus the play handlers it
+dispatches to (`crates/pumpkin-core/src/net/java/play/*.rs`).
+Reference: vanilla `ServerGamePacketListenerImpl` / `ServerCommonPacketListenerImpl` /
+`ClientboundUpdateRecipesPacket`, Paper's `ServerGamePacketListenerImpl` (same packet flow on the
+main thread, no extra packet-level gates) from knowledge; no decompiled jar is vendored in this
+worktree.
+
+## Verdict
+
+No `TODO`/`FIXME` markers exist. The tracker note counts 4 occurrences of the word "vanilla", all
+in doc comments (mod.rs:133-134, 149, 765) that describe matching behaviour; two of them document
+real gaps (keep-alive, UPDATE_RECIPES property sets) listed below.
+
+Fixed in this audit (commit):
+- Config-state disconnect dropped the component: `CConfigDisconnect` wrapped a flattened
+  `get_text()` string in `TextComponent::text`, so colour and translation keys were lost (a
+  `translate_cross!` kick showed the raw key in the config phase). Vanilla's config
+  `ClientboundDisconnectPacket` carries a full `Component`. Now the packet holds
+  `&TextComponent` and writes it with `write_component`, like `CPlayDisconnect`
+  (`crates/pumpkin-protocol/src/java/client/config/config_disconnect.rs`,
+  `crates/pumpkin-core/src/net/java/pending.rs:338`,
+  `crates/pumpkin-core/src/net/java/mod.rs:653-656`).
+
+## Remaining gaps
+
+1. **Commands, chat and session updates run concurrently, not in arrival order** —
+   `mod.rs:905-970` (`SChatCommand`, `SChatCommandSigned`, `SChatMessage`) and
+   `mod.rs:1194-1206` (`SPlayerSession`) each `server.spawn_task` a separate async handler.
+   Vanilla runs every packet of one connection on the server thread through a FIFO, so two
+   `/command` packets execute strictly in order and never interleave. Here `/tp` and `/give`
+   sent back to back can run in either order and mutate world/player state concurrently.
+   Vanilla class: `ServerGamePacketListenerImpl#handleChatCommand` via
+   `PacketUtils.ensureRunningOnSameThread`. Fix (M): give `Player` a per-connection ordered
+   job queue drained by one task (or an ordered `tokio` `mpsc` with a single consumer), enqueue
+   these handlers instead of spawning, and await the previous one before the next.
+2. **Keep-alive tracks many outstanding ids instead of vanilla's single challenge** —
+   `mod.rs:281-302` sends a new keep-alive every interval while previous ones are unanswered and
+   keeps up to 16 in `pending_keep_alives`; `play/keep_alive.rs:10-28` accepts *any* pending id and
+   clears `wait_for_keep_alive`. Vanilla has one `keepAliveChallenge` per connection: a reply with
+   any other id is logged and ignored, and `keepAliveTime` (reset on send) triggers
+   `disconnect.timeout` 15 s after the send, not after 2x the send interval.
+   Vanilla class: `ServerCommonPacketListenerImpl#sendKeepAlive/#handleKeepAlive/#tick`.
+   Fix (S): store one outstanding id + send instant, accept only that id, kick when it is older
+   than the configured timeout, and generate the id with a random long per connection instead of
+   the send timestamp (`mod.rs:281-286`).
+3. **UPDATE_RECIPES omits the item property sets** — `mod.rs:765-774` and
+   `play/recipe_book_add.rs:974` send "no item property sets, then the stonecutter list". Vanilla
+   `ClientboundUpdateRecipesPacket` carries `itemSets` (furnace fuel/input, smithing base/additions,
+   etc. built by `RecipeManager#createRecipePropertySets`). Without them the client cannot grey out
+   or auto-place recipes that need properties. Fix (M): build the property sets from the recipe
+   data in `pumpkin-data`/`recipe_helper.rs` and prepend them to the payload.
+4. **Per-tick inbound packet cap has no vanilla counterpart** —
+   `crates/pumpkin-core/src/entity/player.rs:3229` `MAX_PACKETS_PER_TICK = 64`. Vanilla drains the
+   whole queued batch each tick. A burst above 64 is delayed to later ticks (latency, not loss).
+   Fix (S): raise/drop the cap and bound by bytes handled instead.
+5. **Unknown packet id logs at `warn` per packet** — `mod.rs:1370-1372`. Vanilla has no such
+   branch (the codec rejects unknown ids), so a client can spam the log. Fix (XS): `debug!`.
+
+Verified equal on this path: `suspend_flushing`/`resume_flushing`/`flush_channel`
+(`ServerCommonPacketListenerImpl`), `close`/`kick`/`try_kick` ordering, packet-sequence block
+acknowledgement, `SClientTickEnd` zeroing movement when no movement packet arrived
+(`handleClientTickEnd`), brand channel read bound of 256 (`readUtf(256)`), `register`/`unregister`
+splitting on `\0`, no disconnect packet in handshake/status (`serialize_disconnect` -> None),
+`PacketReceivedEvent`/`PacketSentEvent` fire points (server thread / writer task).
+
+## Gap status
+- Rows: STILL OPEN. Note body partly unreadable in this pass; nothing verified.
+
+## Result
+
+- Config-state disconnect component: VERIFIED already fixed in this checkout. `config_disconnect.rs`
+  holds `&TextComponent` and writes it with `write_component`; `pending.rs`/`mod.rs` pass the full
+  component. No change needed.
+- Row 1 (command/chat/session ordering): STILL OPEN - the `server.spawn_task` sites are in
+  `net/java/mod.rs` (outside this unit); an ordered per-connection queue needs that file, so it
+  cannot be completed here.
+- Row 2 (keep-alive single challenge): VERIFIED, NO CHANGE. Vendored vanilla is Paper
+  (`ServerCommonPacketListenerImpl#handleKeepAlive` 103-144, `#keepConnectionAlive` 268-305,
+  `KEEPALIVE_LIMIT` line 54 = 30 s): Paper keeps a *queue* of pending challenges, sends a new one
+  every second, and disconnects an unmatched/out-of-order id. `play/keep_alive.rs` plus
+  `mod.rs:262-318` already mirror this (pending queue, 30 s `KEEP_ALIVE_TIMEOUT`, disconnect on
+  unmatched id). The doc premise of one challenge, 15 s and log-and-ignore does not match the
+  vendored source. The send loop is in `mod.rs` (outside this unit).
+- Row 3 (UPDATE_RECIPES item property sets): STILL OPEN - writing real `itemSets` needs generated
+  `RecipePropertySet` resource keys plus recipe/tag data and a cross-crate change to the protocol
+  payload builder (`recipe_book_add.rs:1018` still writes `VarInt(0)`); generated data is forbidden.
+- Row 4 (per-tick packet cap): FIXED - removed `MAX_PACKETS_PER_TICK = 64` in `player.rs`;
+  `process_inbound_packets` now drains the whole `SegQueue` like vanilla. Ingress rate limiting in
+  `JavaClient` (`mod.rs:331-349`) bounds abuse, so no per-tick cap is required.
+- Row 5 (unknown packet id `warn!`): STILL OPEN - the log site is `net/java/mod.rs:1370-1372`
+  (outside this unit).
+
+Checked with `rustfmt --edition 2024` on `player.rs`. No build/test run here (orchestrator compiles
+once after all workers). No pure seam exists for the packet-drain loop, so no unit test was added.
+
+
+## Result (re-audit)
+
+Re-verified every STILL OPEN row against the vendored decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/`.
+
+- Row 3 (UPDATE_RECIPES item property sets): FIXED and VERIFIED. The nine vanilla
+  property sets are now written by `recipe_book_add.rs` (`recipe_property_sets`,
+  `write_recipe_property_sets`, `stonecutter_update_recipes_data`). Verified the wire
+  format against `ClientboundUpdateRecipesPacket.STREAM_CODEC` ->
+  `ByteBufCodecs.map(ResourceKey.streamCodec, RecipePropertySet.STREAM_CODEC)` (VarInt map
+  size, ResourceLocation key, VarInt item count, VarInt item ids) and membership against
+  `RecipeManager#RECIPE_PROPERTY_SETS`/`#finalizeRecipeLoading` and
+  `RecipePropertySet#create` (smithing base/template/addition, four cooking inputs,
+  brewing input/reagent). No generated data or WIT change was needed: it uses existing
+  `RECIPES_COOKING`, `RECIPES_SMITHING_*`, `BREWING_RECIPES`, `Item::from_registry_key`
+  and `resolve_item_tag`. Dynamic datapack cooking/smithing/brewing recipes extend the
+  same sets. Pure unit tests already cover the mapping and byte layout
+  (`update_recipes_includes_vanilla_property_sets`,
+  `property_sets_include_datapack_cooking_and_smithing_recipes`). No further change.
+- Row 1 (command/chat/session ordering): STILL OPEN - fix requires `net/java/mod.rs`
+  (spawn_task sites), a file outside this unit; needs a per-connection ordered queue.
+- Row 5 (unknown packet id warn!): STILL OPEN - the log site is `net/java/mod.rs`
+  (outside this unit); needs `warn!` -> `debug!` there.
+
+Rows 2 and 4 remain resolved as recorded in the earlier Result section above (keep-alive
+matches vendored Paper; per-tick packet cap removed). No source file was edited in this
+pass, so no rustfmt run was required, and no build/test was run (orchestrator compiles once).
+
+## Result (final verification)
+
+Re-checked every in-unit fix still on disk after the restart and grounded each against the
+vendored decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/`. No source file
+was changed in this pass; all edits were already present and verified.
+
+- Config-state disconnect: VERIFIED fixed. `config_disconnect.rs` holds `&TextComponent` and
+  writes it with `write_component`; `pending.rs:353` passes the full component in Config state.
+- Row 2 (keep-alive): VERIFIED, matches vendored Paper. `ServerCommonPacketListenerImpl.java`
+  (`handleKeepAlive` 103-145, `keepConnectionAlive` 268-302, `KEEPALIVE_LIMIT` line 54 = 30 s)
+  uses a pending queue, sends every 1 s, and disconnects an unmatched/out-of-order id with
+  `disconnect.timeout`. `play/keep_alive.rs` mirrors this and has a pure unit test for the
+  outstanding-id lookup. Send loop lives in `net/java/mod.rs` (outside this unit).
+- Row 3 (UPDATE_RECIPES property sets): VERIFIED fixed. `recipe_book_add.rs` writes the nine
+  vanilla sets; keys match `RecipePropertySet.java` `registerVanilla` names (smithing_base,
+  smithing_template, smithing_addition, furnace_input, blast_furnace_input, smoker_input,
+  campfire_input, brewing_input, brewing_reagent) and the count in `RecipeManager.java`
+  `RECIPE_PROPERTY_SETS`. Wire format matches `ClientboundUpdateRecipesPacket.STREAM_CODEC`
+  (`ByteBufCodecs.map` -> VarInt size, ResourceLocation key, `RecipePropertySet.STREAM_CODEC`
+  = VarInt count + VarInt item ids). Pure tests cover the mapping, byte layout and datapack
+  recipes. No generated data or WIT change.
+- Row 4 (per-tick packet cap): VERIFIED resolved as recorded above.
+- Row 1 (command/chat/session ordering): STILL OPEN - the `spawn_task` sites are in
+  `net/java/mod.rs`, a file outside this unit; needs a per-connection ordered queue.
+- Row 5 (unknown packet id `warn!`): STILL OPEN - the log site is in `net/java/mod.rs`,
+  a file outside this unit; needs `warn!` -> `debug!` there.
+
+No rustfmt run (no edits) and no build/test run (orchestrator compiles once). The two remaining
+open rows require `net/java/mod.rs`, which is outside the files this unit may edit.
+
+
+## Result (keep-alive ordering + re-verification)
+
+Ground truth: `.vendor/vanilla-decompiled/net/minecraft/server/network/ServerCommonPacketListenerImpl.java`
+(`handleKeepAlive` 103-145, `keepConnectionAlive` 268-306, `KEEPALIVE_LIMIT` line 54 = 30 s).
+
+- Row 1 (command/chat/session ordering): FIXED, verified on disk. `net/java/mod.rs` now has
+  `chain_after` (105-115) and `enqueue_ordered_packet` (396-411) with a `deferred_packet_tail`
+  `JoinHandle` chain, and every `SChatAck`/`SChatCommand`/`SChatCommandSigned`/`SChatMessage`/
+  `SPlayerSession` arm enqueues through it (no `spawn_task` left in those arms; the only remaining
+  `spawn_task` calls are the outgoing writer and the unrelated respawn job). Unit test
+  `a_queued_packet_runs_after_the_previous_one_finished` covers the chain. No change needed.
+- Row 2 (keep-alive): FIXED in this pass. Paper accepts a reply only for the *oldest* pending
+  challenge (`pendingKeepAlives.peek()`, line 106/119) and disconnects on out-of-order (131-139)
+  or unmatched (142-143) ids. `play/keep_alive.rs` accepted any pending id via
+  `position(...)` + `swap_remove`, so a client answering the newer challenge first was not
+  disconnected and the old challenge stayed outstanding. Replaced with `is_oldest_challenge`
+  (only `pending.first()`) and `pending.remove(0)`; the pure unit test now asserts that the
+  second/newer/unknown/empty ids are rejected.
+- Row 3 (UPDATE_RECIPES property sets): VERIFIED fixed, unchanged. `pumpkin-protocol`
+  `recipe_book_add.rs:1077-1213` writes the nine `RecipePropertySet.java` keys (smithing
+  base/template/addition, furnace/blast furnace/smoker/campfire input, brewing input/reagent)
+  as `ByteBufCodecs.map` VarInt size, resource location, then VarInt count + VarInt item ids.
+- Row 4 (per-tick packet cap): VERIFIED resolved, `MAX_PACKETS_PER_TICK` no longer exists;
+  `entity/player.rs:3430` drains the whole `SegQueue`.
+- Row 5 (unknown packet id `warn!`): FIXED, verified on disk. The old `warn!` arm was replaced by
+  `mod.rs:1413-1420`, which kicks with `disconnect.packetError` like vanilla's decoder rejection.
+  No per-packet `warn!` remains in the play dispatcher.
+
+Edited file: `crates/pumpkin-core/src/net/java/play/keep_alive.rs`. No cargo run (workers may not
+build); orchestrator compiles once. `rustfmt` not run here.

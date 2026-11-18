@@ -155,3 +155,66 @@ code; every row was re-verified and no source edit was necessary.
 No `.rs` source file was modified (all fixes and pure seams were already
 present), so no new test was added. No generated data, WIT, cross-crate refactor
 or file outside this unit was touched.
+
+
+## Result
+
+Second pass (2026-11-18), re-audited against the vendored decompiled tree
+(`.vendor/vanilla-decompiled/net/minecraft/world/level/block/CampfireBlock.java`
+and `.../block/entity/CampfireBlockEntity.java`). The doc carries no literal
+"STILL OPEN" row marker; the only gap still described as open in the prior
+Result is Row 7 (crackle sound / smoke / flame particles). Every actionable row
+was re-verified against vanilla and found already fixed in the current source;
+no source edit was required this pass.
+
+- Row 1 (no-recipe stacks never tick): verified fixed. `entities/campfire.rs:117-163`
+  increments `cooking_times[slot]` for every non-empty, non-cancelled stack and
+  resolves the recipe only at completion (`get_cooking_recipe_with_ingredient`),
+  falling back to the raw stack (`None => stack.clone()`). Matches vanilla
+  `CampfireBlockEntity.cookTick` (lines 89-100), which advances all non-empty
+  stacks before the `recipeCache.getRecipeFor` lookup and uses `.orElse(itemStack)`.
+- Row 2 (`CampfireStartEvent` timing): verified fixed. `blocks/campfire.rs:103-135`
+  fires the blocking event in the insertion path (`use_with_item`) with
+  `recipe.cookingtime`, stores the event-adjusted time as `cooking_total_times[slot]`,
+  zeroes `cooking_times[slot]` and keeps `cooking_cancelled`. Matches Paper's
+  `placeFood` event firing at insertion.
+- Row 3 (stale progress on container/pick-block restore): verified fixed at
+  `entities/campfire.rs:219-248`; `apply_item_components` resets `cooking_times`
+  and `cooking_total_times` for every slot it writes (and clears `cooking_cancelled`).
+- Row 4 (neighbour update clears `lit`): verified, no change. Decompiled
+  `CampfireBlock.updateShape` (lines 141-158) only schedules the `Fluids.WATER`
+  tick when `WATERLOGGED` and recomputes `SIGNAL_FIRE` on a `DOWN` update; it never
+  writes `LIT`. `blocks/campfire.rs:get_state_for_neighbor_update` (lines 240-261)
+  matches.
+- Row 5 (`isSmokeyPos` stop case): verified, no change. Decompiled `isSmokeyPos`
+  scans 1..=5, intersects the 0.375..0.625 column and returns
+  `isLitCampfire(posToCheck.below())` at a blocker. `blocks/campfire.rs:44-77`
+  (`is_smokey_pos_from`) reproduces this, with pure unit test
+  `smoke_scans_five_cells_and_stops_at_a_blocker` (lines 276-288).
+- Row 6 (`cool_down` clamp): verified fixed at `entities/campfire.rs:350-367`
+  (`(*progress - 2).clamp(0, total.max(0))` == vanilla
+  `Mth.clamp(x - 2, 0, cookingTime)`, line 152).
+- Unlit branch: verified. Decompiled `CampfireBlock.getTicker` (lines 316-330)
+  runs `cookTick` when `LIT`, else `cooldownTick` on the server; `tick`
+  (`entities/campfire.rs:97-112`) runs `cool_down()` for every unlit campfire.
+  This supersedes the old "waterlogged-only" note above.
+- Cook result drop position: the older "y+1.0" note above is stale. Decompiled
+  `CampfireBlockEntity.cookTick` (line 124) spawns drops at
+  `(x+0.5, y+0.5, z+0.5)`; `cooked_item_spawn_position`
+  (`entities/campfire.rs:378-384`) matches, so no change.
+- Row 7 (crackle / smoke / flame particles): left open, BLOCKED. Vanilla's
+  `particleTick` (`CampfireBlockEntity.java:165+`) runs only on the client side
+  (`CampfireBlock.getTicker` line 329, `!level instanceof ServerLevel` branch).
+  Pumpkin has no `random_display_tick`/`animate_tick`/particle hook on
+  `BlockBehaviour` and no client particle/sound subsystem to call from the
+  server block-entity tick, so implementing this requires a whole missing
+  subsystem plus cross-crate wiring, outside this unit and not doable here.
+  It is a client-only visual effect and AGENTS.md directs that such effects be
+  noted, not blocking.
+
+No `.rs` source was modified, so no new pure unit test was added (the existing
+`is_smokey_pos_from` seam already has coverage and no new seam was needed).
+Re-read the diff against the "Worker compile pitfalls" table: no diff, so
+nothing to correct. No generated data, WIT or cross-crate refactor was touched.
+
+Status: PASS fixed=0 open=1 files=none

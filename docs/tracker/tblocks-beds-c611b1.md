@@ -89,3 +89,39 @@ generated file, all outside this unit.
 Also rechecked row 38 (already FIXED): `sleep_height` / `player_sleep_height` in bed.rs plus
 `straw_bed_sleep_shape_is_the_lower_foot_surface` cover the head->foot straw resolution;
 sleep.rs consumes the shared helper. No change.
+
+## Result
+
+Re-review pass 3 against decompiled vanilla 26.3 (`AbstractBedBlock.java`, `BedRule.java`,
+`EnvironmentAttributes.java`, `StrawBedBlock.java`, `ServerPlayer.java`) and Paper's
+`PlayerBedFailEnterEvent`. No source file was changed: three rows need generated data /
+codegen outside this unit, and the fourth is already fixed in the tree.
+
+- Row 1 (`bed.rs:267,284-285` / `straw_bed.rs:271-273`, per-position bed rule): OPEN -
+  `AbstractBedBlock#getBedRule` uses `getValue(BED_RULE, pos)`, but no vanilla biome
+  overrides `bed_rule`/`straw_bed_rule` (grep of generated `registry.rs` finds none), so
+  `world.dimension.bed_rule` is behaviourally equivalent. The positional seam
+  `EnvironmentAttributes::get_value_bed_rule(pos)` already exists in `environment.rs:228`;
+  returning a real per-position value needs pumpkin-codegen + regenerated biome data.
+- Row 2 (`pumpkin-data/src/generated/dimension.rs:14-18`, BedRule fields): OPEN - generated
+  file is off-limits; `destroy_on_leave`/`error_message` need pumpkin-codegen and
+  regeneration from `assets/`. Vanilla `destroy_on_leave` is already handled functionally
+  by `StrawBedBlock::destroy_after_use` on player/villager leave (`sleep.rs:68-72`).
+- Row 3 (`bed.rs:389-402`, rule error message): OPEN - vanilla `BedRule#asProblem` sends
+  `BedRule.errorMessage`, which in vanilla data is only ever
+  `block.minecraft.bed.no_sleep`, already hardcoded as `BLOCK_MINECRAFT_BED_NO_SLEEP`.
+  Full fidelity blocked on adding `error_message` via codegen.
+- Row 4 (`bed.rs` failure paths, `PlayerBedFailEnterEvent`): already FIXED in the tree -
+  `fire_bed_fail_event` (`bed.rs:216`) fires the event on TooFarAway/Obstructed/NoSleep/
+  NotSafe and honours `cancelled()` via `resolve_fail_message`; explode-first ordering
+  preserved. Verified against `AbstractBedBlock.java:112-135` and `ServerPlayer.java:2455-2498`.
+
+Definitively blocked: rows 1-3 require pumpkin-codegen changes plus regenerated data (and
+row 4 is done); do not re-queue this unit until the generated `BedRule`/`Biome` gain the
+missing fields. No pure unit-test seam exists for these rows without a `World` instance.
+
+Note (outside listed rows, not changed): vanilla `STRAW_BED_RULE` is `DESTROY_ON_LEAVE`
+with `canSetSpawn = NEVER`, so straw beds should never set a respawn point or fire the
+`SLEPT_IN_BED` advancement; `straw_bed.rs:272-273` reads the regular dimension rule
+(ALWAYS in the overworld). Fixing this needs a distinct straw rule (codegen) and a
+behaviour test, so it belongs in a separate slice.

@@ -162,3 +162,41 @@ type), and the 26.x packet layout to `pumpkin-protocol/src/java/client/play/
 particle.rs`; both are outside this unit's editable file. No cargo run (forbidden
 here); compilation left to the orchestrator.
 
+## Result (final worker re-verification)
+
+Re-read `crates/pumpkin-core/src/command/commands/particle.rs` in full after the
+restart. Every in-scope fix is present and coherent: `read_item_stack_template` for
+`item`, `block_position_source` + version-aware block-pos long + VAR_INT arrival for
+`vibration`, the `Geyser*`/`GeyserBase*` payloads, `ParticleOptions::Trail` and
+`::Spell`, `color_particle_payload` gated on viewer version,
+`is_particle_viewer_in_range` from the block centre with strict `<`, sculk/shriek
+payloads and the registry-key success message. Nine pure unit tests cover these
+seams; none use `unwrap`/`expect`/`panic`. No new edits are needed in this unit's
+file.
+
+Row outcomes:
+
+- Item particle component-less `ItemStackTemplate` (`particle.rs:107-131`): FIXED
+  (`item_stack` calls `ItemStack::read_item_stack_template`; test
+  `item_option_decodes_through_item_stack_template`).
+- Vibration options (`particle.rs:157-197`): FIXED (block position source, version-aware
+  long, VAR_INT arrival; test `vibration_writes_block_source_and_arrival`).
+- dust_pillar/block_crumble/item_cobweb/geyser*/firefly/sulfur_cube_goo
+  (`particle.rs:157-197`): FIXED (block options via the `block_state` branch; simple
+  types correctly empty; Geyser payloads with tests).
+- Spell/colour, trail, sculk/shriek and viewer-range rows: FIXED (already present,
+  verified against vanilla in prior passes).
+- Codec validation of required options: STILL OPEN for this unit; it lives in
+  `pumpkin-command/src/argument_types/particle.rs`, a different crate that owns the
+  error type and is outside this unit's editable file (`missing_required_option` /
+  `ERROR_INVALID_OPTIONS` is now present there via another unit). No edit made.
+- 26.x packet layout (`pumpkin-protocol/.../particle.rs:280-320`): STILL OPEN; lives in
+  `pumpkin-protocol`, outside this unit's file, and needs a byte-exact audit against a
+  vanilla packet dump. No edit made.
+
+Re-checked the diff against the Worker compile pitfalls table: no guessed import
+paths, helpers are free functions (not inside trait impls), no struct-initializer or
+macro-path hazards, no moved-then-reused values, numeric casts use `as`, and clippy
+pedantic constraints hold. No cargo run (forbidden for workers); compilation left to
+the orchestrator.
+

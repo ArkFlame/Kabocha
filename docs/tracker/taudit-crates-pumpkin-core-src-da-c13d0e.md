@@ -145,3 +145,79 @@ Status: UNVERIFIED (code written without compiling per worker rules; orchestrato
 ## Result (native-4 cross-file pass)
 - parse_ingredient mixed item/tag OneOf (M): FIXED. Vanilla `HolderSetCodec.java` list elements are `Item` ids only; `#tag` is accepted only at the top level, so a list with a tag entry fails the whole ingredient. `data/datapack/recipe_loader.rs` `parse_ingredient` now returns `None` for such lists instead of narrowing to item entries. Test: `ingredient_list_with_tag_entry_is_rejected`. The `OwnedRecipeIngredient::OneOf` tag representation is NOT needed, so the bedrock recipe.rs and plugin-encoder follow-up is moot.
 - Brewing/transmute/dye/decorated_pot/imbue shapes and crafting_special_* display fields: unchanged, still OPEN (protocol types, not in this slice).
+
+
+## Result
+
+Pass 4 (2026-11-18). No source edits: every in-scope row was already fixed and verified
+against `.vendor/vanilla-decompiled/net/minecraft/`.
+
+Verified fixed (table markers for these were stale, no change needed):
+- parse_result count (row 44 still says STILL OPEN): source uses `1..=99` with default 1 and
+  rejects a present non-integer; matches `ItemStackTemplate.MAP_CODEC` `intRange(1,99)`.
+  Tests: `result_count_must_be_within_one_to_ninety_nine`, `result_count_must_be_an_integer`.
+- parse_cooking checked int/float conversion (row 45 still says STILL OPEN):
+  `i32::try_from(t.as_i64()?)` and a finite-f32 check match `Codec.INT`/`Codec.FLOAT`.
+  Test: `cooking_time_and_experience_use_checked_conversion`.
+- parse_category strict separate enums: serialized names match `CraftingBookCategory`
+  (building/redstone/equipment/misc) and `CookingBookCategory` (food/blocks/misc).
+  Tests: `category_codecs_are_strict_and_separate`, `invalid_category_rejects_the_recipe`.
+- ingredient both-keys rejection, shaped key validation, transmute required result, the
+  eight-registry crafting_special_* whitelist and potion-list brewing are all present in source.
+
+Re-checked compile pitfalls against AGENTS.md: no new code added; no unwrap/expect/panic,
+imports/paths/initializers untouched, no documentation backticks or pedantic issues introduced.
+
+FIXED (concurrent native-4 pass, same file): parse_ingredient mixed item/tag alternatives.
+  The Value::Array branch now rejects a list containing a tag entry or non-item shape instead
+  of silently narrowing it. Verified against vanilla HolderSetCodec (list elements use
+  Item.CODEC; a `#tag` is valid only as the whole set). Test:
+  `ingredient_list_with_tag_entry_is_rejected`. The cross-crate OneOf tag variant and
+  bedrock/plugin-API follow-up are therefore not needed.
+
+LEFT OPEN (out of scope for this unit, one-line reasons):
+- crafting_special_* type-specific display fields: needs `OwnedSpecialCraftingRecipe`
+  (pumpkin-protocol) extended and its consumers updated (cross-crate).
+- transmute/dye/decorated_pot/imbue component-carrying results: needs pumpkin-protocol result
+  types and pumpkin-inventory craft handling changed (cross-crate).
+
+Status: PASS (verification only; no source changed, nothing to compile).
+
+
+## Result
+
+Pass 5 (second pass, cross-file edits permitted) 2026-11-18. Verified against
+`.vendor/vanilla-decompiled/net/minecraft/world/item/crafting/`: `CustomRecipe.java`,
+`FireworkRocketRecipe.java`, `BookCloningRecipe.java`, `DecoratedPotRecipe.java`,
+`DyeRecipe.java`, `TransmuteRecipe.java`, plus `RecipeManager.java`,
+`ServerRecipeBook.java` and `RecipeCommand.java`.
+
+- RESOLVED, crafting_special_* type-specific fields for display (row 48): no code change
+  needed. Vanilla `CustomRecipe.isSpecial()` returns true, and `RecipeManager.learnableRecipes`,
+  `ServerRecipeBook` and `RecipeCommand.LEARNABLE_RECIPE` all filter special recipes out, so
+  these serializers are never shown in the recipe book. Their type-specific codec fields
+  (shell/fuel/star, source/material/allowed_generations, back/left/right/front, ...) drive
+  `matches`/`assemble` only, never display. `OwnedSpecialCraftingRecipe { recipe_id, category:
+  Misc }` is therefore correct for display: `category` matches `CustomRecipe.category()` (always
+  MISC) and the eight-serializer whitelist was added in a prior pass. Behavioural support for
+  these recipes belongs to the same missing subsystem as the row below and is not a display gap.
+- BLOCKED, transmute/dye/decorated_pot/imbue component-carrying results (rows 50-51): a whole
+  missing subsystem is required. Vanilla `TransmuteRecipe.createWithOriginalComponents`,
+  `DyeRecipe.assemble` and `DecoratedPotRecipe.assemble` build the result by applying an
+  `ItemStackTemplate` over the input stack's component patch (and transmute honours
+  `material_count` 1..8 via `MinMaxBounds.Ints` plus `add_material_count_to_result`). Pumpkin's
+  dynamic result is `OwnedRecipeResult { item_id, count }` (with a TODO for components);
+  `RecipeResult.components` in `crafting_screen_handler.rs` is `&'static` (generated-data only)
+  and `SpecialCraftingRecipe` is defined in generated `pumpkin-data/src/generated/recipes.rs`.
+  Carrying JSON-parsed, dynamic component patches through crafted results needs new owned
+  protocol result types, a JSON component decoder and pumpkin-inventory craft-assembly changes
+  across a cross-crate subsystem backed by generated data. No small safe edit exists; left open
+  rather than risk an unverifiable multi-file refactor that cannot be compiled by this worker.
+- VERIFIED unchanged: all other rows remain fixed (result count 1..=99, checked cooking
+  int/float conversion, strict separate category enums, ingredient both-keys and mixed-list
+  rejection, shaped-key validation, transmute required result, potion-list brewing).
+
+Compile pitfalls re-checked against AGENTS.md: no source code added or changed, so no new
+imports, helper placement, struct initializers, clones, doc backticks or pedantic issues.
+
+Status: BLOCKED (row 48 resolved by verification, rows 50-51 need a whole missing subsystem; no source changed, nothing to compile).

@@ -153,3 +153,35 @@ do not re-apply the stale "Fixed in this pass" note claiming a 4800 water-animal
   `MAX_AIR = 300` and `abstract_fish.rs:304-306` returns `WATER_ANIMAL_MAX_AIR_SUPPLY = 300`, both
   correct. Only Dolphin uses 4800 (`Dolphin.java`), already handled in `dolphin.rs`.
 Files touched: none. fixed=0; all four recorded gaps unchanged (1 BLOCKED-DATA, 2/3/4 premise false).
+
+## Result (second pass 2026-11-18, expanded file scope)
+
+Re-verified every row against the authoritative decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/`. All four premises are false for this vanilla version, so
+no source edit was warranted and no rustfmt was needed. No source file was touched. New evidence:
+gap 1 is also a false premise, not a genuine BLOCKED-DATA item, so the whole unit is obsolete.
+
+- Gap 1 (add `TadpoleVariant`, BLOCKED-DATA): NO GAP, premise false. Vanilla
+  `world/entity/animal/frog/Tadpole.java` (fields 44-51) defines only `AGE_LOCKED`; there is no
+  `TadpoleVariant` class anywhere in the decompiled tree and no `variant` synced data / NBT / bucket
+  key. Correspondingly `crates/pumpkin-data/src/generated/tracked_data.rs:17973` `pub mod tadpole`
+  contains only `AGE_LOCKED`, no VARIANT. There is nothing for an Extractor entry or codegen to add.
+  Recommend closing: the requested data does not exist in this version.
+- Row 2 (carry tadpole variant into frog): NO GAP, premise false. Vanilla `Tadpole.ageUp()`
+  (236-250) only calls `frog.finalizeSpawn`, `setPersistenceRequired`, `fudgePositionAfterSizeChange`
+  and the grow-up sound; the frog variant is biome-picked in `Frog#finalizeSpawn`, which Pumpkin
+  already does (`frog.rs:146-148`). Depends on non-existent gap 1.
+- Row 3 (RunIf + RandomLookAround gate): NO GAP, premise false. Vanilla
+  `world/entity/animal/frog/TadpoleAi.java:64` is
+  `Pair.of(BehaviorBuilder.triggerIf(Entity::isInWater), 5)`, a deliberate no-op. There is no
+  `RunIf`/`RandomLookAround` in this brain version; Pumpkin's `trigger_if(...is_in_water)` already
+  matches. No `RunIf*.java` exists in the decompiled tree.
+- Row 4 (squid max air supply): NO GAP, premise false. Vanilla
+  `world/entity/animal/AgeableWaterCreature.java:45` refills to a hardcoded `300` and squid overrides
+  no air methods; `breath::MAX_AIR = 300`. Current code is correct: `ageable_water_creature.rs:22`
+  passes `MAX_AIR` (300), `water_animal.rs:10` / `abstract_fish.rs:305` use
+  `WATER_ANIMAL_MAX_AIR_SUPPLY = 300`, and only dolphin overrides to 4800 (`dolphin.rs:39,342-347`,
+  vanilla `Dolphin.TOTAL_AIR_SUPPLY = 4800`). The stale "Fixed in this pass" note at the top claiming
+  a 4800 water-animal value was NOT applied to the code; do not re-apply it.
+
+Recommendation: close all four rows as verified no-gaps. Status: PASS, fixed=0, open=0, files=none.

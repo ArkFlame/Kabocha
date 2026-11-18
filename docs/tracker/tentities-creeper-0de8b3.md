@@ -73,3 +73,27 @@ Re-verified all three STILL OPEN rows against the decompiled vanilla tree; no so
 - Row 4 (SwellGoal aliveness guard): VERIFIED, NO CHANGE. ``SwellGoal.canUse`` (SwellGoal.java:18-21) is ``getSwellDir() > 0 || (target != null && !target.isDeadOrDying() && distanceToSqr < 9.0)`` and ``tick`` (line 42) also checks ``!isDeadOrDying()``. The Rust ``is_alive() && !is_dead_or_dying()`` guard in creeper_ignite.rs:34-54 is therefore correct; the tracker premise is false. No change.
 
 No pure unit-test seam exists for these rows (all fire through World/entity/loot state) and no ``.rs`` file was touched, so no rustfmt was needed. Out-of-unit parity gaps observed but not changed: oozing ignores MAX_ENTITY_CRAMMING (OozingMobEffect.java:38-39) and weaving uses ``is_air`` instead of ``canBeReplaced``/``isFaceSturdy`` (WeavingMobEffect.java:40-41).
+
+
+## Result
+
+Resume check after server restart: all three STILL OPEN rows are already resolved in the checkout; no source file needed a change this pass, so no rustfmt run.
+
+- Row 2 (charged-creeper heads): VERIFIED FIXED. ``CreeperEntity::dropped_skulls: AtomicBool`` (creeper.rs:63), the ``!dropped_skulls`` guard plus ``minecraft:charged_creeper/root`` lookup (creeper.rs:383-387), and the one-shot store on an actual drop (creeper.rs:407) are present, matching the vanilla ``!droppedSkulls`` guard.
+- Row 3 (explodeCreeper on-death effects): VERIFIED FIXED. ``CreeperEntity::explode`` calls ``mob_effect.on_mob_removed(...)`` (creeper.rs:191); the trait hook is in ``entity/effect/mod.rs:47`` with impls in ``oozing.rs``, ``weaving.rs`` and ``wind_charged.rs``.
+- Row 4 (SwellGoal aliveness guard): VERIFIED FIXED. ``creeper_ignite.rs:46-47`` uses ``is_alive() && !is_dead_or_dying()``; the tracker premise is false, no change.
+
+No pure unit-test seam (rows fire through World/entity/loot/effect state). Out-of-unit parity gaps remain observed but unchanged: oozing MAX_ENTITY_CRAMMING and weaving ``canBeReplaced``/``isFaceSturdy``.
+
+## Result
+
+Second-pass re-review against `.vendor/vanilla-decompiled/net/minecraft/`. The three STILL OPEN tracker rows remain verified fixed in the checkout, so no change was needed for them: row 2 (`dropped_skulls` one-shot guard), row 3 (`on_mob_removed` fired in `CreeperEntity::explode`), row 4 (`SwellGoal.canUse` aliveness guard matches vanilla).
+
+Fixed the two parity gaps the previous pass flagged as out-of-unit, now that `oozing.rs`/`weaving.rs` are in this unit's file list:
+
+- `weaving.rs`: vanilla `WeavingMobEffect.spawnCobwebsRandomlyAround` (WeavingMobEffect.java:40-41) needs `canBeReplaced()` on the target and `isFaceSturdy(..., Direction.UP)` on the block below. Replaced `target_state.is_air()` with `target_state.replaceable()` and `!below_state.is_air()` with `below_state.is_side_solid(BlockDirection::Up)`; added the `BlockDirection` import.
+- `oozing.rs`: vanilla `OozingMobEffect.onMobRemoved` (OozingMobEffect.java:35-45, clamp formula at line 31) caps spawned slimes at `max_entity_cramming - nearby_slimes`, where nearby counts SLIME entities in the mob bounding box inflated by 2.0 (excluding self, capped at the cramming limit); a rule value < 1 spawns the requested 2 uncapped. Replaced the hardcoded `for _ in 0..2` with that clamp.
+
+Not fixable in this pass: vanilla's `reason == KILLED` guard on both effects would require adding a removal-reason parameter to `MobEffect::on_mob_removed` in `entity/effect/mod.rs`, a cross-crate trait signature change outside this unit. In Pumpkin `on_mob_removed` currently fires only on killed removals, so the guard is not presently observable.
+
+No pure unit-test seam: both effects mutate World/entity state and a clamp test would only mirror the formula. Only `weaving.rs` and `oozing.rs` were touched; rustfmt is left to the orchestrator.
