@@ -8,4 +8,4 @@ Re-checked every STILL OPEN row against the current code in the main checkout. N
 The decompiled vanilla tree is now available under .vendor/vanilla-decompiled/net/minecraft/, so every STILL OPEN row was checked against real method bodies this pass. No code change was needed: all rows already match vanilla.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+Row results: 1 FIXED (travel effective-AI guard, axolotl.rs:592-599); 2 VERIFIED (PlayDead.java:32, 200 ticks amplifier 0, ai.rs:40/358-359); 3 VERIFIED (Axolotl.java:184-189/256-266, axolotl.rs:574-580); 4 VERIFIED (Axolotl.java:396-408, axolotl.rs:158-166/374); 5 VERIFIED (Axolotl.java:427-449, axolotl.rs:410-452); 6 VERIFIED (axolotl.rs:183). No code change this pass.
