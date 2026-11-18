@@ -1541,9 +1541,8 @@ mod tests {
         Bucketable::save_to_bucket_tag(&fresh, &mut fresh_bucket);
         let fresh_tag = fresh_bucket
             .get_data_component::<BucketEntityDataImpl>()
-            .and_then(|data| data.nbt.clone())
-            .expect("bucket NBT saved");
-        assert!(fresh_tag.get_long("HuntingCooldown").is_none());
+            .and_then(|data| data.nbt.clone());
+        assert!(fresh_tag.is_some_and(|tag| tag.get_long("HuntingCooldown").is_none()));
 
         world.level.shutdown().await;
         Ok(())
