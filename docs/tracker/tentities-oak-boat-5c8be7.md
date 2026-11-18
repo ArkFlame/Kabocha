@@ -377,3 +377,41 @@ placement, struct initializers, clones or clippy-pedantic issues were introduced
 rustfmt run (no .rs file touched). No cargo or git command run (worker shell denied).
 
 Status: PASS fixed=0 open=0 files=docs/tracker/tentities-oak-boat-5c8be7.md
+
+
+## Result (FINAL PASS 2026-11-18, main checkout)
+
+All eight rows re-verified against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/`. No source file needed an edit: every fix is
+already present and matches the cited vanilla member. No STILL OPEN rows remain.
+
+- Row 1 (bubble time publish, boat.rs): VERIFIED FIXED. `AbstractBoat.java` `DATA_ID_BUBBLE_TIME`
+  (:57), `onAboveBubbleColumn` (:165), `tickBubbleColumn` (:351), `handleBubbleColumnEffect`
+  (:399). Pumpkin writes/republishes the generated `ID_BUBBLE_TIME` field. Not BLOCKED-DATA.
+- Row 2 (rider rotation clamp, boat.rs): VERIFIED FIXED. `AbstractBoat.java` `positionRider`
+  (:696-704) and `clampRotation` (:740-754, +/-105 deg at :749-750). Pumpkin `clamp_rider_yaw`
+  uses 105.0 with pure unit tests.
+- Row 3 (float_boat air-to-water snap, physics.rs): VERIFIED CORRECT. `AbstractBoat.floatBoat`
+  (:607-620) snaps only when `noCollision` (:614) and sets IN_WATER unconditionally (:620);
+  Pumpkin gates the snap on `no_collision` (:201) and sets status unconditionally (:210).
+- Row 4 (floatBoat gravity, physics.rs): VERIFIED CORRECT. `AbstractBoat.floatBoat` uses
+  `-getGravity()` (:608); Pumpkin uses `-self.get_gravity()` (:214).
+- Row 5 (MoveVehicle rotation wrap, move_vehicle.rs): VERIFIED FIXED. Vanilla
+  `ServerGamePacketListenerImpl.handleMoveVehicle` (:578) wraps with `Mth.wrapDegrees`
+  (:606-607). Pumpkin wraps yaw/pitch (:49-50) and applies via `set_rotation` (:111).
+- Row 6 (paddle boat handler, paddle_boat.rs): VERIFIED FIXED. Vanilla
+  `ServerGamePacketListenerImpl.handlePaddleBoat` (:2464-2466) uses
+  `getControlledVehicle() instanceof AbstractBoat`; `Entity.getControlledVehicle` (:6661-6662)
+  is immediate-vehicle + controlling-passenger. Pumpkin checks the immediate vehicle's
+  controlling passenger and downcasts to `BoatEntity` (:10-22).
+- Row 7 (dead move_from_client path, physics.rs): VERIFIED FIXED. No `move_from_client`
+  definition remains; the generic `move_vehicle.rs` handler supersedes it.
+- Row 8 (boat gametest coverage, boat_block_effects.rs): VERIFIED FIXED. Tests
+  `test_boat_floats_up_after_fall` (:135), `test_boat_ejects_passenger_after_60_underwater_ticks`
+  (:173), `test_chest_boat_scatters_27_slots_on_break` (:233) are present.
+
+Compile-pitfall re-check: no .rs file edited this pass; no import paths, helper placement,
+struct initializers, clones or clippy-pedantic issues introduced. No rustfmt run (no .rs touched).
+No cargo or git command run (shell denied to workers).
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tentities-oak-boat-5c8be7.md
