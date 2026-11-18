@@ -252,11 +252,6 @@ impl crate::entity::custom_sound::CustomSound for TadpoleEntity {
     fn sound_category(&self) -> pumpkin_data::sound::SoundCategory {
         pumpkin_data::sound::SoundCategory::Neutral
     }
-
-    /// Vanilla `Tadpole#getSoundVolume`.
-    fn sound_volume(&self) -> f32 {
-        SOUND_VOLUME
-    }
 }
 
 impl Bucketable for TadpoleEntity {
