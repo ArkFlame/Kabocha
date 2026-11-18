@@ -1110,8 +1110,6 @@ pub fn start_telemetry(server: Arc<Server>) {
     start_telemetry_with_config(server, &config);
 }
 
-/// Starts the background telemetry reporting task with a specific configuration.
-#[allow(clippy::needless_pass_by_value)]
 /// Applies the backend's recommended heartbeat interval, resetting the timer when it changes.
 fn apply_heartbeat_interval(
     current_interval_secs: &mut u64,
@@ -1126,6 +1124,7 @@ fn apply_heartbeat_interval(
     }
 }
 
+/// Starts the background telemetry reporting task with a specific configuration.
 #[expect(
     clippy::needless_pass_by_value,
     reason = "public API takes the shared server handle by value"
