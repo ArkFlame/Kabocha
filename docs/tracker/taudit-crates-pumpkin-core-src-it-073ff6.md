@@ -333,3 +333,46 @@ No source edits and no new pure unit test this pass: all rows were already FIXED
 checkout, and the pure seams are covered by the four tests in `spawn_egg.rs`,
 `trial_spawner_override_entity_regenerates_potentials`, and the two spawn-egg gametests. No
 compiled run was performed (not permitted). No row is left STILL OPEN.
+
+
+## Result (2026-11-18 CODER final verification pass)
+
+Re-verified every row against the decompiled Paper 1.21.4 source at
+`.vendor/vanilla-decompiled/net/minecraft/` and the current checkout. No row is STILL OPEN;
+all are FIXED, VERIFIED (matches vanilla), or CLOSED as a confirmed no-op/false premise. No
+source edits were needed because every fix is already present.
+
+- Gap 1/8: VERIFIED. `SpawnEggItem.spawnOffspringFromSpawnEgg`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/item/SpawnEggItem.java:157-185`) has no adult
+  gate: `parent instanceof AgeableMob` -> `getBreedOffspring`, else `type.create(...)`, then
+  `setBaby(true)` and `snapTo(pos, 0.0F, 0.0F)`. `spawn_egg.rs` `Some`/`None` arms + `spawn_as_baby`
+  + `set_rotation(0.0, 0.0)` (line 490) match.
+- Gap 2: VERIFIED. `apply_entity_data` (spawn_egg.rs:111-143) strips only `id`/`UUID` (line 133),
+  matching `TypedEntityData.loadInto` (`Pos` read by `Entity.load`, `UUID` restored).
+- Gap 3: VERIFIED. `TrialSpawner.overrideEntityToSpawn` + `FullConfig.overrideEntity`; Pumpkin's
+  `override_entity_to_spawn` (trial_spawner.rs:1570-1579) is `data.reset()` +
+  `config.override_entity(...)` + `set_state(Inactive)`, and `override_entity` uses
+  `with_spawning` for both configs (lines 525-528); test at line 1736. No supported-type check in
+  vanilla.
+- Gap 4: VERIFIED. `SpawnEggItem.useOn` spawner branch `shrink(1)` + `sendBlockUpdated(..., UPDATE_ALL)`
+  (SpawnEggItem.java:72-74) and `spawnMob` `consume(1, user)` (line 102). Pumpkin uses
+  `item.decrement(1)` for spawner/trial-spawner (spawn_egg.rs:408,420) and
+  `decrement_unless_creative` for spawn paths; `update_block_entity` + BLOCK_CHANGE covers the
+  block update.
+- Gap 5: VERIFIED. `handleUseItem` awards no `ITEM_USED`; `use_item.rs:84-86` swings only on
+  `Success|SuccessServer` and has no generic award. `wind_charge.rs:76` self-awards via
+  `increment_stat(StatisticCategory::Used, ...)` (vanilla `WindChargeItem.use`).
+- Gap 6: VERIFIED false premise. `Player.mayUseItemAt` checks build ability + adventure-mode
+  placement, not the world border; there is no world-border gate to port.
+- Gap 7: VERIFIED coverage present. Gametests `test_spawn_egg_entity_data_type_override` and
+  `test_spawn_egg_peaceful_blocks_monsters` (entities_and_ai.rs:160,184) with the `use_spawn_egg`
+  seam in `server_test_manager.rs`. No compiled run (not permitted).
+- Gap 9: VERIFIED. `use_on_entity` returns `BlockActionResult`, success returns `SuccessServer`
+  (spawn_egg.rs:504); `interact.rs` swings on success.
+- Gap 12: CLOSED confirmed no-op. `BaseSpawner.setEntityId` resets `nextSpawnData`/`spawnPotentials`;
+  Pumpkin's flat `entity_type` has neither. No generated pumpkin-data field or subsystem required.
+
+No generated-data fields, WIT changes, cross-crate refactors, or missing subsystems are needed.
+No source edits and no new pure unit test this pass: all seams are already covered by the four
+`spawn_egg.rs` tests, `trial_spawner_override_entity_regenerates_potentials`, and the two
+spawn-egg gametests. No compiled run (not permitted).

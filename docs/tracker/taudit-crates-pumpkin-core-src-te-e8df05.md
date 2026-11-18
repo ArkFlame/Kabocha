@@ -131,3 +131,26 @@ no cargo or git was run.
 | One-off signing key reuse (44) | FIXED / VERIFIED | resolve_identity_key prefers LIVE_SIGNING_KEY via choose_signing_key (:782-784, :859-864), set at startup (:1165-1166); the salt is shared via LIVE_PLAYER_SALT (:852, :874, :1169). |
 
 No STILL OPEN rows remain. Files touched this pass: this doc only.
+
+
+## Result (final verification pass)
+
+Re-read every row directly against the current source. Telemetry has no
+decompiled-vanilla analogue (see this doc header), so there is no .vendor path to
+cite; the reference remains Paper/Spigot bStats and the module documented wire
+format. All seven rows are FIXED in tree and VERIFIED by reading the code; no
+row needs generated pumpkin-data fields or a missing subsystem, so there are no
+BLOCKED-DATA rows. No .rs file was edited this pass (no rustfmt needed); no
+cargo or git was run.
+
+| Row (body line) | Final disposition | Code evidence (verified this pass) |
+|---|---|---|
+| Short-form shutdown route (38) | FIXED / VERIFIED | `shutdown_url_for` applied to the stripped prefix (:556) and the no-suffix branch (:554); short-form `host/heartbeat` resolves to `host/v1/shutdown`, equal to the bare-host case. |
+| online_mode aggregation (39) | FIXED / VERIFIED | Field doc "true only when every enabled listener enforces online mode" (:317-318); builder matches per-listener enabled flags (:1042-1049). |
+| read_used_ram_mb naming/doc (40) | FIXED / VERIFIED | Renamed `read_process_ram_mb` (:928), field doc "Resident memory of the server process in MiB" (:328), cached `sysinfo::System` refreshed with `refresh_processes`. |
+| Replay nonce (41) | FIXED / VERIFIED | `NONCE_FIELD` (:49), `serialize_signed_body` (:383), `NonceCache::check_and_insert` (:488), `verify_telemetry_request_with_replay_protection` (:508) all present; nonce is read from the signature-verified body, cache TTL covers the drift window. |
+| TelemetryConfig::validate (42) | FIXED / VERIFIED | `pumpkin-config/src/telemetry.rs::validate` rejects empty/non-http endpoints (:42-51); telemetry.rs keeps a graceful runtime guard `telemetry_endpoint_is_valid` (:1102, :1139). |
+| online_players vs capped players (43) | FIXED / VERIFIED | `players_truncated` field (:340), populated in `collect_players_telemetry` (:1051-1052), serialized into the payload (:1067), with tests (:1393). |
+| One-off signing key reuse (44) | FIXED / VERIFIED | `resolve_identity_key` prefers `LIVE_SIGNING_KEY` via `choose_signing_key` (:782-784), set at startup (:1166); salt shared via `LIVE_PLAYER_SALT` (:852, :874, :1169). |
+
+No STILL OPEN rows remain. Files touched this pass: this doc only.

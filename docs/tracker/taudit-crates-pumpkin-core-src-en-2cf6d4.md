@@ -284,3 +284,21 @@ test was required (the three look_at_entity tests already lock the behaviour).
   (inherited canContinueToUse, LookAtPlayerGoal.java:80-82).
 
 All five STILL OPEN markers closed. fixed=0 open=0.
+
+
+## Result (third pass, fresh decompiled re-verification)
+
+Re-read every in-scope source file and the vendored decompiled vanilla from disk this
+pass; all six rows are already correct, so no .rs file was edited (no rustfmt and no new
+test were needed: the three look_at_entity tests already lock the behaviour).
+
+- Row 1 (3.0 vertical box) - VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/LookAtPlayerGoal.java:67` inflates (lookDistance, 3.0, lookDistance); `SearchArea::from_eyes(..., 3.0)` expands by (range, 3.0, range) via `expand(horizontal, vertical, horizontal)` in target_match.rs:159. Keep 3.0.
+- Row 2 (player reach) - FIXED (earlier pass). tick_reach declares `players: range`; the 10x MAX_VISIBILITY bound is gone.
+- Row 3 (look_forward) - VERIFIED. LookAtPlayerGoal.java:97 uses own eye Y when onlyHorizontal and tick drives it identically. Shulker.java:101 is the sole `true` caller and shulker.rs:94-100 passes 8.0/0.02/true; interact.rs:20, panda.rs:281/1209, pillager.rs:81/91 and wandering_trader.rs:251 all pass false.
+- Row 4 (rider filter) - VERIFIED. LookAtPlayerGoal.java:43 applies `EntitySelector.notRiding(mob)`; `EntityPredicate::Rides` keeps non-riders and rejects riders. Keep the filter.
+- Row 5 (slot target range) - VERIFIED. Vanilla `PandaLookAtPlayerGoal` keeps a preset target and only range-drops it in canContinueToUse (LookAtPlayerGoal.java:80-82); look_at_entity.rs sets the slot target without a clamp and should_continue drops it past range. Do not clamp.
+- Row 6 (Controls::LOOK) - VERIFIED. LookAtPlayerGoal.java:41 setFlags(LOOK); goal_control: Controls::LOOK matches.
+- Visibility/distance scaling - VERIFIED. TargetingConditions.forNonCombat() keeps LOS + visibility scaling with a 2.0 floor; create_target_predicate uses create_non_attackable() (target_predicate.rs:142-158) and the test an_invisible_target_is_only_found_within_two_blocks locks the floor.
+- Wandering trader - VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/LookAtTradingPlayerGoal.java:15-22` canUse only checks isTrading; wandering_trader.rs:884-888 can_start checks only a trading player and :890-897 should_continue keeps the 8-block test.
+
+No rows remain STILL OPEN. fixed=0 open=0 for this pass.

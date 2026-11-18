@@ -214,3 +214,46 @@ No new test needed (existing pure seams sufficient). No source edits:
 fixed=0 open=0 files=docs/tracker/taudit-crates-pumpkin-core-src-bl-bd7395.md.
 Could not run rustfmt (worker shell denied); no source files were touched,
 so no formatting change is required.
+
+## Result (final re-verification, third pass 2026-11-18)
+
+Independently re-verified all five rows against decompiled vanilla this pass;
+no source edits were required (every row already matches vanilla). Files read:
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/VineBlock.java`,
+`.../net/minecraft/world/item/context/BlockPlaceContext.java`,
+`.../net/minecraft/core/Direction.java`, and current `vine.rs` /
+`entity/mod.rs`.
+
+- 1. `get_updated_state` (row 1): VERIFIED, premise false. Vanilla
+  `VineBlock.getUpdatedState` (VineBlock.java:117-142) recomputes every
+  horizontal face plus UP on each neighbour update; it does NOT recompute only
+  the changed face. UP is checked with `Direction.DOWN` (the block above's top
+  face, line 120); Pumpkin matches at `vine.rs:79` with `BlockDirection::Down`
+  plus an explanatory comment. No change.
+- 2. Dead `above_props` fallback (row 2): VERIFIED, no change. Vanilla carries
+  the identical fallback (VineBlock.java:129-135); removing it would diverge.
+- 3. `default_state.is_air()` (row 3): VERIFIED, no change. All six checks use
+  the fetched state's `is_air()` (`vine.rs:388,431,442,497,532,533`), matching
+  vanilla `isAir()` / `isEmptyBlock()` (VineBlock.java:173,188,191,210,234).
+- 4. Placement direction order (row 4): VERIFIED, premise false. Pumpkin's
+  `get_entity_facing_order` (entity/mod.rs:4742-4797) is a faithful port of
+  vanilla `Direction.orderedByNearest` (Direction.java:137-166): same sign
+  tests, magnitudes, weights and tie-breaking; `get_nearest_looking_directions`
+  (`vine.rs:197-227`) mirrors `BlockPlaceContext.getNearestLookingDirections`
+  (BlockPlaceContext.java:71-90). No cross-file helper required. No change.
+- 5. `can_place_at` duplication (row 5): VERIFIED, no change. Single
+  `get_state_for_placement` helper (`vine.rs:231`) mirrors vanilla
+  `getStateForPlacement` (VineBlock.java:277-293); both `on_place` and
+  `can_place_at` call it. Pure tests `placement_attaches_only_to_supported_face`
+  (vine.rs:650) and `updated_state_up_uses_top_face_of_block_above` (vine.rs:670)
+  cover the support check and the real UP-face parity change.
+
+Spot-checked also: `can_spread` (<5 vines in the 9x3x9 volume vs vanilla
+`atMostMatched(4)`, VineBlock.java:264-268), the 25% spread gate
+(`random_range(0..4)` vs `vineModifier/(100*4)`, line 166), and the two distinct
+UP checks (`Down` in `getUpdatedState` vs `Up` at line 194) - all match.
+
+No source files touched, so no rustfmt needed. No new test seam (existing pure
+tests cover all behavioural deltas). No row remains STILL OPEN.
+Status: PASS fixed=0 open=0
+files=docs/tracker/taudit-crates-pumpkin-core-src-bl-bd7395.md

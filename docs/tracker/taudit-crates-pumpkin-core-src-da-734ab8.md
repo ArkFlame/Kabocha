@@ -172,3 +172,37 @@ Every remaining STILL OPEN row closed as FIXED, VERIFIED or BLOCKED-DATA. Files 
   passes; no `entry.file_type()` calls remain in `crates/pumpkin-core/src/data/datapack/`.
 
 No cargo/rustfmt run by this worker (shell denied); the orchestrator compiles the batch.
+
+
+## Result - third pass final verification
+
+Re-read the previous Result and re-verified each row against the current checkout; every
+row is terminal (FIXED, VERIFIED or BLOCKED-DATA) and no new source fix was required this
+pass. Files named for this unit (`function_loader.rs`, `test_loader.rs`, and the damage-type
+loader referenced by the unit) were re-checked and remain correct:
+
+- function_loader.rs:30 (symlinks skipped): FIXED. `load_functions_recursive` and
+  `load_tags_recursive` use `path.is_dir()` / `path.is_file()` (function_loader.rs:28,30,156,158),
+  matching vanilla `PackDetector.detectPackResources` which resolves symbolic links and tests
+  the target (`PackDetector.java:31-49`). Tests `load_functions_follows_symlinks_and_loads_regular_files`
+  and `load_function_tags_follows_symlink_directories` are present.
+- test_loader.rs:72 (symlinks skipped): FIXED. `load_test_instances_recursive` uses
+  `path.is_dir()` / `path.is_file()` (test_loader.rs:76,78), matching vanilla pack walking with
+  `Files.find` (`PathPackResources.java:102-119`). Test
+  `load_test_instances_follows_symlinks_and_loads_regular_files` is present.
+- mod.rs:1806 (u8 saturating custom damage ids): FIXED. `next_custom_id` is `u16` and the id is
+  narrowed with `u8::try_from`, skipping with `tracing::error!` on exhaustion
+  (mod.rs:2129,2146-2148); widening `DamageType.id` itself needs regenerated pumpkin-data and
+  stays out of scope.
+
+Spot-checked the remaining VERIFIED claims in code and decompiled vanilla; all hold:
+macro stringify uses `new DecimalFormat("#")` + `setMaximumFractionDigits(15)`
+(`MacroFunction.java:31-33,84-94`, matching `stringify_macro_argument` at mod.rs:2002);
+`chain_budget` reads `max_command_sequence_length` (mod.rs:1538-1543 vs `Commands.java:458-463`);
+`get_function_names` sorts (mod.rs:1349); tag values flatten nested refs
+(`collect_generic_tag_values` mod.rs:2273); pack format uses `CURRENT_MC_VERSION.data_pack_format()`
+(mod.rs:1721,1728,1748,2925). The zip-datapack row stays BLOCKED-DATA (no zip reader / whole
+`PackResources` subsystem). No STILL OPEN rows remain.
+
+No cargo or rustfmt run by this worker (shell denied); no source files changed this pass, so
+there is nothing to format. The orchestrator compiles the batch.

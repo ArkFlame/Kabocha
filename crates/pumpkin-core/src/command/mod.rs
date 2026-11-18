@@ -293,11 +293,12 @@ impl CommandSender {
     /// first world for senders that are not bound to one.
     ///
     /// Console and dummy senders have no world of their own, so like
-    /// vanilla they operate on the first (overworld) world. Returns [`None`]
-    /// only when the server has no worlds loaded at all.
+    /// vanilla they operate on the overworld, falling back to the first
+    /// loaded world. Returns [`None`] only when no worlds are loaded.
     #[must_use]
     pub fn world_or_first(&self, server: &Server) -> Option<Arc<World>> {
         self.world()
+            .or_else(|| server.get_world_from_dimension(&Dimension::OVERWORLD))
             .or_else(|| server.worlds.load().first().cloned())
     }
 
