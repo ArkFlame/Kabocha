@@ -83,3 +83,42 @@ Re-verified every remaining row against decompiled vanilla; no source change was
 - model.rs:85 (required structure) -> VERIFIED. `TestData.CODEC` uses `Identifier.CODEC.fieldOf("structure")` (`.vendor/vanilla-decompiled/net/minecraft/gametest/framework/TestData.java:33`), required; Pumpkin's non-defaulted `String` plus the `Identifier` parse in `is_valid` (model.rs:113) matches.
 
 No STILL OPEN rows remain. No source files were edited; no cargo/rustfmt run (workers cannot run shell tools).
+
+
+## Result (final pass)
+
+Read every source file named in this unit and re-checked each previously open row against
+decompiled vanilla. All fixes are already present and correct in the checkout, so no source edit
+was required in this pass.
+
+- test_loader.rs:93-98 / model.rs:109 (TestData / TestEnvironmentDefinition codec) -> FIXED.
+  `GameTestDefinition::is_valid` (model.rs:110-139) rejects any environment shape the holder codec
+  cannot decode: a String must parse as `Identifier`, an Object must carry `type`, all other shapes
+  fail. The load path (test_loader.rs:108-119) warns+skips invalid entries like vanilla
+  `SimpleJsonResourceReloadListener.prepare`. Cited:
+  `.vendor/vanilla-decompiled/net/minecraft/gametest/framework/TestEnvironmentDefinition.java:35-38`
+  (`RegistryCodecs.holder(Registries.TEST_ENVIRONMENT, DIRECT_CODEC)`) and `.../TestData.java:31`.
+- test_loader.rs:91 (invalid resource location id) -> FIXED. `Identifier::is_valid_namespace` /
+  `is_valid_path` gate at test_loader.rs:94-101. Cited:
+  `.vendor/vanilla-decompiled/net/minecraft/resources/FileToIdConverter.java`.
+- mod.rs:922 + dynamic_registry_loader.rs:93 (typed test_instance registry sync) -> VERIFIED.
+  `all_dynamic_registries.insert("minecraft:test_instance", test_loader::synced_test_instance_registry(&all_test_instances))`
+  (mod.rs:541-543) overwrites the generic raw-JSON-as-NBT copy with codec-canonical
+  `to_registry_entry` payloads (test_loader.rs:129-155, :164-171) before `apply_custom_registries`
+  (mod.rs:564). Cited: `.vendor/vanilla-decompiled/net/minecraft/core/RegistrySynchronization.java:59-60`
+  (`registryData.elementCodec().encodeStart(ops, element.value())`). The leftover public accessor
+  (mod.rs:1100) keeps the `to_registry_entry` import at mod.rs:45 live; harmless.
+- dynamic_registry_loader.rs:92-95 (directory + extension) -> VERIFIED. `DYNAMIC_REGISTRIES` lists
+  singular `test_instance` (:51) and the extension check is exact lowercase `json` (:221-223),
+  with the same resource-location gate (:231-237). Cited:
+  `.vendor/vanilla-decompiled/net/minecraft/resources/FileToIdConverter.java`.
+- model.rs:85 (required `structure`) -> VERIFIED. `TestData.CODEC` uses
+  `Identifier.CODEC.fieldOf("structure")` (`.vendor/.../gametest/framework/TestData.java:33`),
+  required; Pumpkin's non-defaulted `String` plus the `Identifier` parse in `is_valid` (model.rs:113)
+  matches.
+
+Every row is terminal (FIXED or VERIFIED); no BLOCKED-DATA. No source files were edited in this
+pass; no cargo/rustfmt run (workers cannot run shell tools). Files verified:
+crates/pumpkin-core/src/data/datapack/test_loader.rs,
+crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs,
+crates/pumpkin-gametest/src/model.rs.

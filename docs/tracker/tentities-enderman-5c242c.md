@@ -61,9 +61,10 @@ The source changed since the last review: the damage pipeline now runs
   `requires_custom_persistence`, death drop via `EnchantmentProvider::ENDERMAN_LOOT_DROP`,
   ambient scream when creepy, water sensitivity, projectile side effects.
 
-## Gap status
-- 1 projectile dodge keyed on damage type (M): STILL OPEN (size M)
-- 2 stare line-of-sight 128-block cap (S): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+## Gap status (final, 2026-11-18)
+- 1 projectile dodge keyed on damage type (M): VERIFIED, no gap. Pumpkin `is_projectile_damage` (enderman.rs:70-72, `has_tag(MINECRAFT_IS_PROJECTILE)`) + `!entity.has_vehicle()` (enderman.rs:600) match decompiled `Enderman.hurtServer` (`source.is(DamageTypeTags.IS_PROJECTILE) && !this.isPassenger()`, .vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Enderman.java:396). The tracker's `getDirectEntity() instanceof Projectile` premise was wrong. No code change.
+- 2 stare line-of-sight 128-block cap (S): VERIFIED, no gap. Pumpkin `LINE_OF_SIGHT_RANGE = 128.0` (enderman.rs:65) with the squared-distance rejection (enderman.rs:402-404) and Collider/None clip (:408-414) match decompiled `LivingEntity.hasLineOfSight` (`to.distanceToSqr(from) > Mth.square(128.0)`, .vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java:4131) and `isLookingAtMe` (:2276-2299). The tracker's "unbounded block clip" premise was wrong. No code change.
+- Both rows closed; no behaviour change, no test added (a constant/clip mirror test would be a forbidden formula/constant test). None of the five unit source files modified.
 
 ## Result
 

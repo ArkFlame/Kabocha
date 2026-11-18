@@ -65,7 +65,7 @@ Re-audit 2026-11-17: no remaining gap in this file is both small and certain. Al
   try_enqueue_*. No vanilla counterpart; leave unless a caller needs the back-pressure signal.
 
 ## Gap status
-- Rows: STILL OPEN. Note body not recoverable in this pass; nothing verified.
+- All rows closed: FIXED / VERIFIED against decompiled vanilla; no BLOCKED-DATA. See final Result below.
 
 ## Result
 
@@ -201,3 +201,38 @@ every in-scope row is already fixed. fixed=0 new this pass.
   resync in `net/java/play/move_vehicle.rs:58-87` per vanilla
   ServerGamePacketListenerImpl.java:815-823.
 - No remaining STILL OPEN rows. No cargo/git run (forbidden): UNVERIFIED.
+
+
+## Result (FINAL pass, 2026-11-18) - all rows closed, no code changes needed
+
+Every claimed fix from earlier passes was verified present in source and matched against
+decompiled vanilla at .vendor/vanilla-decompiled/net/minecraft/. No file needed editing this pass.
+
+- Row 2 (server-full before ban/whitelist): VERIFIED FIXED. login_start.rs:21-92 holds only
+  name validation, proxy handoff and profile creation; no pre-auth max-players branch. Vanilla
+  ServerLoginPacketListenerImpl.java #handleHello/#verifyLoginAndFinishConnectionSetup calls
+  PlayerList#canPlayerLogin (ban -> whitelist -> ip-ban -> full) only after authentication; Pumpkin
+  enforces the limit in server/mod.rs join_rejection, so effective order matches vanilla.
+- Row 3 (op bypass for player limit): VERIFIED FIXED. server/mod.rs:1403-1415 checks
+  can_bypass_player_limit via operator_config before the full-server kick; max_players = 0
+  unlimited extension kept. Vanilla .vendor/vanilla-decompiled/net/minecraft/server/players/
+  PlayerList.java:658,1078 canBypassFullServerLogin.
+- Row 4 (ban date tz name): VERIFIED FIXED. net/mod.rs:419-435 format_ban_expiration renders
+  "yyyy-MM-dd at HH:mm:ss" plus a UTC/numeric-offset zone label; tests at net/mod.rs:731+.
+  Vanilla PlayerList.java:116 BAN_DATE_FORMAT "yyyy-MM-dd 'at' HH:mm:ss z". Cosmetic kick text.
+- Row 5 (PlayerConfig defaults): VERIFIED FIXED. net/mod.rs:111-116 for_server seeds view_distance
+  from config; :131-144 defaults match ClientInformation.createDefault() (en_us, chat Enabled,
+  colors on, skin_parts 0, Right hand, filtering off, listing off).
+- Row 6 (try_enqueue_spawn_packet not fallible): VERIFIED FIXED. The no-op alias was removed;
+  world/entity_tracker.rs:613 calls enqueue_spawn_packet directly.
+- New (move_vehicle.rs, granted): VERIFIED FIXED against ServerGamePacketListenerImpl.java:578-627
+  and :815-821 - finite check kicks with multiplayer.disconnect.invalid_vehicle_movement (:582-583),
+  teleport/client-load guard (:584), removed-vehicle return (:587), wrapDegrees on yaw/pitch
+  (:606-607), clampHorizontal/Vertical (:603-605), non-controlling-passenger resync (:819-821).
+- New (entity_tracker.rs, granted): VERIFIED FIXED. add_pairing returns early for a removed entity
+  (:610-612), matching vanilla ServerEntity#sendPairingData
+  (.vendor/vanilla-decompiled/net/minecraft/server/level/ServerEntity.java).
+- No BLOCKED-DATA rows: no missing generated pumpkin-data fields or absent subsystem is involved.
+- No pure unit test seam in the three granted files (all paths need a JavaClient plus a live
+  entity/network); none added. No code changed this pass, so no rustfmt needed.
+- No cargo/git run (forbidden for this worker): UNVERIFIED compile status; source was not modified.

@@ -6,7 +6,11 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-wither** [partial/OWN-OPEN] own audit: 3 open, 4 fixed, 2 verified, 0 blocked-data (docs/tracker/tentities-wither.md) docs/tracker/tentities-wither.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+FINAL (all rows closed). Verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/boss/wither/WitherBoss.java` (and `.../entity/Entity.java`):
+
+- **entities/Wither**: FIXED (head-shot aim height) and VERIFIED (all other rows). Vanilla `performRangedAttack(int, LivingEntity)` aims at `target.getY() + target.getEyeHeight() * 0.5` (WitherBoss.java:460); Pumpkin used half the bounding-box height. Both the main head (wither.rs:395) and targeted side heads (wither.rs:506) now use `get_eye_height() * 0.5`. Idle side shots (WitherBoss.java:322) and the 0.001 dangerous chance (WitherBoss.java:460) already matched. Remaining rows VERIFIED: movement lift clause (WitherBoss.java:170), WitherDoNothingGoal LOOK gating (:102,613-620), no setNoGravity (:87), RangedAttackGoal LOS (:103), bossbar progress (:273,391), block drops (:377), uniform idle offsets (:319-321), peaceful despawn (:536-543), powered projectile immunity (:504-508). No BLOCKED-DATA: no generated pumpkin-data field or missing subsystem is required.
+
+- **own/tentities-wither**: VERIFIED. The linked audit (docs/tracker/tentities-wither.md) has all nine rows closed; no STILL OPEN row remains. Its stale aim-height note is superseded by this pass's fix against WitherBoss.java:460.
 
 
 ## Result (pass 3, 2026-11-18)

@@ -152,3 +152,70 @@ STILL OPEN row `9728ac352` (apply sulfur cube body state on item pickup): VERIFI
 - Compile-pitfall recheck: no source edits this pass (doc only); no imports, helpers, macro paths, struct initializers, clones or unwrap/expect/panic introduced; no em dashes.
 
 Status: PASS fixed=0 open=0 files=none
+
+
+## Result (FINAL PASS, 2026-11-18)
+
+Authoritative final status. This section supersedes the earlier per-pass Result notes. Every
+row in this unit is closed; no STILL OPEN rows and no BLOCKED-DATA rows remain. All vanilla
+references point into `.vendor/vanilla-decompiled/net/minecraft/`.
+
+Row `9728ac352` (apply sulfur cube body state on item pickup): FIXED / VERIFIED.
+`sulfur_cube.rs` `pick_up_item` writes the BODY slot via `set_item_slot_and_drop_when_killed`
+(:933-934) then calls `detect_body_item_change()` immediately (:935) before the absorb sound,
+routing to `on_body_item_changed` which applies the goal/archetype/attribute/explosion/contact
+state. Vanilla `SulfurCube.pickUpItem`
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/SulfurCube.java:720-729`)
+calls `onItemPickup` then `setItemSlot(BODY, split)`; `SulfurCube.collectEquipmentChanges`
+(:405-457) applies the same state once per tick, mirrored by the per-tick
+`detect_body_item_change` in `mob_tick`. No further code change needed.
+
+Gap 3 (contact-damage RNG): VERIFIED, already fixed in tree. `apply_contact_damage`
+(`sulfur_cube.rs:619-639`) samples each archetype `FloatProvider` from the entity-owned
+`contact_random`, releasing the lock before damaging, matching
+`SulfurCube.applyContactDamage`
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/SulfurCube.java:584-590`,
+`damage.amount().sample(this.getRandom())`).
+
+Gap 4 (set_size dimensions): VERIFIED, no change. `sulfur_cube.rs:337` calls
+`set_default_dimensions`, which refreshes the bounding box from the new size at the current
+position. Vanilla `AbstractCubeMob.setSize` calls `reapplyPosition()` + `refreshDimensions()`
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/AbstractCubeMob.java:80-90`).
+The full y-clamp reapplyPosition lives in the shared entity path outside the allowed files;
+the observable bounding box already tracks the new size.
+
+Gap 5 (get_base_experience_reward): VERIFIED, no change. `sulfur_cube.rs:1251-1257` returns
+baby 0 else `1 + rand(0..2)`, matching `SulfurCube.getBaseExperienceReward`
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/SulfurCube.java:732-734`).
+
+Gap 6 (set_size health): VERIFIED, no change. `sulfur_cube.rs:315` uses `4 * actual_size`,
+matching `SulfurCube.setCubeMobHealth`
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/SulfurCube.java:1004-1007`),
+which overrides the slime-family `size * size` default in `AbstractCubeMob`
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/AbstractCubeMob.java:92-94`).
+
+Gap 7 (squish tracked data): VERIFIED, no code change and no generated-data dependency.
+`targetSquish`/`squish`/`oSquish` are plain client-side float fields
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/AbstractCubeMob.java:48-50, 124-125, 142-153`);
+vanilla has no tracked-data accessor for them. `tick_cube_mob` (`cube_mob.rs:79-110`) keeps
+the same smoothing server-side; the client-only squash animation is a visual gap with no
+server parity impact and no missing pumpkin-data field.
+
+Gap 8 (mob NBT keys/defaults): VERIFIED, no change. `mob_write_nbt`/`mob_read_nbt`
+(`sulfur_cube.rs:1293-1316`) write `Size`(size-1), `wasOnGround`, `pickup_timer`,
+`from_bucket`, `fuse` and read them back with defaults 0/false/-1, including the `fuse`
+default of -1. Matches `SulfurCube.addAdditionalSaveData`/`readAdditionalSaveData`
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/SulfurCube.java:787-801`)
+and `AbstractCubeMob`
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/AbstractCubeMob.java:101-114`).
+
+Also resolved earlier, re-stated for completeness: `mob_hurt_server` returns `Some(true)`
+for `MINECRAFT_SULFUR_CUBE_WITH_BLOCK_IMMUNE_TO` (`sulfur_cube.rs:1017-1019`), matching
+`SulfurCube.hurtServer` returning `true` after knockback
+(`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/cubemob/SulfurCube.java:254-260`).
+
+Compile-pitfall recheck: no source edits this pass (doc only); no imports, helpers, macro
+paths, struct initializers, clones, unwrap/expect/panic or new fns introduced; no em dashes.
+No pure unit-test seam exists for these live MobEntity/world paths in the allowed files.
+
+Status: PASS fixed=0 open=0 files=none

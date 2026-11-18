@@ -110,11 +110,11 @@ Trigger for the re-review: `0505dd44e` "fix(entity): give all living entities an
   water-creature spawn restriction, 4/chunk limit, XP 2.
 
 
-## Gap status
-- 1 dolphin modelled as ageable (M): CLOSED (NO GAP - vanilla `Dolphin extends AgeableWaterCreature`; see re-verify Result)
-- 2 dolphin_food tag: CLOSED (NO GAP - vanilla uses ItemTags.FISHES, not dolphin_food; see re-verify Result)
-- 3 DolphinJumpGoal clause grouping: CLOSED (NO GAP - OR grouping confirmed by decompile; see re-verify Result)
-- 4 PlayWithItemsGoal split priorities 7/8: CLOSED (NO GAP - two goals confirmed by decompile; see re-verify Result)
+## Gap status (FINAL - terminal)
+- 1 dolphin modelled as ageable (M): VERIFIED - `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/dolphin/Dolphin.java:74` is `public class Dolphin extends AgeableWaterCreature`; Pumpkin matches (no de-ageable refactor).
+- 2 dolphin_food tag: VERIFIED - `Dolphin.java:323` gates on `ItemTags.FISHES`; Pumpkin uses `tag::Item::MINECRAFT_FISHES`. No generated field needed.
+- 3 DolphinJumpGoal clause grouping: VERIFIED - `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/DolphinJumpGoal.java:56-59` uses the OR grouping Pumpkin uses at `goals.rs:427-435`.
+- 4 PlayWithItemsGoal split priorities 7/8: VERIFIED - `Dolphin.java:176-177` registers two separate goals; Pumpkin matches (`goals.rs:69-70`). No merge.
 
 
 ## Result
@@ -270,3 +270,17 @@ drifted. No source edit (dolphin.rs / squid.rs) is needed and no unit test seam 
   `MoveToItemGoal` at 7 and `PlayWithItemsGoal` at 8 as two separate goals. Pumpkin matches
   (goals.rs:69-70). A merge would diverge from vanilla.
 - Files touched: doc only (Result appended). rustfmt not applicable. No unit test: no code seam.
+
+
+## Result (FINAL PASS - terminal VERIFIED)
+
+Full final verification of all four rows against the decompiled vanilla tree at
+`.vendor/vanilla-decompiled/net/minecraft/` and the current Pumpkin source. No row is
+STILL OPEN; every row is VERIFIED (matches vanilla). No source edit (dolphin.rs / squid.rs)
+is needed and no unit test seam exists, so no generated data field or subsystem is missing.
+
+- Row 1 (ageable, M): VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/dolphin/Dolphin.java:74` declares `public class Dolphin extends AgeableWaterCreature`; `mobInteract` calls `canAgeUp()`/`ageUp()` at `:328-330` and `finalizeSpawn` uses a 0.1F `AgeableMobGroupData` at `:103`. Pumpkin matches: `impl AgeableMob` (dolphin.rs:148), `impl AgeableWaterCreature` (`:158`), `finalize_ageable_spawn` (`:325`), age-up branch (`:417-418`). Do NOT de-ageable or touch `entity/type.rs`/`squid.rs`.
+- Row 2 (FISHES vs dolphin_food, S): VERIFIED. `Dolphin.java:323` is `itemStack.is(ItemTags.FISHES)`; there is no dolphin_food check. Pumpkin `dolphin.rs:414` uses `item.has_tag(&tag::Item::MINECRAFT_FISHES)`. No generated field needed; do not hardcode item ids.
+- Row 3 (DolphinJumpGoal grouping, S): VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/DolphinJumpGoal.java:56-59` is `(!(yd*yd < 0.03F) || getXRot()==0 || !(abs(getXRot())<10) || !isInWater()) && !onGround()`, the OR grouping Pumpkin uses at `goals.rs:427-435`. Keep the current condition.
+- Row 4 (PlayWithItemsGoal split 7/8, S): VERIFIED. `Dolphin.java:176-177` registers `MoveToItemGoal` at 7 and `PlayWithItemsGoal` at 8 as two separate goals. Pumpkin matches (`goals.rs:69-70`). A merge would diverge from vanilla.
+- Files touched: doc only (Gap status finalized, Result appended). rustfmt not applicable. No unit test: no code seam; all four rows already match vanilla.

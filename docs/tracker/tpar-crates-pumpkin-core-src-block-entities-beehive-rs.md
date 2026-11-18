@@ -25,3 +25,14 @@ rustfmt and the build. No unwrap/expect/panic added.
   against the cited paths.
 
 No STILL OPEN rows remain. No generated-data or whole-subsystem blocker.
+
+### Final pass verification (2026-11-18)
+
+Re-read the current beehive.rs and the vanilla source. Both flower-transfer rules cited above
+were confirmed line-by-line in
+.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java:
+addOccupant at line 190 (bee.hasSavedFlowerPos() && (!this.hasSavedFlowerPos() ||
+this.level.getRandom().nextBoolean())) matches adopts_flower, and releaseOccupant at line
+251 (savedFlowerPos != null && !bee.hasSavedFlowerPos() && random.nextFloat() < 0.9F) matches
+inherits_flower. The single row own/tentities-bee-8270b4 is FIXED/VERIFIED, no code change
+needed this pass.
