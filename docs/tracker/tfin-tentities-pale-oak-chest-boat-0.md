@@ -1,0 +1,11 @@
+# Final rows from docs/tracker/tentities-pale-oak-chest-boat.md
+
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: boat.rs container.rs
+
+| 1 | `minecart/container.rs:202-233`, `boat.rs:96` | `AbstractChestBoat.canPlayerUse` / `AbstractContainerMenu.stillValid` | Entity-backed screen never becomes invalid: no 8-block distance or entity-liveness check, so the menu survives walking away, the boat being destroyed or unloaded. | Give `MinecartScreenFactory` a validity closure (`is_alive() && squaredDistance <= 64`) and close the menu when it fails; use it for chest boats and chest minecarts. | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| 2 | `item/items/boat.rs:187-198` | `BoatItem.use` + `minecraft:container` component (1.21.2+) | Placing a chest boat item ignores the `minecraft:container` component, so a serialized boat with contents spawns empty. | After `BoatEntity::new`, copy `ContainerImpl` stacks slot-for-slot (clamp 27) before `world.spawn_entity`. Confirm the target-version `BoatItem` still forwards the component. | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| 3 | `boat.rs:266-281`, hopper path | `AbstractChestBoat implements Container` only | `has_container_inventory` exposes the chest boat as a worldly container, so a hopper above may insert; vanilla chest boats are plain `Container` (extract only). Verify the hopper/worldly-container path before changing. | Gate insertion per vehicle kind if the hopper path currently allows it. | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| 5 | `boat.rs:242-252` | `AbstractChestBoat` save/load | No automated test for the chest-boat 27-slot NBT round trip or the new open guard. | Unit test: `BoatEntity` for `PALE_OAK_CHEST_BOAT` vs `PALE_OAK_BOAT`, assert `has_container_inventory()` and an `Items` round trip through slot 26. | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+
+## Result
+STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).

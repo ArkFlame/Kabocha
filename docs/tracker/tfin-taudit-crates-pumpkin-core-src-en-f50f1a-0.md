@@ -1,0 +1,11 @@
+# Final rows from docs/tracker/taudit-crates-pumpkin-core-src-en-f50f1a.md
+
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: axolotl.rs living.rs mod.rs
+
+| Play-dead roll accepted any direct entity | `axolotl.rs:591` (`has_causing_entity`) | `Axolotl.hurtServer` requires `DamageSource.getEntity() != null`, i.e. the causing entity (owner/thrower), not `getDirectEntity()` | the check is now `cause.is_some()`; the local damage path (`living.rs:4200`) documents `cause` as `DamageSource#getEntity()`; the existing test now asserts an unowned direct entity leaves the memory alone | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| Play-dead roll used the health before the hit | `axolotl.rs:560` (`mob_hurt_server`) | `Axolotl.hurtServer` calls `super.hurtServer` first, then checks `getHealth()/getMaxHealth() < 0.5` and `amount < getHealth()` | the pre-damage hook only records the raw `amount`; the roll runs in `on_damage_with_context`, after the damage is applied | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| Support regen uses an expanded AABB instead of a distance | `axolotl.rs:321-334` (`on_stop_attacking`) | likely `source.getEntity() instanceof Player player && distanceToSqr(axolotl) <= 400.0` | keep the killer-player lookup, add `pos.squared_distance_to_vec(&player.pos) <= 400.0` (the cube corners reach ~34 blocks today; the 20-block sphere is a subset of the cube, so the filter only tightens) | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| Play-dead roll is skipped when a hit deals no damage | `on_damage_with_context` runs only when `damaged` (`mob/mod.rs:3209`) | vanilla evaluates the roll regardless of `super.hurtServer`'s return, so a blocked/invulnerable hit can still start play-dead | evaluate on `post_damage_with_context` for the not-damaged branch, or pass the raw amount through the post hook | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+
+## Result
+STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).

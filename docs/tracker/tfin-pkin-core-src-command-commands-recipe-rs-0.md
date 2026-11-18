@@ -1,0 +1,16 @@
+# Final rows from docs/tracker/tpar-crates-pumpkin-core-src-command-commands-recipe-rs.md
+
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: none named; the source rows were already fixed in prior passes.
+
+## Result
+
+Final pass (worker, direct, no cargo/git). All five rows were already fixed in the tree on arrival; each re-verified against decompiled vanilla. No new .rs edit was needed, so rustfmt was not run. Compilation and the three pure unit tests are left to the orchestrator batch check.
+
+- 1. No server-side recipe book (M): VERIFIED fixed. `Player.known_recipes` persists the per-player known set; give uses `new_learnable_recipes`/`learnable_recipe_id` (recipe.rs:45/53) to add only unknown, non-special ids, sends `CRecipeBookAdd` only when the added set is non-empty, returns the added count and throws `COMMANDS_RECIPE_GIVE_FAILED` at 0. Matches `.vendor/vanilla-decompiled/net/minecraft/stats/ServerRecipeBook.java` `addRecipes` (:61-87, only `!known && !isSpecial`) and `.vendor/vanilla-decompiled/net/minecraft/server/commands/RecipeCommand.java` `giveRecipes` (:93-104).
+- 2. take remove packet / wrong count (M): VERIFIED fixed. `take_display_ids` (recipe.rs:66) removes only known ids that have a display, sends `CRecipeBookRemove` only when the removed set is non-empty, returns the removed count and throws `COMMANDS_RECIPE_TAKE_FAILED` at 0. Matches `ServerRecipeBook.java` `removeRecipes` (:89-106) and `RecipeCommand.java` `takeRecipes` (:106-117). Pure test `take_removes_only_known_recipes_with_displays` (recipe.rs:383) present.
+- 3. Display-id layout duplicated (S): VERIFIED fixed. `static_recipe_display_count`, `dynamic_recipe_has_display` and `dynamic_recipe_display_ids` (pumpkin-protocol recipe_book_add.rs:71/87/98) are the single source shared by the packet writer's entry count/skip set and by `/recipe take` via `dynamic_recipe_display_ids` (recipe.rs:232). Pure test `dynamic_display_ids_skip_non_displayed_recipes` present.
+- 4. Suggestion provider ids (S): VERIFIED fixed. `recipe_suggestion_ids` (recipe.rs:92) suggests only non-special `recipe_id()` manager keys and dedupes via HashSet, matching `RecipeCommand.java` `LEARNABLE_RECIPE = r -> !r.isSpecial()` (:22) with `ResourceKeyArgument.key(RECIPE, LEARNABLE_RECIPE)` (:43/:69) and `commands/arguments/ResourceKeyArgument.java`. Pure test `recipe_suggestions_are_unique_and_skip_special` (recipe.rs:347) present.
+- 5. Raw argument in error text (XS): VERIFIED. `ERROR_RECIPE_NOT_FOUND` passes the parsed `context.get_argument::<Identifier>("recipe")?.to_string()` (always namespace:path) to `recipe.notFound`, matching vanilla's parsed `ResourceLocation` echo in `ResourceKeyArgument.java` (:78, :92, :106).
+- Fifth-pass id-resolution fix: VERIFIED. `recipe_matches` (recipe.rs:40) matches manager keys only, so a keyless recipe never matches its result item id, matching `ResourceKeyArgument.java` `getRecipe` byKey resolution (:103-106). Pure test `recipe_matching_uses_manager_keys_only` (recipe.rs:444) present.
+
+No rows remain STILL OPEN and none are BLOCKED-DATA. No .rs file was edited this pass, so rustfmt was not needed; compilation and the three pure unit tests are left to the orchestrator batch check.

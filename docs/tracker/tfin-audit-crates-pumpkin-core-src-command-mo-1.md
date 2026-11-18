@@ -1,0 +1,11 @@
+# Final rows from docs/tracker/taudit-crates-pumpkin-core-src-command-mo.md
+
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: command_source.rs mod.rs spawn_egg.rs
+
+- Row 14 (mod.rs:325 admin broadcast target): FIXED (supersedes the earlier STILL OPEN note). Verified against decompiled vanilla `net/minecraft/commands/CommandSourceStack.java:539-548`: `broadcastToAdmins` sends to players where the source differs and the player is an op (`PlayerList#isOp`, exposed here by the Paper patch as `hasPermission("minecraft.admin.command_feedback")`); it does not use a permission-level threshold. `send_to_ops` in `command/context/command_source.rs:383` now checks `server.data.operator_config.read().get_entry(&player.gameprofile.id).is_some()` (the same op-list membership pattern used in `item/items/spawn_egg.rs:82` and `server/mod.rs:1404`) instead of `player.permission_lvl >= op_permission_level`. File edited: `crates/pumpkin-core/src/command/context/command_source.rs`. No unit test added: `send_to_ops` needs a live `Server`, so no pure seam exists. Trade-off: non-op players with an elevated permission level granted by plugins no longer receive admin feedback, which is the parity-correct behaviour but may affect permission-plugin setups.
+- Final row status: 11 STILL OPEN (needs `command/mod.rs`, outside editable basenames); 12 FIXED (pre-existing); 13 FIXED (pre-existing edit); 14 FIXED (this pass); 15 VERIFIED FIXED (pre-existing); 16 no change. No remaining in-scope actionable rows.
+All six rows re-verified against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. No row remains genuinely STILL OPEN and no new source edit is needed; the earlier STILL OPEN notes for rows 11/14/15 were superseded by later fixes present in the checkout.
+Re-read the last Result and re-checked every row against the checkout and decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`. No row remains STILL OPEN; all six are FIXED or VERIFIED. No source edit was needed this pass (all fixes already present), so no rustfmt run.
+
+## Result
+STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).

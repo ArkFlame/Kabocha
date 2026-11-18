@@ -1,0 +1,11 @@
+# Final rows from docs/tracker/tentities-jungle-boat.md
+
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
+
+- Re-verified the only row marked STILL OPEN (delta-rotation accumulation) against the decompiled `AbstractBoat.java` now present at `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`. One-to-one correspondence confirmed: `positionRider` adds `deltaRotation` to yaw/head yaw before clamping (:700-701); `clampRotation` wraps the yaw offset and clamps to +/-105 for non-Mob riders (:748-752) and sets body yaw plus `clampHeadRotationToBody` for Mob riders (:743-746); `calculatePassengerBodyYRot` offsets a full-boat Animal by +/-90 (:756-759); `onPassengerTurned` folds `yDelta` into `yRotO` (:762-765).
+- This unit names no editable source file (`basenames: none`), and the only doc files I may touch are this unit doc, so no source edit was possible or required. The remaining "Remaining gaps" table rows and the "Test gap" note are not marked STILL OPEN and were left untouched (seat-offset helper / custom-name copy / chest-capacity are S(verify) and overlap the chest-boat unit). No generated-data, WIT or cross-crate work is needed for the STILL OPEN row. No compile run (orchestrator gate).
+- Re-checked the only row ever marked STILL OPEN (delta-rotation accumulation, h6 status) against decompiled `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`: `positionRider` adds `deltaRotation` to rider yaw/head yaw then `clampRotation` (+-105, Mob vs non-Mob), `calculatePassengerBodyYRot` offsets a full-boat animal, `onPassengerTurned` folds the clamp delta into `yRotO` (:696-705, :740-766).
+- The five "Remaining gaps" rows (seat-offset helper, BUBBLE_TIME metadata, custom-name copy, chest capacity) are NOT marked STILL OPEN and are out of this unit's explicit scope; BUBBLE_TIME is a client-only particle effect. No generated-data, WIT, cross-crate or out-of-unit work is required for the STILL OPEN row. All STILL OPEN rows closed: fixed=0, open=0.
+
+## Result
+STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).

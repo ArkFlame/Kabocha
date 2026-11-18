@@ -1,0 +1,11 @@
+# Final rows from docs/tracker/taudit-crates-pumpkin-core-src-en-13d289.md
+
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: living.rs mod.rs player.rs
+
+| 5 | player.rs:5804 | `Player.hurtServer` scales damage when `DamageSource.scalesWithDifficulty()`: Peaceful -> no damage, Easy -> `min(f/2+1, f)`, Hard -> `f*3/2` | No difficulty scaling at all; pumpkin-data has no `scales_with_difficulty` flag on DamageType either, so the data has to be added first. | M | STILL OPEN (h6 budget ended, not attempted) |
+| 6 | player.rs:7127 | `ServerPlayer.onEffectRemoved` sends one `ClientboundRemoveMobEffectPacket`; tracking players learn the particle/colour metadata through tracked data (`LivingEntity.onEffectsRemoved` -> `syncEffectParticles`) | TODO is stale: `LivingEntity::remove_effect` (living.rs:1774) already broadcasts the removal to tracking players *and* self and calls `sync_effect_particles()`. Player::remove_effect and remove_all_effects additionally send a duplicate packet to self. Delete the TODO and the duplicated self-sends. | S | STILL OPEN (h6 budget ended, not attempted) |
+| 7 | player.rs:8827 | Team colour is applied in `Player.getDisplayName()` (`PlayerTeam.formatNameForTeam(this.getTeam(), ...)`), not in `getName()` | TODO sits on get_name(); vanilla getName() is the plain profile name (correct as-is), while get_display_name() (player.rs:8833) returns the custom name or plain name with no team prefix/suffix/colour. Move the TODO and implement team formatting (scoreboard Team already exposes get_team/get_team_name). | S | STILL OPEN (h6 budget ended, not attempted) |
+| 8 | player.rs:5159 | `ServerPlayer.changeDimension` and `ServerGamePacketListenerImpl` share the transfer logic in vanilla too; the duplication is upstream's, not a Pumpkin bug | Duplicate code between this file and world/mod.rs for dimension change; keep, but the two copies drift (e.g. respawn vs transfer side effects). | M (refactor) | STILL OPEN (h6 budget ended, not attempted) |
+
+## Result
+STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).

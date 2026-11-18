@@ -1,0 +1,11 @@
+# Final rows from docs/tracker/taudit-crates-pumpkin-core-src-en-13d289.md
+
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: item.rs player.rs
+
+| 9 | player.rs:5342 | `ClientboundPlayerPositionPacket` carries `Set<Relative>`; `ServerPlayer.teleportTo` uses no relative flags (all absolute) but `teleportRelative`/`teleportSetRotation` set Y_ROT/X_ROT only | request_teleport always sends an empty relative-flag list, so any relative teleport path (rotation-only corrections, knockback-style nudges) resets velocity/rotation to absolute values. | S | STILL OPEN (h6 budget ended, not attempted) | STILL OPEN (relative teleport flags; S, not attempted) |
+| 10 | player.rs:6653 | `Player.drop` spawns one ItemEntity per call; merging is done by `ItemEntity.tryToMerge` on tick (`ItemEntity` merge radius), not at drop time | Stale TODO: merging is not this function's job. Delete it (ItemEntity merge already exists in entity/item.rs). | S | STILL OPEN (h6 budget ended, not attempted) | FIXED 11d974fc7 (this pass removed the stale TODO; prior STILL OPEN superseded) |
+| 11 | player.rs:6998 | ServerPlayer keeps level/progress/points in three separate fields updated in `setExperienceLevels`/`setExperiencePoints` from one thread | Non-atomic stores across experience_level/progress/points can interleave (e.g. `/xp` + pickup in the same tick) and briefly send a mixed state; wrap in one mutex-guarded struct as the TODO says. | M | STILL OPEN (h6 budget ended, not attempted) | STILL OPEN (experience state atomicity; M, not attempted) |
+| 12 | player.rs:6330 | `ServerPlayer.setGameMode` early-returns when the gamemode is unchanged; `previousGameMode` is updated by `changeGameModeForPlayer` | Pumpkin's commented-out `previous_gamemode` store is deliberate; vanilla also never updates previousGameMode on a plain setGameMode, so the code is already parity. Leave as-is, optionally drop the commented segment. | S (no change) | STILL OPEN (h6 budget ended, not attempted) |
+
+## Result
+STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
