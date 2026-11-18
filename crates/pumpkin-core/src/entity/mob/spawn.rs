@@ -235,3 +235,18 @@ impl MobEntity {
         entity.refresh_dimensions();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::EntitySpawnReason;
+
+    #[test]
+    fn entity_spawn_reason_spawner_and_light_gates() {
+        assert!(EntitySpawnReason::Spawner.is_spawner());
+        assert!(EntitySpawnReason::TrialSpawner.is_spawner());
+        assert!(!EntitySpawnReason::Natural.is_spawner());
+        assert!(EntitySpawnReason::TrialSpawner.ignores_light_requirements());
+        assert!(!EntitySpawnReason::Spawner.ignores_light_requirements());
+        assert!(!EntitySpawnReason::Natural.ignores_light_requirements());
+    }
+}
