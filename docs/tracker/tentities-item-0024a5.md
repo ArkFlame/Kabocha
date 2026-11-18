@@ -241,3 +241,36 @@ access in this worker); the edit is a block deletion plus a comment only.
 
 Re-read the diff against the worker compile pitfalls: no new imports, helper placement,
 macro paths, struct initializers or clones; no unwrap/expect/panic added; no em dashes.
+
+
+## Result (third pass 2026-11-18, fake item entity wired)
+
+Re-verified the single remaining STILL OPEN row against
+.vendor/vanilla-decompiled/net/minecraft/server/commands/GiveCommand.java (82-100) and
+.vendor/vanilla-decompiled/net/minecraft/world/entity/item/ItemEntity.java (557-588).
+
+- Fake item entity on the all-fits branch: FIXED. Vanilla giveItem's
+  added && copyToDrop.isEmpty() branch creates an item with
+  createItemStackToDrop(prototypeItemStack.copy(), false, false), then calls
+  drop.makeFakeItem() (GiveCommand.java:83-86); makeFakeItem does
+  setNeverPickUp() (pickupDelay = 32767) and age = despawnRate - 1
+  (ItemEntity.java:585-587) so the client renders a one-tick pickup animation. Added
+  ItemEntity::make_fake_item (item.rs:210) which sets never_pickup and
+  item_age = LIFETIME - 1. The pickup gate (item.rs:815-818) and merge gate
+  (can_merge, item.rs:264) already honour never_pickup, and process_age_and_merge
+  (item.rs:589) discards the entity on the next tick, matching vanilla's final-tick
+  despawn. give.rs now spawns that fake item at the player's eye height minus 0.3
+  (vanilla createItemStackToDrop, LivingEntity.java:4262) before playing ITEM_PICKUP
+  and syncing the inventory.
+- Age-based thrower gate: VERIFIED already FIXED in the prior pass; no change needed.
+- Rows 1-4 and the give.rs pickup-delay fix: VERIFIED already resolved in earlier
+  passes; no change needed.
+
+No pure unit test added: make_fake_item mutates atomics on a live ItemEntity that needs
+an Arc<World> to construct, so no pure seam exists; the pickup and merge gates are
+already covered by target_gate_matches_vanilla_player_touch and
+never_pickup_or_never_despawn_items_never_merge. Rustfmt was NOT run by this worker
+(no shell access); the edits follow surrounding formatting. Re-read the diff against
+the worker compile pitfalls: imports copied from item.rs/player.rs, helper is a method
+in impl ItemEntity, Arc is imported, no new struct fields, no unwrap/expect/panic,
+no em dashes.
