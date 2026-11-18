@@ -292,3 +292,51 @@ No shell/cargo/git was run; the orchestrator compiles once after all workers.
 Rows 2, 4, 5 remain fixed from earlier passes. No new pure-test seam exists for either
 terminal row (Row 1 is client-visible only; Row 3 needs a runtime registry).
 No `.rs` file was touched this pass, so rustfmt was not applicable.
+
+
+## Result (expanded-scope re-review, all granted files inspected)
+
+Granted files this pass: `basic.rs`, `data_component.rs`,
+`dynamic_registry_loader.rs`, `dynamic_registry_manager.rs`, `goat_horn.rs`.
+Re-verified both terminal rows against decompiled vanilla. No `.rs` source edit
+was made: neither row has a fix that is both correct and contained enough to be
+safe in a shared checkout with a single end-of-batch compile gate. No STILL OPEN
+rows remain.
+
+- Row 1 (TOOT_HORN use animation): VERIFIED, matches vanilla; no server-side gap.
+  `getUseAnimation` is declared only on item classes and reached via
+  `ItemStack.getUseAnimation()`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/item/ItemStack.java:941-942`,
+  `InstrumentItem.java:65-68`, `ItemUseAnimation.java:20`); a full grep of
+  `.vendor/vanilla-decompiled/net/minecraft` found no server call site beyond
+  that delegate. The third-person TOOT_HORN animation is a client rendering
+  decision derived from the USING_ITEM living-entity flag, which Pumpkin already
+  sets and syncs in `LivingEntity::set_active_hand`. No use-animation field or
+  packet exists on the server, so an `ItemBehaviour` hook would be dead code.
+
+- Row 3 (registry-referenced datapack instruments): BLOCKED-DATA. Whole missing
+  subsystem, confirmed against all newly granted files. Vanilla
+  `Instrument.CODEC` / `STREAM_CODEC` are holders over `Registries.INSTRUMENT`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/item/Instrument.java:40-41`)
+  carrying `sound_event`, `use_duration`, `range`, `durability_damage`
+  (`Instrument.java:16-26`). Pumpkin loads `minecraft:instrument` datapack JSON
+  into the registry (`dynamic_registry_loader.rs:17`), but the four pieces that
+  would resolve a positive holder id are all absent:
+  1. `InstrumentImpl` stores only a name string
+     (`pumpkin-data/src/data_component_impl/basic.rs:555-557`), so the positive
+     raw id is not preserved.
+  2. The codec discards that id and falls back to the ponder horn for ids above
+     the 8 builtins (`pumpkin-protocol/src/codec/data_component.rs:2890-2896`).
+  3. There is no NBT decoder for the `Instrument` record anywhere in `crates/`
+     (grep for `use_duration` / `durability_damage` finds only the inline-custom
+     network codec at `data_component.rs:2831-2898`); raw-id entry data can only
+     be fetched by `entry_id` on `DatapackManager`
+     (`data/datapack/mod.rs:1009-1016`), and `DynamicRegistry` has
+     `get_entry_data_by_raw_id` (`dynamic_registry_manager.rs:64-68`) but the
+     manager/datapack wrappers do not expose it.
+  4. `goat_horn.rs` is a sync `ItemBehaviour` with no server/datapack context,
+     so resolving the id at use time needs new reachability plumbing.
+  No generated `pumpkin-data` field is missing; the blocker is the resolution
+  subsystem itself (id preservation + Instrument NBT decoder + manager raw-id
+  lookup + use-path wiring) across protocol, data and core crates, far beyond a
+  minimal in-unit edit.

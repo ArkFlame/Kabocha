@@ -288,3 +288,48 @@ placement, struct initializers, clones or clippy-pedantic issues were introduced
 (no .rs file touched). No cargo or git command run (shell denied to workers).
 
 Status: PASS fixed=0 open=0 files=docs/tracker/tentities-oak-boat-5c8be7.md
+
+
+## Result (third pass re-verify 2026-11-18, main checkout)
+
+Re-verified every row against decompiled vanilla at
+.vendor/vanilla-decompiled/net/minecraft/. No source file needed an edit; all fixes are already
+present and match the cited vanilla paths.
+
+- Row 1 (bubble time publish, boat.rs): VERIFIED FIXED. Vanilla
+  .vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java
+  onAboveBubbleColumn / tickBubbleColumn / handleBubbleColumnEffect. Pumpkin boat.rs arms the
+  60-tick countdown and writes ID_BUBBLE_TIME (:647-659), decrements/republishes (:429-446) and
+  applies the capped -0.7/0.6 vertical impulse (:472, :976). Generated field ID_BUBBLE_TIME exists,
+  so this is not BLOCKED-DATA.
+- Row 2 (rider rotation clamp, boat.rs): VERIFIED FIXED. Vanilla AbstractBoat.java positionRider /
+  clampRotation. Pumpkin on_rider_positioned (:856-894) and on_passenger_turned (:901-944) clamp
+  non-player riders to +/-105 deg, with pure unit tests (:1039-1072). Players stay client
+  authoritative, as in vanilla.
+- Row 3 (float_boat air-to-water snap, physics.rs): VERIFIED CORRECT. Vanilla floatBoat runs the
+  noCollision test first then snaps. physics.rs:201 gates the snap on no_collision and returns the
+  offset only when the target box is clear. The doc premise was inverted; no change required.
+- Row 4 (floatBoat gravity, physics.rs): VERIFIED CORRECT. Vanilla floatBoat uses -getGravity and
+  getDefaultGravity/0.65. physics.rs:214 uses -get_gravity() and :235 uses DEFAULT_GRAVITY/0.65;
+  get_gravity honours no_gravity like vanilla getGravity().
+- Row 5 (MoveVehicle rotation wrap, move_vehicle.rs): VERIFIED FIXED. Vanilla
+  .vendor/vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+  handleMoveVehicle wraps yaw/pitch with Mth.wrapDegrees (:606-607) before absSnapTo. Pumpkin wraps
+  at move_vehicle.rs:49-50 and applies via set_rotation (:91). client_move.rs also wraps (:417-428).
+- Row 6 (paddle boat handler, paddle_boat.rs): VERIFIED FIXED. Vanilla handlePaddleBoat (:2466)
+  uses getControlledVehicle() instanceof AbstractBoat; Entity.java getControlledVehicle (:6661-6662)
+  returns the immediate vehicle only for its controlling passenger. Pumpkin paddle_boat.rs:10-22
+  reads the immediate vehicle, checks its controlling passenger, downcasts to BoatEntity and sets
+  paddle state; matches vanilla.
+- Row 7 (dead move_from_client path, physics.rs): VERIFIED FIXED. No move_from_client definition
+  remains anywhere under crates/pumpkin-core/src; the generic move_vehicle.rs handler supersedes it.
+- Row 8 (boat gametest coverage, boat_block_effects.rs): VERIFIED FIXED. Tests
+  test_boat_floats_up_after_fall (:135), test_boat_ejects_passenger_after_60_underwater_ticks (:173)
+  and test_chest_boat_scatters_27_slots_on_break (:233) cover the requested scenarios. Runtime
+  execution is the orchestrator gate because the worker shell is denied.
+
+No code changes this pass: all rows were already fixed and re-verified above. No pure unit-test
+seam exists for the packet handlers (they need a live Player/world/vehicle graph), so none added.
+No rustfmt run (no .rs file touched). No cargo or git command run (shell denied to workers).
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tentities-oak-boat-5c8be7.md

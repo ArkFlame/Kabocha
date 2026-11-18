@@ -212,3 +212,54 @@ change; no shared file rewritten.
 - Rows 1, 2, 4, 6 re-confirmed fixed (variant-sized box + `painting_box_size` test;
   yaw via `facing_to_yaw`/`set_facing`; `is_in_build_limit` painting branch; support
   check at tick 100). No STILL OPEN rows remain. UNVERIFIED (no cargo by worker).
+
+
+## Result (2026-11-18 FINAL re-verify, all rows terminal)
+
+Re-read every row directly against the vendored decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/` and re-checked the current code in
+`painting.rs`, `hanging_entity.rs` and `item_frame.rs`. No STILL OPEN row remains;
+no code change was needed this pass.
+
+- Row 1 (variant-sized hit box): FIXED. `painting.rs` `painting_box_size()` /
+  `hanging_bounding_box()` / `recalculate_bounding_box()` store the variant-sized
+  AABB on `set_variant`, `set_facing` and `read_custom_nbt`, matching
+  `Painting.calculateBoundingBoxStatic` (Painting.java:158-169): width along the
+  axis perpendicular to the facing, height on Y, `DEPTH` along the facing axis.
+  Test `painting_box_size_matches_vanilla_axes` covers it. Generated
+  `entity_type.rs` `[0.5,0.5]` intentionally untouched (generated file).
+- Row 2 (yaw from facing): FIXED. `facing_to_yaw()` (horizontal value * 90) applied
+  by `set_facing`; `read_custom_nbt` calls `set_facing`. Matches
+  `HangingEntity.setDirection` (`Direction.toYRot`, south 0/west 90/north 180/east 270).
+  Test `facing_to_yaw_matches_vanilla_direction_yaw` covers it.
+- Row 3 (front-space check): original is-air premise DISPROVEN; actionable diode
+  support FIXED, residual BLOCKED-DATA. `HangingEntity.survives()`
+  (HangingEntity.java:82-110) uses `hasLevelCollision(getPopBox())` ->
+  `!level.noBlockCollision || !level.noBorderCollision`, a collision-shape test,
+  plus `isSupportingBlock` (state.isSolid || DiodeBlock.isDiode,
+  HangingEntity.java:91-93) and `canCoexist`; there is no is-air cell test, so
+  switching front cells to `is_air()` would wrongly reject torches/signs/water.
+  `painting_fits` uses `is_supporting_block` (solid || is_diode; test
+  `diode_blocks_support_hanging_entities`), and `survives()` enforces
+  `is_space_empty` + `no_border_collision` + overlap. Residual gap: non-solid
+  blocks that carry a collision shape (slabs/stairs/fences) are ignored by the
+  shared `World::check_collision`, which short-circuits `!is_solid()`
+  (pumpkin-core/src/world/mod.rs:3210). Faithful `Level.noBlockCollision`
+  parity therefore requires changing that shared routine, which governs all
+  entity movement/collision/spawning (whole-engine subsystem), not a painting-only
+  edit: BLOCKED-DATA (missing subsystem = per-block collision-shape evaluation in
+  the shared collision routine).
+- Row 4 (build-limit check): FIXED. `hanging_entity.rs` painting branch calls
+  `world.is_in_build_limit(target_pos)` (line 58) before choosing the variant,
+  mirroring the frame branch.
+- Row 5 (variant RNG): VERIFIED, no code change. `Painting.create` samples with
+  `Util.getRandomSafe(potentialVariants, candidate.random)` (Painting.java:112);
+  `Entity.random` is thread-local `ThreadLocalRandomSource.INSTANCE`, so Rust
+  `rand::rng()` (also thread-local) is functionally equivalent; no world-seeded
+  seam exists in this unit's files.
+- Row 6 (support re-check interval): FIXED. `SUPPORT_CHECK_INTERVAL = 100` and the
+  `fetch_add(1)+1 < 100` guard fires the check on ticks 100, 200, ..., matching
+  vanilla `BlockAttachedEntity.CHECK_INTERVAL`.
+
+No generated-data, WIT or cross-crate change made; no shared file rewritten.
+UNVERIFIED by worker build (no cargo by worker).
