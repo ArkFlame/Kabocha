@@ -14,7 +14,7 @@ All rows closed against decompiled vanilla at
 `.vendor/vanilla-decompiled/net/minecraft/world/entity/Pose.java`. The current
 `crates/pumpkin-core/src/item/items/goat_horn.rs` already matches vanilla for
 every in-scope row; no Rust edit was needed this pass, so no rustfmt applies.
-The dispatch sites (`item/registry.rs`, `network/server/use_item.rs`) and the
+The dispatch sites (`item/registry.rs`, `net/java/play/use_item.rs`) and the
 component codec (`pumpkin-data/src/data_component_impl/basic.rs`) were re-read
 to confirm.
 
@@ -29,7 +29,8 @@ to confirm.
   in both (`:72` / `:54`).
 
 - **own/titems-goat-horn-5fa4ed** (7 sub-rows): all VERIFIED (matches vanilla).
-  1. Used statistic awarded once (`goat_horn.rs:106` vs `InstrumentItem.java:47`).
+  1. Used statistic awarded once (`goat_horn.rs:106` vs `InstrumentItem.java:47`);
+     the network handler no longer awards it (`net/java/play/use_item.rs:39-42`).
   2. TOOT_HORN use animation is client-only, driven by the synced USING_ITEM flag
      set in `set_active_hand` (`Pose.java:11-29`, `InstrumentItem.java:65-68`).
   3. Per-stack duration `get_use_duration(&ItemStack)` (`goat_horn.rs:109-114` vs

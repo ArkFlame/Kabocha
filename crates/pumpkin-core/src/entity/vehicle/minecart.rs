@@ -1232,6 +1232,35 @@ mod tests {
     }
 
     #[test]
+    fn ascending_rails_snap_off_center_to_vanilla_height() {
+        let block = BlockPos(Vector3::new(0, 64, 0));
+        let base = 64.0 + RAIL_HEIGHT_OFFSET;
+
+        // Vanilla AbstractMinecart.EXITS stores the high end first; sampling away from
+        // the block center catches a reversed exit order that a center-only check hides.
+        for (shape, along_x, t, expected_y) in [
+            (RailShape::AscendingEast, true, 0.25, base + 0.25),
+            (RailShape::AscendingEast, true, 0.75, base + 0.75),
+            (RailShape::AscendingWest, true, 0.25, base + 0.75),
+            (RailShape::AscendingWest, true, 0.75, base + 0.25),
+            (RailShape::AscendingNorth, false, 0.25, base + 0.75),
+            (RailShape::AscendingNorth, false, 0.75, base + 0.25),
+            (RailShape::AscendingSouth, false, 0.25, base + 0.25),
+            (RailShape::AscendingSouth, false, 0.75, base + 0.75),
+        ] {
+            let pos = if along_x {
+                Vector3::new(t, 64.0, 0.5)
+            } else {
+                Vector3::new(0.5, 64.0, t)
+            };
+            let snapped = get_pos_on_rail(block, shape, pos);
+            let axis = if along_x { snapped.x } else { snapped.z };
+            assert_eq!(axis, t);
+            assert_eq!(snapped.y, expected_y);
+        }
+    }
+
+    #[test]
     fn rail_position_snap_covers_north_south_and_curve() {
         use pumpkin_data::block_properties::RailShape;
 
