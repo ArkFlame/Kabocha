@@ -587,9 +587,13 @@ impl Server {
         info!("All worlds loaded successfully.");
 
         let enabled_packs = server.level_info.load().data_packs.enabled.clone();
-        server
-            .datapack_manager
-            .load_all(&world_path, &enabled_packs, &server.recipe_manager);
+        if let Err(err) =
+            server
+                .datapack_manager
+                .load_all(&world_path, &enabled_packs, &server.recipe_manager)
+        {
+            error!("Failed to load datapacks at startup: {err}");
+        }
 
         // Vanilla runs the load tag from the function manager tick, not during startup.
         server.datapack_manager.mark_load_pending();
@@ -1068,11 +1072,15 @@ impl Server {
             .write_world_info(&level_data, &self.basic_config.get_world_path())
     }
 
-    pub fn reload_datapacks(&self) {
+    pub fn reload_datapacks(&self) -> Result<(), String> {
         let enabled_packs = self.level_info.load().data_packs.enabled.clone();
         let world_path = self.basic_config.get_world_path();
-        self.datapack_manager
-            .load_all(&world_path, &enabled_packs, &self.recipe_manager);
+        let result =
+            self.datapack_manager
+                .load_all(&world_path, &enabled_packs, &self.recipe_manager);
+        if let Err(err) = &result {
+            error!("Failed to reload datapacks: {err}");
+        }
 
         // Do not run here: `/reload` and `/datapack` do not tick, and the load tag must see the
         // enabled pack set at execution time, so it is consumed by `tick_worlds`.
@@ -1099,6 +1107,7 @@ impl Server {
                 }
             }
         }
+        result
     }
 
     #[must_use]
@@ -2003,36 +2012,46 @@ impl Server {
         self.player_data_storage.tick(self);
 
         // Entities, scoreboard and command storage follow the world autosave.
-        if let Some(world) = worlds.first() {
-            let autosave = world.level.autosave_ticks;
-            let tick = u64::try_from(self.tick_count.load(Ordering::Relaxed)).unwrap_or(0);
-            if autosave > 0
-                && tick > 0
-                && tick.is_multiple_of(autosave)
-                && world.level.save_enabled.load(Ordering::Relaxed)
-            {
-                for world in worlds.iter() {
-                    let world = world.clone();
-                    self.spawn_task(async move { world.autosave_entities().await });
-                }
-                let server = self.clone();
-                self.spawn_task(async move {
-                    // level.dat holds the game time that scheduled_events.dat is relative to,
-                    // so both are saved together; otherwise a crash restores an old time and
-                    // pushes every scheduled function far into the future.
-                    let result = tokio::task::spawn_blocking(move || {
-                        if let Err(err) = server.save_world_info() {
-                            error!("Failed to save level.dat: {err}");
-                        }
-                        server.save_persistent_data()
-                    })
-                    .await;
-                    if let Ok(Err(err)) = result {
-                        error!("{err}");
-                    }
-                });
-            }
+        self.autosave_if_due(false);
+    }
+
+    /// Vanilla `MinecraftServer.autoSave`. Runs on the autosave tick cadence
+    /// during normal ticks and once when pause-when-empty begins, so a long
+    /// empty period cannot lose unsaved progress.
+    pub(crate) fn autosave_if_due(self: &Arc<Self>, force: bool) {
+        let worlds = self.worlds.load();
+        let Some(world) = worlds.first() else {
+            return;
+        };
+        if !world.level.save_enabled.load(Ordering::Relaxed) {
+            return;
         }
+        let autosave = world.level.autosave_ticks;
+        let tick = u64::try_from(self.tick_count.load(Ordering::Relaxed)).unwrap_or(0);
+        let due = autosave > 0 && tick > 0 && tick.is_multiple_of(autosave);
+        if !force && !due {
+            return;
+        }
+        for world in worlds.iter() {
+            let world = world.clone();
+            self.spawn_task(async move { world.autosave_entities().await });
+        }
+        let server = self.clone();
+        self.spawn_task(async move {
+            // level.dat holds the game time that scheduled_events.dat is relative to,
+            // so both are saved together; otherwise a crash restores an old time and
+            // pushes every scheduled function far into the future.
+            let result = tokio::task::spawn_blocking(move || {
+                if let Err(err) = server.save_world_info() {
+                    error!("Failed to save level.dat: {err}");
+                }
+                server.save_persistent_data()
+            })
+            .await;
+            if let Ok(Err(err)) = result {
+                error!("{err}");
+            }
+        });
     }
 
     /// Vanilla `tickChildren` "timeSync": every 20 ticks, also while frozen.

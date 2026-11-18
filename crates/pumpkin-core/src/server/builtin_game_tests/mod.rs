@@ -273,6 +273,7 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:boat_floats_up_after_fall",
     "pumpkin:boat_ejects_passenger_after_60_underwater_ticks",
     "pumpkin:chest_boat_scatters_27_slots_on_break",
+    "pumpkin:acacia_chest_boat_contents_and_item_drop",
 ];
 
 #[must_use]
@@ -1830,6 +1831,13 @@ pub fn ensure_builtin_game_tests_registered() {
             80,
             0,
             boat_block_effects::test_chest_boat_scatters_27_slots_on_break,
+        );
+        register_function_test(
+            "pumpkin:acacia_chest_boat_contents_and_item_drop",
+            "pumpkin:empty_5x5x5",
+            80,
+            0,
+            boat_block_effects::test_acacia_chest_boat_contents_and_item_drop,
         );
     });
 }

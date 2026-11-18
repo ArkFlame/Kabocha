@@ -42,6 +42,30 @@ impl TickSchedule {
     }
 }
 
+/// Vanilla `emptyTicks`: consecutive ticks with no players and no sprint.
+/// Reaching `pause-when-empty-seconds * 20` skips world ticking; the crossing
+/// tick is where vanilla logs once and writes a single autosave.
+#[derive(Clone, Copy, Default)]
+struct EmptyTickClock {
+    ticks: i32,
+}
+
+impl EmptyTickClock {
+    /// Advances the counter, returning true on the tick that reaches `threshold_ticks`.
+    fn observe(&mut self, is_empty: bool, threshold_ticks: i32) -> bool {
+        if threshold_ticks <= 0 || !is_empty {
+            self.ticks = 0;
+            return false;
+        }
+        self.ticks = self.ticks.saturating_add(1);
+        self.ticks == threshold_ticks
+    }
+
+    const fn paused(&self, threshold_ticks: i32) -> bool {
+        threshold_ticks > 0 && self.ticks >= threshold_ticks
+    }
+}
+
 pub struct Ticker;
 
 impl Ticker {
@@ -51,6 +75,7 @@ impl Ticker {
         let base = Instant::now();
         let mut schedule = TickSchedule::new();
         let mut game_test_runner = GameTestRunner::new();
+        let mut empty_clock = EmptyTickClock::default();
 
         let park_thread = std::thread::current();
         let stop = server.stop_token.clone();
@@ -73,6 +98,19 @@ impl Ticker {
             } else {
                 manager.nanoseconds_per_tick()
             };
+
+            // Vanilla `tickServer` pause-when-empty: after the configured
+            // number of empty seconds, skip world/game ticking while still
+            // ticking connections so a joining player can end the pause.
+            let pause_threshold_ticks = server
+                .management_hub
+                .settings
+                .pause_when_empty_seconds
+                .load(Ordering::Relaxed)
+                .saturating_mul(20);
+            let is_empty = !sprinting && server.get_player_count() == 0;
+            let pause_crossing = empty_clock.observe(is_empty, pause_threshold_ticks);
+            let paused = empty_clock.paused(pause_threshold_ticks);
 
             // Vanilla `MinecraftServer.runServer`: skip ticks when more than
             // `OVERLOADED_THRESHOLD + 20 * nanosecondsPerTick` behind (~2s at 20 TPS).
@@ -105,7 +143,21 @@ impl Ticker {
                 );
             }
 
-            if sprinting {
+            if paused {
+                if pause_crossing {
+                    warn!(
+                        "Server empty for {} seconds, pausing",
+                        pause_threshold_ticks / 20
+                    );
+                    server.autosave_if_due(true);
+                }
+                // Vanilla still runs the scheduler heartbeat and ticks
+                // connections while paused so players can rejoin.
+                server.simulation_pool.install(|| {
+                    server.plugin_manager.tick_loaders(server);
+                    server.tick_players_and_network();
+                });
+            } else if sprinting {
                 manager.start_sprint_tick_work();
                 server.tick();
 
@@ -118,7 +170,8 @@ impl Ticker {
 
             // Vanilla gates game tests on `runsNormally()` at the end of the tick,
             // next to `GameTestTicker.SINGLETON.tick()`, so a mid-tick freeze applies at once.
-            if (manager.runs_normally() || sprinting)
+            if !paused
+                && (manager.runs_normally() || sprinting)
                 && (has_pending_game_tests() || !game_test_runner.is_empty())
             {
                 server.runtime.block_on(async {
@@ -254,6 +307,29 @@ mod tests {
             next_tick_nanos: 0,
             last_overload_warning_nanos: nanos,
         }
+    }
+
+    #[test]
+    fn empty_tick_clock_pauses_after_threshold_and_logs_once() {
+        let mut clock = EmptyTickClock::default();
+        assert!(!clock.paused(3));
+        assert!(!clock.observe(true, 3));
+        assert!(!clock.observe(true, 3));
+        assert!(clock.observe(true, 3));
+        assert!(clock.paused(3));
+        assert!(!clock.observe(true, 3));
+        assert!(clock.paused(3));
+        // A player joining resets the counter.
+        assert!(!clock.observe(false, 3));
+        assert!(!clock.paused(3));
+    }
+
+    #[test]
+    fn empty_tick_clock_ignored_when_disabled() {
+        let mut clock = EmptyTickClock::default();
+        assert!(!clock.observe(true, 0));
+        assert!(!clock.paused(0));
+        assert_eq!(clock.ticks, 0);
     }
 
     #[test]
