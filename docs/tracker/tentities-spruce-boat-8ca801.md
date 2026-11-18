@@ -79,3 +79,34 @@ Re-reviewed 2026-11-17 against `.vendor/vanilla-decompiled/net/minecraft/world/e
 - Row 3 (boat gametest): requires `crates/pumpkin-core/src/server/builtin_game_tests/` (only the dispenser boat test exists at `dispensers_and_droppers_extended.rs:335`), outside this unit. Left open.
 
 Fixed: 0. Open: 2. Files changed: this doc only. No .rs file touched, so rustfmt not run.
+
+## Result (2026-11-18)
+
+Re-verified each STILL OPEN / remaining-gap row against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`
+(`positionRider` :696, `clampRotation` :740, `onPassengerTurned` :762) and `BubbleColumnBlock`.
+None of the open rows land in this unit's editable source files (block.rs, bubble_column.rs,
+dispensers_and_droppers_extended.rs, move_vehicle.rs), so no source file was changed and no test
+was added.
+
+- Row 1 / h6 "delta-rotation accumulation" (STILL OPEN): now fully implemented in files owned by
+  other workers. `entity/vehicle/boat.rs` stores `yaw_delta` (:232/:577), applies the boat yaw delta
+  before the +/-105 clamp in `on_rider_positioned` (:846-889), and `on_passenger_turned` (:891+)
+  folds `rider_clamp_adjustment` (:1008) into the rider's previous yaw, matching
+  `AbstractBoat.onPassengerTurned` :763-765 (`passenger.yRotO += yDelta`). `EntityBase` exposes the
+  hook at `entity/mod.rs:801`. Unit tests `rider_yaw_clamps_to_boat_heading_window` and
+  `rider_yaw_follows_boat_yaw_delta_then_clamps` cover the clamp/delta math. Cross-checked correct;
+  the last open nuance from the prior pass (the `yRotO` fold) is now implemented. Files outside this
+  unit, so no action.
+- Row 2 (dead `move_from_client` / `correct_client_position`): already removed before this pass, in
+  `physics.rs` (outside this unit). No action.
+- Row 3 (boat gametest): left open. Needs a new `pub(super)` test function registered in
+  `server/builtin_game_tests/mod.rs` (manual `register_function_test` list at :1203-1290), which is
+  outside this unit; an unregistered function would trigger dead_code under `-D warnings`. The
+  air/water snap, 60-tick eject and chest-scatter assertions also need runtime boat entity access
+  that the current `GameTestHelper` does not expose. Reason: requires files outside this unit.
+- Bubble column and MoveVehicle paths in this unit's files match vanilla (constants 0.06/0.7/0.1/1.8
+  and -0.03/-0.9/-0.3, and the generic MoveVehicle packet supersedes the deleted boat path).
+  No boat-specific gap found. No action.
+
+Fixed: 0. Open: 3. Files changed: this doc only. No .rs file touched, so rustfmt not run.
