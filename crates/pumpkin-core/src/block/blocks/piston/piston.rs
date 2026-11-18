@@ -54,14 +54,19 @@ impl PistonBlock {
         if !world.is_in_height_limit(pos.0.y) {
             return false;
         }
-        // Vanilla `PistonBlock.isMovable`: blocks outside the world border never move.
-        if !world
-            .worldborder
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .contains_block(pos.0.x, pos.0.z)
+        // Vanilla `PistonBaseBlock.isPushable` (Paper world-border fix): both the
+        // source block and the block it moves into must be inside the border.
         {
-            return false;
+            let border = world
+                .worldborder
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let relative = pos.offset(dir.to_offset());
+            if !border.contains_block(pos.0.x, pos.0.z)
+                || !border.contains_block(relative.0.x, relative.0.z)
+            {
+                return false;
+            }
         }
         if state.is_air() {
             return true;
@@ -161,6 +166,12 @@ impl PistonBlock {
         let state = world.get_block_state(pos);
         let mut props = PistonProps::from_state_id(state.id);
         let dir = props.facing.to_block_direction();
+
+        // Paper - a queued event must not act after the piston was replaced with a different
+        // facing; vanilla/Paper `triggerEvent` returns false when the two directions differ.
+        if BlockDirection::from_index(data & 7) != Some(dir) {
+            return false;
+        }
 
         // I don't think this is optimal ?
         let sticky = block == &Block::STICKY_PISTON;
