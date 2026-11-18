@@ -189,3 +189,41 @@ runs rustfmt and the build.
 
 No unwrap/expect/panic added; both new tests are pure helpers. Both rows are now CLOSED within
 this unit; no generated-data or whole-subsystem blocker remains.
+
+
+## Result (third-pass vanilla verification, 2026-11-18)
+
+Re-verified every row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/bee/Bee.java`
+and `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java`
+(MC 26.3). Files edited this pass: `grow_crop.rs` only. No compile run (worker restriction);
+the orchestrator runs rustfmt and the build.
+
+- **Gap 1 (hive behaviour): VERIFIED, no change.** `bee.rs` persists `hive_pos` as the vanilla
+  `X`/`Y`/`Z` compound and decrements `CannotEnterHiveTicks` (`Bee.aiStep`); `block/entities/beehive.rs`
+  exposes `add_occupant`/`tick_occupants` with front-face respawn and nectar-based 600/2400-tick stays;
+  `goal/hive.rs` registers EnterHive/LocateHive/GoToHive. Matches `Bee.java:360-369` and
+  `Bee.java:1050-1130` (`BeehiveBlockEntity.java` occupant API).
+- **Gap 2 (flower memory / pollination): VERIFIED, no change.** `bee.rs` persists `flower_pos`,
+  resets `TicksSincePollination` on nectar gain and folds the `is_pollinating` flag into
+  `wants_to_enter_hive`; `pollinate_flower.rs` uses `MINECRAFT_BEE_ATTRACTIVE`, a +/-5 Manhattan
+  search, strict `> 400` pollination, the 20% hover roll, once-only nectar in `stop()`, waterlogged
+  and lower-sunflower filtering. Matches `Bee.java:360-369`, `Bee.java:693-697` and
+  `Bee.java:1129-1188`.
+- **Gap 3 (crop growth): FIXED this pass.** Priority 7, the 30% `canBeeUse` reject, the 1-in-30
+  `tick` roll, the `isHiveValid` gate, direct age+1 growth and the ten-crop cap that keeps nectar all
+  match `Bee.java:978-1030`. Correction: `BeeGrowCropGoal.tick` has no `PitcherCropBlock` branch
+  (`PitcherCropBlock extends DoublePlantBlock`), so despite `MINECRAFT_BEE_GROWABLES` membership a
+  vanilla bee never grows pitcher crop. `is_growable_block` now excludes `PITCHER_CROP` instead of
+  growing it through bonemeal. Pure test: `bee_growables_excludes_pitcher_crop_without_a_vanilla_branch`.
+- **Gap 4 (hive exit / TicksSincePollination): VERIFIED, no change.** Counter increments while
+  nectar-free, resets on nectar gain, `CannotEnterHiveTicks` decrements each tick and the tired-at-3600
+  return is driven by the hive goals. Matches `Bee.java:491-495`.
+- **Gap 5 (goal priorities): VERIFIED, no change.** `registerGoals()` priorities 0 attack, 1 enter-hive,
+  2 breed, 3 tempt/validate, 4 pollinate, 5 follow/locate/go-hive, 6 go-to-flower, 7 grow-crop,
+  8 wander (`BeeWanderGoal`), 9 float match `bee.rs`.
+- **Gap 6 (spawn cluster / rain): VERIFIED, no change.** `Bee.java` has no per-species
+  `getMaxSpawnClusterSize`/`isDarkEnoughToSpawn` override; rain avoidance is in
+  `pollinate_flower.rs::can_start` (`Bee.java:1134`).
+
+No STILL OPEN rows remain; no generated-data or whole-subsystem blocker. No unwrap/expect/panic
+added; the new test is a pure helper over static generated tag data.

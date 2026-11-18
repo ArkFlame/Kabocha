@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use pumpkin_data::entity::EntityType;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::translation;
@@ -5,6 +8,7 @@ use pumpkin_util::PermissionLvl;
 use pumpkin_util::permission::{Permission, PermissionDefault, PermissionRegistry};
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::hover::HoverEvent;
+use pumpkin_util::math::vector3::Vector3;
 
 use crate::command::argument_builder::{ArgumentBuilder, argument, command};
 use crate::command::argument_types::core::integer::IntegerArgumentType;
@@ -14,7 +18,9 @@ use crate::command::context::command_context::CommandContext;
 use crate::command::errors::error_types::CommandErrorType;
 use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
+use crate::entity::Entity;
 use crate::entity::EntityBase;
+use crate::entity::item::ItemEntity;
 
 const DESCRIPTION: &str = "Give items to player(s).";
 const PERMISSION: &str = "minecraft:command.give";
@@ -71,9 +77,18 @@ impl CommandExecutor for GiveExecutor {
                 stack.item_count = take as u8;
                 target.inventory().insert_stack_anywhere(&mut stack);
                 if stack.is_empty() {
-                    // Vanilla GiveCommand: the all-fits branch plays the pickup sound and
-                    // broadcasts the inventory change (plus a fake item entity, client-only).
+                    // Vanilla GiveCommand: the all-fits branch spawns a fake, never-pickable
+                    // item so the client animates the pickup, then plays the sound and
+                    // broadcasts the inventory change.
                     let pos = target.get_entity().pos.load();
+                    let item_pos =
+                        pos + Vector3::new(0.0, target.get_entity().get_eye_height() - 0.3, 0.0);
+                    let fake = ItemEntity::new(
+                        Entity::new(target.world(), item_pos, &EntityType::ITEM),
+                        parsed_stack.clone(),
+                    );
+                    fake.make_fake_item();
+                    target.world().spawn_entity(Arc::new(fake));
                     target.world().play_sound_fine(
                         Sound::EntityItemPickup,
                         SoundCategory::Players,

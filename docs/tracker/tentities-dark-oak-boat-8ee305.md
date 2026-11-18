@@ -61,4 +61,4 @@ Both remaining rows are FIXED and VERIFIED against `.vendor/vanilla-decompiled/n
 
 One small correction this pass: the `average_ground_friction` doc comment now states that vanilla yields NaN (0/0) with no supporting block instead of claiming vanilla returns 0.0. The 0.0 guard is Pumpkin's explicit and behaviourally equivalent choice. This is a comment-only `.rs` change, so no rustfmt or compile check was needed and no formatting-sensitive code changed.
 
-In-scope files `paddle_boat.rs` and `spawn_egg.rs` need no edit: `paddle_boat.rs` already gates paddle input on the controlling passenger (vanilla `getControlledVehicle`), and `spawn_egg.rs` is unrelated to both rows. No STILL OPEN rows remain.
+In-scope files `paddle_boat.rs` and `spawn_egg.rs` need no edit: `paddle_boat.rs` already gates paddle input on the controlling passenger (vanilla `getControlledVehicle`), and `spawn_egg.rs` is unrelated to both rows. No rows remain open.

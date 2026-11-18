@@ -134,3 +134,28 @@ Re-verified the two remaining `STILL OPEN` rows against decompiled vanilla
 No source changes made this pass; both named files already contain the earlier fixes.
 
 Status: PASS fixed=0 open=1 files=docs/tracker/tblocks-vault-226f3e.md
+
+
+## Result (third pass: periodic ACTIVE display cycle)
+
+Verified against decompiled vanilla `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/vault/VaultBlockEntity.java`
+(`Server.tick` 230-260, `cycleDisplayItemFromLootTable` 342-356, `getRandomDisplayItemFromLootTable` 358-365,
+`shouldCycleDisplayItem` 418-420) and `VaultState.java` (`ACTIVE#onEnter` 24-35).
+
+- Gap 3 remainder (periodic 20-tick ACTIVE display cycle): FIXED. `blocks/vault.rs::on_scheduled_tick`
+  ACTIVE branch now calls a new `cycle_active_display_item` that resolves the vault loot table, picks a
+  random generated stack (`random_display_item`, vanilla `getRandomDisplayItemFromLootTable`), fires
+  `VaultDisplayItemEvent` honouring `cancelled()`, and writes `shared_data.display_item`. The ACTIVE
+  ticker chain now actually runs: `placed()` schedules the first tick and `finish_ejection` reschedules
+  it when ejection completes, so a vault cycles its floating item every 20 ticks, matching vanilla's
+  per-tick block-entity ticker gated by `gameTime % 20 == 0 && state == ACTIVE`.
+- Removed the dead `entities/vault.rs::cycle_display_item_from_loot_table` stub (its `resolve_loot_table`
+  always returned an empty `Vec` and config is never populated for player-placed vaults) and its two
+  trivial no-op tests; display-item writing stays in `set_display_item`, now driven from the block tick.
+- Added pure unit tests `random_display_item_is_empty_for_empty_loot` and
+  `random_display_item_returns_a_generated_stack`.
+
+Files edited: `crates/pumpkin-core/src/block/blocks/vault.rs`,
+`crates/pumpkin-core/src/block/entities/vault.rs`. Not compiled (worker restriction); orchestrator batch-checks.
+
+Status: PASS fixed=1 open=0 files=crates/pumpkin-core/src/block/blocks/vault.rs,crates/pumpkin-core/src/block/entities/vault.rs

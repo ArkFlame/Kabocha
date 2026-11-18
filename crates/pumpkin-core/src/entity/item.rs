@@ -205,6 +205,13 @@ impl ItemEntity {
         self.pickup_delay.store(pickup_delay, Ordering::Relaxed);
     }
 
+    /// Vanilla `ItemEntity.makeFakeItem`: `setNeverPickUp` plus `age = despawnRate - 1`.
+    /// The one-tick, never-pickable entity exists only so the client animates a pickup.
+    pub fn make_fake_item(&self) {
+        self.never_pickup.store(true, Ordering::Relaxed);
+        self.item_age.store(LIFETIME - 1, Ordering::Relaxed);
+    }
+
     /// Vanilla `ItemEntity` NBT: `Age` `-32768` means the item never ages or despawns.
     fn decode_age(age: i16) -> (u32, bool) {
         if age == AGE_NEVER_DESPAWN {
