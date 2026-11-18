@@ -51,3 +51,10 @@ All edits below are in `crates/pumpkin-core/src/entity/living.rs`.
 - 8. Looting from the killing blow: FIXED. The looting level and loot `tool` now come from the killing blow's attacker through `get_living_entity` + `held_item` (vanilla `EnchantmentHelper.processEquipmentDropChance` / `LootContext` accept any living attacker, not only a player), and `drop_equipment` only rolls a random chance for a player kill, matching `Mob.dropCustomDeathLoot` (`killedByPlayer || preserve`).
 
 Checks: `rustfmt --edition 2024 crates/pumpkin-core/src/entity/living.rs` (exit 0). No cargo run; the orchestrator batch-compiles.
+
+## Result (third pass)
+
+- Row 3 (fall damage prevention raycast): FIXED. Vanilla `Entity.move` clips with `ClipContext.Block.FALLDAMAGE_RESETTING` and resets fall distance on a hit (`.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:1319-1327`). Ported into `EntityBase::move_entity` (`crates/pumpkin-core/src/entity/mod.rs`): with nonzero fall distance and collision-adjusted movement of at least one block, `World::raycast` runs from the pre-move position along the movement (capped at 8 blocks) with a hit check for `#minecraft:fall_damage_resetting` or water, resetting fall distance on a hit before `checkFallDamage`. The landed-block decision itself was verified earlier against `Entity.checkFallDamage`/`Block.fallOn` (`:2267-2287`).
+- Row 7 (`bypasses_armor` bitmask): FIXED, no longer BLOCKED-DATA. `tag::DamageType::MINECRAFT_BYPASSES_ARMOR` is generated at `crates/pumpkin-data/src/generated/tag.rs:20069`, so the `#[cfg(test)]` helper `bypasses_armor_durability` (`living.rs`) now delegates to `DamageType::has_tag` instead of the hard-coded u64 bitmask and compile-time assertions. The production armor-absorb path already used the generated tag (`living.rs:4104`).
+
+No cargo or git run; orchestrator batch-compiles. No pure unit test added: the existing `bypasses_armor_durability` tests cover the data-driven path. rustfmt deferred to the orchestrator.
