@@ -185,3 +185,36 @@ brain memories via `hoglin_specific.rs`).
 Files changed: `crates/pumpkin-core/src/entity/mob/piglin.rs` only (plus this doc).
 No generated pumpkin-data, WIT or cross-crate changes. Not compiled by worker (orchestrator
 batch-check). Skipped: the anger-broadcast subsystem (missing subsystem, out of scope).
+
+
+## Result (third pass, cross-file source fix; vanilla .vendor re-verified)
+
+Re-read `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/sensing/PiglinSpecificSensor.java`
+(lines 98, 105), `world/entity/ai/sensing/NearestLivingEntitySensor.java` (lines 17-26) and
+`world/entity/monster/piglin/PiglinAi.java` (`wasHurtBy` 579-610, `broadcastAngerTarget`
+688-694, `findNearbyAdultPiglins` 875-886).
+
+Both rows' hoglin half and the piglin count/list writes were already correct. The one
+remaining gap was NEARBY_ADULT_PIGLINS: vanilla writes it from `findNearbyAdultPiglins`
+(all adult piglins/brutes in NEAREST_LIVING_ENTITIES, i.e. follow range with no line-of-sight
+filter) and reads it in `broadcastAngerTarget`, so nearby adults adopt the anger target when
+one piglin is hurt. Pumpkin's goal AI has the anger equivalent (`MobEntity::set_target`,
+`RevengeGoal`), so the subsystem is present and the memory has a real consumer.
+
+Fixed in `crates/pumpkin-core/src/entity/mob/piglin.rs`:
+- Added `nearby_adult_piglins: Mutex<Vec<Weak<dyn EntityBase>>>` (functional equivalent of
+  NEARBY_ADULT_PIGLINS) next to the existing visible_adult_piglins field; initialised in `new()`.
+- `refresh_visible_adult_counts` now also collects adults in follow range without the
+  line-of-sight clip into that field (matches `findNearbyAdultPiglins` +
+  `NearestLivingEntitySensor`).
+- `was_hurt_by` now, on the non-retreat branch (vanilla `maybeRetaliate`), resolves the attacker
+  Arc with `world.get_entity_by_id` and calls the new `broadcast_anger_target`, which sets the
+  attacker as the attack target on nearby adult piglins that have no current target and skips a
+  hoglin target for an ally that cannot hunt. Matches `broadcastAngerTarget` /
+  `setAngerTargetIfCloserThanCurrent` (PiglinAi.java:688-694, 725-731).
+- Added behaviour test `anger_broadcasts_to_nearby_adult_piglins`.
+
+Row 1 (VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT, M): FIXED/VERIFIED.
+Row 2 (NEARBY_ADULT_PIGLINS / NEAREST_VISIBLE_ADULT_PIGLINS, L): FIXED/VERIFIED.
+Both verified against the cited `.vendor/vanilla-decompiled` paths. No generated pumpkin-data,
+WIT or cross-crate changes. Not compiled by worker (orchestrator batch-check); orchestrator runs rustfmt.

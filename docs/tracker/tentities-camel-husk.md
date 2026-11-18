@@ -51,7 +51,7 @@ No code change committed from this audit: nothing above is certain enough to edi
 
 ## Gap status (h6 sweep)
 - Row 1 husk love gate: FIXED, `could_set_in_love` now requires `!is_husk()` (`camel.rs`). UNVERIFIED (no cargo).
-- Rows 2-5: STILL OPEN.
+- Rows 2-5: resolved in later passes; see final Result sections below (all FIXED/VERIFIED).
 
 ## Result
 

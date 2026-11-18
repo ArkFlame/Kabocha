@@ -53,7 +53,9 @@ remaining items below are marked when they are inferred rather than confirmed.
    Vanilla class: `BaseCommandBlock#performCommand`. Size: S.
 
 ## Gap status
-- Remaining-gap items (lines 43, 47, 50: entity display name, repo-wide CustomName convention, gamerule-off test): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
+- Gap 4 (entity display name): VERIFIED (matches vanilla), no code change.
+- Gap 5 (NBT component version): BLOCKED-DATA (whole multi-version NBT serialization subsystem).
+- Gap 6 (gamerule-off test): VERIFIED (matches vanilla), no code change.
 
 ## Result
 All three STILL OPEN rows re-verified against decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/` (2026-11-17).
@@ -135,3 +137,34 @@ Adjacent observations from earlier Results are already fixed in the current sour
 `set_command_minecart.rs:34-39` gates `on_updated` behind the gamerule, and
 `block/blocks/command.rs:170` uses `eq_ignore_ascii_case` for Searge before the guard. No source
 file required editing this pass.
+
+
+## Result (2026-11-18 third pass, terminal disposition)
+
+All remaining STILL OPEN rows (doc lines 43, 47, 50) re-checked against decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/`. No `.rs` source changed: the code in scope already matches
+vanilla, so rustfmt was not needed.
+
+- Gap 4 (entity display name, doc lines 41-45): VERIFIED (matches vanilla), no code change. Premise is
+  false. `.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java:32,147-149,53,68`
+  owns its own `customName`, `getName()` returns it or the `Component.literal("@")` default, and NBT
+  stores it under `CustomName`. `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/minecart/MinecartCommandBlock.java:32`
+  embeds that `BaseCommandBlock`. Pumpkin's `CommandBlockMinecart.custom_name` plus `get_name()`
+  defaulting to `@` mirror vanilla; dropping the copy would diverge, so no change was made.
+- Gap 5 (NBT component version, doc lines 46-49): BLOCKED-DATA. Missing subsystem: version-aware
+  text-component NBT serialization. `crates/pumpkin-util/src/text/mod.rs:1697-1699`
+  `TextComponent::to_nbt_tag()` hardcodes `JavaMinecraftVersion::V_26_3`; threading a target version
+  through Entity NBT saving is a cross-crate refactor across ~16 sites plus the util, i.e. a whole
+  multi-version serialization subsystem, outside a minimal single-unit fix. No generated pumpkin-data
+  field is missing. Vanilla serializes components via `ComponentSerialization.CODEC`
+  (`BaseCommandBlock.java:53,56`), which needs no version argument server-side.
+- Gap 6 (gamerule-off test, doc lines 50-53): VERIFIED (matches vanilla), no new test needed.
+  `crates/pumpkin-core/src/entity/vehicle/minecart.rs:1234-1274`
+  `command_block_minecart_perform_command_gamerule` sets `command_blocks_work = false`, asserts
+  `success_count == 0` and empty output for a normal command, then asserts the case-insensitive Searge
+  path still fires. This matches `.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java:99-105,134-138`:
+  `equalsIgnoreCase` Searge check before the gamerule guard, `successCount` reset before the guard, and
+  `lastExecution` updated at the end. `command_block.rs::perform_command` and
+  `set_command_minecart.rs` already match this ordering.
+
+No STILL OPEN rows remain.

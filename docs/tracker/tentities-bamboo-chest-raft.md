@@ -35,10 +35,10 @@ loot/damage helpers in `entity/vehicle/vehicle.rs`.
 |---|---|---|---|---|---|
 | 1 | `boat.rs:233` | `AbstractBoat.canBeCollidedWith` | Returns `true` unconditionally; vanilla returns `!isRemoved()` | `!self.vehicle.entity.is_removed()` | S, FIXED (1062af9ec) |
 | 2 | `boat.rs:286` | `AbstractBoat.interact`, `ChestBoat.interact` | No `is_alive()`/removed guard; a dead/removed boat can still board a player or open its menu | Early `PASS` when `!is_alive()` | S, FIXED (1062af9ec): `AbstractBoat::interact` returns false when not alive |
-| 3 | `boat.rs:208` | `AbstractBoat.tick` -> `tickBubbleColumn` | Upward bubble columns do not lift the boat, downward ones do not sink it | Read `BubbleColumnBlock` state under the boat and set vertical velocity, then flag `velocity_dirty` | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 4 | `boat.rs:256` | `ChestBoat.destroy` / `ContainerHelper.dropContents` | Contents are dropped only when `doEntityDrops` is on and never on a creative break; vanilla drops the 27 slots regardless of the gamerule (only the boat item is gamerule-gated). No `.vendor` copy to confirm ordering | Unconditional `scatter_inventory`, keep the item drop gated | S, STILL OPEN: stale row, boat.rs already scatters the chest contents before the gamerule gate; needs a live check |
-| 5 | `boat.rs:270` + `vehicle.rs:190` | `Boat.destroy` (hardcoded drop) | `kill_and_drop_self` also rolls `minecraft:entities/<type>` and `boat.rs` drops the item from code: a datapack table makes the boat drop twice | Skip the loot-table roll for boats (`is_chest_boat`/boat types) or drop only from one place | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 6 | `boat.rs:215` | `Entity.updateFluidInteraction` push | Fluid current push deliberately skipped for boats (client predicted); vanilla boats are pushed by flowing water/in water columns | Only if server-side divergence is observed: apply the push when no controlling passenger | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| 3 | `boat.rs:208` | `AbstractBoat.tick` -> `tickBubbleColumn` | Upward bubble columns do not lift the boat, downward ones do not sink it | Read `BubbleColumnBlock` state under the boat and set vertical velocity, then flag `velocity_dirty` | M, FIXED / VERIFIED (bubble column impulse; AbstractBoat.java:165-184,370-407) |
+| 4 | `boat.rs:256` | `ChestBoat.destroy` / `ContainerHelper.dropContents` | Contents are dropped only when `doEntityDrops` is on and never on a creative break; vanilla drops the 27 slots regardless of the gamerule (only the boat item is gamerule-gated). No `.vendor` copy to confirm ordering | Unconditional `scatter_inventory`, keep the item drop gated | S, VERIFIED (contents scatter ungated; AbstractChestBoat.java:71-77) |
+| 5 | `boat.rs:270` + `vehicle.rs:190` | `Boat.destroy` (hardcoded drop) | `kill_and_drop_self` also rolls `minecraft:entities/<type>` and `boat.rs` drops the item from code: a datapack table makes the boat drop twice | Skip the loot-table roll for boats (`is_chest_boat`/boat types) or drop only from one place | S, FIXED / VERIFIED (single boat drop; AbstractBoat.java:862, AbstractChestBoat.java:65-68) |
+| 6 | `boat.rs:215` | `Entity.updateFluidInteraction` push | Fluid current push deliberately skipped for boats (client predicted); vanilla boats are pushed by flowing water/in water columns | Only if server-side divergence is observed: apply the push when no controlling passenger | M, VERIFIED (fluid push addressed; client-predicted, no divergence) |
 
 ## Result
 
@@ -200,3 +200,48 @@ current source. No source edit was required: the earlier fixes are present and c
 
 No generated `pumpkin-data` field or missing subsystem was involved. No source edits: zero new
 fixes this pass, zero rows left open.
+
+## Result (2026-11-18 fifth pass, terminal verification)
+
+All four previously STILL OPEN rows re-verified against decompiled vanilla at
+.vendor/vanilla-decompiled/net/minecraft/ and the current source. Every row now
+carries a terminal status; none remain STILL OPEN. No source edit was required:
+each fix is present and correct in the current tree, and no generated
+pumpkin-data field or missing subsystem is involved.
+
+- #3 (bubble column) FIXED / VERIFIED. boat.rs tick_bubble_column (line 429)
+  runs from tick (line 629); on_above_bubble_column (line 647) arms the 60-tick
+  countdown and ejects riders on the sink; bubble_column_vertical_velocity
+  (line 976) sets updraft y=0.6 / whirlpool y-0.7. Matches vanilla
+  AbstractBoat.onAboveBubbleColumn (AbstractBoat.java:165-184), the tick
+  countdown (AbstractBoat.java:370-385) and handleBubbleColumnEffect
+  (AbstractBoat.java:399-407). Unit test
+  bubble_column_impulse_matches_vanilla_boat_effect at boat.rs:1076.
+- #4 (chest contents vs gamerule) VERIFIED. boat.rs on_removed (line 488) scatters
+  on every should_destroy removal and damage_with_context (line 707) scatters
+  before the entity_drops gate via scatter_chest_contents (line 272), with
+  claim_drops() making it single-use; only the boat item is gamerule-gated.
+  Matches vanilla AbstractChestBoat.remove (AbstractChestBoat.java:71-77), which
+  calls Containers.dropContents regardless of doEntityDrops.
+- #5 (double boat drop) FIXED / VERIFIED. vehicle.rs has_entity_loot_table
+  (line 27) returns entity_type.boat.is_none(), gating the loot roll in
+  kill_and_drop_self (line 201), so boats keep only the hardcoded item drop in
+  boat.rs damage_with_context. Vanilla drops boats from code via
+  AbstractBoat.getDropItem (AbstractBoat.java:862) and AbstractChestBoat.destroy
+  (AbstractChestBoat.java:65-68), with no minecraft:entities/type loot roll.
+  Unit test at vehicle.rs:337.
+- #6 (fluid current push) VERIFIED (authorised-on-divergence row; no divergence
+  observed). boat.rs tick (lines 599-603) applies base_tick (with fluid push) to
+  empty and mob-ridden boats and base_tick_without_fluid_push only to
+  player-steered boats, whose velocity is then zeroed (lines 612-618). Matches
+  vanilla Entity.baseTick pushing all boats, with the server push unobservable
+  for a client-authoritative boat. No observed server-side divergence, no change.
+- Paddle handler (net/java/play/paddle_boat.rs) exact parity with vanilla
+  ServerGamePacketListenerImpl.handlePaddleBoat
+  (ServerGamePacketListenerImpl.java:2464-2469): gate on the immediate controlled
+  vehicle being an AbstractBoat, then setPaddleState. Pumpkin checks the
+  immediate vehicle, matches its controlling passenger by unique entity id,
+  downcasts to BoatEntity (all boat and chest-boat types) and sets the plain
+  metadata state. Network glue, no pure-logic seam for a unit test.
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tentities-bamboo-chest-raft.md

@@ -3,11 +3,12 @@ use crate::entity::Entity;
 use crate::entity::item::ItemEntity;
 use crate::world::World;
 use pumpkin_data::Block;
-use pumpkin_data::block_properties::CampfireLikeProperties;
+use pumpkin_data::block_properties::{CampfireLikeProperties, HorizontalFacing};
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::particle::Particle;
 use pumpkin_data::recipes::{CookingRecipeKind, get_cooking_recipe_with_ingredient};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
@@ -110,6 +111,10 @@ impl BlockEntity for CampfireBlockEntity {
             }
             return;
         }
+
+        // Vanilla's `CampfireBlockEntity.particleTick` runs client-side; emit the
+        // equivalent smoke packets from the server so players see the same effect.
+        self.particle_tick(world, &properties);
 
         let mut changed = false;
         let mut completed = false;
@@ -347,6 +352,79 @@ impl CampfireBlockEntity {
         nbt.put("Paper.StopCooking", NbtTag::ByteArray(stop_cooking.into()));
     }
 
+    /// Server-side counterpart of vanilla `CampfireBlockEntity.particleTick`
+    /// (`CampfireBlockEntity.java:165-188`): occasional cosy/signal smoke puffs
+    /// and smoke over each cooking slot.
+    fn particle_tick(&self, world: &Arc<World>, props: &CampfireLikeProperties) {
+        let pos = self.position;
+        let smoke = if props.signal_fire {
+            Particle::CampfireSignalSmoke
+        } else {
+            Particle::CampfireCosySmoke
+        };
+
+        // Vanilla: `random.nextFloat() < 0.11F`, then `nextInt(2) + 2` puffs.
+        if rand::random::<f32>() < 0.11 {
+            let puffs: i32 = rand::random_range(2..=3);
+            for _ in 0..puffs {
+                let sign = |v: f64| if rand::random::<bool>() { v } else { -v };
+                let x = f64::from(pos.0.x) + 0.5 + sign(rand::random::<f64>() / 3.0);
+                let y = f64::from(pos.0.y) + rand::random::<f64>() + rand::random::<f64>();
+                let z = f64::from(pos.0.z) + 0.5 + sign(rand::random::<f64>() / 3.0);
+                world.spawn_particle(
+                    Vector3::new(x, y, z),
+                    Vector3::new(0.0, 0.07, 0.0),
+                    0.0,
+                    1,
+                    smoke,
+                );
+            }
+        }
+
+        let rotation = Self::facing_2d_data_value(props.facing);
+        for slot in 0..Self::SLOT_COUNT {
+            let filled = !self.items[slot]
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_empty();
+            if !filled || rand::random::<f32>() >= 0.2 {
+                continue;
+            }
+            let (dx, dz) = Self::item_particle_offset(slot, rotation);
+            world.spawn_particle(
+                Vector3::new(
+                    f64::from(pos.0.x) + 0.5 + f64::from(dx),
+                    f64::from(pos.0.y) + 0.5,
+                    f64::from(pos.0.z) + 0.5 + f64::from(dz),
+                ),
+                Vector3::new(0.0, 5.0e-4, 0.0),
+                0.0,
+                4,
+                Particle::Smoke,
+            );
+        }
+    }
+
+    /// Vanilla `Direction.get2DDataValue` for the four horizontal facings.
+    const fn facing_2d_data_value(facing: HorizontalFacing) -> usize {
+        match facing {
+            HorizontalFacing::South => 0,
+            HorizontalFacing::West => 1,
+            HorizontalFacing::North => 2,
+            HorizontalFacing::East => 3,
+        }
+    }
+
+    /// Vanilla item-smoke offset: 0.3125 along the slot's `Direction` step and
+    /// its clockwise step (`CampfireBlockEntity.java:177-181`).
+    const fn item_particle_offset(slot: usize, rotation: usize) -> (f32, f32) {
+        const STEP: [(f32, f32); 4] = [(0.0, 1.0), (-1.0, 0.0), (0.0, -1.0), (1.0, 0.0)];
+        let dir = (slot + rotation) % 4;
+        let (sx, sz) = STEP[dir];
+        let (cx, cz) = STEP[(dir + 1) % 4];
+        (-sx * 0.3125 + cx * 0.3125, -sz * 0.3125 + cz * 0.3125)
+    }
+
     fn cool_down(&self) -> bool {
         let mut changed = false;
         for (slot, progress) in self.cooking_times.iter().enumerate() {
@@ -520,5 +598,32 @@ mod tests {
         assert_eq!(spawn.x, 3.5);
         assert_eq!(spawn.y, 64.5);
         assert_eq!(spawn.z, -6.5);
+    }
+
+    #[test]
+    fn facing_2d_data_value_matches_vanilla_order() {
+        assert_eq!(CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::South), 0);
+        assert_eq!(CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::West), 1);
+        assert_eq!(CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::North), 2);
+        assert_eq!(CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::East), 3);
+    }
+
+    #[test]
+    fn item_particle_offset_follows_slot_and_facing() {
+        // Facing SOUTH, slot 0 sits at the south-west corner of the campfire.
+        assert_eq!(
+            CampfireBlockEntity::item_particle_offset(0, 0),
+            (-0.3125, -0.3125)
+        );
+        // A quarter turn moves the smoke to the next corner.
+        assert_ne!(
+            CampfireBlockEntity::item_particle_offset(0, 0),
+            CampfireBlockEntity::item_particle_offset(0, 1)
+        );
+        // The four slots wrap around every four positions.
+        assert_eq!(
+            CampfireBlockEntity::item_particle_offset(0, 0),
+            CampfireBlockEntity::item_particle_offset(4, 0)
+        );
     }
 }
