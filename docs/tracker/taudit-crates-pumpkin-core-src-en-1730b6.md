@@ -375,3 +375,78 @@ No source edit this pass. No pure unit-test seam (every affected behaviour needs
 plus fixture; `calculate_bounding_box` is a pure formula and formula-mirroring tests are
 disallowed). Compile not run (worker restriction); all referenced APIs confirmed present by
 source inspection.
+
+
+## Result (FINAL PASS - unit closed)
+
+Full re-audit of `crates/pumpkin-core/src/entity/decoration/item_frame.rs` against the
+decompiled 1.21.x sources in
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/`
+(`ItemFrame.java`, `BlockAttachedEntity.java`, `HangingEntity.java`). All ten numbered
+rows are already implemented in source and verified below; no source edit was needed.
+This is the terminal Result: no numbered row remains STILL OPEN and none is BLOCKED-DATA.
+
+- Row 1 (support-check cadence) FIXED/VERIFIED: `tick` runs `fetch_add(1) + 1 < 100`
+  then resets the counter, so the support check runs on ticks 100, 200, ... via
+  `SUPPORT_CHECK_INTERVAL = 100` (item_frame.rs:123, 499-511), matching
+  `BlockAttachedEntity.CHECK_INTERVAL = 100` and `ticksSinceLastCheck++ >= hangingTickFrequency`
+  (BlockAttachedEntity.java:26, 43-49). Cite: `.vendor/.../decoration/BlockAttachedEntity.java`.
+- Row 2 (add-item sound) FIXED/VERIFIED: `set_item` plays `get_add_item_sound()` only when
+  `!item_stack.is_empty() && update_neighbours` (item_frame.rs:274-300), matching
+  `if (!itemStack.isEmpty() && updateNeighbours && playSound)` (ItemFrame.java:315-323).
+  Cite: `.vendor/.../decoration/ItemFrame.java`.
+- Row 3 (comparator-only update) FIXED/VERIFIED: `set_item`, `set_rotation` and `drop_item`
+  call `world.update_neighbour_for_output_signal(&pos, &Block::AIR)` (item_frame.rs:296-300,
+  314-318, 436-438), matching `level().updateNeighbourForOutputSignal(this.pos, Blocks.AIR)`
+  (ItemFrame.java:325-327, 362-364). The helper exists at world/mod.rs:8139 with the exact
+  `(&BlockPos, &Block)` signature. Cite: `.vendor/.../decoration/ItemFrame.java`.
+- Row 4 (doEntityDrops) FIXED/VERIFIED: `drop_item` clears the item, pokes comparators, then
+  returns before both drops when `world.level_info.load().game_rules.entity_drops` is false
+  (item_frame.rs:423-444), matching `if (!level.getGameRules().get(GameRules.ENTITY_DROPS))`
+  (ItemFrame.java:247-251). `game_rules.entity_drops` exists in generated game_rules.rs:266.
+  Cite: `.vendor/.../decoration/ItemFrame.java`.
+- Row 5 (invulnerable damage) FIXED/VERIFIED: `damage_with_context` returns false for
+  `is_invulnerable_to(&damage_type, cause)` sources (item_frame.rs:664-667), matching
+  `if (this.isInvulnerableToBase(source)) return false;` (ItemFrame.java:189,
+  BlockAttachedEntity.java:130). Cite: `.vendor/.../decoration/{ItemFrame,BlockAttachedEntity}.java`.
+- Row 6 (invisible flag) FIXED/VERIFIED: `is_invisible`/`set_invisible` use the shared
+  `Entity.invisible` flag (item_frame.rs:337-343); NBT writes/reads `Invisible` through that
+  flag (item_frame.rs:526, 550-551), matching `setInvisible(false)` (ItemFrame.java:62, 72),
+  `output.putBoolean("Invisible", this.isInvisible())` (ItemFrame.java:378) and
+  `setInvisible(input.getBooleanOr("Invisible", false))` (ItemFrame.java:395).
+  Cite: `.vendor/.../decoration/ItemFrame.java`.
+- Row 7 (custom name) FIXED/VERIFIED: `get_frame_item_stack_with_data` copies the name via
+  `custom_name.get_text()` (item_frame.rs:353-359), matching
+  `itemStack.set(DataComponents.CUSTOM_NAME, this.getCustomName())` (ItemFrame.java:476-479).
+  Pumpkin's `ItemStack` stores the name as a `String` (item_stack/mod.rs:603), so component
+  styles from vanilla's verbatim copy cannot be preserved. Cite: `.vendor/.../decoration/ItemFrame.java`.
+- Row 8 (creative drop ordering) FIXED/VERIFIED: `drop_item` returns before both drops for a
+  creative player (item_frame.rs:446-454), matching
+  `causedBy instanceof Player player && player.hasInfiniteMaterials()` (ItemFrame.java:255-257).
+  Cite: `.vendor/.../decoration/ItemFrame.java`.
+- Row 9 (single-slot Container) FIXED/VERIFIED: `ItemFrameInventory` (size 1, max stack 1) is
+  exposed via `EntityBase::get_container_inventory` (item_frame.rs:48-117, 560-569), matching
+  `slot == 0 ? SlotAccess.of(this::getItem, this::setItem)` (ItemFrame.java:334-337).
+  Cite: `.vendor/.../decoration/ItemFrame.java`.
+- Row 10 (DOWN drop offset) FIXED/VERIFIED: `drop_item` applies the -0.6 y offset for
+  Down-facing frames (item_frame.rs:456-467), matching the Paper MC-123848
+  `spawnAtLocation(serverLevel, stack, getDirection() == Direction.DOWN ? -0.6F : 0.0F)`
+  (ItemFrame.java:289-293). Cite: `.vendor/.../decoration/ItemFrame.java`.
+
+Non-row issue (NOT one of the ten numbered rows), classified BLOCKED-DATA: explosion damage.
+Vanilla `ItemFrame.hurtServer` (ItemFrame.java:187-213) sends explosion damage (which fails
+`shouldDamageDropItem`, because that requires `!IS_EXPLOSION` at line 174) through to
+`BlockAttachedEntity.hurtServer` (BlockAttachedEntity.java:129-172), which kills the frame and
+drops frame + item. Pumpkin's early `return false` for `EXPLOSION`/`PLAYER_EXPLOSION`
+(item_frame.rs:671-676) keeps the frame intact. Fixing it needs the missing generated
+`IS_EXPLOSION` damage-type tag plus the `ignoreExplosion` / `shouldAffectBlocklikeEntities`
+path in `explosion.rs` (outside this unit, whose only editable file is `item_frame.rs`); no
+generated `pumpkin-data` field for that tag exists yet, so the fix cannot be completed here.
+
+No source edit this pass: all ten rows were already implemented. Every referenced API was
+confirmed to exist by source inspection (`update_neighbour_for_output_signal` at
+world/mod.rs:8139, `is_invulnerable_to` at entity/mod.rs:5263, `game_rules.entity_drops` at
+generated/game_rules.rs:266, `set_invisible` at entity/mod.rs:4673, `ItemStack::set_custom_name`
+at item_stack/mod.rs:603, `is_diode` at blocks/redstone/mod.rs:156). No pure unit-test seam
+exists (all behaviour needs a `World` plus fixture; `calculate_bounding_box` is a pure formula
+and formula-mirroring tests are disallowed). Compile not run (worker restriction).

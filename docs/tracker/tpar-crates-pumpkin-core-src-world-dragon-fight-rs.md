@@ -25,3 +25,23 @@ Row `own/taudit-crates-pumpkin-core-src-wo-ea95b7` CLOSED. All 11 audit gaps re-
 - "Fixed in this audit": iron-bar connection directions and crystal `set_show_bottom(spike.guarded)` re-verified in `regenerate_spike` (dragon_fight.rs:909-974).
 - Tests present: `gateway_shuffle_is_deterministic_per_seed`, `spikes_follow_fight_seed`, `dragon_fight_nbt_round_trip` (dragon_fight.rs:1242+).
 - No BLOCKED-DATA rows, no remaining STILL OPEN rows.
+
+
+## Result (Final Pass)
+
+Full re-audit of this unit against `.vendor/vanilla-decompiled/net/minecraft/world/level/dimension/end/EnderDragonFight.java` and `.../levelgen/feature/EndSpikeFeature.java`. No STILL OPEN rows remain and no source edits were needed this pass. This doc has no "STILL OPEN until closed..." line to replace.
+
+- own/taudit-crates-pumpkin-core-src-wo-ea95b7 (all 11 gaps): CLOSED. Every cited vanilla behaviour re-confirmed against the decompiled source on disk:
+  - gap 1 (M): FIXED. Seeded spikes in fight (`get_spikes_for_seed(self.seed)`) and worldgen (`chunk.world_seed()`), matching `getSpikesForLevel(this.level)` (EnderDragonFight.java:446,490,688; EndSpikeFeature.java:48-52).
+  - gap 2 (M): FIXED AND WIRED. `write_nbt`/`from_nbt` consumed at world/mod.rs:686 (load) and :9227 (save); mirrors the SavedData codec (EnderDragonFight.java:104-149).
+  - gap 3 (S): VERIFIED MATCHING VANILLA. Empty-boss-bar early return vs `if (!this.dragonEvent.getPlayers().isEmpty())` (EnderDragonFight.java:191).
+  - gap 4 (S): FIXED. Heightmap MOTION_BLOCKING_NO_LEAVES `.below()`, skip bedrock while y>63, clamp to min_y+1 (EnderDragonFight.java:520-526).
+  - gap 5 (S): FIXED. Egg at MOTION_BLOCKING heightmap of podium location (EnderDragonFight.java:460).
+  - gap 6 (S): FIXED. Per-direction portal crystal AABB search beside portal Y (EnderDragonFight.java:645-648).
+  - gap 7 (S): VERIFIED MATCHING VANILLA. Delayed END_GATEWAY feature placement writes the bedrock/air shell (EnderDragonFight.java:509-515).
+  - gap 8 (S): FIXED. Gateway shuffle seeded via JavaRandom, matching vanilla's seeded refill.
+  - gap 9 (S): VERIFIED MATCHING VANILLA. `hasActiveExitPortal` absolute -8..=8 vs `findExitPortal` origin offset (EnderDragonFight.java:339-360).
+  - gap 10 (S): VERIFIED MATCHING VANILLA. Sphere centre origin.x, 128+origin.y, origin.z radius 192 (EnderDragonFight.java:163).
+  - gap 11 (S): VERIFIED MATCHING VANILLA. `dragonKilled = false` when `!hasPreviouslyKilledDragon` (EnderDragonFight.java:296-297).
+- Tests present: `gateway_shuffle_is_deterministic_per_seed`, `spikes_follow_fight_seed`, `dragon_fight_nbt_round_trip`.
+- No BLOCKED-DATA rows: no missing generated pumpkin-data field or absent subsystem. No rustfmt needed (no .rs file changed this pass).

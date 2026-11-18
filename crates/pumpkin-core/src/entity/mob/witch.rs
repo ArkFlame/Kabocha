@@ -76,9 +76,12 @@ const WITCH_HUNTS: &[Hunt] = &[
     Hunt::new(3, TargetMatch::Type(&EntityType::IRON_GOLEM), true),
 ];
 
-/// Vanilla `Witch` healable-raider target: a raider below max health, during an active raid.
-const WITCH_HEALABLE_RAIDERS: Hunt = Hunt::new(2, TargetMatch::Any, false)
-    .only_mobs(is_injured_raider)
+/// Vanilla `Witch` healable-raider target goal: `Raider.class`, `mustSee=true`, during a raid.
+/// The `Witch.registerGoals` subselector is `hasActiveRaid() && !target.is(WITCH)`:
+/// any raider but another witch. The health check lives in `performRangedAttack`, which
+/// throws healing or regeneration at every targeted raider (`.vendor/.../Witch.java:64-66`).
+const WITCH_HEALABLE_RAIDERS: Hunt = Hunt::new(2, TargetMatch::Any, true)
+    .only_mobs(is_healable_raider)
     .gated_by(witch_has_active_raid);
 
 /// Vanilla `NearestHealableRaiderTargetGoal.canUse`: healable raiders only exist during a raid.
@@ -86,12 +89,10 @@ fn witch_has_active_raid(mob: &dyn Mob) -> bool {
     mob.as_raider().is_some_and(Raider::has_active_raid)
 }
 
-/// Vanilla `Witch` healable-raider subselector excludes other witches.
-fn is_injured_raider(mob: &dyn Mob) -> bool {
+/// Vanilla `Witch` healable-raider subselector: any raider except another witch.
+fn is_healable_raider(mob: &dyn Mob) -> bool {
     let living = &mob.get_mob_entity().living_entity;
-    mob.as_raider().is_some()
-        && living.entity.entity_type != &EntityType::WITCH
-        && living.health.load() < living.get_max_health()
+    mob.as_raider().is_some() && living.entity.entity_type != &EntityType::WITCH
 }
 
 pub struct WitchEntity {

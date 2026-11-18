@@ -150,7 +150,9 @@ impl Mob for StriderEntity {
     // Vanilla getAmbientSound returns ambient only while not panicking or tempted, null otherwise.
     // The happy sound is played on temptation in tick, not as ambient.
     fn get_ambient_sound(&self) -> Option<Sound> {
-        (!self.is_panicking()).then_some(Sound::EntityStriderAmbient)
+        (!self.is_panicking()
+            && !self.mob_entity.goals_selector.is_running::<TemptGoal>())
+        .then_some(Sound::EntityStriderAmbient)
     }
 
     fn as_custom_sound(&self) -> Option<&dyn CustomSound> {
@@ -196,8 +198,13 @@ impl Mob for StriderEntity {
         // Vanilla `Strider.tick` expires the warped fungus on a stick boost server side.
         self.steering.tick_boost();
 
-        // Vanilla `Strider.tick`: a panicking strider occasionally retreats.
-        if self.is_panicking() && self.get_random().random_range(0..60) == 0 {
+        // Vanilla `Strider.tick`: a tempted strider occasionally makes the happy
+        // sound, else a panicking strider occasionally retreats (Strider.java:299-304).
+        if self.mob_entity.goals_selector.is_running::<TemptGoal>()
+            && self.get_random().random_range(0..140) == 0
+        {
+            self.play_entity_sound(Sound::EntityStriderHappy, 1.0, 1.0);
+        } else if self.is_panicking() && self.get_random().random_range(0..60) == 0 {
             self.play_entity_sound(Sound::EntityStriderRetreat, 1.0, 1.0);
         }
 
