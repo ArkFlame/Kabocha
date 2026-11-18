@@ -7,12 +7,14 @@ use crossbeam::atomic::AtomicCell;
 use pumpkin_data::Block;
 use pumpkin_data::BlockState;
 use pumpkin_data::Enchantment;
+use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::block_properties::CampfireLikeProperties;
 use pumpkin_data::data_component_impl::{BlocksAttacksImpl, EquipmentSlot};
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::potion::Effect;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::tracked_data;
@@ -1005,6 +1007,8 @@ impl PiglinEntity {
             );
         }
 
+        // Vanilla `Piglin.finishConversion` drops the admired off-hand item before converting.
+        self.cancel_admiring();
         self.drop_inventory();
 
         let zombified = crate::entity::r#type::from_type(
@@ -1021,6 +1025,16 @@ impl PiglinEntity {
 
         if let Some(living) = zombified.get_living_entity() {
             living.set_health(self.mob_entity.living_entity.health.load());
+            // Vanilla `AbstractPiglin.finishConversion` gives the converted mob nausea.
+            living.add_effect(Effect {
+                effect_type: &StatusEffect::NAUSEA,
+                duration: 200,
+                amplifier: 0,
+                ambient: false,
+                show_particles: true,
+                show_icon: true,
+                blend: false,
+            });
         }
 
         if let Some(custom_name) = &**entity.custom_name.load() {
@@ -1043,6 +1057,13 @@ impl PiglinEntity {
                     dst_equip.put(slot, item.clone());
                 }
             }
+        }
+
+        // Vanilla `ConversionType.convertCommon` keeps the baby state on conversion.
+        if self.is_baby()
+            && let Some(mob) = zombified.get_mob()
+        {
+            mob.spawn_as_baby();
         }
 
         world.spawn_entity(zombified);

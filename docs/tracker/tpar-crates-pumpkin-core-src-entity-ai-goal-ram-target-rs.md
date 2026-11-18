@@ -5,7 +5,7 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-goat** [partial/OWN-OPEN] own audit: 14 open, 6 fixed, 8 verified, 0 blocked-data (docs/tracker/tentities-goat.md) docs/tracker/tentities-goat.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+All rows closed below (see final Result). Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
 
 
 ## Result (third pass, final)

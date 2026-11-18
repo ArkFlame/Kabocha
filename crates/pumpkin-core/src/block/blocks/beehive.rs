@@ -84,6 +84,20 @@ impl BeehiveBlock {
         }
     }
 
+    /// Vanilla `BeehiveBlockEntity.emptyAllLivingFromHive` with `EMERGENCY` status.
+    fn release_bees(args: &UseWithItemArgs<'_>) {
+        let Some(entity) = args.world.get_block_entity(args.position) else {
+            return;
+        };
+        let Some(beehive) = entity.as_any().downcast_ref::<BeehiveBlockEntity>() else {
+            return;
+        };
+        beehive.empty_all_living_from_hive(
+            &args.world,
+            Some(args.player.clone() as Arc<dyn EntityBase>),
+        );
+    }
+
     fn shear_honeycomb(args: &UseWithItemArgs<'_>, state_id: BlockStateId) -> bool {
         let drop_pos = args.position.to_centered_f64();
         let mut drops = args
@@ -221,10 +235,13 @@ impl BlockBehaviour for BeehiveBlock {
         args.player
             .increment_stat(StatisticCategory::Used, i32::from(used_item_id), 1);
 
-        if !CampfireBlock::is_smokey_pos(args.world, args.position)
-            && Self::hive_contains_bees(args.world, args.position)
-        {
-            Self::anger_nearby_bees(args.world, args.position);
+        if !CampfireBlock::is_smokey_pos(args.world, args.position) {
+            if Self::hive_contains_bees(args.world, args.position) {
+                Self::anger_nearby_bees(args.world, args.position);
+            }
+            // Vanilla releaseBeesAndResetHoneyLevel empties the hive when no campfire smoke
+            // sedates the bees; with smoke only the honey level is reset.
+            Self::release_bees(&args);
         }
 
         props.honey_level = 0;

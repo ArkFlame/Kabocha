@@ -369,3 +369,55 @@ No new pure unit test: no new seam was added this pass; existing seams are cover
 by after_spawn_updates_category_counts, adjust_spawn_position_down_follows_land_pathfindable,
 structure_spawn_entries_are_picked_by_weight and initial_cluster_attempts_matches_vanilla_ceil.
 Files changed this pass: this doc only (no source edit was required).
+
+## Result (third pass, verification complete)
+
+Re-checked all 11 gap rows plus the h3-sweep row against
+`.vendor/vanilla-decompiled/net/minecraft/`. Every source fix from earlier passes is
+present and type-correct; no row remains STILL OPEN or LEFT OPEN, and no new source
+edit was needed this pass. Both in-scope basenames were re-read; cross-file rows were
+checked read-only.
+
+- Row 1 (local mob-cap player window): VERIFIED MATCHING. Vanilla
+  ChunkMap.getPlayersCloseForSpawning uses a 128-block horizontal radius
+  (`.vendor/.../server/level/ChunkMap.java`); Pumpkin's LOCAL_MOB_CAP_RANGE_SQ =
+  128*128 with is_near (lines 38, 184-186).
+- Row 2 (cached vs fallback player paths): VERIFIED MATCHING. Both branches of
+  get_players_near call the same is_near predicate (lines 221-246).
+- Row 3 (chunk-gen honours doMobSpawning): VERIFIED MATCHING. Vanilla gates
+  spawnMobsForChunkGeneration on GameRules.SPAWN_MOBS
+  (`.vendor/.../world/level/NaturalSpawner.java:599`); Pumpkin checks
+  game_rules.spawn_mobs (line 653).
+- Row 4 (level RandomSource threading): VERIFIED MATCHING. world.spawn_random is
+  threaded through spawn_for_chunk (596), get_random_pos_within (618) and
+  spawn_mobs_for_chunk_generation (646); no per-call reseed remains.
+- Row 5 (initial cluster size): VERIFIED MATCHING. Mth.ceil(nextFloat()*4.0F)
+  (NaturalSpawner.java:354) equals initial_cluster_attempts (line 851), unit-tested.
+- Row 6 (ON_GROUND head-block check): VERIFIED MATCHING. Vanilla validates feet and
+  head emptiness (`.vendor/.../world/entity/SpawnPlacementTypes.java`); Pumpkin
+  checks cur/state and up on both cache and live paths (1308-1309, 1346-1347).
+- Row 7 (chunk-gen vs live adjust_spawn_position): FIXED (prior pass) and RE-VERIFIED.
+  Both paths share adjust_spawn_position_down and the registry-backed
+  is_pathfindable(Land) predicate (796-846); BlockStateId::to_block/to_state exist
+  (pumpkin-data/src/block_state.rs:433,445) and the registry signature at
+  pumpkin-core/src/block/registry.rs:1662 matches. Vanilla
+  SpawnPlacementTypes.java:45-48 calls state.isPathfindable(LAND).
+- Row 8 (shared-spawn bubble / ticking-chunk): VERIFIED MATCHING. Vanilla applies the
+  respawn check only in the matching dimension (NaturalSpawner.java:446,453-457);
+  Pumpkin's OVERWORLD gate plus active-chunks check is a conservative match.
+- Row 9 (canSpawnEntitiesInChunk gate): VERIFIED MATCHING (outside this unit,
+  read-only). world/mod.rs:3458 calls any_player_close_enough_for_spawning in
+  tick_spawning_chunk, matching ChunkMap.anyPlayerCloseEnoughForSpawning.
+- Row 10 (structure spawn overrides): VERIFIED MATCHING. Vanilla mobsAt consults
+  structure overrides before the biome list (NaturalSpawner.java:558-574);
+  structure_spawn_entries checks structure_spawn_override_at first (line 1070).
+- Row 11 (unknown spawner aborts chunk-gen): FIXED (prior pass) and RE-VERIFIED.
+  EntityType::from_name failure logs via tracing::warn and continues (673-678),
+  matching vanilla skipping an unresolvable spawner entry.
+- h3-sweep row (canSpawnEntitiesInChunk TODO, world/mod.rs): VERIFIED resolved by the
+  same world/mod.rs gate at line 3458 (read-only, outside this unit).
+
+Existing pure tests cover the seams: after_spawn_updates_category_counts,
+adjust_spawn_position_down_follows_land_pathfindable,
+structure_spawn_entries_are_picked_by_weight, initial_cluster_attempts_matches_vanilla_ceil.
+No new seam was added, so no new unit test. Files changed this pass: this doc only.
