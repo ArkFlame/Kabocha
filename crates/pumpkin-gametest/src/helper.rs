@@ -795,7 +795,7 @@ impl GameTestHelper {
         })
     }
 
-    /// Sets the velocity of the first entity_name inside the relative box.
+    /// Sets the velocity of the first `entity_name` inside the relative box.
     pub async fn set_entity_velocity(
         &self,
         entity_name: &str,
@@ -820,7 +820,7 @@ impl GameTestHelper {
             .await
     }
 
-    /// Remaining fire ticks of the first entity_name inside the relative box.
+    /// Remaining fire ticks of the first `entity_name` inside the relative box.
     pub async fn entity_fire_ticks(
         &self,
         entity_name: &str,
