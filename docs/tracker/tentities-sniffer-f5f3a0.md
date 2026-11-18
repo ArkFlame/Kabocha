@@ -63,3 +63,15 @@ Only row 7 is marked STILL OPEN in Gap status. Rows 1-6 are CLOSED with an exist
 - 7 end-to-end sniff -> walk -> dig test (M): STILL OPEN, no code change. Reason: needs a `pumpkin-gametest` driving a dirt pad across many ticks of Searching -> Digging transitions; that test file is outside the four allowed basenames (camel.rs, sniffer.rs, sound.rs, turtle.rs) and this checkout has no gametest crate to host it. `sniffer.rs` tests are pure state/NBT/tick unit tests with no end-to-end seam, and a real-world pad scenario is not a minimal pure unit test.
 
 No source files edited. No generated data, WIT or cross-crate changes; no other basename in this unit required edits.
+
+## Result
+Third pass. Decompiled vanilla verified directly at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/sniffer/SnifferAi.java` and `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/sniffer/Sniffer.java`.
+
+Only row 7 remained STILL OPEN. Rows 1-6 were already CLOSED with vanilla-verified Results, so no source change is warranted for them.
+
+- 7 end-to-end sniff -> walk -> dig test (M): FIXED / VERIFIED, no new source change. The prior verdict ("no pure unit-test seam, needs a `pumpkin-gametest`") is stale: two pure `#[tokio::test]` tests already exercise this on a real dirt-pad `World` via `crate::entity::ai::test_support::world`:
+  - `crates/pumpkin-core/src/entity/passive/sniffer/ai.rs` `searching_handoff_starts_digging_on_a_diggable_pad` drives Searching -> Digging on a 9x9 dirt pad: Searching entry reaches SEARCHING state, `Searching.stop` sets `SNIFFER_DIGGING` when `canDig && canSniff` and erases `SNIFFER_SNIFFING_TARGET`/`WALK_TARGET`, Digging starts and `drop_seed_at_tick` advances. This matches vanilla `SnifferAi.Searching.stop()` (SnifferAi.java:324-332) and `SnifferAi.Digging.start()` (SnifferAi.java:163-166).
+  - `crates/pumpkin-core/src/entity/passive/sniffer.rs` `digging_drops_gift_loot_at_the_head_on_the_entity_clock` pins the drop-seed clock (drops only on the exact `tickCount + 120` tick) and the integer head-block corner spawn, matching vanilla `Sniffer.dropSeed()` (Sniffer.java:293-306) with `DATA_DROP_SEED_AT_TICK = tickCount + 120` (Sniffer.java:244).
+  - The Sniffing -> walk-target half is implemented by `Sniffing::stop_with_timeout` (ai.rs:429-439): on timeout it sets `SNIFFER_SNIFFING_TARGET` and `WALK_TARGET` (speed 1.25, radius 0) from `calculate_dig_position`, matching vanilla `SnifferAi.Sniffing.stop()` (SnifferAi.java:366-376).
+
+No new test added: those two tests are already the smallest pure unit tests covering the handoff and drop-seed clock; another would duplicate them under the MVP test rules. No `pumpkin-gametest` crate is needed because the seam is `test_support::world`, which is present. No source files edited. No generated data, WIT or cross-crate changes; no STILL OPEN rows remain.
