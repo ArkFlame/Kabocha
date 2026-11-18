@@ -89,3 +89,39 @@ Re-verified all STILL OPEN rows against decompiled vanilla
 No unit test added: the behaviour is entirely side-effectful (world sound/event, player cooldown
 and stats) with no pure seam in `goat_horn.rs`; extracting a `duration > 0` helper would be a
 formula-mirroring test, which the rules exclude.
+
+
+## Result
+
+Re-verified all STILL OPEN rows against decompiled vanilla
+`.vendor/vanilla-decompiled/net/minecraft/world/item/InstrumentItem.java`.
+
+- Row 1 (TOOT_HORN use animation): STILL OPEN. Vanilla `getUseAnimation` returns
+  `ItemUseAnimation.TOOT_HORN` (`InstrumentItem.java:65-68`), but `ItemBehaviour` has no
+  use-animation hook. Needs a trait hook in `item/mod.rs` plus third-person client packet plumbing,
+  both outside this unit. Client-visible only.
+- Row 2 (per-stack use duration): ADDRESSED OUTSIDE UNIT. `ItemBehaviour` now exposes
+  `get_use_duration(&self, stack: &ItemStack)` (`item/mod.rs:109`), `ItemRegistry::get_use_duration`
+  is stack-aware (`item/registry.rs:136`), and `goat_horn.rs` implements it from the instrument
+  component (140 ticks for builtins, 0 without, own value for inline datapack instruments), matching
+  vanilla `getUseDuration` (`InstrumentItem.java:54-58`).
+- Row 3 (datapack/custom instruments): STILL OPEN. Vanilla resolves a `Holder<Instrument>` from the
+  `INSTRUMENT` registry (`InstrumentItem.java:60-63`). Pumpkin stores only a string resolved via the
+  vanilla-only `Instrument::from_name`, with an inline encoding for custom instruments; a registry
+  reference to a datapack instrument still resolves to no duration. Needs a runtime instrument
+  registry and codec (cross-crate/generated data), outside this unit.
+- Row 4 (cooldown): FIXED (prior pass, confirmed). Cooldown added only when `duration > 0`, matching
+  `InstrumentItem.java:42-45`.
+- Row 5 (fail interaction result): ADDRESSED OUTSIDE UNIT. `ItemBehaviour` now has
+  `use_result(&self, stack: &ItemStack)` (`item/mod.rs:61`), wired through `ItemRegistry`
+  (`item/registry.rs:83`); `goat_horn.rs` returns `Fail` when the stack has no resolvable instrument,
+  matching vanilla `InteractionResult.FAIL` (`InstrumentItem.java:49-50`).
+
+Additional fix this pass: moved the `InstrumentPlay` game event emit to run with the sound, before
+durability damage, so the call order matches vanilla `play()` being invoked before `hurtAndBreak`
+(`InstrumentItem.java:35-40,70-75`). The use position is precomputed, so there was no observable
+delta; the ordering now matches vanilla exactly.
+
+No unit test added: the use path is entirely side-effectful (world sound/event, player cooldown,
+hand stack, stats) with no pure seam. The existing tests already cover the pure duration and
+use-result helpers.

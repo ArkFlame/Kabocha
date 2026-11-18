@@ -81,12 +81,9 @@ impl ItemBehaviour for GoatHornItem {
                 1.0,
             );
         }
-        // Vanilla `InstrumentItem.use` damages the stack by the instrument's value.
-        if durability_damage > 0 {
-            player.damage_item_in_slot(&EquipmentSlot::from_hand(hand), durability_damage);
-        }
-        // Vanilla passes `GameEvent.Context.of(player)`, so listeners attribute the
-        // vibration to the horn player (e.g. sculk sensor / warden anger).
+        // Vanilla `play` emits the sound and the game event together, before `hurtAndBreak`.
+        // It passes `GameEvent.Context.of(player)`, so listeners attribute the vibration to
+        // the horn player (e.g. sculk sensor / warden anger).
         world.emit_game_event_with_context(
             GameEvent::InstrumentPlay.name(),
             pos,
@@ -94,6 +91,10 @@ impl ItemBehaviour for GoatHornItem {
                 source_entity: Some(player),
             },
         );
+        // Vanilla `InstrumentItem.use` damages the stack by the instrument's value.
+        if durability_damage > 0 {
+            player.damage_item_in_slot(&EquipmentSlot::from_hand(hand), durability_damage);
+        }
         // Vanilla only adds the cooldown when the instrument has a positive use duration
         // (InstrumentItem.use: `if (instrumentCooldown > 0.0F)`).
         if duration > 0 {
