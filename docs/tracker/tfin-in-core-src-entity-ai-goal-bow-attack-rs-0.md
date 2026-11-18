@@ -5,7 +5,6 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 terminal; none remain STILL OPEN. In-scope fixes are present in bow_attack.rs / arrow.rs and
 is terminal; none remain STILL OPEN.
 
-## Result
 ## Result (final pass, 2026-11-18)
 
 All six rows from the source audit (docs/tracker/taudit-crates-pumpkin-core-src-en-7a89e5.md)
