@@ -5,7 +5,6 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tverify-items3** [verified] own audit: 0 open, 0 fixed, 5 verified, 0 blocked-data (docs/tracker/tverify-items3.md) docs/tracker/tverify-items3.md
 
 ## Result
-## Result
 own/tverify-items3: VERIFIED. All 5 sub-rows in docs/tracker/tverify-items3.md closed as VERIFIED against .vendor/vanilla-decompiled; no code change was needed because the code in every row already matched vanilla (gaps were closed in an earlier pass). Counts: 0 open, 0 fixed, 5 verified, 0 blocked-data.
 
 - Fishing Rod cast cancel: VERIFIED. Vanilla `FishingRodItem.use` (`.vendor/vanilla-decompiled/net/minecraft/world/item/FishingRodItem.java:47-54`) clears `player.fishing` and returns PASS on a cancelled cast. Pumpkin `net/java/play/use_item.rs:73-108` fires `PlayerFishState::Fishing` and returns early with bobber id -1 on cancel; reel-in cancel is kept in `entity/projectile/fishing_bobber.rs`.
