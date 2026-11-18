@@ -169,6 +169,7 @@ impl ToFromWasmEvent for FurnaceBurnEvent {
             block_pos: to_wasm_block_position(self.block_pos),
             fuel_item: self.fuel_item.clone(),
             burn_time: self.burn_time,
+            consume_fuel: self.consume_fuel,
             cancelled: self.cancelled,
         })
     }
@@ -179,7 +180,7 @@ impl ToFromWasmEvent for FurnaceBurnEvent {
                 block_pos: from_wasm_block_position(data.block_pos),
                 fuel_item: data.fuel_item,
                 burn_time: data.burn_time,
-                consume_fuel: true,
+                consume_fuel: data.consume_fuel,
                 cancelled: data.cancelled,
             },
             _ => panic!("unexpected event type"),
