@@ -11,7 +11,7 @@ the vendored decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/
 edit was needed: every row is an exact vanilla match or was already fixed in the checkout.
 Compile-pitfall table re-read: no source code edited, so no new imports, clones, struct
 initializers, macro paths or clippy-pedantic concerns. No new unit test: there is no genuine
-behaviour gap to test, and the piglin/hoglin count behavior is already covered by the existing
+behaviour gap to test, and the piglin/hoglin count behaviour is already covered by the existing
 tests `hoglin_sensor_counts_only_visible_adults`, `hoglins_outnumber_piglins_uses_both_visible_counts`
 and `retreat_broadcasts_to_visible_adult_piglins`.
 
@@ -32,7 +32,7 @@ and `retreat_broadcasts_to_visible_adult_piglins`.
 - dump ttl wording (memory/mod.rs:136-145): VERIFIED. The comment is accurate for the newer dump:
   `util/debug/DebugBrainDump.java:158-160` passes `timestamp` (game time) as the displayed ttl while
   `MemorySlot.toString` prints the real ttl (`world/entity/ai/memory/MemorySlot.java:69-72`). Pumpkin
-  deliberately prints the real ttl and the comment documents the vanilla quirk. No behavior change.
+  deliberately prints the real ttl and the comment documents the vanilla quirk. No behaviour change.
 - VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (memory/types.rs:122-123): FIXED and
   VERIFIED. Declared as ids 79/80 with names `visible_adult_piglin_count` /
   `visible_adult_hoglin_count` (`world/entity/ai/memory/MemoryModuleType.java:116-117`). Hoglins:

@@ -20,7 +20,7 @@ Fixed: `Player::get_movement_statistic` listed every boat wood type except popla
 - Row 'interact opens container only when sneaking / full boat returns PASS' (line 13): CLOSED (NO GAP; re-verified 2026-11-18)
 - Row 'contents dropped on every destroying removal, not only damage break' (line 14): CLOSED (NO GAP; re-verified 2026-11-18)
 - Row 'drop extra CONTAINER_OPEN game event' (line 15): CLOSED (NO GAP; re-verified 2026-11-18)
-- Row 'c:boats missing poplar_chest_boat' (line 16): OPEN (needs pumpkin-codegen regeneration; generated data out of scope)
+- Row 'c:boats missing poplar_chest_boat' (line 16): BLOCKED-DATA (generated \`EntityType::C_BOATS\` tag needs \`cargo run --locked -p pumpkin-codegen\`; not hand-editable)
 - Row 'passenger offsets use generated seat data' (line 17): CLOSED (NO GAP; re-verified 2026-11-18)
 
 
@@ -106,3 +106,22 @@ Only STILL OPEN row is line 16 (c:boats missing poplar_chest_boat). Verified aga
 Re-verified dismount.rs (the in-scope file) against vanilla `AbstractBoat.getDismountLocationForPassenger` (Java 709-738) and DismountHelper: escape vector from getBbWidth()*SQRT_OF_TWO plus passenger yaw, target built at boat bounding-box maxY, water-at-below early return, valid floor targets (above then below, is_finite && < 1.0), getDismountPoses pose order, getDimensions(pose) used for every rider, and canDismountTo collision/world-border checks all match. The earlier fixes (dismount_poses helper, per-pose dimensions for all riders) and the two pure unit tests are present and correct. No source gap, no edit needed.
 
 No .rs file edited this pass (only the doc Result appended), so rustfmt is not applicable. Skipped: codegen regeneration and its build gate, which the orchestrator must run.
+
+
+## Result (third pass 2026-11-18, final)
+
+All rows now have a terminal status. Re-verified against decompiled vanilla at
+\`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:709-738\`,
+\`AbstractChestBoat.java:65-106\`, \`Entity.java:6645-6655\` and \`DismountHelper.java:38-54\`.
+
+- Line 13 interact opens container only when sneaking / full boat returns PASS: VERIFIED (matches vanilla). \`AbstractChestBoat.interact\` opens iff the super call returned PASS and !(canAddPassenger && !isSecondaryUseActive); Pumpkin \`chest_opens_container\` (boat.rs:135-141) = has_inventory && (is_sneaking || !can_add_passenger). No gap.
+
+- Line 14 contents dropped on every destroying removal: VERIFIED (matches vanilla). \`AbstractChestBoat.remove\`/\`destroy\` scatter on destroying removals and on break; boat.rs \`on_removed\`/\`scatter_chest_contents\`/\`damage_with_context\` with \`claim_drops\` match. No gap.
+
+- Line 15 drop extra CONTAINER_OPEN game event: VERIFIED (matches vanilla). \`AbstractChestBoat.openCustomInventoryScreen\` emits CONTAINER_OPEN with the player and angers piglins; boat.rs \`open_custom_inventory_screen\` matches. No gap.
+
+- Line 17 passenger offsets use generated seat data: VERIFIED (matches vanilla). \`AbstractBoat.getPassengerAttachmentPoint\` matches boat.rs \`passenger_attachment\`/\`passenger_seat_offset\`, which read the generated \`entity_type.boat\` seat data. No gap.
+
+- Line 16 c:boats missing poplar_chest_boat: BLOCKED-DATA. Exact missing field: \`EntityType::C_BOATS\`, the \`c:boats\` tag constant at \`crates/pumpkin-data/src/generated/tag.rs:20874\`, whose value list ends at \`"bamboo_chest_raft"\` (line 20896) and omits \`"poplar_chest_boat"\`. The source asset \`assets/datapack/data/c/tags/entity_type/boats.json:17\` already lists \`minecraft:poplar_chest_boat\`. Fix requires regenerating generated data with \`cargo run --locked -p pumpkin-codegen\`; generated files must not be hand-edited and workers cannot run cargo. No functional gap: boat.rs \`is_boat\` (89-91) recognises poplar_chest_boat via \`is_chest_boat\`'s \`_chest_boat\` suffix.
+
+In-scope file \`crates/pumpkin-core/src/entity/vehicle/boat/dismount.rs\` re-verified once more against \`AbstractBoat.getDismountLocationForPassenger\` and \`Entity.getCollisionHorizontalEscapeVector\`: escape vector from getBbWidth()*SQRT_OF_TWO plus passenger yaw, target built at boat bbox maxY, water-at-below short circuit via \`minecraft:water\`, floor validity \`is_finite() && < 1.0\`, targets above-then-below, \`getDismountPoses\` order (Standing for mobs, Standing/Crouching/Swimming for players), \`getDimensions(pose)\` for every rider and \`canDismountTo\` collision/world-border checks all match. No source edit needed this pass; the prior helper fixes and two pure unit tests are present and correct. No .rs file touched, so rustfmt is not applicable.
