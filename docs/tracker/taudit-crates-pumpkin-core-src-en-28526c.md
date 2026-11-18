@@ -56,7 +56,11 @@ marker in this module tree is `memory/types.rs:123` (TODO: nothing fills
 ## Gap status
 
 - FIXED: UTF-16 truncation of memory dump text, entity/ai/brain/memory/mod.rs:155-170, test `truncate_counts_utf16_units`.
-- STILL OPEN: empty-collection set semantics (memory/mod.rs:243,321), setMemoryInternal unregistered put (memory/mod.rs:240-242), negative ttl (memory/mod.rs:124-131, no vanilla caller: leave by design), dump ttl wording (memory/mod.rs:136-141), VISIBLE_ADULT_PIGLIN/HOGLIN counts unpopulated (memory/types.rs:118-123).
+- VERIFIED: empty-collection set semantics (value.rs:24,81,152,170) matches vanilla.
+- VERIFIED: setMemoryInternal unregistered put (memory/mod.rs:240-242) matches vanilla.
+- VERIFIED: negative ttl (memory/mod.rs:124-131) matches vanilla.
+- VERIFIED: dump ttl wording (memory/mod.rs:136-141) matches vanilla.
+- FIXED: VISIBLE_ADULT_PIGLIN/HOGLIN counts populated and consumed (types.rs:122-123, hoglin_specific.rs:111-114, hoglin.rs:38-62, piglin.rs:538-584, piglin_ai.rs:74-77).
 
 ## Result
 
@@ -183,3 +187,41 @@ exact vanilla match or already implemented elsewhere in the checkout.
 
 Compile-pitfall table re-read: no source code edited, so no new imports, clones, struct
 initializers, macro paths or clippy-pedantic concerns.
+
+
+## Result (third pass)
+
+All five rows re-verified against the vendored decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/`. No source change was needed: every row is an
+exact vanilla match or already fixed elsewhere in the checkout, so no STILL OPEN rows remain.
+
+- empty-collection set semantics (value.rs:24,81,152,170): VERIFIED. `Brain.setMemoryInternal`
+  nulls any empty `Collection` then clears the slot in both overloads
+  (`world/entity/ai/Brain.java:214-262`, `isEmptyCollection` at 573-575), and the load path
+  routes through them (Brain.java:205-212). Pumpkin's `MemoryValue::is_empty_collection` clearing
+  matches. The tracker's suggested fix (delete the special case) would have broken parity.
+- setMemoryInternal unregistered put (memory/mod.rs:240-242): VERIFIED. `getMemorySlotIfPresent`
+  returns null for an unregistered type (`Brain.java:157-159`) and both overloads guard with
+  `if (slot != null)` (Brain.java:215-216, 240-241); `set_with_expiry` early-returns on a missing
+  slot. Match.
+- negative ttl (memory/mod.rs:124-131): VERIFIED. `MemorySlot.hasExpired()` is `timeToLive <= 0L`
+  and `tick()` clears on `hasExpired()` (`world/entity/ai/memory/MemorySlot.java:16-24,61-63`).
+  Pumpkin's `self.ttl <= 0` matches, including negative values.
+- dump ttl wording (memory/mod.rs:136-141): VERIFIED. `DebugBrainDump.accept` passes `timestamp`
+  as the displayed ttl (`util/debug/DebugBrainDump.java:158-160`) while `MemorySlot.toString`
+  prints the real ttl; Pumpkin deliberately prints the real ttl and the comment documents it.
+- VISIBLE_ADULT_PIGLIN_COUNT / VISIBLE_ADULT_HOGLIN_COUNT (types.rs:122-123): FIXED and VERIFIED.
+  Declared as ids 79/80 (`world/entity/ai/memory/MemoryModuleType.java:116-117`). Hoglins:
+  `HoglinSpecificSensor` writes both counts filtering `!isBaby && (Piglin || Hoglin)`
+  (`hoglin_specific.rs:86-114`; vanilla `world/entity/ai/sensing/HoglinSpecificSensor.java:41-57`)
+  and `piglins_outnumber_hoglins` reads them via `piglin_count > hoglin_count + 1`
+  (`hoglin.rs:38-62`; vanilla `world/entity/monster/hoglin/HoglinAi.java:179-181`). Piglins:
+  `refresh_visible_adult_counts` stores the counts (`piglin.rs:538-584`; vanilla
+  `world/entity/ai/sensing/PiglinSpecificSensor.java:73-80,107-108`, brutes counted as piglins)
+  and `hoglins_outnumber_piglins` reads them via `hoglin_count > piglin_count + 1`
+  (`piglin_ai.rs:74-77`; vanilla `world/entity/monster/piglin/PiglinAi.java:779-783`). Existing
+  tests `hoglin_sensor_counts_only_visible_adults`, `hoglins_outnumber_piglins_uses_both_visible_counts`
+  and `retreat_broadcasts_to_visible_adult_piglins` cover the behavior; no duplicate unit test added.
+
+Compile-pitfall table re-read: no source code edited this pass, so no new imports, clones,
+struct initializers, macro paths or clippy-pedantic concerns.

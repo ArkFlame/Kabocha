@@ -28,7 +28,7 @@ No `.vendor/` decompiled tree in this worktree, so items marked *verify* need th
 ## Status (sweep h2)
 
 - FIXED (943af6183): skeleton registers FleeSunGoal at priority 3.
-- STILL OPEN: RestrictSunGoal at priority 2 (TODO in skeleton/mod.rs), pathfinding malus for lava and per-species attack intervals.
+- CLOSED (verified): RestrictSunGoal priority 2, per-species attack intervals, and lava malus all verified against vanilla; see Result sections.
 
 ## Result
 
@@ -80,3 +80,14 @@ All three STILL OPEN rows are closed below. No .rs file needed editing: the curr
 - Row 4 (lava pathfinding malus) - VERIFIED, no gap for this mob. The premise is false: `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/skeleton/AbstractSkeleton.java:71-74` constructor calls only super() and reassessWeaponGoal(), with no setPathfindingMalus. The `setPathfindingMalus(PathType.LAVA, 8.0F)` call is in `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/skeleton/WitherSkeleton.java:34`, a separate mob outside this unit. Pumpkin therefore already matches vanilla for AbstractSkeleton; no generated-data field or subsystem is missing.
 
 No pure unit-test seam exists for these goal/interval behaviours without a full Mob/world, so none added. Files changed: this tracker doc only. No rustfmt run (no .rs touched).
+
+
+## Result (third pass 2026-11-18; verified against .vendor/vanilla-decompiled/net/minecraft)
+
+Re-read Pumpkin source and the decompiled vanilla classes directly. All three STILL OPEN rows are already correct; no .rs file needed editing.
+
+- Row 2 (RestrictSunGoal) - VERIFIED, no change. `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/RestrictSunGoal.java:16-32`: canUse = isBrightOutside() && HEAD.isEmpty() && hasGroundPathNavigation; start/stop toggle GroundPathNavigation.setAvoidSun(true/false). Pumpkin `entity/ai/goal/restrict_sun.rs:14-38`: is_exposed = is_bright_outside() && !sun_burn::is_protected; `sun_burn.rs:68-76` is_protected reads the sun_protection_slot item, which defaults to HEAD (`entity/mob/mod.rs:1759-1761`, no skeleton override), so !is_protected == HEAD empty. start/stop call navigator().set_avoid_sun(true/false), wired into sunlit path-node trimming (`entity/ai/pathfinder/mod.rs:1113`). Registration at `entity/mob/skeleton/mod.rs:72` priority 2 matches `AbstractSkeleton.java:78`. Ground navigation is implicit for skeletons.
+- Row 3 (Parched attack interval) - VERIFIED, no change. `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/skeleton/Parched.java:56-64` overrides getHardAttackInterval()=50 and getAttackInterval()=70. `entity/mob/skeleton/parched.rs:59-66` returns Some(50) on Hard / Some(70) otherwise, consumed at `entity/ai/goal/bow_attack.rs:292`.
+- Row 4 (lava pathfinding malus) - VERIFIED, no gap. Premise false: `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/skeleton/AbstractSkeleton.java:71-74` constructor calls only super() and reassessWeaponGoal(), with no setPathfindingMalus. The `setPathfindingMalus(PathType.LAVA, 8.0F)` call is in `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/skeleton/WitherSkeleton.java:34`, a separate mob outside this unit. Pumpkin already matches vanilla for AbstractSkeleton; no generated-data field or subsystem is missing.
+
+No pure unit-test seam exists for these goal/interval behaviours without a full Mob/world, so none added. No .rs touched, no rustfmt run.

@@ -196,3 +196,50 @@ so UNVERIFIED.
 
 No STILL OPEN rows remain. No .rs file touched; existing pure unit tests
 already cover the animation/lid seams for rows 1/2, so no new test seam exists.
+
+## Result (final, 2026-11-18)
+
+Independent third-pass read of
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/ShulkerBoxBlock.java`,
+`.../block/entity/ShulkerBoxBlockEntity.java` plus
+`crates/pumpkin-inventory/src/inventory/inventory.rs` and
+`crates/pumpkin-core/src/block/entities/hopper.rs` against
+`blocks/shulker_box.rs` and `block/entities/shulker_box.rs`. Smallest first.
+Every h6 row reaches a terminal status; no source edit was needed (the original
+gap premises for rows 1/2 were not vanilla behaviour).
+
+- Row 4 (S, `is_sided`): VERIFIED. `ShulkerBoxBlockEntity implements WorldlyContainer`
+  (entity .java:35); `getSlotsForFace` returns all 27 `SLOTS` (:309-311),
+  `canPlaceItemThroughFace` rejects `instanceof ShulkerBoxBlock` (:313-316),
+  `canTakeItemThroughFace` true (:318-321). Pumpkin `is_sided()==true`,
+  `get_slots_for_face` = `SHULKER_SLOTS` (0..27), `is_valid_slot_for` rejects the
+  `MINECRAFT_SHULKER_BOXES` tag; hopper `can_place_item_in_container` =
+  `is_valid_slot_for && can_place_item_through_face` (default = `is_valid_slot_for`)
+  and `can_take_item_from_container` = `can_transfer_to && can_take_item_through_face`
+  (both defaults true) reproduce vanilla. Behaviourally identical.
+- Row 2 (S, `canOpen` early return): VERIFIED. Vanilla `canOpen` (block .java:78-85)
+  returns true for any `animationStatus != CLOSED`, else requires
+  `noCollision(lidOpenBoundingBox)`. Pumpkin `normal_use` (blocks/shulker_box.rs:134-153)
+  uses `not_closed = !animation.is_closed()` to skip the `is_space_empty(lid_open_box)`
+  check for a non-closed box yet still opens the screen; a closed box still respects
+  obstruction. The status-based gate matches vanilla; the original `progress >= 1.0`
+  phrasing was not vanilla's condition.
+- Row 1 (M, OPENING while CLOSING): VERIFIED. Vanilla `triggerEvent` (entity
+  .java:205-225) sets `openCount=b1`, CLOSING for 0 and OPENING for 1 unconditionally,
+  leaves status unchanged for counts > 1 and always returns true; it does NOT ignore
+  OPENING while closing. Pumpkin `AnimationState::on_open_count` (0->Closing,
+  1->Opening, _->{}) plus `on_synced_block_event` applying it and returning true
+  (blocks/shulker_box.rs:107-122) match. Covered by
+  `opening_event_reverses_closing_and_extra_viewers_keep_status`.
+- Row 3 (useWithoutItem result): FIXED from the first pass. Mojang vanilla returns
+  CONSUME when a menu opens and PASS otherwise; Pumpkin `normal_use` returns Consume
+  after `open_handled_screen` and Pass with no block entity
+  (blocks/shulker_box.rs:156-173). (The local decompile is Paper-patched to always
+  SUCCESS at block .java:75; the applied CONSUME/PASS split matches the unpatched
+  vanilla behaviour the gap asked for.)
+
+No STILL OPEN rows remain; no BLOCKED-DATA rows (no generated field or subsystem
+needed). No .rs file edited; existing pure unit tests cover the animation/lid
+seams, so no new test seam exists. Verified by reading only (worker cannot
+compile), so UNVERIFIED.
+

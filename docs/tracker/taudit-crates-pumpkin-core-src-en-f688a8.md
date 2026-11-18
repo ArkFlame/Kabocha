@@ -25,13 +25,13 @@ Compared against vanilla `Entity`, `LivingEntity`, `Player`/server tracker paths
 - `spawn_state`/`create_spawn_packet` packing via `pack_degrees`; entity metadata dirty flush at end of tick (`sendDirtyEntityData`).
 
 ## Gap status
-- 1 team color/prefix/suffix in get_display_name (entity/mod.rs:1359): STILL OPEN, M.
-- 2 set_on_fire clears frozen_ticks (entity/mod.rs:1032): STILL OPEN, S, vanilla entry point unverified.
-- 3 Bedrock climate_variant (entity/mod.rs:917): STILL OPEN, M.
-- 4 tick_block_underneath stub (entity/mod.rs:3092): STILL OPEN, M.
-- 5 teleport broadcast only to destination chunk (entity/mod.rs:5110): STILL OPEN, M.
-- 6 set_rotation normalisation: FIXED at entity/mod.rs:4372-4376 (yaw mod 360, finite check).
-- 7 kill fallback for non-living entities (entity/mod.rs:1387): STILL OPEN, S, cleanup only.
+- 1 team color/prefix/suffix in get_display_name: FIXED (entity/mod.rs:1474, test at 7317+).
+- 2 set_on_fire clears frozen_ticks: FIXED (entity/mod.rs:1114).
+- 3 Bedrock climate_variant: BLOCKED-DATA (missing generated Bedrock property-id table + biome-temperature hook).
+- 4 tick_block_underneath stub: FIXED (dead stub removed; on_entity_step already wired).
+- 5 teleport broadcast only to destination chunk: FIXED (send_to_tracking_players).
+- 6 set_rotation normalisation: FIXED (entity/mod.rs:4458-4469, yaw mod 360, finite check).
+- 7 kill fallback for non-living entities: VERIFIED (matches vanilla Entity.kill, not a bug).
 
 ## Result
 - Row 1 (get_display_name team decoration): FIXED. Verified vanilla `Entity.getDisplayName` -> `PlayerTeam.formatNameForTeam(getTeam(), getName())` (Entity.java:6231, PlayerTeam.java:162-168,113-115). Built prefix + name + suffix with team colour applied to the root component, then applied hover/insertion to the whole result; `Team` already exposed prefix/suffix/colour and `get_team()` exists, so no cross-crate change was needed. Added pure unit test `team_formatting_adds_prefix_suffix_and_colour`.
@@ -62,3 +62,10 @@ Compared against vanilla `Entity`, `LivingEntity`, `Player`/server tracker paths
 - Row 7 (kill fallback): STILL OPEN, no behaviour fix. Re-verified vanilla `Entity.kill` (Entity.java:765-768) is `remove(KILLED)` then `gameEvent(ENTITY_DIE)`, and `LivingEntity.kill` damages with `GENERIC_KILL`; Pumpkin's split at entity/mod.rs:1485 (living -> `damage(GENERIC_KILL)`, non-living -> `remove()` + `ENTITY_DIE`, plus container scatter for chest boats/minecarts) matches. The stale "remove once all entities implement damage" TODO comment is already gone from prior passes. Tracking-only cleanup, not a behaviour bug.
 - Regression check: previously FIXED rows still present, no re-fix needed: `format_name_for_team` (258, used 1474, tests 7317+), `set_frozen_ticks(0)` (1114), dead `on_stepped_on` stub absent, teleport `send_to_tracking_players` (5356), `set_rotation` yaw `% 360.0` (4469).
 - No .rs source file edited this pass (both open rows are blocked-on-data or non-bugs), so no rustfmt run. Cargo/test execution forbidden by task scope.
+
+## Result (third pass, final disposition)
+
+- Row 3 (Bedrock `climate_variant`): BLOCKED-DATA. Verified against `.vendor/vanilla-decompiled`: the only variant source is Java data-driven variants (`net/minecraft/world/entity/animal/TemperatureVariants.java:5-9`, `animal/{cow,pig,chicken}/*Variants.java`), which are `Identifier` resource keys, not the Bedrock `TemperatureVariantAnimal` synced actor property. The exact missing data: a Bedrock `climate_variant` property-id `u32` constant (into `PropertySyncData::int_entries_list` in `pumpkin-protocol/src/bedrock/client/set_actor_data.rs:161-164`, which is a raw `HashMap<u32, _>` with no such id) plus a spawn-biome-temperature classification hook and a property-sync subsystem spanning pumpkin-protocol/data/core. Guessing an id would corrupt the Bedrock `AddActor` packet, so the empty-synced-properties fallback and TODO at entity/mod.rs:1010 are kept. Client-only Bedrock visual effect. No source change.
+- Row 7 (kill fallback): VERIFIED. Matches decompiled vanilla `Entity.kill` at `.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:765-768` (`remove(RemovalReason.KILLED)` then `gameEvent(ENTITY_DIE)`). Pumpkin `EntityBase::kill` (entity/mod.rs:1498-1519) mirrors the split: living entities take `DamageType::GENERIC_KILL`, non-living entities `remove()` then emit `GameEvent::EntityDie` (plus container-scatter for chest boats/minecarts). Not a behaviour bug; the stale TODO comment is already absent. No fix required.
+- Regression check: earlier FIXED rows still present: `format_name_for_team` (entity/mod.rs:1474, test 7317+), `set_frozen_ticks(0)` (1114), `on_stepped_on` dead stub absent, teleport `send_to_tracking_players` (5356), `set_rotation` yaw `% 360.0` (4469).
+- No STILL OPEN rows remain. No .rs source file edited this pass (row 3 blocked on generated data, row 7 a verified non-bug), so no rustfmt run. Cargo/test execution forbidden by task scope.

@@ -47,11 +47,11 @@ All in `crates/pumpkin-core/src/block/entities/furnace_like_block_entity.rs`
    `awardUsedRecipes` port).
 
 ## Gap status
-- Shared cooking macro gaps (`furnace_like_block_entity.rs:609-624,661-664` snake_case NBT keys): FIXED (keys now snake_case, see furnace row above).
-- `:555-557` lit with blocked output: CLOSED (verified against decompiled vanilla; no change needed).
-- `:558-569` cool-down branch: CLOSED (verified against decompiled vanilla; no change needed).
-- `:200-202` result merge requires component equality: FIXED (`:229,261` component-aware compare).
-- `:112-145` XP float accumulation: CLOSED (verified against decompiled vanilla; no change needed).
+- Shared cooking macro gaps (snake_case NBT keys): FIXED. Vanilla `loadAdditional`/`saveAdditional` uses snake_case keys; Pumpkin reads them with `read_saved_short` and writes snake_case.
+- `:555-557` lit with blocked output: VERIFIED (matches vanilla, `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java` `serverTick` :319-321 resets `cookingTimer = 0` on blocked output; no change needed).
+- `:558-569` cool-down branch: VERIFIED (matches vanilla, `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java` `serverTick` :326-327 `else if (cookingTimer > 0)` has no extra guard; no change needed).
+- `:200-202` result merge requires component equality: FIXED (`:299,331` component-aware compare, matching vanilla `canBurn` :364 `ItemStack.isSameItemSameComponents`).
+- `:112-145` XP float accumulation: VERIFIED (matches vanilla, `.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java` `createExperience` :550-555 floor + fraction roll, `getRecipesToAwardAndPopExperience` :535-548; no change needed).
 
 
 ## Result
@@ -144,3 +144,37 @@ cooking_total_time, lit_time_remaining, lit_total_time at :205-208,223-226), mat
 Pumpkin's read_saved_short/saveAdditional. No generated-data, WIT or cross-crate change needed.
 
 Files changed: none (tracker doc status lines updated to CLOSED to stop re-dispatch). rustfmt: N/A.
+
+
+## Result (THIRD PASS, verified against .vendor vanilla decompile)
+
+Independently re-read all five rows against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java`
+and the current shared macro in
+`crates/pumpkin-core/src/block/entities/furnace_like_block_entity.rs`.
+Every row premise that predicted a Pumpkin divergence is false for this decompile; the already-applied
+fixes match vanilla. No further source edit or new test was required. Terminal labels now use
+FIXED / VERIFIED as required; no STILL OPEN remains.
+
+- NBT keys (row 1): FIXED. Vanilla `loadAdditional`/`saveAdditional` (:205-208, :223-226) use
+  `cooking_time_spent` / `cooking_total_time` / `lit_time_remaining` / `lit_total_time`. Pumpkin reads
+  those vanilla keys first with `read_saved_short` (:783-795, PascalCase legacy fallback) and writes
+  snake_case (:841, :923). The row's PascalCase-only premise is false.
+- `:555-557` lit with blocked output: VERIFIED. Vanilla `serverTick` :319-321 sets `cookingTimer = 0`
+  when `canBurn` is false (blocked output) and has no `else` for a null recipe (:322), freezing it.
+  Pumpkin resets via `else if is_top_items_empty || furnace_recipe.is_some()` (:727-731) on blocked
+  output and empty input, freezing on a null recipe. Match.
+- `:558-569` cool-down branch: VERIFIED. Vanilla :326-327 `else if (cookingTimer > 0) clamp(timer - 2,
+  0, total)` has no `canAcceptRecipeOutput`/non-empty guard, reached on
+  `!(isLit || hasFuel && hasIngredient)`. Pumpkin :732-743 reaches on the same negated outer condition
+  and does `saturating_sub(2).min(total)`. Match.
+- `:200-202` result merge: FIXED. Vanilla `canBurn` :364 uses `ItemStack.isSameItemSameComponents`;
+  Pumpkin uses `are_items_and_components_equal` (:299, :331). The row's "vanilla only compares the item"
+  premise is false.
+- `:112-145` XP float accumulation: VERIFIED. Vanilla `createExperience` :550-555 = floor(count*xp)
+  plus one `nextFloat() < frac` roll; `getRecipesToAwardAndPopExperience` :535-548 iterates
+  `RecipesUsed`; `awardUsedRecipesAndPopExperience` :528 clears the map. Pumpkin's
+  `experience_per_recipe`/`split_experience` (:111-129) and `extract_experience_from_recipes`
+  (:247-268) match, with direct unit tests. No generated-data, WIT or cross-crate change needed.
+
+Files changed: tracker doc only (status labels + this Result). No `.rs` touched; rustfmt N/A.

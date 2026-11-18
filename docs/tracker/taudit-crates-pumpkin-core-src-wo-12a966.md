@@ -33,7 +33,7 @@ because master still has the empty-map TODO and the old writer.
 | 6 | `world/time.rs:147-164` | `ServerClockManager.packNetworkState(clock, instance, player)` | periodic sync builds one packet per world for every player; vanilla substitutes `player.getPlayerTime()` when the dimension's default clock matches and honours `relativeTime`. Only the join path (`entity/player.rs:4546`) is per-player, so a custom player time is overwritten on the next sync | apply the per-player override in the periodic loop too | M |
 | 7 | `world/time.rs:130,149`, `entity/player.rs:4555,4567` | `Holder<WorldClock>` registry id | `clock id 0` hardcoded for `minecraft:overworld`: correct only while the generated registry keeps overworld first | read the id from the `pumpkin-data` world-clock registry | S (verify) |
 | 8 | `entity/player.rs:4568` vs `world/time.rs:131` | Bedrock `SetTime` field | join path sends `query_daytime()` (0..23999) while the broadcast path sends absolute `time_of_day`; one of them is wrong for day counts | decide against a Bedrock client and use the same value in both | S (needs client) |
-| 9 | `world/time.rs:167-169` | `TimeCommand.addTime` | `add_time` clamps to 0; vanilla (`/time add -x` at day 0) leaves the day time negative | drop the clamp only if negative absolute day time is accepted downstream (`%`/`/` already match vanilla) | S - STILL OPEN: negative absolute day time downstream unverified |
+| 9 | `world/time.rs:167-169` | `TimeCommand.addTime` | `add_time` clamps to 0; vanilla (`/time add -x` at day 0) leaves the day time negative | drop the clamp only if negative absolute day time is accepted downstream (`%`/`/` already match vanilla) | S - VERIFIED (no change): vanilla ServerClockManager.addTicks clamps at 0 via Math.max(..., 0L), so Pumpkin's max(0) already matches |
 
 ## Result
 
@@ -101,3 +101,40 @@ No row remains STILL OPEN. Final disposition of the Remaining gaps table:
 - Row 9 - VERIFIED (pass 1). add_time clamps at 0; vanilla ServerClockManager.addTicks is Math.max(instance.totalTicks + ticks, 0L) (.vendor/.../world/clock/ServerClockManager.java:146-148). No change.
 
 Production change: one value plus one explanatory comment in crates/pumpkin-core/src/world/time.rs. No generated pumpkin-data field, WIT change, or cross-crate refactor needed. No pure unit-test seam for the broadcast packet value (needs a World); query_daytime() is already pure and its modulo is trivial, so no formula-mirroring test was added. rustfmt: touched lines are short and already formatted (orchestrator runs rustfmt for the unit).
+
+
+## Result (final pass)
+
+All rows in the Remaining gaps table are now closed; no row remains marked
+STILL OPEN. The only row carrying that marker was row 9, and it is resolved by
+verification with no production change:
+
+- Row 9 - VERIFIED (no code change). Decompiled vanilla
+  `ServerClockManager.addTicks` at
+  `.vendor/vanilla-decompiled/net/minecraft/world/clock/ServerClockManager.java:146-147`
+  is `this.modifyClock(clock, instance -> instance.totalTicks = Math.max(instance.totalTicks + ticks, 0L))`.
+  Vanilla clamps at 0, so `/time add -x` at day 0 does NOT leave a negative day
+  time. Pumpkin's `LevelTime::add_time` (`(self.time_of_day + time).max(0)`,
+  crates/pumpkin-core/src/world/time.rs:335) already matches; dropping the clamp
+  would break parity. The `level_time_set_and_add` unit test covers the negative
+  clamp. The table's row-9 status cell was updated from STILL OPEN to VERIFIED.
+
+All other rows were verified fixed in earlier passes against the following
+decompiled vanilla sources (no new source change needed this pass):
+- Rows 1/8 (Bedrock SetTime) - FIXED earlier: all three broadcast paths
+  (send_time, send_game_time_sync, player join) now send day time via
+  `query_daytime()`, matching the Bedrock CSetTime field documented at
+  `pumpkin-protocol/src/bedrock/client/set_time.rs:7-12`.
+- Row 2 - `ClockTimeMarkers.java` night window; skip gate uses advance_time and
+  !has_fixed_time.
+- Row 3 - `ClockTimeMarker.resolveTimeToMoveTo`, `ClockTimeMarker.java`.
+- Row 4 - `PackedClockStates.java` / `ClockState` persistence.
+- Row 5 - `ServerClockManager.java:34-75` independent per-clock instances.
+- Row 6 - `ServerClockManager.java:203-213` getPlayerTime override.
+- Row 7 - `Registries.WORLD_CLOCK` id resolution in `ServerClockManager.java:48-51`.
+
+No generated pumpkin-data field, WIT change, cross-crate refactor or file
+outside this unit was required to close the last open row. No pure unit-test
+seam exists for a removed clamp; the existing `level_time_set_and_add` test
+already asserts the vanilla behaviour. No production source file was modified
+this pass, so there is nothing to rustfmt.
