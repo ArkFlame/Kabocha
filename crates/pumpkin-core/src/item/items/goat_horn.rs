@@ -4,7 +4,7 @@ use crate::block::registry::BlockActionResult;
 use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use crate::world::game_event::GameEventContext;
-use pumpkin_data::data_component_impl::InstrumentImpl;
+use pumpkin_data::data_component_impl::{EquipmentSlot, InstrumentImpl};
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::instrument::Instrument;
 use pumpkin_data::item::Item;
@@ -45,11 +45,9 @@ impl ItemBehaviour for GoatHornItem {
         let duration = i32::try_from(ticks).unwrap_or(i32::MAX);
 
         let custom = instrument.custom_definition();
+        let durability_damage = custom.as_ref().map_or(0, |custom| custom.durability_damage);
         let range = custom.as_ref().map_or_else(
-            || {
-                Instrument::from_name(&instrument.instrument)
-                    .map_or(0.0, |builtin| builtin.range())
-            },
+            || Instrument::from_name(&instrument.instrument).map_or(0.0, |builtin| builtin.range()),
             |custom| custom.range,
         );
         let volume = range / 16.0;
@@ -66,7 +64,13 @@ impl ItemBehaviour for GoatHornItem {
 
         player.living_entity.set_active_hand(hand, stack, duration);
         if let Some(custom) = custom {
-            world.play_custom_sound(&custom.sound_name, SoundCategory::Records, &pos, volume, 1.0);
+            world.play_custom_sound(
+                &custom.sound_name,
+                SoundCategory::Records,
+                &pos,
+                volume,
+                1.0,
+            );
         } else if let Some(builtin) = Instrument::from_name(&instrument.instrument) {
             world.play_sound_raw(
                 builtin.sound() as u16,
@@ -75,6 +79,10 @@ impl ItemBehaviour for GoatHornItem {
                 volume,
                 1.0,
             );
+        }
+        // Vanilla `InstrumentItem.use` damages the stack by the instrument's value.
+        if durability_damage > 0 {
+            player.damage_item_in_slot(&EquipmentSlot::from_hand(hand), durability_damage);
         }
         // Vanilla passes `GameEvent.Context.of(player)`, so listeners attribute the
         // vibration to the horn player (e.g. sculk sensor / warden anger).
