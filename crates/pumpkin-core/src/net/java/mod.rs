@@ -7,7 +7,7 @@ use pumpkin_world::level::SyncChunk;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use std::{io::Write, sync::Arc};
+use std::{future::Future, io::Write, sync::Arc};
 
 use bytes::Bytes;
 use crossbeam::atomic::AtomicCell;
@@ -100,6 +100,23 @@ fn frame_packet(packet_id: i32, payload: &[u8]) -> Option<Bytes> {
     framed.write_var_int(&VarInt(packet_id)).ok()?;
     framed.extend_from_slice(payload);
     Some(framed.into())
+}
+
+/// Awaits `previous` (when one is queued) before polling `task`, so a client's
+/// chat, command and session packets are handled in arrival order.
+fn chain_after<F>(
+    previous: Option<JoinHandle<()>>,
+    task: F,
+) -> impl Future<Output = ()> + Send + 'static
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    async move {
+        if let Some(previous) = previous {
+            let _ = previous.await;
+        }
+        task.await;
+    }
 }
 
 /// Vanilla/Paper `settings.timeout-time`: how long a sent keep-alive may stay
@@ -1408,5 +1425,36 @@ impl JavaClient {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod ordered_packet_tests {
+    use super::chain_after;
+    use std::sync::{Arc, Mutex};
+
+    fn push(log: &Mutex<Vec<u8>>, value: u8) {
+        log.lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(value);
+    }
+
+    #[tokio::test]
+    async fn a_queued_packet_runs_after_the_previous_one_finished() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let first_log = log.clone();
+        let first = tokio::spawn(async move {
+            push(&first_log, 1);
+        });
+        let second_log = log.clone();
+        let second = tokio::spawn(chain_after(Some(first), async move {
+            push(&second_log, 2);
+        }));
+        let _ = second.await;
+        assert!(
+            *log.lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                == [1, 2]
+        );
     }
 }
