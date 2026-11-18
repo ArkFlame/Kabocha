@@ -150,3 +150,20 @@ Re-verified against the decompiled tree at `.vendor/vanilla-decompiled/net/minec
 - Row 8 (boat gametest): VERIFIED. The granted file `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs` contains all four tests (`test_chest_boat_drops_item_on_break`:101, `test_boat_floats_up_after_fall`:135, `test_boat_ejects_passenger_after_60_underwater_ticks`:173, `test_chest_boat_scatters_27_slots_on_break`:233), all registered in that module's `mod.rs` (1838/1845/1852/1859). No new code needed.
 
 No source files edited this pass, so rustfmt was not run. No cargo or git command run by this worker.
+
+## Result
+
+Final pass (grant: basenames none). Read the unit's last Result and the shipped source; verified every row against .vendor/vanilla-decompiled/net/minecraft/. All rows are terminal; no STILL OPEN row remains, so no source edit was required.
+
+| # | Status | Evidence (vanilla path) |
+|---|--------|-------------------------|
+| 1 interact / eye in water | VERIFIED | world/entity/vehicle/boat/AbstractBoat.java (interact, canAddPassenger = size < max && !isEyeInFluid(WATER)); Rust boat_interact_outcome (boat.rs:161) + is_eye_in_water (123). No change. |
+| 2 destroy drop position | VERIFIED | AbstractBoat.java / AbstractChestBoat.java (spawnAtLocation, Containers.dropContents); Rust drop_stack_at(self.vehicle.entity.pos.load(), stack) (boat.rs:759) and scatter_inventory_at(position) (287, position at 280). No change. |
+| 3 BUBBLE_TIME | VERIFIED | AbstractBoat.java (onAboveBubbleColumn sets 60, tickBubbleColumn decrements; bubble columns only); Rust writes ID_BUBBLE_TIME only at 436/446/656; tick_underwater (392-402) deliberately excludes it. No change. |
+| 4 / h6 clampRotation + delta | VERIFIED | AbstractBoat.java (clampRotation +/-105 deg, body+head); Rust clamp_rider_yaw (1009) / rider_yaw_with_delta applied in on_rider_positioned, players excluded. No change. |
+| 5 BoatItem.use sweep | VERIFIED | world/item/BoatItem.java (EntitySelector.CAN_BE_PICKED, eye-block sweep, no post-clip pass); Rust item/items/boat.rs:138-157 single pickable sweep, no post-clip entity/player query. No change. |
+| 6 dispenser water | VERIFIED | core/dispenser/BoatDispenseItemBehavior.java (getFluidState(pos).is(FluidTags.WATER), flowing included); Rust fluid.has_tag(MINECRAFT_WATER) (dispenser.rs:532). No change. |
+| 7 is_chest_boat | VERIFIED | AbstractChestBoat.java (27-slot container, 1 seat); Rust is_chest_boat (76) / max_passengers (95) shared helpers, no hardcoded 11-type list. No change. |
+| 8 boat gametest | VERIFIED | Scenarios live in granted file crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs: test_boat_floats_up_after_fall (135), test_boat_ejects_passenger_after_60_underwater_ticks (173), test_chest_boat_scatters_27_slots_on_break (233), test_chest_boat_drops_item_on_break (101); registered in that module's mod.rs (1838/1845/1852/1859). No change. |
+
+No .rs files edited (grant grants no source basenames), so rustfmt was not run. No cargo or git command run.
