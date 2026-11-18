@@ -226,37 +226,83 @@ pub fn get_nearest_looking_directions(
     directions
 }
 
-impl BlockBehaviour for VineBlock {
-    fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        let (clicked_block, clicked_state_id) = args.world.get_block_and_state_id(args.position);
-        let clicked_is_vine = clicked_block == &Block::VINE;
-        let mut result = if clicked_is_vine {
-            VineLikeProperties::from_state_id(clicked_state_id)
-        } else {
-            VineLikeProperties::default(args.block)
-        };
+/// Vanilla `VineBlock.getStateForPlacement`: walk the directions the placer is looking at and
+/// attach to the first free face that can support the vine, else keep the clicked vine state.
+fn get_state_for_placement(
+    world: &dyn BlockAccessor,
+    block: &Block,
+    pos: &BlockPos,
+    player: Option<&Player>,
+    clicked_face: Option<BlockDirection>,
+) -> Option<VineLikeProperties> {
+    let (clicked_block, clicked_state) = world.get_block_and_state(pos);
+    let clicked_is_vine = clicked_block == &Block::VINE;
+    let mut props = if clicked_is_vine {
+        VineLikeProperties::from_state_id(clicked_state.id)
+    } else {
+        VineLikeProperties::default(block)
+    };
 
-        let nearest_directions =
-            get_nearest_looking_directions(args.player, clicked_is_vine, args.direction);
+    let directions = player.map_or_else(
+        || {
+            clicked_face.map_or(
+                [
+                    BlockDirection::North,
+                    BlockDirection::South,
+                    BlockDirection::West,
+                    BlockDirection::East,
+                    BlockDirection::Up,
+                    BlockDirection::Down,
+                ],
+                |face| {
+                    [
+                        face.opposite(),
+                        BlockDirection::Up,
+                        BlockDirection::North,
+                        BlockDirection::South,
+                        BlockDirection::West,
+                        BlockDirection::East,
+                    ]
+                },
+            )
+        },
+        |player| {
+            get_nearest_looking_directions(
+                player,
+                clicked_is_vine,
+                clicked_face.unwrap_or(BlockDirection::Down),
+            )
+        },
+    );
 
-        for direction in nearest_directions {
-            if direction != BlockDirection::Down {
-                let face_occupied = clicked_is_vine && has_face_property(&result, direction);
-                if !face_occupied && can_support_at_face(args.world, args.position, direction) {
-                    set_face_property(&mut result, direction, true);
-                    return result.to_state_id(args.block);
-                }
+    for direction in directions {
+        if direction != BlockDirection::Down {
+            let face_occupied = clicked_is_vine && has_face_property(&props, direction);
+            if !face_occupied && can_support_at_face(world, pos, direction) {
+                set_face_property(&mut props, direction, true);
+                return Some(props);
             }
-        }
-
-        if clicked_is_vine && count_faces(&result) > 0 {
-            result.to_state_id(args.block)
-        } else {
-            Block::AIR.default_state.id
         }
     }
 
+    (clicked_is_vine && count_faces(&props) > 0).then_some(props)
+}
+impl BlockBehaviour for VineBlock {
+    fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
+        get_state_for_placement(
+            args.world,
+            args.block,
+            args.position,
+            Some(args.player),
+            Some(args.direction),
+        )
+        .map_or(Block::AIR.default_state.id, |props| {
+            props.to_state_id(args.block)
+        })
+    }
+
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
+        // No placement context: vanilla `canSurvive` recomputes the faces of the given state.
         if args.player.is_none() && args.direction.is_none() {
             let updated_props = get_updated_state(
                 VineLikeProperties::from_state_id(args.state.id),
@@ -265,61 +311,24 @@ impl BlockBehaviour for VineBlock {
             );
             return count_faces(&updated_props) > 0;
         }
-        let (clicked_block, clicked_state) = args.block_accessor.get_block_and_state(args.position);
-        let clicked_is_vine = clicked_block == &Block::VINE;
-        let result = if clicked_is_vine {
-            VineLikeProperties::from_state_id(clicked_state.id)
-        } else {
-            VineLikeProperties::default(args.block)
-        };
 
-        if clicked_is_vine && count_faces(&result) >= 5 {
+        // With a placement context vanilla `BlockItem.canPlace` runs `canSurvive` on the state
+        // produced by `getStateForPlacement`.
+        let Some(props) = get_state_for_placement(
+            args.block_accessor,
+            args.block,
+            args.position,
+            args.player,
+            args.direction,
+        ) else {
             return false;
-        }
-
-        let nearest_directions = args.player.map_or_else(
-            || {
-                args.direction.map_or(
-                    [
-                        BlockDirection::North,
-                        BlockDirection::South,
-                        BlockDirection::West,
-                        BlockDirection::East,
-                        BlockDirection::Up,
-                        BlockDirection::Down,
-                    ],
-                    |click_dir| {
-                        [
-                            click_dir.opposite(),
-                            BlockDirection::Up,
-                            BlockDirection::North,
-                            BlockDirection::South,
-                            BlockDirection::West,
-                            BlockDirection::East,
-                        ]
-                    },
-                )
-            },
-            |player| {
-                let click_dir = args.direction.unwrap_or(BlockDirection::Down);
-                get_nearest_looking_directions(player, clicked_is_vine, click_dir)
-            },
-        );
-
-        for direction in nearest_directions {
-            if direction != BlockDirection::Down {
-                let face_occupied = clicked_is_vine && has_face_property(&result, direction);
-                if !face_occupied
-                    && can_support_at_face(args.block_accessor, args.position, direction)
-                {
-                    return true;
-                }
-            }
-        }
-
-        clicked_is_vine && count_faces(&result) > 0
+        };
+        count_faces(&get_updated_state(
+            props,
+            args.block_accessor,
+            args.position,
+        )) > 0
     }
-
     fn get_state_for_neighbor_update(
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
@@ -600,5 +609,59 @@ impl BlockBehaviour for VineBlock {
             Mirror::None => {}
         }
         BlockState::from_id(mirrored_props.to_state_id(block))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::BlockState;
+    use rustc_hash::FxHashMap;
+
+    #[derive(Default)]
+    struct TestBlocks(FxHashMap<BlockPos, BlockStateId>);
+
+    impl BlockAccessor for TestBlocks {
+        fn get_block(&self, position: &BlockPos) -> &'static Block {
+            self.get_block_state_id(position).to_block()
+        }
+
+        fn get_block_state(&self, position: &BlockPos) -> &'static BlockState {
+            BlockState::from_id(self.get_block_state_id(position))
+        }
+
+        fn get_block_state_id(&self, position: &BlockPos) -> BlockStateId {
+            self.0
+                .get(position)
+                .copied()
+                .unwrap_or(Block::AIR.default_state.id)
+        }
+
+        fn get_block_and_state(
+            &self,
+            position: &BlockPos,
+        ) -> (&'static Block, &'static BlockState) {
+            BlockState::from_id_with_block(self.get_block_state_id(position))
+        }
+    }
+
+    #[test]
+    fn placement_attaches_only_to_supported_face() {
+        let pos = BlockPos::new(0, 64, 0);
+        let mut world = TestBlocks::default();
+        world.0.insert(
+            pos.offset(BlockDirection::West.to_offset()),
+            Block::STONE.default_state.id,
+        );
+
+        let props = get_state_for_placement(&world, &Block::VINE, &pos, None, None);
+        assert!(props.is_some());
+        if let Some(props) = props {
+            assert!(props.west);
+            assert!(!props.north && !props.south && !props.east && !props.up);
+        }
+
+        let empty = TestBlocks::default();
+        assert!(get_state_for_placement(&empty, &Block::VINE, &pos, None, None).is_none());
     }
 }

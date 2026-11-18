@@ -785,28 +785,29 @@ pub enum BlockIsReplacing {
 }
 
 impl BlockIsReplacing {
-    #[must_use]
-    /// Returns true if the block was replaced by a water source.
+    /// Returns true if the replaced fluid was a water source block.
     ///
-    /// Vanilla `FluidState#is(Fluids.WATER)` compares the fluid owner, so `Fluids.WATER`
-    /// (a source, level 0) matches while `Fluids.FLOWING_WATER` (levels 1-15) does not.
+    /// Vanilla's `FluidState#is(Fluids.WATER)` compares the fluid owner, so a source
+    /// (level 0) matches while `Fluids.FLOWING_WATER` (levels 1-15) does not.
+    #[must_use]
     pub const fn is_water(&self) -> bool {
         matches!(self, Self::Water(0))
     }
 
+    /// Returns true for any water the block replaced, matching vanilla
+    /// `FluidState#is(FluidTags.WATER)`: sources and flowing water alike.
     #[must_use]
-    /// Returns true for water that fills the block, matching vanilla
-    /// `FluidState#is(FluidTags.WATER) && FluidState#isFull()`: a source (level 0) or
-    /// falling water (levels 8-15), both with the full amount of 8.
-    pub const fn is_full_water(&self) -> bool {
-        matches!(self, Self::Water(0 | 8..=15))
-    }
-
-    #[must_use]
-    /// Returns true for any water, matching vanilla `FluidState#is(FluidTags.WATER)`,
-    /// which also covers flowing water (levels 1-7).
     pub const fn is_tag_water(&self) -> bool {
         matches!(self, Self::Water(_))
+    }
+
+    /// Returns true for the full water vanilla's coral and conduit placement accepts.
+    ///
+    /// Vanilla tests `FluidState#is(FluidTags.WATER) && FluidState#isFull()`; the amount is
+    /// 8 for a source (level 0) and for falling water (levels 8-15), less for levels 1-7.
+    #[must_use]
+    pub const fn is_full_water(&self) -> bool {
+        matches!(self, Self::Water(0 | 8..=15))
     }
 }
 
@@ -945,6 +946,13 @@ mod tests {
         assert!(!BlockIsReplacing::None.is_water());
         assert!(!BlockIsReplacing::Other.is_water());
         assert!(!BlockIsReplacing::Itself(0).is_water());
+    }
+
+    #[test]
+    fn is_tag_water_matches_flowing_water() {
+        assert!(BlockIsReplacing::Water(0).is_tag_water());
+        assert!(BlockIsReplacing::Water(3).is_tag_water());
+        assert!(!BlockIsReplacing::Other.is_tag_water());
     }
 
     #[test]
