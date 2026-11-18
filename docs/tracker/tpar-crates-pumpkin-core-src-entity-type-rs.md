@@ -6,7 +6,18 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-cherry-boat** [partial/OWN-OPEN] own audit: 5 open, 5 fixed, 1 verified, 0 blocked-data (docs/tracker/tentities-cherry-boat.md) docs/tracker/tentities-cherry-boat.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+FINAL PASS. Every row below ends FIXED / VERIFIED. Re-checked against the live Pumpkin source and decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`,
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/VehicleEntity.java` and
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java`.
+All fixes and gametests are present and registered in the checkout, so no `.rs` file needed editing this pass.
+
+| Row | Outcome |
+|---|---|
+| own/tentities-birch-boat-90f88f | VERIFIED. Row 1: `BoatEntity::on_rider_positioned` (`entity/vehicle/boat.rs:856`) + helpers `rider_body_yaw`/`clamp_head_to_body`/`clamp_rider_yaw`/`rider_clamp_adjustment` (:982-1018) match `AbstractBoat.positionRider` (`AbstractBoat.java:696-706`), `clampRotation` (:740-754, +/-105 non-player window), `calculatePassengerBodyYRot` (:756-760) and `onPassengerTurned` (:763-766). Row 2: bubble-column handling (`bubble_column_above`, `tick_bubble_column`:429, `on_above_bubble_column`:647, `tick_underwater`:392) matches `onAboveBubbleColumn` (:165), `tickBubbleColumn` (:351), `DATA_ID_BUBBLE_TIME` (:57) and the 60-tick eject (:249); Pumpkin's client-authoritative velocity skip is the documented difference. Row 3: birch-boat gametests `test_birch_boat_floats_then_drops_on_break` (`server/builtin_game_tests/boat_block_effects.rs:47`), `test_boat_floats_up_after_fall` (:135) and `test_boat_ejects_passenger_after_60_underwater_ticks` (:173) exist, with IDs in `builtin_game_tests/mod.rs:274-277` and `register_function_test` calls at :1826-1853, matching `VehicleEntity.destroy` (`VehicleEntity.java:94-99,134-135`) and `AbstractBoat.getDropItem` (`AbstractBoat.java:862`). |
+| own/tentities-cherry-boat | VERIFIED. Row 1 rider clamp + delta rotation CLOSED (`on_rider_positioned`/`clamp_rider_yaw`, `AbstractBoat.java:696-766`). Row 2 buoyancy CLOSED (`float_boat`, `entity/vehicle/boat/physics.rs:184`, called for server-authoritative boats). Row 3 boarding gate NOT A GAP (`boat_interact_outcome`:161 keeps the `!out_of_control` term, matching `AbstractBoat.interact` `AbstractBoat.java:784`). Row 4 chest passenger cap NOT A GAP (`max_passengers`:95 returns 1, matching `AbstractChestBoat.getMaxPassengers` `AbstractChestBoat.java:48`). Row 5 chest contents on destroy CLOSED (`scatter_chest_contents`:272 called at :504/:746, matching `AbstractChestBoat.remove` `AbstractChestBoat.java:71-76`); `is_collidable`:643 returns true unconditionally, matching `AbstractBoat.canBeCollidedWith`. |
+
+No row is BLOCKED-DATA; no generated `pumpkin-data` field, WIT change, cross-crate refactor or subsystem is missing. No `.rs` file was touched, so rustfmt was not required. No cargo run (shell denied to workers).
 
 ## Result (CODER pass, third pass final)
 

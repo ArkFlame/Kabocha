@@ -267,3 +267,43 @@ No STILL OPEN rows remain. Existing tests cover the only seams; no new test
 added because no behaviour changed. No unwrap/expect/panic or println
 introduced. No .rs changed, so the compile-pitfalls table is not applicable and
 no rustfmt was run. No cargo/git per task rules.
+
+
+## Result
+
+Final pass. Independently re-verified every row against the vendored decompiled
+vanilla (Java 26.3) and the current Pumpkin source. No .rs file was edited: every
+row is a false premise or already matches vanilla, so there is no behaviour change
+and no new test seam. No "STILL OPEN until closed" row exists in this doc; all
+rows were already resolved by earlier passes.
+
+- Gap 1 (tadpole variant): VERIFIED, false premise. Full
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/frog/Tadpole.java`
+  (260 lines) defines only `AGE_LOCKED` synched data (line 45). There is no
+  `DATA_VARIANT`, no `TadpoleVariant` class, and no tadpole variant in `assets/`.
+  `tadpole.rs` correctly has none. No BLOCKED-DATA: no generated field is needed
+  because vanilla has no such field.
+- Gap 2 (age-up variant mapping): VERIFIED, false premise.
+  `Tadpole#ageUp`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/frog/Tadpole.java:236-250`)
+  converts to FROG via `ConversionParams.single(this, false, false)`, then
+  `finalizeSpawn`, `setPersistenceRequired`, position fudge and the 0.15 grow-up
+  sound; no variant is carried over (frog variant is biome-selected).
+  `tadpole.rs:122-148` matches.
+- Gap 3 (water animal max air): VERIFIED, false premise.
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/fish/WaterAnimal.java:39-49`
+  hardcodes `setAirSupply(300)` with no `getMaxAirSupply` override; only Dolphin
+  overrides to 4800 (`.../animal/dolphin/Dolphin.java:78,204`). Consistent in
+  source: `water_animal.rs:10` = 300, `abstract_fish.rs:303-305` = 300,
+  `bucketable.rs:192` comment reads (300), `dolphin.rs:39,342-343` = 4800,
+  `breath.rs:9` MAX_AIR = 300 is player-only.
+
+Also re-confirmed the fromBucket correction:
+`Tadpole.java:172-179` returns `true` and makes `setFromBucket` a no-op, matched
+by `tadpole.rs:260-264` and covered by `tadpole_is_always_from_bucket`.
+
+Existing tests cover the only seams (`tadpole.rs` bucket/sound tests and
+`water_animal.rs::fish_keep_the_drowning_rule`); no new test added because no
+behaviour changed. No unwrap/expect/panic or println introduced. No .rs changed,
+so the compile-pitfalls table is not applicable and no rustfmt was run. No
+cargo/git per task rules.

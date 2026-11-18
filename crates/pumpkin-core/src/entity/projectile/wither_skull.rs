@@ -164,11 +164,12 @@ impl EntityBase for WitherSkullEntity {
                 entity.damage(entity.as_ref(), 5.0, DamageType::MAGIC)
             };
 
-            // Vanilla: 40 s on Hard, otherwise 10 s (Easy included).
+            // Vanilla WitherSkull.onHitEntity: Wither II (amplifier 1) for 10 s on Normal
+            // and 40 s on Hard; Easy and Peaceful apply no wither effect (witherSeconds = 0).
             let duration_seconds = match world.level_info.load().difficulty {
                 Difficulty::Hard => 40,
-                Difficulty::Easy | Difficulty::Normal => 10,
-                Difficulty::Peaceful => 0,
+                Difficulty::Normal => 10,
+                Difficulty::Easy | Difficulty::Peaceful => 0,
             };
             if hurt
                 && duration_seconds > 0
@@ -177,7 +178,7 @@ impl EntityBase for WitherSkullEntity {
                 let effect = Effect {
                     effect_type: &StatusEffect::WITHER,
                     duration: 20 * duration_seconds,
-                    amplifier: 0,
+                    amplifier: 1,
                     ambient: false,
                     show_particles: true,
                     show_icon: true,
