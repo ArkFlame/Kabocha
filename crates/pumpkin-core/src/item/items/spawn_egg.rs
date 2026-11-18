@@ -44,10 +44,16 @@ impl ItemMetadata for SpawnEggItem {
     }
 }
 
-fn is_disallowed_in_peaceful(entity_type: &EntityType, world: &World) -> bool {
+// Vanilla SpawnEggItem.useOn blocks monster eggs in Peaceful except piglin and shulker, which
+// keep their spawn. Kept pure so the category rule is testable without a live world.
+fn is_monster_blocked_in_peaceful(entity_type: &EntityType) -> bool {
     entity_type.category == &MobCategory::MONSTER
         && entity_type != &EntityType::PIGLIN
         && entity_type != &EntityType::SHULKER
+}
+
+fn is_disallowed_in_peaceful(entity_type: &EntityType, world: &World) -> bool {
+    is_monster_blocked_in_peaceful(entity_type)
         && world.level_info.load().difficulty == Difficulty::Peaceful
 }
 
@@ -505,5 +511,15 @@ mod tests {
             entity_type_from_spawn_egg_stack(&cow).map(|entity| entity.id),
             Some(EntityType::COW.id)
         );
+    }
+
+    #[test]
+    fn peaceful_guard_blocks_monsters_but_not_piglins_shulkers_or_passive() {
+        // Vanilla SpawnEggItem.useOn: monster eggs are blocked in Peaceful except piglin and
+        // shulker; passive/animal eggs are never blocked.
+        assert!(is_monster_blocked_in_peaceful(&EntityType::ZOMBIE));
+        assert!(!is_monster_blocked_in_peaceful(&EntityType::PIGLIN));
+        assert!(!is_monster_blocked_in_peaceful(&EntityType::SHULKER));
+        assert!(!is_monster_blocked_in_peaceful(&EntityType::COW));
     }
 }
