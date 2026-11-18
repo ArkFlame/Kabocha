@@ -26,7 +26,7 @@ Status: PASS fixed=2 open=0 files=crates/pumpkin-core/src/entity/living.rs,crate
 
 ## Result (final pass)
 
-Every STILL OPEN row in all four referenced audits is now closed. Each row was re-checked against the decompressed vanilla tree at `.vendor/vanilla-decompiled/net/minecraft/` and against the actual source in the main checkout. All claimed fixes are present in the tree; no new source edit was needed this pass.
+Every STILL OPEN row in all four referenced audits is now closed. Each row was re-checked against the decompiled vanilla tree at `.vendor/vanilla-decompiled/net/minecraft/` and against the actual source in the main checkout. All claimed fixes are present in the tree; no new source edit was needed this pass.
 
 ### taudit-crates-pumpkin-core-src-en-06afb0 (living.rs deep audit, 8 rows)
 - 1 `add_effect` instance update: FIXED. `update_effect` (living.rs:5625) merges the incoming instance before attribute rebuild and only resends on change, matching `MobEffectInstance.update` / `LivingEntity.addEffect` (`.vendor/.../world/effect/MobEffectInstance.java`, `.vendor/.../world/entity/LivingEntity.java`). Tests `effect_update_tests`.

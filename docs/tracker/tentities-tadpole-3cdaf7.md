@@ -210,3 +210,44 @@ needed. Every row is now VERIFIED; none remain STILL OPEN or BLOCKED-DATA.
   The stale "Fixed in this pass" 4800 note was NOT applied; do not re-apply it.
 
 Recommendation: close all four rows as VERIFIED no-gaps. Status: PASS, fixed=0, open=0, files=none.
+
+
+## Result (FINAL PASS 2026-11-18, all rows closed with vanilla citations)
+
+Independently re-opened the authoritative decompiled vanilla under
+`.vendor/vanilla-decompiled/net/minecraft/` and re-checked every row from source, not from the prior
+pass conclusions. All four premises are false for this vanilla version, so current Pumpkin code
+matches vanilla and no source edit (or rustfmt) was warranted. No source file was touched. Note: this
+vanilla version places the relevant classes in `.../animal/fish/` and `.../animal/frog/` and has no
+`WaterAnimal.java` at `.../animal/`; the older paths cited in earlier sections are stale.
+
+- Gap 1 (was BLOCKED-DATA, add `TadpoleVariant`): VERIFIED, no gap. `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/frog/Tadpole.java`
+  fields 44-52 define only `AGE_LOCKED`, `ticksToBeFrog`, hitboxes, `age` and `ageLockParticleTimer`;
+  there is no `TadpoleVariant` class anywhere under `.vendor/vanilla-decompiled` (frog dir has only
+  `FrogVariant`/`FrogVariants`/`FrogAi`/`TadpoleAi`/`ShootTongue`). No `variant` synced data, NBT or
+  bucket key exists in `Tadpole` (`addAdditionalSaveData` 104-109 / `saveToBucketTag` 181-188 write
+  only `Age` + `AgeLocked`). Therefore `crates/pumpkin-data/src/generated/tracked_data.rs` has no
+  tadpole variant because vanilla has none; there is no missing generated field and BLOCKED-DATA does
+  not apply. Nothing for an Extractor entry or codegen to add.
+- Row 2 (carry tadpole variant into frog): VERIFIED, no gap. `Tadpole.ageUp()` (236-250) only calls
+  `frog.finalizeSpawn`, `frog.setPersistenceRequired`, `fudgePositionAfterSizeChange` and the grow-up
+  sound. The frog variant is biome-picked inside `Frog#finalizeSpawn`, which Pumpkin already does
+  (`frog.rs:146-148`). Depends on non-existent gap 1.
+- Row 3 (RunIf + RandomLookAround gate): VERIFIED, no gap. `.../animal/frog/TadpoleAi.java:64` is
+  `Pair.of(BehaviorBuilder.triggerIf(Entity::isInWater), 5)`, a deliberate no-op; the idle gate
+  (54-65) contains only `RandomStroll.swim(0.5F)`, `SetWalkTargetFromLookTarget.create(0.5F, 3)` and
+  that `triggerIf`. There is no `RunIf` or `RandomLookAround` in this brain version, so Pumpkin's
+  `trigger_if(...is_in_water)` at weight 5 already matches. No source touched.
+- Row 4 (squid / water-animal max air supply): VERIFIED, no gap.
+  `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/fish/WaterAnimal.java:47` and
+  `.../animal/AgeableWaterCreature.java:45` both refill a hardcoded `300`; there is no 4800 water-animal
+  constant. Only `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/dolphin/Dolphin.java:78`
+  defines `TOTAL_AIR_SUPPLY = 4800`. Current Pumpkin code matches: `water_animal.rs:10`
+  `WATER_ANIMAL_MAX_AIR_SUPPLY = 300`, `breath.rs:9 MAX_AIR = 300`, `ageable_water_creature.rs:22`
+  passes `MAX_AIR` (300), `abstract_fish.rs:305` returns `WATER_ANIMAL_MAX_AIR_SUPPLY`, and
+  `dolphin.rs:39,342` overrides to 4800. The stale "Fixed in this pass" note at the top of this doc
+  claiming a 4800 water-animal value is false for this vanilla version and was NOT applied; do not
+  re-apply it.
+
+All rows FIXED/VERIFIED (no code change needed, premises false) or correctly unchanged; none remain
+STILL OPEN and none are genuine BLOCKED-DATA. Status: PASS, fixed=0, open=0, files=none.
