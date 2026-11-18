@@ -102,6 +102,10 @@ impl BlockEntity for HopperBlockEntity {
         hopper
     }
 
+    fn client_update_tag(&self, _saved: NbtCompound) -> NbtCompound {
+        NbtCompound::new()
+    }
+
     fn tick(&self, world: &Arc<World>) {
         self.ticked_game_time
             .store(world.get_world_age(), Ordering::Relaxed);
