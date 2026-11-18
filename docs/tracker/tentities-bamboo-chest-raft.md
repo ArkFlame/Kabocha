@@ -167,3 +167,36 @@ All four STILL OPEN rows verified against decompiled vanilla at
 
 No source edits made: every STILL OPEN row is already fixed/addressed in the current source and
 `paddle_boat.rs` needs no change. No generated pumpkin-data fields or missing subsystem involved.
+
+## Result (2026-11-18 fourth pass, source edits permitted)
+
+Each STILL OPEN row re-verified against `.vendor/vanilla-decompiled/net/minecraft/` and the
+current source. No source edit was required: the earlier fixes are present and correct.
+
+- #3 (bubble column) FIXED. `tick_bubble_column` (boat.rs:429) runs from `tick` (boat.rs:581).
+  `on_above_bubble_column` (boat.rs:647) arms the 60-tick launch countdown,
+  `on_inside_bubble_column` (boat.rs:700) applies the capped sink push, and
+  `bubble_column_vertical_velocity` (boat.rs:976) matches `AbstractBoat.handleBubbleColumnEffect`
+  (AbstractBoat.java:399-407). Unit test `bubble_column_impulse_matches_vanilla_boat_effect`
+  covers the caps, and the eject-riders branch is present.
+- #4 (chest contents vs gamerule) FIXED. `on_removed` (boat.rs:488) scatters on every
+  `should_destroy` removal reason, and `damage_with_context` (boat.rs:707) scatters before the
+  `entity_drops` gate, with `claim_drops()` guaranteeing a single run. Matches
+  `AbstractChestBoat.remove` (AbstractChestBoat.java:71-77), where only the boat item is
+  gamerule-gated. Unit test `chest_contents_scatter_claim_is_single_use`.
+- #5 (double boat drop) FIXED. `has_entity_loot_table` (vehicle.rs:27) returns
+  `entity_type.boat.is_none()` and gates the loot roll in `kill_and_drop_self` (vehicle.rs:201),
+  so boats keep only the hardcoded drop. Unit test at vehicle.rs:337-341.
+- #6 (fluid current push) ADDRESSED, the row is stale. `tick` (boat.rs:599-603) applies
+  `base_tick` (fluid push) to empty and mob-ridden boats and `base_tick_without_fluid_push` only
+  to player-controlled boats, whose velocity is then zeroed (boat.rs:612-618). Vanilla
+  `Entity.baseTick` pushes every boat, and the skip is unobservable because a steered boat's
+  position is client-authoritative (`isLocalInstanceAuthoritative`). Authorised only on observed
+  server-side divergence, absent.
+- Paddle handler (`net/java/play/paddle_boat.rs`) parity confirmed with
+  `ServerGamePacketListenerImpl.handlePaddleBoat` (lines 2464-2469) through
+  `Entity.getControlledVehicle` (Entity.java:6661) and `AbstractBoat.getControllingPassenger`
+  (AbstractBoat.java:845). Network glue, no pure-logic seam for a unit test.
+
+No generated `pumpkin-data` field or missing subsystem was involved. No source edits: zero new
+fixes this pass, zero rows left open.

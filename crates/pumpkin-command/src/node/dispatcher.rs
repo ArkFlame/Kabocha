@@ -153,38 +153,49 @@ impl<S: CommandSource> CommandDispatcher<S> {
         self.deactivate_plugin_command(primary_name);
     }
 
-    /// Makes every root command registered by a plugin source unavailable.
-    pub fn deactivate_commands_from_source(&mut self, source: &str) {
-        let primary_names = self
-            .tree
+    /// Names of the root commands `source` registered.
+    fn command_names_from_source(&self, source: &str) -> Vec<String> {
+        self.tree
             .get_root_children()
             .into_iter()
             .filter_map(|node_id| {
                 let metadata = &self.tree[node_id].meta;
                 (metadata.source.as_deref() == Some(source)).then(|| metadata.literal.to_string())
             })
-            .collect::<Vec<_>>();
+            .collect()
+    }
 
-        for primary_name in primary_names {
+    /// Returns `true` while the tree still holds a command registered by `source`.
+    #[must_use]
+    pub fn has_commands_from_source(&self, source: &str) -> bool {
+        self.tree
+            .get_root_children()
+            .into_iter()
+            .any(|node_id| self.tree[node_id].meta.source.as_deref() == Some(source))
+    }
+
+    /// Makes every root command registered by a plugin source unavailable.
+    pub fn deactivate_commands_from_source(&mut self, source: &str) {
+        for primary_name in self.command_names_from_source(source) {
             self.deactivate_plugin_command_and_aliases(&primary_name);
         }
+    }
+
+    /// Removes the command `name` (or one of its aliases) and its descendants from
+    /// the tree, dropping the executor and predicates it held.
+    ///
+    /// Paper's `CommandMap.unregister` does the same, so a plugin that unregisters a
+    /// command itself no longer keeps its library resident.
+    pub fn remove_command(&mut self, name: &str) -> bool {
+        let primary = self.primary_command_name(name);
+        self.tree.remove_root_command(&primary)
     }
 
     /// Removes every root command registered by `source`, including its aliases and
     /// descendants, dropping the plugin code they hold. Called on unload so the
     /// plugin's library can be released instead of staying resident forever.
     pub fn remove_commands_from_source(&mut self, source: &str) {
-        let primary_names = self
-            .tree
-            .get_root_children()
-            .into_iter()
-            .filter_map(|node_id| {
-                let metadata = &self.tree[node_id].meta;
-                (metadata.source.as_deref() == Some(source)).then(|| metadata.literal.to_string())
-            })
-            .collect::<Vec<_>>();
-
-        for name in primary_names {
+        for name in self.command_names_from_source(source) {
             self.tree.remove_root_command(&name);
         }
     }
@@ -1175,6 +1186,29 @@ mod test {
     }
 
     #[test]
+    fn has_commands_from_source_follows_removal() {
+        let mut dispatcher = CommandDispatcher::new();
+        let executor: fn(&CommandContext) -> CommandExecutorResult = |_| Ok(1);
+        dispatcher.register(
+            CommandArgumentBuilder::new("plugin-command", "A plugin command")
+                .with_source("test-plugin")
+                .executes(executor),
+        );
+        dispatcher.register(
+            CommandArgumentBuilder::new("other", "Another plugin command")
+                .with_source("other-plugin")
+                .executes(executor),
+        );
+        assert!(dispatcher.has_commands_from_source("test-plugin"));
+        assert!(dispatcher.has_commands_from_source("other-plugin"));
+        assert!(!dispatcher.has_commands_from_source("unknown-plugin"));
+
+        dispatcher.remove_commands_from_source("test-plugin");
+        assert!(!dispatcher.has_commands_from_source("test-plugin"));
+        assert!(dispatcher.has_commands_from_source("other-plugin"));
+    }
+
+    #[test]
     fn removing_plugin_commands_drops_their_executors() {
         use std::sync::Arc;
 
@@ -1234,6 +1268,24 @@ mod test {
         assert!(!dispatcher.has_command("remove-me"));
         // Removing plugin A must not drop plugin B's unrelated "keep" mapping.
         assert!(dispatcher.has_command("keep"));
+    }
+
+    #[test]
+    fn remove_command_by_alias_removes_the_primary_command() {
+        let mut dispatcher = CommandDispatcher::new();
+        let executor: fn(&CommandContext) -> CommandExecutorResult = |_| Ok(1);
+        dispatcher.register_with_aliases(
+            CommandArgumentBuilder::new("plugin-command", "A plugin command")
+                .with_source("test-plugin")
+                .executes(executor),
+            &["plugin-alias"],
+        );
+
+        assert!(dispatcher.remove_command("plugin-alias"));
+        for name in ["plugin-command", "plugin-alias"] {
+            assert!(!dispatcher.has_command(name));
+        }
+        assert!(!dispatcher.remove_command("plugin-command"));
     }
 
     #[test]

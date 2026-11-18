@@ -622,6 +622,29 @@ mod test {
     }
 
     #[test]
+    fn removing_root_command_detaches_alias_and_descendants() {
+        let mut tree = Tree::<DummySource>::new();
+        let main: NodeId = tree
+            .add_child_to_root(
+                CommandArgumentBuilder::new("main", "A plugin command")
+                    .then(LiteralArgumentBuilder::new("sub")),
+            )
+            .into();
+        tree.add_child_to_root(CommandArgumentBuilder::new("alias", "An alias").redirect(main));
+        tree.add_child_to_root(CommandArgumentBuilder::new("other", "An unrelated command"));
+
+        assert!(tree.remove_root_command("main"));
+
+        assert!(tree.get("main").is_none());
+        assert!(tree.get("alias").is_none());
+        assert!(tree.get("other").is_some());
+        assert_eq!(tree.get_root_children().len(), 1);
+        // The slot stays allocated, but drops its executor and its children.
+        assert!(tree.get_children(main).is_empty());
+        assert!(!tree.remove_root_command("main"));
+    }
+
+    #[test]
     fn finding_ambiguities() {
         struct Consumer {
             inputs_received: usize,

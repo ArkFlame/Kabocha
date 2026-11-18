@@ -48,7 +48,7 @@ pub struct Context {
     pub logger: Arc<OnceLock<LoggerOption>>,
     /// Set when unload starts: handlers, services and loaders are refused from then on.
     closed: AtomicBool,
-    /// Set by a command registration: the tree keeps its code for good.
+    /// Set by a command registration: before that, no tree scan is needed.
     commands: AtomicBool,
     /// Set before unload's last sweep, after `on_unload`: commands and permissions are refused.
     /// A lock: sealing waits for a permission registration that is under way.
@@ -105,14 +105,23 @@ impl Context {
         *self.sealed.read().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Library must stay loaded: the command tree holds its code.
+    /// A command of this plugin was registered at some point.
     pub(crate) fn mark_commands(&self) {
         self.commands.store(true, Ordering::SeqCst);
     }
 
+    /// Whether the command tree still holds a command of this plugin.
+    ///
+    /// The flag only says a registration happened, an unregister takes the nodes
+    /// off the tree again, so the live tree decides whether the library is pinned.
     #[must_use]
     pub(crate) fn has_commands(&self) -> bool {
         self.commands.load(Ordering::SeqCst)
+            && self
+                .server
+                .command_dispatcher
+                .load()
+                .has_commands_from_source(&self.metadata.name)
     }
 
     #[must_use]
@@ -310,7 +319,8 @@ impl Context {
         self.reload_commands_for_everyone();
     }
 
-    /// Unregisters a command from the server.
+    /// Unregisters a command from the server, dropping the executor and predicates
+    /// it held so the library is no longer pinned.
     ///
     /// # Arguments
     /// - `name`: The name of the command to unregister.
@@ -318,6 +328,7 @@ impl Context {
         self.server.command_dispatcher.rcu(|dispatcher| {
             let mut new_dispatcher = (**dispatcher).clone();
             new_dispatcher.deactivate_plugin_command_and_aliases(name);
+            new_dispatcher.remove_command(name);
             Arc::new(new_dispatcher)
         });
 

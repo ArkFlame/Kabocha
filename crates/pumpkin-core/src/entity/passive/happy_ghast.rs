@@ -173,7 +173,7 @@ impl HappyGhastEntity {
     /// Vanilla `HappyGhast.tick`: decrement the lead-holder timer before evaluating the synced
     /// `IS_LEASH_HOLDER` flag, so the flag clears on the tick the timer reaches zero.
     const fn tick_leash_holder_time(current: i32) -> (i32, bool) {
-        let next = current.saturating_sub(1);
+        let next = if current > 0 { current - 1 } else { 0 };
         (next, next > 0)
     }
 

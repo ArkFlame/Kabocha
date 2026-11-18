@@ -105,3 +105,37 @@ and `register_with_aliases` claiming commands cannot be unregistered.
 
 Files touched this pass: `crates/pumpkin-command/src/node/tree.rs`,
 `crates/pumpkin-command/src/node/dispatcher.rs` (code, doc, test), and this doc.
+
+## Result (verification pass 4)
+
+Re-checked every row against the current source; Paper `CommandMap.unregister` and
+`PluginClassLoader` remain the reference (vanilla has no plugin system).
+
+| Row | Result |
+|---|---|
+| Remove plugin command nodes from the tree after reload | FIXED. `Tree::remove_root_command` (tree.rs) detaches the primary root, its redirecting aliases and their subtrees, clears cached names and global ids, and replaces the slots with inert literals that hold no executor or predicate. `CommandDispatcher::remove_commands_from_source` (dispatcher.rs) drives it by source, `Context::unregister_commands` (context.rs) calls it on unload, and `release_library` (mod.rs, outside this unit) no longer returns early for commands |
+| Blocking/non-blocking dispatch order | FIXED in b9ab007b1; unchanged |
+| Per-handler panic isolation | FIXED in b9ab007b1; unchanged |
+
+Two gaps the earlier passes left, fixed this pass:
+
+- `Context::unregister_command` (the plugin-facing API) only deactivated the label, so
+  the tree kept the executor and `has_commands` stayed true: the library was pinned
+  even after the plugin unregistered its own command, unlike Paper's
+  `CommandMap.unregister`. Added `CommandDispatcher::remove_command`, which resolves an
+  alias to its primary name and removes the subtree, and call it from
+  `Context::unregister_command`.
+- `has_commands` was a sticky flag, so a plugin that removed all of its commands still
+  counted as holding the tree. It now also asks the live dispatcher
+  (`CommandDispatcher::has_commands_from_source`), so the pin follows the tree.
+
+Also collapsed the duplicated source scan in `deactivate_commands_from_source` and
+`remove_commands_from_source` into `command_names_from_source`.
+
+Tests added: `removing_root_command_detaches_alias_and_descendants` (tree.rs),
+`has_commands_from_source_follows_removal` and
+`remove_command_by_alias_removes_the_primary_command` (dispatcher.rs).
+
+Files touched this pass: `crates/pumpkin-command/src/node/tree.rs`,
+`crates/pumpkin-command/src/node/dispatcher.rs`,
+`crates/pumpkin-core/src/plugin/api/context.rs` (code, doc, tests), and this doc.
