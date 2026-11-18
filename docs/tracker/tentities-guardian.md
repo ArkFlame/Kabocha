@@ -122,3 +122,43 @@ Re-read guardian.rs, elder_guardian.rs and look_control.rs and compared each row
 Static verification only. Worker shell is denied, so no compile or test run was performed;
 the existing pure unit tests in guardian.rs and elder_guardian.rs remain the gate for the
 orchestrator.
+
+## Result (2026-11-18, THIRD PASS, independent verification against vendored decompiled vanilla)
+Re-read guardian.rs, elder_guardian.rs, look_control.rs and arrow.rs and compared every gap
+directly with the vendored decompiled sources now available under `.vendor/vanilla-decompiled/`.
+No STILL OPEN rows remain and no source-file edit was needed.
+
+- Gap 1 (beam attack): VERIFIED. `net/minecraft/world/entity/monster/Guardian.java`
+  GuardianAttackGoal (lines 347-429) and `ElderGuardian.java:40-42`. Pumpkin's GuardianAttackGoal
+  matches: attack_time starts -10, navigation stop + look at target 90/90, LOS-cancel, sets
+  DATA_ID_ATTACK_TARGET at tick 0 and broadcasts GuardianAttackSound when not silent, charges to
+  80/60, then indirectMagic with the guardian as both source and cause plus do_hurt_target and
+  target clear. beam_magic_damage = 1.0 +2 Hard +2 elder (Guardian.java:410-417). Target selector
+  (Guardian.java:431-442; Player/Squid/Axolotl >9 sq) matches GUARDIAN_PREY/outside_melee_range.
+  Vanilla registers at priority 4, Pumpkin at 3; goal_selector uses lower-is-first
+  (goal_selector.rs:305), so relative ordering (beam, swim, restriction, look, lookaround) is identical.
+- Gap 2 (water travel): VERIFIED. `Guardian.java:338-345` = moveRelative(0.1), move SELF, scale 0.9,
+  -0.005 y sink only when !isMoving && target==null. Both Pumpkin overrides (guardian.rs:449-459,
+  elder_guardian.rs:145-155) match exactly.
+- Gap 3 (GuardianMoveControl): VERIFIED. `Guardian.java:444-490`: yaw rotlerp 90 (line 458),
+  speed lerp 0.125 (461), wave push (463-467), look target getEyeY()+yd/length quirk (470),
+  lerp 0.125 + setLookAt(...,10,40) (481-484), setMoving(true)/else reset. guardian.rs:268-329
+  matches; look_control.rs supplies wanted_position and is_looking_at_target (== lookAtCooldown>0,
+  `LookControl.java:73-75`) and is installed on both entities; MoveControl::MAX_TURN=90.0
+  (move_control.rs:177).
+- Gap 4 (thorns source): VERIFIED. `Guardian.java:317-330` reflects 2.0 thorns only when !isMoving,
+  damage outside AVOIDS_GUARDIAN_THORNS/THORNS and source.getDirectEntity() is a LivingEntity. An
+  arrow's direct entity is the arrow (not living), so no reflection; Pumpkin's projectile/arrow.rs:777-785
+  passes the arrow as `source` and shooter as `cause`, and guardian on_damage_with_context forwards
+  `source` to reflect_thorns which checks get_living_entity. Generated tag.rs:20050-20061 confirms
+  magic and thorns are in the avoids tag. Matches.
+- Gap 5 (elder effect): VERIFIED. `ElderGuardian.java:67-78` and `MobEffectUtil.java:89-110`:
+  (tick+id)%1200, radius 50, duration 6000, amplifier 2, displayEffectLimit 1200, survival-only
+  players, reapply when amplifier<2 or endsWithin(1199) (== remaining<1200), event amplitude
+  isSilent()?0:1. elder_guardian.rs:161-207 and should_apply_fatigue match, as does home restriction
+  (ElderGuardian.java:76-78).
+- Gap 6 (fluid push): VERIFIED. `Guardian.java` has no isPushedByFluid override (inherits Entity's
+  true); neither Pumpkin entity overrides mob_is_pushed_by_fluids.
+
+Static verification only; worker shell/compiler denied. Existing pure unit tests in guardian.rs and
+elder_guardian.rs remain the orchestrator's gate. No generated-data, WIT or cross-crate change needed.
