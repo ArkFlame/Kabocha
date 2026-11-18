@@ -1268,3 +1268,23 @@ impl EntityBase for TextDisplayEntity {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{brightness_block, brightness_sky, pack_brightness};
+
+    #[test]
+    fn brightness_packing_uses_independent_16_bit_fields() {
+        // Vanilla LightCoordsUtil.pack stores block in the low 16 bits and sky in the high 16.
+        let packed = pack_brightness(15, 12);
+        assert_eq!(packed, 0x000C_000F);
+        assert_eq!(brightness_block(packed), 15);
+        assert_eq!(brightness_sky(packed), 12);
+
+        // Out-of-range light values must stay in their own field, not wrap into the other.
+        let overflow = pack_brightness(0x1_000F, 0x1_000C);
+        assert_eq!(overflow, packed);
+        assert_eq!(brightness_block(overflow), 15);
+        assert_eq!(brightness_sky(overflow), 12);
+    }
+}

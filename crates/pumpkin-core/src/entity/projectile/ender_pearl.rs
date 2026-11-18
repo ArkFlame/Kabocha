@@ -157,9 +157,9 @@ impl EntityBase for EnderPearlEntity {
                         .remove_passenger_before_teleport(owner.get_entity().entity_id);
                 }
                 let should_spawn_endermite = rand::random::<f32>() < ENDERMITE_SPAWN_CHANCE;
-                // Vanilla gates the endermite on `DO_MOB_SPAWNING` alone, not on difficulty.
-                let do_mob_spawning = world.level_info.load().game_rules.spawn_mobs;
-                if do_mob_spawning && should_spawn_endermite {
+                // Vanilla gates the endermite on `isSpawningMonsters() && !PEACEFUL`,
+                // i.e. SPAWN_MOBS && SPAWN_MONSTERS && not peaceful (non-Folia path).
+                if world.should_spawn_monsters() && should_spawn_endermite {
                     let pearl_yaw = entity.yaw.load();
                     let entity = Entity::new(world.clone(), owner_pos, &EntityType::ENDERMITE);
                     entity.set_rotation(pearl_yaw, 0.0);

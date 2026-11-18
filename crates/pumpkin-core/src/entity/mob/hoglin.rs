@@ -13,6 +13,8 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
 
+use crate::entity::ai::brain::sensing::SensorType;
+use crate::entity::ai::brain::{Brain, BrainProvider, PackedMemories};
 use crate::entity::mob::spawn::SpawnGroupData;
 use crate::entity::{
     Entity, EntityBase,
@@ -202,6 +204,23 @@ impl Mob for HoglinEntity {
 
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
+    }
+
+    /// Builds a brain whose sensor records visible adult piglins and hoglins.
+    fn make_brain(&self, packed: &PackedMemories) -> Brain {
+        BrainProvider {
+            memory_types: &[],
+            sensor_types: &[
+                SensorType::NearestLivingEntities,
+                SensorType::HoglinSpecific,
+            ],
+            activities: |_: &dyn Mob| Vec::new(),
+        }
+        .make_brain(self, packed)
+    }
+
+    fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
+        self.mob_entity.tick_brain(self);
     }
 
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {

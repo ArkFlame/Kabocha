@@ -23,10 +23,11 @@ use std::{
 /// Vanilla `Entity.getAirDrag`, applied every tick.
 const AIR_DRAG: f32 = 0.98;
 
-/// Vanilla `PrimedTnt.readAdditionalSaveData` reads `fuse` with `getShort`, so a missing tag
-/// yields 0 and the TNT detonates on its next tick.
+/// Vanilla `PrimedTnt.readAdditionalSaveData` uses `getShortOr("fuse", 80)`, so a missing
+/// `fuse` tag falls back to the default fuse time instead of detonating immediately.
 fn fuse_from_nbt(nbt: &NbtCompound) -> u32 {
-    nbt.get_numeric_short("fuse").unwrap_or(0).max(0) as u32
+    nbt.get_numeric_short("fuse")
+        .map_or(TNTEntity::DEFAULT_FUSE, |fuse| fuse.max(0) as u32)
 }
 
 // Vanilla `PrimedTnt.usedPortal` only swaps in a damage calculator that lets the blast break
@@ -228,8 +229,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn missing_fuse_tag_detonates_next_tick() {
-        assert_eq!(fuse_from_nbt(&NbtCompound::new()), 0);
+    fn missing_fuse_tag_uses_default_fuse() {
+        assert_eq!(fuse_from_nbt(&NbtCompound::new()), TNTEntity::DEFAULT_FUSE);
     }
 
     #[test]

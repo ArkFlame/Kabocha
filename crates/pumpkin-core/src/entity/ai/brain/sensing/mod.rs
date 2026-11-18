@@ -11,6 +11,7 @@ pub mod axolotl_attackables;
 pub mod dummy;
 pub mod frog_attackables;
 pub mod golem;
+pub mod hoglin_specific;
 pub mod hurt_by;
 pub mod is_in_water;
 pub mod nearest_bed;
@@ -51,6 +52,7 @@ pub enum SensorType {
     VillagerHostiles,
     SecondaryPois,
     GolemDetected,
+    HoglinSpecific,
     AxolotlAttackables,
 }
 
@@ -73,6 +75,7 @@ impl SensorType {
             Self::VillagerHostiles => "minecraft:villager_hostiles",
             Self::SecondaryPois => "minecraft:secondary_pois",
             Self::GolemDetected => "minecraft:golem_detected",
+            Self::HoglinSpecific => "minecraft:hoglin_specific",
             Self::AxolotlAttackables => "minecraft:axolotl_attackables",
         }
     }
@@ -93,6 +96,7 @@ impl SensorType {
             | Self::NearestBed
             | Self::VillagerBabies
             | Self::VillagerHostiles
+            | Self::HoglinSpecific
             | Self::AxolotlAttackables => DEFAULT_SCAN_RATE,
             Self::SecondaryPois => 40,
             Self::GolemDetected => 200,
@@ -116,6 +120,7 @@ impl SensorType {
             Self::VillagerHostiles => Box::new(villager_hostiles::VillagerHostilesSensor),
             Self::SecondaryPois => Box::new(secondary_pois::SecondaryPoiSensor),
             Self::GolemDetected => Box::new(golem::GolemSensor),
+            Self::HoglinSpecific => Box::new(hoglin_specific::HoglinSpecificSensor),
             Self::AxolotlAttackables => Box::new(axolotl_attackables::AxolotlAttackablesSensor),
         }
     }

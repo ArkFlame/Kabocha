@@ -21,7 +21,7 @@ const REQUIRES: [MemoryModuleId; 5] = [
 pub struct HoglinSpecificSensor;
 
 impl Sensor for HoglinSpecificSensor {
-    fn requires(&self) -> &[MemoryModuleId] {
+    fn requires(&self) -> &'static [MemoryModuleId] {
         &REQUIRES
     }
 
@@ -34,10 +34,13 @@ impl Sensor for HoglinSpecificSensor {
         if let Some(visible) = tick.state.get(types::NEAREST_VISIBLE_LIVING_ENTITIES) {
             for entity in visible.find_all(&tick.visibility(), |_| true) {
                 // Vanilla filters out babies and non-piglin/hoglin before the loop body.
-                if entity.get_living_entity().is_some_and(LivingEntity::is_baby) {
+                if entity
+                    .get_living_entity()
+                    .is_some_and(LivingEntity::is_baby)
+                {
                     continue;
                 }
-                let entity_type = &entity.get_entity().entity_type;
+                let entity_type = entity.get_entity().entity_type;
                 if entity_type == &EntityType::PIGLIN {
                     piglin_count += 1;
                     if adult_piglin.is_none() {
@@ -104,10 +107,20 @@ mod tests {
         let piglin_a = piglin(&world, 2.0);
         let piglin_b = piglin(&world, 3.0);
         let baby_piglin = piglin(&world, 4.0);
-        baby_piglin.mob_entity.living_entity.entity.age.store(-1, Ordering::Relaxed);
+        baby_piglin
+            .mob_entity
+            .living_entity
+            .entity
+            .age
+            .store(-1, Ordering::Relaxed);
         let hoglin_adult = hoglin(&world, 5.0);
         let baby_hoglin = hoglin(&world, 6.0);
-        baby_hoglin.mob_entity.living_entity.entity.age.store(-1, Ordering::Relaxed);
+        baby_hoglin
+            .mob_entity
+            .living_entity
+            .entity
+            .age
+            .store(-1, Ordering::Relaxed);
 
         world.entities.store(Arc::new(vec![
             body.clone(),
@@ -144,11 +157,15 @@ mod tests {
         assert_eq!(state.get(types::VISIBLE_ADULT_PIGLIN_COUNT), Some(&2));
         assert_eq!(state.get(types::VISIBLE_ADULT_HOGLIN_COUNT), Some(&1));
         assert_eq!(
-            state.get(types::NEAREST_VISIBLE_ADULT_PIGLIN).map(|e| e.get_entity().entity_id),
+            state
+                .get(types::NEAREST_VISIBLE_ADULT_PIGLIN)
+                .map(|e| e.get_entity().entity_id),
             Some(piglin_a.get_entity().entity_id)
         );
         assert_eq!(
-            state.get(types::NEAREST_VISIBLE_ADULT_HOGLINS).map(|e| e.len()),
+            state
+                .get(types::NEAREST_VISIBLE_ADULT_HOGLINS)
+                .map(|e| e.len()),
             Some(1)
         );
         Ok(())
