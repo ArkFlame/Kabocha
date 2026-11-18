@@ -10576,7 +10576,7 @@ impl InventoryPlayer for Player {
             );
         }
 
-        let Some(server) = self.get_server() else {
+        let Some(server) = self.living_entity.entity.get_server() else {
             return;
         };
         let recipes: Vec<_> = server
