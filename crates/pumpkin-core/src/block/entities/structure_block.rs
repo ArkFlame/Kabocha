@@ -15,6 +15,7 @@ use pumpkin_util::math::vector2::Vector2;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::math::wrap_degrees;
 use pumpkin_util::random::{RandomImpl, legacy_rand::LegacyRand};
+use pumpkin_world::chunk::palette::BlockPalette;
 use pumpkin_world::generation::structure::template::{
     BlockPlacer, BlockStateResolver, Palette, PaletteEntry, StructureBlockInfo,
     StructureEntityInfo, StructureTemplate, global_cache,
@@ -715,6 +716,48 @@ pub fn compute_detected_bounds(
     Some((offset, size))
 }
 
+fn is_structure_block_state(state: BlockStateId) -> bool {
+    Block::from_state_id(state) == &Block::STRUCTURE_BLOCK
+}
+
+/// Vanilla StructureBlockEntity.getEnclosingBoundingBox walks block states, not block
+/// entities, so a position only counts when its state is a structure block.
+fn collect_structure_block_positions(
+    sections: &[BlockPalette],
+    chunk_x: i32,
+    chunk_z: i32,
+    base_y: i32,
+    min_y: i32,
+    max_y: i32,
+) -> Vec<BlockPos> {
+    let mut found = Vec::new();
+    for (index, palette) in sections.iter().enumerate() {
+        if !palette.contains_matching(is_structure_block_state) {
+            continue;
+        }
+        let section_min_y = base_y + index as i32 * BlockPalette::SIZE as i32;
+        for y in 0..BlockPalette::SIZE {
+            let world_y = section_min_y + y as i32;
+            if world_y < min_y || world_y > max_y {
+                continue;
+            }
+            for z in 0..BlockPalette::SIZE {
+                for x in 0..BlockPalette::SIZE {
+                    if !is_structure_block_state(palette.get(x, y, z)) {
+                        continue;
+                    }
+                    found.push(BlockPos(Vector3::new(
+                        chunk_x * BlockPalette::SIZE as i32 + x as i32,
+                        world_y,
+                        chunk_z * BlockPalette::SIZE as i32 + z as i32,
+                    )));
+                }
+            }
+        }
+    }
+    found
+}
+
 pub struct StructureBlockBlockEntity {
     pub position: BlockPos,
     pub name: Mutex<String>,
@@ -1299,51 +1342,34 @@ impl StructureBlockBlockEntity {
         for cx in min_chunk_x..=max_chunk_x {
             for cz in min_chunk_z..=max_chunk_z {
                 let chunk_pos = Vector2::new(cx, cz);
-                if let Some(map) = world.block_entities.get(&chunk_pos) {
-                    for pos in map.keys() {
-                        if pos.0.x >= min_x
+                let found = world.level.read_chunk_sync(&chunk_pos, |chunk| {
+                    let sections = chunk
+                        .section
+                        .block_sections
+                        .read()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    collect_structure_block_positions(
+                        &sections,
+                        chunk.x,
+                        chunk.z,
+                        chunk.section.min_y,
+                        min_y,
+                        max_y,
+                    )
+                });
+                if let Some(found) = found {
+                    candidate_positions.extend(found.into_iter().filter(|pos| {
+                        pos.0.x >= min_x
                             && pos.0.x <= max_x
-                            && pos.0.y >= min_y
-                            && pos.0.y <= max_y
                             && pos.0.z >= min_z
                             && pos.0.z <= max_z
-                        {
-                            candidate_positions.push(*pos);
-                        }
-                    }
-                }
-                if let Some(pending_positions) = world.level.read_chunk_sync(&chunk_pos, |chunk| {
-                    let pending = chunk
-                        .pending_block_entities
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    pending
-                        .keys()
-                        .copied()
-                        .filter(|pos| {
-                            pos.0.x >= min_x
-                                && pos.0.x <= max_x
-                                && pos.0.y >= min_y
-                                && pos.0.y <= max_y
-                                && pos.0.z >= min_z
-                                && pos.0.z <= max_z
-                        })
-                        .collect::<Vec<_>>()
-                }) {
-                    for pos in pending_positions {
-                        if !candidate_positions.contains(&pos) {
-                            candidate_positions.push(pos);
-                        }
-                    }
+                    }));
                 }
             }
         }
 
         let mut matching_corners = Vec::new();
         for pos in candidate_positions {
-            if world.get_block(&pos) != &Block::STRUCTURE_BLOCK {
-                continue;
-            }
             let Some(be) = world.get_block_entity(&pos) else {
                 continue;
             };
@@ -1508,9 +1534,9 @@ impl StructureBlockBlockEntity {
 #[cfg(test)]
 mod tests {
     use super::{
-        NbtCompound, NbtTag, compute_detected_bounds, is_randomizable_container_id,
-        is_safe_generated_structure_path, parse_structure_identifier, put_transformed_block_pos,
-        transform_entity_yaw,
+        NbtCompound, NbtTag, collect_structure_block_positions, compute_detected_bounds,
+        is_randomizable_container_id, is_safe_generated_structure_path,
+        parse_structure_identifier, put_transformed_block_pos, transform_entity_yaw,
     };
     use pumpkin_data::{Block, Mirror, Rotation};
     use pumpkin_util::math::{position::BlockPos, vector3::Vector3, wrap_degrees};
@@ -1597,6 +1623,23 @@ mod tests {
 
         // Adjacent corners with zero interior volume fail detection.
         assert!(compute_detected_bounds(save_pos, &[BlockPos::new(11, 65, 11)]).is_none());
+    }
+
+    #[test]
+    fn structure_block_scan_selects_block_states_within_the_scan_box() {
+        let mut palette = pumpkin_world::chunk::palette::BlockPalette::default();
+        palette.set(1, 2, 3, Block::STRUCTURE_BLOCK.default_state.id);
+        palette.set(4, 5, 6, Block::STONE.default_state.id);
+
+        let sections = std::slice::from_ref(&palette);
+        let found = collect_structure_block_positions(sections, 2, -1, -64, -64, 319);
+        assert_eq!(
+            found,
+            vec![BlockPos(Vector3::new(2 * 16 + 1, -62, -1 * 16 + 3))]
+        );
+
+        // Vanilla clamps the scan box to the build height, so a corner above it is skipped.
+        assert!(collect_structure_block_positions(sections, 2, -1, -64, -60, 319).is_empty());
     }
 
     #[test]

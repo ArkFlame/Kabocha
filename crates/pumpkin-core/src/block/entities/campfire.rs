@@ -453,11 +453,15 @@ mod tests {
         entity.write_cooking_nbt(&mut nbt);
         let loaded = <CampfireBlockEntity as BlockEntity>::from_nbt(&nbt, pos);
 
-        assert!(*loaded.cooking_cancelled[2]
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner));
-        assert!(!*loaded.cooking_cancelled[0]
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner));
+        assert!(
+            *loaded.cooking_cancelled[2]
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+        );
+        assert!(
+            !*loaded.cooking_cancelled[0]
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+        );
     }
 }

@@ -21,14 +21,19 @@ use rand::{RngExt, seq::SliceRandom};
 use uuid::Uuid;
 
 use crate::block::blocks::creaking_heart::CreakingHeartBlock;
-use crate::entity::Entity;
 use crate::entity::mob::creaking::CreakingEntity;
+use crate::entity::spawn_util::{SpawnStrategy, try_spawn_mob};
 use crate::world::World;
 
 use super::BlockEntity;
 
 /// Vanilla `getNearestPlayerThatAffectsSpawning(..., 32.0, ...)` spawn range.
 const CREAKING_SPAWN_DISTANCE: f64 = 32.0;
+
+/// Vanilla `spawnProtector` `trySpawnMob` arguments: 5 attempts within +/-16 XZ and +/-8 Y.
+const CREAKING_SPAWN_ATTEMPTS: i32 = 5;
+const CREAKING_SPAWN_RANGE_XZ: i32 = 16;
+const CREAKING_SPAWN_RANGE_Y: i32 = 8;
 
 /// Vanilla `CreakingHeartBlockEntity#DISTANCE_CREAKING_TOO_FAR`.
 const CREAKING_TOO_FAR_DISTANCE: f64 = 34.0;
@@ -155,24 +160,23 @@ impl CreakingHeartBlockEntity {
         {
             return;
         }
-        let Some(spawn_pos) = Self::find_free_spawn_pos(world, &self.position) else {
+        // Vanilla `CreakingHeartBlockEntity#spawnProtector` calls
+        // `SpawnUtil.trySpawnMob(..., 5, 16, 8, ON_TOP_OF_COLLIDER_NO_LEAVES, true)`.
+        let Some(creaking) = try_spawn_mob(
+            &EntityType::CREAKING,
+            CreakingEntity::new,
+            world,
+            &self.position,
+            CREAKING_SPAWN_ATTEMPTS,
+            CREAKING_SPAWN_RANGE_XZ,
+            CREAKING_SPAWN_RANGE_Y,
+            SpawnStrategy::OnTopOfColliderNoLeaves,
+            true,
+        ) else {
             return;
         };
-        let uuid = Uuid::new_v4();
-        let entity = Entity::from_uuid(
-            uuid,
-            world.clone(),
-            Vector3::new(
-                f64::from(spawn_pos.0.x) + 0.5,
-                f64::from(spawn_pos.0.y),
-                f64::from(spawn_pos.0.z) + 0.5,
-            ),
-            &EntityType::CREAKING,
-        );
-        let creaking = CreakingEntity::new(entity);
         creaking.set_transient(self.position);
-        world.spawn_entity(creaking);
-        self.set_creaking_uuid(Some(uuid));
+        self.set_creaking_uuid(Some(creaking.mob_entity.living_entity.entity.entity_uuid));
     }
 
     /// Vanilla `CreakingHeartBlockEntity#serverTick` despawn branch: a bound creaking is torn
@@ -212,15 +216,6 @@ impl CreakingHeartBlockEntity {
         let dy = creaking_pos.y - f64::from(heart.0.y);
         let dz = creaking_pos.z - (f64::from(heart.0.z) + 0.5);
         (dx * dx + dy * dy + dz * dz).sqrt() > CREAKING_TOO_FAR_DISTANCE
-    }
-
-    fn find_free_spawn_pos(world: &Arc<World>, heart: &BlockPos) -> Option<BlockPos> {
-        [heart.east(), heart.west(), heart.north(), heart.south()]
-            .into_iter()
-            .find(|pos| {
-                world.get_block_state_id(pos).to_state().is_air()
-                    && world.get_block_state_id(&pos.up()).to_state().is_air()
-            })
     }
 
     pub fn creaking_hurt(&self, world: &Arc<World>) {
