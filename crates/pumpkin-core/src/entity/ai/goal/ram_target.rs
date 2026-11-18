@@ -557,5 +557,4 @@ mod tests {
         assert_eq!(candidates.len(), 1);
         assert!(candidates.contains(&BlockPos::new(5, 64, 0)));
     }
-
 }

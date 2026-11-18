@@ -60,3 +60,27 @@ Verified against decompiled vanilla `ServerGamePacketListenerImpl.handlePaddleBo
 | h6 delta-rotation | VERIFIED FIXED (outside unit) | Implemented/tested in `entity/vehicle/boat.rs` per doc; outside this unit. |
 
 Files edited: `docs/tracker/tentities-spruce-boat.md` only. No cargo/rustfmt/tests run (worker environment).
+
+## Result (third pass: close remaining STILL OPEN)
+
+Re-checked the only remaining STILL OPEN row (23, boat gametest) against decompiled vanilla. It is already implemented by another worker in `crates/pumpkin-core/src/server/builtin_game_tests/boat_block_effects.rs` and wired into `crates/pumpkin-core/src/server/builtin_game_tests/mod.rs` (present in both `BUILTIN_TEST_IDS` and `ensure_builtin_game_tests_registered`), so no source edit is needed in this unit; `paddle_boat.rs` stays unchanged and correct per the two prior passes.
+
+- Row 23 (boat gametest): VERIFIED FIXED (outside unit). The three requested scenarios exist and are registered:
+  - `pumpkin:boat_floats_up_after_fall` (`test_boat_floats_up_after_fall`) covers `AbstractBoat.floatBoat()` at `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java:607`.
+  - `pumpkin:boat_ejects_passenger_after_60_underwater_ticks` covers the `outOfControlTicks >= 60.0F` rider eject at the same file, lines 244-249.
+  - `pumpkin:chest_boat_scatters_27_slots_on_break` covers `AbstractChestBoat.chestVehicleDestroyed`/`remove` at `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java:65-76`.
+
+Final row statuses:
+
+| row | status | reason |
+|---|---|---|
+| 19 bubble column | VERIFIED FIXED (outside unit) | `entity/vehicle/boat.rs` per prior pass; no edit here. |
+| 20 clampRotation | VERIFIED FIXED (outside unit) | `entity/vehicle/boat.rs`/`passengers.rs` per prior pass; no edit here. |
+| 21 floatBoat air->water | VERIFIED FIXED (outside unit) | `entity/vehicle/boat/physics.rs` per prior pass; no edit here. |
+| 22 getGravity | VERIFIED (no change) | Vanilla parity confirmed in prior pass; no edit here. |
+| 23 boat gametest | VERIFIED FIXED (outside unit) | Three gametests implemented and registered in `builtin_game_tests/boat_block_effects.rs`, covering floatBoat, outOfControlTicks eject, and chestVehicleDestroyed per the .vendor paths above. |
+| h6 delta-rotation | VERIFIED FIXED (outside unit) | `entity/vehicle/boat.rs` per prior pass; no edit here. |
+
+No STILL OPEN rows remain. No source edit in this unit (`paddle_boat.rs` unchanged). No cargo/rustfmt/tests run (worker environment).
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tentities-spruce-boat.md
