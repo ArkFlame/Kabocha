@@ -191,3 +191,35 @@ tree; no source edits were needed. No cargo run was performed (workers may not r
 Updated the stale Gap status table so no row remains STILL OPEN.
 
 Status: PASS fixed=0 open=0 files=docs/tracker/tentities-mangrove-chest-boat.md (all rows already fixed; doc status synced; no cargo run allowed for workers)
+
+
+## Result (final verification, 2026-11-18)
+
+Re-read the three rows against the current decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java`
+and the current Pumpkin source. This unit declares no editable source basenames; every row
+is already FIXED in the tree, so no source edits were required. No cargo/git/shell run was
+performed (workers may not run them).
+
+- 1 chest contents scatter on any destroying removal: FIXED, VERIFIED.
+  `AbstractChestBoat.remove` (AbstractChestBoat.java:71-77) drops contents for every
+  `reason.shouldDestroy()`. Pumpkin `BoatEntity::on_removed` (boat.rs:488-506) checks
+  `removal_reason.should_destroy()` and calls `scatter_chest_contents` (boat.rs:272-288),
+  guarded by `claim_drops` so the scatter runs at most once; the damage path scatters too
+  (boat.rs:746), matching `destroy` (:65-68) and `ContainerEntity.chestVehicleDestroyed`
+  (:84-91), which gates only the boat-item drop on `doEntityDrops`.
+- 2 shared `getMaxPassengers` helper: FIXED, VERIFIED.
+  `AbstractChestBoat.getMaxPassengers` returns 1 (:47-50). `boat.rs::max_passengers`
+  (boat.rs:95-101) is the single source of truth (`CHEST_BOAT_MAX_PASSENGERS` = 1,
+  `BOAT_MAX_PASSENGERS` = 2) and is reused by the mob-push mounting path
+  (entity/mod.rs:1350-1357). No behaviour change.
+- 3 interact deciding result on a failed mount: FIXED, VERIFIED.
+  `AbstractChestBoat.interact` (:80-97) offers the container when the ride did not consume
+  the click. The pure `chest_opens_container` (boat.rs:135-141) feeds `boat_interact_outcome`
+  (boat.rs:161-177), used by `interact` (boat.rs:823-835), with pure unit tests in the boat
+  test module (boat.rs:1217-1285). `open_custom_inventory_screen` (boat.rs:290) keeps only
+  the alive guard, matching vanilla (:100-106), which has no rider/spectator check.
+
+No STILL OPEN rows remain.
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tentities-mangrove-chest-boat.md
