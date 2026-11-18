@@ -124,3 +124,37 @@ in the checkout were not made by this worker and were left untouched.
 
 No source file edited; only this doc (stale Gap status updated and Result appended).
 No rustfmt needed (no .rs file touched). No tests run (worker rule: orchestrator compiles).
+
+## Result (final verification)
+
+Re-verified the three STILL OPEN table rows and all four Remaining gaps against
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java` and
+`.../vehicle/ContainerEntity.java`. All already match vanilla; no source edit was needed this
+pass, and this unit declares no editable source files (basenames: none).
+
+STILL OPEN table rows:
+- 27-slot inventory: VERIFIED. Vanilla `CONTAINER_SIZE = 27`, `getContainerSize() = 27`;
+  Pumpkin `CHEST_BOAT_CONTAINER_SIZE = 27` (boat.rs:44) returned only for chest boats by
+  `boat_container_size()` (boat.rs:84-86).
+- Single passenger seat: VERIFIED. Vanilla `getMaxPassengers() = 1`; Pumpkin
+  `max_passengers()` returns `CHEST_BOAT_MAX_PASSENGERS = 1` vs `BOAT_MAX_PASSENGERS = 2`
+  (boat.rs:47-48, 95-101).
+- Seat offset 0.15: VERIFIED. Vanilla `getSinglePassengerXOffset() = 0.15F`; Pumpkin consumes
+  generated `single_passenger_x_offset` via `passenger_seat_offset` (boat.rs:181-218). Generated
+  data off-limits; not edited.
+
+Remaining gaps (all now FIXED in the checkout by other workers):
+- Gap 1 (screen validity): FIXED in `minecart/container.rs:179-299`. `EntityContainerScreenHandler`
+  + `validity` closure check `is_alive()` and `can_interact_with_entity(..., 4.0)`. Note the
+  tracker's "squaredDistanceTo <= 64.0 / 8 blocks" was stale: decompiled vanilla
+  `isChestVehicleStillValid` uses `player.isWithinEntityInteractionRange(boundingBox, 4.0)`,
+  which the current Pumpkin code matches.
+- Gap 2 (chest open states): FIXED in boat.rs via `chest_opens_container` (135-141) and
+  `boat_interact_outcome` (161-177): open container only on secondary use or when no seat is
+  free, matching vanilla `interact`. Pure tests at 1197-1264.
+- Gap 3 (spill position): FIXED. Both boat.rs:287 and minecart.rs:985 call `scatter_inventory_at`
+  at the entity position.
+- Gap 4 (chest-boat test): FIXED. `seat_and_container_tests` module (boat.rs:1188+) covers
+  container size, NBT round trip and interact outcomes.
+
+No source files edited; only this doc. No rustfmt needed. No tests run (worker rule: orchestrator compiles).
