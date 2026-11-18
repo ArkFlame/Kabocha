@@ -183,3 +183,46 @@ STILL OPEN to VERIFIED so the rows are terminal.
 No `.rs` file touched, so rustfmt was not required. No new pure unit-test seam exists (both rows
 need a live `World`); the existing pure formula/cosine-boundary tests in `daylight_detector.rs`
 still cover the only pure logic.
+
+
+## Result (THIRD PASS 2026-11-18, CODER, final terminal)
+
+Re-opened the unit and re-read the decompiled source directly. All five rows in "Remaining gaps"
+are terminal; none is left STILL OPEN. No source edit was required because the current code
+already matches vanilla. Citations are from
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java` (DDB)
+and `.../Block.java`.
+
+1. M - Tick architecture: VERIFIED (no gap). Vanilla ticks via a `BlockEntityTicker` from
+   `getTicker` (DDB:100-104), gated on `!level.isClientSide() && level.dimensionType().hasSkyLight()`,
+   with `tickEntity` running on `getRedstoneGameTime() % 20L == 0L` (DDB:106-110) and requiring a
+   live block entity. There is no scheduled block tick anywhere in the class. Pumpkin's
+   `entities/daylight_detector.rs:37-46` mirrors this (`world.dimension.has_skylight`,
+   `get_world_age() % 20 == 0`). The proposed `on_scheduled_tick` rework would diverge; rejected.
+2. S - Stale BE guard: VERIFIED (already fixed). `update_signal_strength` returns unless the block
+   at the position is `DAYLIGHT_DETECTOR` (`blocks/redstone/daylight_detector.rs:98-103`), mirroring
+   vanilla's ticker passing the block entity's own state. No gameplay delta.
+3. S - Inversion flag: VERIFIED. `useWithoutItem` uses `setBlock(pos, state.cycle(INVERTED),
+   Block.UPDATE_CLIENTS)` (DDB:75-76) and `UPDATE_CLIENTS = 2` (Block.java:93). Pumpkin uses
+   `BlockFlags::NOTIFY_LISTENERS = 0b10 = 2` (`pumpkin-world/src/world.rs:18`) at
+   `blocks/redstone/daylight_detector.rs:43-44`. Same flag and client-update path.
+4. S - Game event context: VERIFIED (already fixed). Vanilla `gameEvent(BLOCK_CHANGE, pos,
+   GameEvent.Context.of(player, newState))` (DDB:77); Pumpkin `emit_game_event_with_source(...,
+   Some(player))` (`blocks/redstone/daylight_detector.rs:47-51`) records the player as source.
+5. S - Unused update_power wrapper: VERIFIED (already removed). No such method remains in
+   `entities/daylight_detector.rs`.
+
+Formula cross-check: `calculate_signal_strength` (`:75-95`) matches `updateSignalStrength`
+(DDB:47-64): max(skyLight - skyDarken, 0), invert `15 - target`, sun-angle shade with
+`f < PI ? 0 : 2PI` offset and 0.2 lerp, `Math.round` = `floor(x + 0.5)`, clamp 0..15. Helpers
+`get_effective_sky_brightness` (`world/mod.rs:7368-7375`) and `get_sun_angle` (`:7378-7384`,
+radians) match vanilla's `getEffectiveSkyBrightness` and `SUN_ANGLE * DEG_TO_RAD`.
+
+The "Fixed this pass" note at the top (lines 18-22) claiming the skylight guard was removed is
+stale and wrong: DDB:101 confirms the guard belongs; current code retains it correctly.
+
+No `.rs` file was edited, so rustfmt was not required. No new pure unit-test seam exists (both
+historically-open rows need a live `World`); the existing formula/cosine-boundary tests at
+`daylight_detector.rs:141-186` still cover the only pure logic.
+
+Rows newly fixed this pass: 0 (all 5 already terminal). Rows open: 0.

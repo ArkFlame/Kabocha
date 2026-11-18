@@ -17,13 +17,13 @@ Vanilla reference class: `net.minecraft.world.entity.monster.Creeper` / `Creeper
 | 5 | swell direction missing from Bedrock actor metadata | REAL, fixed above. |
 | 6 | `mob_read_nbt` updates atomics but not synced data | NOT A GAP. Spawn serialisation uses `mob_metadata()` for both Java and Bedrock (mob/mod.rs:1890-1901), and `mob_metadata` reads the atomics, so a stored `powered`/`ignited`/`Fuse` reaches clients at spawn. No change. |
 
-## Remaining gaps
+## Remaining gaps (all resolved, see Results below)
 
-| # | file:line | Vanilla class / behaviour | Suggested fix | Size |
-|---|---|---|---|---|
-| 2 | creeper.rs:328-352 | `Creeper.killedEntity` drops heads from loot table `minecraft:charged_creeper/root` | No such loot table ships in `assets/` (no `charged_creeper*` file exists), so `get_loot_table` returns `None` and charged creepers never drop heads without a datapack. Needs the vanilla data pack extracted (Extractor), not a code change | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 3 | creeper.rs:107-168 | `Creeper.explodeCreeper` calls `spawnLingeringCloud()` then `triggerOnDeathMobEffects(RemovalReason.KILLED)` then `discard()` | Pumpkin has no on-death-effect hook (no `triggerOnDeath`/`on_death_effects` anywhere in `crates/pumpkin-core/src`); `explode()` spawns the cloud and removes the entity without firing per-effect removal callbacks. Implement the hook on the effect system first, then call it here | M, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
-| 4 | creeper_ignite.rs:39 | `CreeperSwellGoal.canUse` has no aliveness check on the target (`getSwellDir() > 0 \|\| target != null && distanceToSqr < 9`); the Rust version adds `target.get_entity().is_alive()` | *verify* against `Mob`/`LivingEntity` target clearing in decompiled vanilla before removing the guard; the guard only suppresses a swell toward an already dead target, so leave it unless vanilla proves the difference observable | S, STILL OPEN: not reached in wave 2 h9 budget; needs its own pass |
+| # | file:line | Vanilla class / behaviour | Resolution |
+|---|---|---|---|
+| 2 | creeper.rs:380-412 | `Creeper.killedEntityPreEvent` drops charged-creeper heads from `minecraft:charged_creeper/root` with a one-shot `!droppedSkulls` guard | VERIFIED FIXED. `CreeperEntity::dropped_skulls` + guard match `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java:172-182`; `charged_creeper/root` is generated `CHARGED_CREEPER_ROOT` and resolved by `World::get_loot_table`, so the old data blocker is stale. |
+| 3 | creeper.rs:121-196 | `Creeper.explodeCreeper` runs `dead=true` -> explode -> `spawnLingeringCloud` -> `triggerOnDeathMobEffects(KILLED)` -> `discard` | VERIFIED FIXED. `CreeperEntity::explode` fires `MobEffect::on_mob_removed` for each active effect in that order; cloud geometry matches `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java:245-284`. Hook in `entity/effect/mod.rs`, impls in `oozing.rs`/`weaving.rs`/`wind_charged.rs`. |
+| 4 | creeper_ignite.rs:46-47,77 | `SwellGoal.canUse`/`tick` carry `!target.isDeadOrDying()` | VERIFIED NO CHANGE. `.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/SwellGoal.java:18-21,42` has the guard, so the tracker premise (vanilla has none) is false; the Rust `is_alive() && !is_dead_or_dying()` guard is correct. |
 
 ## Checked and already matching vanilla
 
@@ -110,3 +110,15 @@ Third-pass verification against `.vendor/vanilla-decompiled/net/minecraft/`. All
 Out-of-unit parity note (not a tracker row, unchanged): vanilla's `reason == KILLED` guard on the three death effects (`.vendor/vanilla-decompiled/net/minecraft/world/effect/OozingMobEffect.java:36`, `WeavingMobEffect.java:28`, `WindChargedMobEffect.java:19`) is not observable here. Pumpkin fires `on_mob_removed` only from the damage/death path (`on_mob_death`) and from creeper explode, both KILLED-equivalent, and `Entity::remove` fires no effect hooks. Adding the guard would need a removal-reason parameter on `MobEffect::on_mob_removed` in `entity/effect/mod.rs` plus its two callers, files outside this unit's scope, so it is left as-is.
 
 No pure unit-test seam exists (all rows fire through World/entity/loot/effect state) and no `.rs` file was touched this pass.
+
+## Result
+
+THIRD PASS verification against `.vendor/vanilla-decompiled/net/minecraft/`. All three original STILL OPEN rows are already resolved in the checkout; no source file needed a change, so no rustfmt run was required. The stale `Remaining gaps` table above has been updated to final statuses.
+
+- Row 2 (charged-creeper heads): VERIFIED FIXED. `Creeper.killedEntityPreEvent` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java:172-182`) guards with `shouldDropLoot && isPowered && !droppedSkulls` and drops from `BuiltInLootTables.CHARGED_CREEPER`. `CreeperEntity::killed_entity` (creeper.rs:380-412) matches, including the one-shot `dropped_skulls` store that only fires when a stack actually drops. The old data blocker is stale: `CHARGED_CREEPER_ROOT` is generated and resolved by `World::get_loot_table`.
+- Row 3 (explodeCreeper ordering): VERIFIED FIXED. `Creeper.explodeCreeper` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java:245-264`) runs `dead=true` -> explode -> `spawnLingeringCloud` -> `triggerOnDeathMobEffects(KILLED)` -> `discard`; `spawnLingeringCloud` (Creeper.java:266-284) sets radius 2.5, radiusOnUse -0.5, wait 10, duration 300, potionDurationScale 0.25, radiusPerTick -radius/duration. `CreeperEntity::explode` (creeper.rs:121-196) calls `MobEffect::on_mob_removed` for each active effect after the cloud and before `entity.remove()`; the hook is in `entity/effect/mod.rs:47` with impls in `oozing.rs`, `weaving.rs`, `wind_charged.rs` (all in this unit). `Entity::remove` fires no effect hooks, so there is no double activation.
+- Row 4 (SwellGoal aliveness guard): VERIFIED, NO CHANGE. `SwellGoal.canUse` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/ai/goal/SwellGoal.java:18-21`) is `getSwellDir() > 0 || (target != null && !target.isDeadOrDying() && distanceToSqr < 9.0)` and `tick` (SwellGoal.java:42) checks `!isDeadOrDying()`. The `is_alive() && !is_dead_or_dying()` guard in creeper_ignite.rs:46-47,77 is correct; the tracker premise (vanilla has no guard) is false.
+
+No pure unit-test seam (all rows fire through World/entity/loot/effect state) and no `.rs` file was touched. Out-of-unit parity note, unchanged: vanilla's `reason == KILLED` guard on the three death effects (`.vendor/vanilla-decompiled/net/minecraft/world/effect/OozingMobEffect.java`, `WeavingMobEffect.java`, `WindChargedMobEffect.java`) is not observable here because Pumpkin fires `on_mob_removed` only on KILLED-equivalent paths; adding it would require a removal-reason parameter on `MobEffect::on_mob_removed` plus its callers, outside this unit and with no observable difference.
+
+Status: PASS fixed=0 open=0 files=tentities-creeper-0de8b3.md

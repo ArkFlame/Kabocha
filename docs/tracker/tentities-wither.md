@@ -108,3 +108,52 @@ no source edits were needed this pass. Each row is now closed with a verdict.
 
 Files touched this pass: docs/tracker/tentities-wither.md only (no source edits).
 No build run (task rules); compile verification left to the orchestrator.
+
+
+## Result (final verification pass, 2026-11-18)
+
+Independent verification of every remaining gap row (1-9) against
+.vendor/vanilla-decompiled/net/minecraft/world/entity/boss/wither/WitherBoss.java
+and .vendor/vanilla-decompiled/net/minecraft/world/entity/ai/control/FlyingMoveControl.java.
+All rows are now closed; no row is left STILL OPEN. One source fix was applied this pass (row 7).
+
+- Row 1 (lift clause): VERIFIED (NOT A GAP). WitherBoss.java:170 keeps
+  "!isPowered() && getY() < entity.getY() + 5.0"; wither.rs:354 matches exactly.
+- Row 2 (WitherDoNothingGoal during spawn): VERIFIED. WitherBoss.java:102 and 613-620
+  register the goal at priority 0 with MOVE/JUMP/LOOK while Invul > 0. Pumpkin gates its
+  only LOOK goals via disable_control(Controls::LOOK) in mob_tick (wither.rs:651-659);
+  goal_selector.rs:234-238 excludes any goal using a disabled control from starting or
+  continuing, and look_at_entity.rs:88 declares LOOK. The ranged attack runs only in the
+  invul==0 branch. The hand-written movement tick still runs while invul > 0, as vanilla
+  aiStep does (WitherBoss.java:164-184). No unit test: needs a mob/world fixture.
+- Row 3 (gravity / floating): VERIFIED (NOT A GAP). WitherBoss.java:87 constructor sets
+  only FlyingMoveControl(this, 10, false) with no setNoGravity. FlyingMoveControl.java
+  calls setNoGravity(false) in WAIT because hoversInPlace is false, so gravity stays on;
+  adding set_has_no_gravity(true) would be wrong. A full flying-navigator port is a
+  separate cross-cutting AI item, not this row.
+- Row 4 (main head line of sight): FIXED (prior 7bdd7bd9a). wither.rs:383 gates the main
+  head attack on has_line_of_sight, matching vanilla RangedAttackGoal.
+- Row 5 (bossbar progress): VERIFIED. Spawn phase uses 1 - newCount/220
+  (WitherBoss.java:273; wither.rs:441-442); post-spawn uses health/maxHealth
+  (WitherBoss.java:391; wither.rs:602-609); make_invulnerable sets 0.0
+  (WitherBoss.java:401; wither.rs:171).
+- Row 6 (block destruction drops): FIXED (prior). wither.rs:580 uses
+  break_block(..., BlockFlags::NOTIFY_ALL) with no SKIP_DROPS, matching vanilla
+  Level.destroyBlock(pos, true, this) at WitherBoss.java:377.
+- Row 7 (idle head offsets and head index): FIXED this pass. Offsets are uniform
+  (WitherBoss.java:319-321 uses Mth.nextDouble over x+/-10, y+/-5, z+/-10), matching
+  random_range(-10.0..10.0) at wither.rs:486-488. Corrected the side-head index:
+  WitherBoss.java:322 and 330 call performRangedAttack(i + 1, ...) for two heads 2 and 3,
+  but Pumpkin passed head i; changed wither.rs:492 and 507 to i + 1. Head 3 wraps to the
+  head-1 angle via 180 * (index - 1) (WitherBoss.java:421-428), so the emitted head now
+  matches vanilla. No pure unit-test seam: get_head_x/y/z require a world/entity fixture.
+- Row 8 (peaceful despawn): VERIFIED. WitherBoss.java:536-543 checkDespawn discards the
+  wither on Peaceful; wither.rs:414-422 tick_wither_lifecycle clears the bossbar and
+  removes the entity, matching the observable shared despawn path.
+- Row 9 (projectile immunity): FIXED (prior) and VERIFIED. WitherBoss.java:504-508 blocks
+  only AbstractArrow and WindCharge. is_projectile_immune_to_powered_wither (wither.rs:65-69)
+  uses the arrows tag plus TRIDENT and WIND_CHARGE and correctly excludes
+  BREEZE_WIND_CHARGE; the unit test (wither.rs:739-757) covers the type set.
+
+Files touched this pass: crates/pumpkin-core/src/entity/boss/wither.rs and this doc.
+No build run (task rules); compile verification left to the orchestrator.

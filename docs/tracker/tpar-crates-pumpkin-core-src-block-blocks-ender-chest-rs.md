@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **blocks/Ender Chest** [partial/UNCOVERED] Personal inventory works. The opening path lacks the guarded-block interaction that angers piglins. Sitting cats do not obstruct vanilla ender chests, so that is not a parity gap. Personal inventory works.
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+- **blocks/Ender Chest** - VERIFIED. normal_use calls PiglinAi::on_guarded_block_interacted at ender_chest.rs:110 inside the `if let Some(factory)` guard, matching .vendor/vanilla-decompiled/net/minecraft/world/level/block/EnderChestBlock.java:90 (PiglinAi.angerNearbyPiglins(serverLevel, player, true)) and .vendor/vanilla-decompiled/net/minecraft/world/entity/monster/piglin/PiglinAi.java:550. The blocked-chest early return (ender_chest.rs:120 is_chest_blocked) keeps piglins calm like vanillas redstone-conductor check at EnderChestBlock.java:79. Personal inventory via EnderChestInventory matches the vanilla PlayerEnderChestContainer. No generated-data field or subsystem is missing.
