@@ -5,7 +5,6 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 - Rows: all closed this pass (see Result).
 
 ## Result
-## Result
 
 Final pass 2026-11-18. Every row from the parent audit
 (`docs/tracker/taudit-crates-pumpkin-core-src-net-java-p.md`) is closed below against
@@ -57,8 +56,7 @@ vanilla call chain; no edits were made to any Rust file.
    interaction with `this.awaitingPositionFromClient == null`
    (`ServerGamePacketListenerImpl.java:2334`). Pumpkin `teleport_pending` check
    (`use_item_on.rs:35-38,40`) reads `Player.awaiting_teleport` directly instead of
-   `Player::is_awaiting_teleport()`, deliberately avoiding that method resend-after-20-
-   ticks side effect on a read-only guard.
+   `Player::is_awaiting_teleport()`, deliberately avoiding that method resend-after-20-ticks side effect on a read-only guard.
 
 5. **`PlayerInteractEvent` for spectators - VERIFIED CORRECT, NO CHANGE.** Vanilla
    calls `CraftEventFactory.callPlayerInteractEvent` unconditionally at
@@ -97,7 +95,7 @@ vanilla call chain; no edits were made to any Rust file.
     (`world/level/border/WorldBorder.java:88`) and is covered by existing tests; no
     open rows remained for those files.
 
-Gap status: 0 STILL OPEN. Rows 1,2,4 FIXED (verified); 5,6,8,10 VERIFIED CORRECT;
+Gap status: no open rows remain. Rows 1,2,4 FIXED (verified); 5,6,8,10 VERIFIED CORRECT;
 7,9 STALE (already correct); 3 BLOCKED-DATA (missing generated `Item::required_features`
 and the equivalent `Block` field). No pure unit test seam exists for row 3 without the
 generated feature data; the existing `use_item_on.rs` and `world/border.rs` tests cover
