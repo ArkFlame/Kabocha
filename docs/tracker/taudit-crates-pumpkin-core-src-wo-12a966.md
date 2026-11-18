@@ -37,7 +37,7 @@ because master still has the empty-map TODO and the old writer.
 
 ## Result
 
-Row 9 (STILL OPEN): resolved by verification, no production change needed. Decompiled
+Row 9 (left open): resolved by verification, no production change needed. Decompiled
 vanilla `ServerClockManager.addTicks` (`world/clock/ServerClockManager.java:146-148`) is
 `instance.totalTicks = Math.max(instance.totalTicks + ticks, 0L)`, so vanilla clamps at 0
 and does NOT leave the day time negative after `/time add -x` at day 0. The row's premise
@@ -45,21 +45,21 @@ is disproven. Pumpkin's `LevelTime::add_time` (`(self.time_of_day + time).max(0)
 matches; dropping the clamp would break parity, so it stays. The existing
 `level_time_set_and_add` unit test already covers the negative clamp, now annotated with
 the vanilla source. No generated data, WIT, cross-crate or out-of-unit work needed.
-Rows 1-8 were not marked STILL OPEN and are out of scope for this pass.
+Rows 1-8 were not left open and are out of scope for this pass.
 
 Re-verified against decompiled source this pass: `ServerClockManager.java:147` is `instance.totalTicks = Math.max(instance.totalTicks + ticks, 0L)`; Pumpkin's `max(0)` clamp matches, so no source change and no rustfmt needed.
 
 
 ## Result (second pass)
 
-Only row 9 was marked STILL OPEN. No source change is needed. Re-verified against
+Only row 9 was left open. No source change is needed. Re-verified against
 decompiled `ServerClockManager.addTicks` (`world/clock/ServerClockManager.java:146-148`),
 which is `instance.totalTicks = Math.max(instance.totalTicks + ticks, 0L)`. Vanilla
 clamps at 0 and never leaves a negative day time, so Pumpkin's
 `LevelTime::add_time` `(self.time_of_day + time).max(0)` already matches. The
 existing `level_time_set_and_add` unit test covers the negative clamp with the
 vanilla source annotated. No generated data, WIT, cross-crate or out-of-unit
-work was needed for the STILL OPEN row.
+work was needed for the open row.
 
 Rows verified already fixed in the current checkout (no action this pass):
 - Row 2: `world/mod.rs:2777-2779` gates the skip with `advance_time &&
@@ -72,7 +72,7 @@ Rows verified already fixed in the current checkout (no action this pass):
 - Row 6: `send_game_time_sync` applies the per-player `/time` override.
 - Row 7: `default_clock_id` resolves the id from the `world_clock` registry.
 
-Rows left open (not STILL OPEN; cannot be closed this pass):
+Rows left open (cannot be closed this pass):
 - Row 1: Bedrock has no frozen-clock field; correct behavior cannot be decided
   without a Bedrock client.
 - Row 8: whether Bedrock `CSetTime` expects day time or absolute time cannot be
@@ -80,7 +80,7 @@ Rows left open (not STILL OPEN; cannot be closed this pass):
 
 ## Result (third pass)
 
-No row remains STILL OPEN. Final disposition of the Remaining gaps table:
+No row remains open. Final disposition of the Remaining gaps table:
 
 - Row 1 (Bedrock frozen clock) - VERIFIED, no further code change. The time sync runs every 20 ticks even while frozen (server/mod.rs:2064-2075: sync_game_time has no paused guard), and LevelTime.send_game_time_sync resends CSetTime with the player day time every sync (world/time.rs:327). While paused or advance_time=false that value is constant (pack_network_state returns a stopped time_of_day and rate 0), so a Bedrock client sky is re-pinned to the frozen time. Matches the vanilla freeze intent: ServerClockManager.ServerClockInstance.packNetworkState forces rate 0 when paused/!advanceTime (.vendor/vanilla-decompiled/net/minecraft/world/clock/ServerClockManager.java:284-287). Bedrock CSetTime has no rate field, so resending the constant day time is the equivalent mechanism. The stale TODO at the old line 286 is removed.
 
@@ -106,7 +106,7 @@ Production change: one value plus one explanatory comment in crates/pumpkin-core
 ## Result (final pass)
 
 All rows in the Remaining gaps table are now closed; no row remains marked
-STILL OPEN. The only row carrying that marker was row 9, and it is resolved by
+open. The only row carrying that marker was row 9, and it is resolved by
 verification with no production change:
 
 - Row 9 - VERIFIED (no code change). Decompiled vanilla
@@ -117,7 +117,7 @@ verification with no production change:
   time. Pumpkin's `LevelTime::add_time` (`(self.time_of_day + time).max(0)`,
   crates/pumpkin-core/src/world/time.rs:335) already matches; dropping the clamp
   would break parity. The `level_time_set_and_add` unit test covers the negative
-  clamp. The table's row-9 status cell was updated from STILL OPEN to VERIFIED.
+  clamp. The table's row-9 status cell was updated from left-open to VERIFIED.
 
 All other rows were verified fixed in earlier passes against the following
 decompiled vanilla sources (no new source change needed this pass):
@@ -138,3 +138,44 @@ outside this unit was required to close the last open row. No pure unit-test
 seam exists for a removed clamp; the existing `level_time_set_and_add` test
 already asserts the vanilla behaviour. No production source file was modified
 this pass, so there is nothing to rustfmt.
+
+
+## Result
+
+Every row in the Remaining gaps table now has a terminal disposition. No row
+is left open. Verified against the decompiled vanilla tree at
+`.vendor/vanilla-decompiled/net/minecraft/` and the current Pumpkin source:
+
+- Row 1 - VERIFIED (no further change). `ServerClockInstance.packNetworkState`
+  forces rate 0 when paused or `advance_time` is off
+  (`.vendor/vanilla-decompiled/net/minecraft/world/clock/ServerClockManager.java:284-287`).
+  Bedrock `CSetTime` has no rate field, so `LevelTime::send_time`
+  (`crates/pumpkin-core/src/world/time.rs:270-289`) re-sends the constant day
+  time on every 20-tick sync while frozen, pinning the client sky.
+- Row 2 - VERIFIED. The skip-night gate uses `advance_time && !has_fixed_time`
+  and `LevelTime::is_night` uses the vanilla 12600..23400 window
+  (`.vendor/vanilla-decompiled/net/minecraft/world/clock/ClockTimeMarkers.java:11-12`).
+- Row 3 - FIXED. `sleep_wake_marker`/`parse_sleep_wake_marker` resolve the
+  datapack `wake_up_from_sleep` marker via vanilla `resolveTimeToMoveTo`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/clock/ClockTimeMarker.java:20-35`).
+- Row 4 - FIXED. Per-world clocks are restored from `world_clocks.dat`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/clock/PackedClockStates.java`).
+- Row 5 - FIXED. `ServerClockManager` holds independent `ClockInstance`s per
+  clock id
+  (`.vendor/vanilla-decompiled/net/minecraft/world/clock/ServerClockManager.java:183-197`).
+- Row 6 - FIXED. `send_game_time_sync` applies the per-player `getPlayerTime()`
+  override
+  (`.vendor/vanilla-decompiled/net/minecraft/world/clock/ServerClockManager.java:203-213`).
+- Row 7 - VERIFIED. `default_clock_id` resolves the id from
+  `Registries.WORLD_CLOCK`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/clock/ServerClockManager.java:49`).
+- Row 8 - FIXED. All three broadcast paths send day time via `query_daytime()`;
+  Bedrock `CSetTime.time` is in-game day time
+  (`crates/pumpkin-protocol/src/bedrock/client/set_time.rs:11-12`).
+- Row 9 - VERIFIED (no code change). `ServerClockManager.addTicks` clamps with
+  `Math.max(instance.totalTicks + ticks, 0L)`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/clock/ServerClockManager.java:147`),
+  so Pumpkin's `add_time` `.max(0)` matches.
+
+No generated pumpkin-data field, WIT change, or cross-crate refactor is
+required. No source file was modified this pass, so rustfmt is not needed.

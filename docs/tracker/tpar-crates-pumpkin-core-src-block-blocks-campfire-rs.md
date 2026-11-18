@@ -8,3 +8,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 
 ## Result
 STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+

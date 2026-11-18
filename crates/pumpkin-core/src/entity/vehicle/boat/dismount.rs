@@ -74,11 +74,11 @@ impl BoatEntity {
                 if !can_dismount_to(&world, passenger, *candidate, &dimensions) {
                     continue;
                 }
-                if is_player {
-                    passenger_entity.set_pose(pose);
-                    if passenger_entity.pose.load() != pose {
-                        continue;
-                    }
+                // Vanilla AbstractBoat.getDismountLocationForPassenger calls
+                // passenger.setPose for every living passenger, not only players.
+                passenger_entity.set_pose(pose);
+                if is_player && passenger_entity.pose.load() != pose {
+                    continue;
                 }
                 return *candidate;
             }
