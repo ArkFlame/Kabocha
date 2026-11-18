@@ -63,3 +63,18 @@ Reviewed after `065a8148a` (sync ride boost time and expire boost).
 - Rows 22/23 (pathfinding maluses, boost timing): constructor maluses match vanilla line 96-99 (WATER -1, LAVA 0, FIRE_IN_NEIGHBOR/DangerFire 0, FIRE/DamageFire 0); `tick_boost` uses the pre-increment `fetch_add` return with a unit test in `item_steerable.rs`. Note: the stale table text 'LAVA 8.0' is incorrect - vanilla uses LAVA 0.0, which the code implements.
 - No new pure unit test: each resolved seam (suffocation, navigation, jockey, attachment, eating sound) needs a live entity/world rather than a pure function; the boost timing test already exists.
 - Not compiled by this worker (shell denied); orchestrator batch-checks. Risk: none of these rows were edited this pass, so no new compile risk was introduced.
+
+
+## Result
+
+FINAL PASS. Re-read every STILL OPEN row against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Strider.java` plus wiring in `animal.rs`, `goal_utils.rs`, `random_pos.rs`, `item_steerable.rs`, `sound.rs` and `strider_temperature_change.rs`. All rows are already implemented in earlier passes; no source edit was required this pass.
+
+- Row 19 (hot-block suffocation, M): VERIFIED FIXED. `strider.rs::mob_tick` (204-235) matches `Strider.tick` (306-321): inside/on `MINECRAFT_STRIDER_WARM_BLOCKS` or lava height > 0, warm-strider vehicle downcast via `cast_any().downcast_ref::<Self>()`, `!is_no_ai` guard, flip-only `StriderTemperatureChangeEvent` fired through `fire_blocking` then gated on `event.cancelled`. Generated fields exist (`tag.rs:18488`, `sound.rs` `EntityStriderEat` at 1553). No data/WIT change needed.
+- Row 20 (navigation, M): VERIFIED. Vanilla `StriderPathNavigation extends GroundPathNavigation` with `WalkNodeEvaluator` (523-538), not amphibious. Pumpkin overrides `is_stable_destination` (lava, 248-257) and `get_walk_target_value` (10 / NEG_INFINITY / 0, 260-272), matching vanilla 393-399; both flow through the `Mob` trait into `goal_utils.rs` and `random_pos.rs`. No `create_navigation` hook needed for this version.
+- Row 21 (jockey spawn, M): VERIFIED. Vanilla `finalizeSpawn`/`spawnJockey` (451-487). Pumpkin `strider.rs::finalize_spawn` (302-379) matches: 1/30 zombified piglin when monsters spawn (0.05 baby odds, warped fungus in MAIN_HAND, guaranteed saddle drop), 1/10 baby strider jockey, else 0.5 group baby chance, jockey group 0.0.
+- Row 22 (pathfinding maluses, L): VERIFIED. Vanilla constructor (93-100) sets WATER -1.0, LAVA 0.0, FIRE_IN_NEIGHBOR 0.0, FIRE 0.0; Pumpkin (55-64) sets exactly these. The old table text "LAVA 8.0" is stale/incorrect.
+- Row 23 (boost timing, S): VERIFIED FIXED (ec4dd9ba9). `tick_boost` (`item_steerable.rs` 37-47) compares the pre-increment `fetch_add` value; pure unit test `boost_stops_after_total_plus_one_ticks` at 65-76.
+- Row 24 (passenger attachment, S): VERIFIED. Vanilla `getPassengerAttachmentPoint` returns `super` on the server; the server needs no override.
+- Row 25 (eating sound, M): VERIFIED FIXED. Vanilla `mobInteract` (427-439) plays `STRIDER_EAT` when fed. The `Animal::play_eating_sound` seam (`animal.rs:81`, called at 119 and 141) is overridden in `strider.rs` (133-136) to play `EntityStriderEat`.
+
+- No new pure unit test: each resolved seam needs a live entity/world; the boost timing test already exists. No STILL OPEN or BLOCKED-DATA rows remain. Not compiled by this worker (shell denied); orchestrator batch-checks. Risk: none (no source edits this pass).
