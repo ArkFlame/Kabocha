@@ -54,6 +54,14 @@ pub trait ItemBehaviour: Send + Sync {
         self.normal_use(item, player, hand);
     }
 
+    /// The vanilla `InteractionResult` of this item's use-item action, defaulting to pass.
+    ///
+    /// Items whose `Item#use` returns `FAIL` or `CONSUME` override this so the packet
+    /// handler can tell them apart, for example an instrument without a component.
+    fn use_result(&self, _stack: &ItemStack) -> BlockActionResult {
+        BlockActionResult::Pass
+    }
+
     #[expect(clippy::too_many_arguments)]
     fn use_on_block(
         &self,

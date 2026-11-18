@@ -1,5 +1,6 @@
 use std::any::Any;
 
+use crate::block::registry::BlockActionResult;
 use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use crate::world::game_event::GameEventContext;
@@ -89,6 +90,19 @@ impl ItemBehaviour for GoatHornItem {
             })
     }
 
+    fn use_result(&self, stack: &ItemStack) -> BlockActionResult {
+        if stack
+            .get_data_component::<InstrumentImpl>()
+            .and_then(|inst| Instrument::from_name(&inst.instrument))
+            .is_some()
+        {
+            BlockActionResult::Consume
+        } else {
+            // Vanilla `InstrumentItem.use` returns FAIL when the stack has no instrument.
+            BlockActionResult::Fail
+        }
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -105,7 +119,7 @@ mod tests {
     use pumpkin_data::data_component_impl::InstrumentImpl;
     use pumpkin_data::item_stack::ItemStack;
 
-    use super::{GoatHornItem, Instrument, Item, ItemBehaviour};
+    use super::{BlockActionResult, GoatHornItem, Instrument, Item, ItemBehaviour};
 
     #[test]
     fn use_duration_is_read_from_the_stack_instrument() {
@@ -119,5 +133,17 @@ mod tests {
             GoatHornItem.get_use_duration(&stack),
             i32::try_from(Instrument::PonderGoatHorn.use_duration_ticks()).unwrap_or(i32::MAX)
         );
+    }
+
+    #[test]
+    fn use_result_fails_without_an_instrument() {
+        let stack = ItemStack::new(1, &Item::GOAT_HORN);
+        assert!(GoatHornItem.use_result(&stack) == BlockActionResult::Fail);
+
+        let mut stack = ItemStack::new(1, &Item::GOAT_HORN);
+        stack.set_data_component(InstrumentImpl {
+            instrument: Cow::Borrowed("minecraft:ponder_goat_horn"),
+        });
+        assert!(GoatHornItem.use_result(&stack) == BlockActionResult::Consume);
     }
 }

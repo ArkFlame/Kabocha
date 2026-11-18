@@ -35,9 +35,9 @@ impl ItemRegistry {
         }
     }
 
-    pub fn on_use(&self, stack: &ItemStack, player: &Player, hand: Hand) {
+    pub fn on_use(&self, stack: &ItemStack, player: &Player, hand: Hand) -> BlockActionResult {
         let (yaw, pitch) = player.rotation();
-        self.on_use_with_rotation(stack, player, yaw, pitch, hand);
+        self.on_use_with_rotation(stack, player, yaw, pitch, hand)
     }
 
     pub fn on_use_with_rotation(
@@ -47,7 +47,7 @@ impl ItemRegistry {
         yaw: f32,
         pitch: f32,
         hand: Hand,
-    ) {
+    ) -> BlockActionResult {
         let item = stack.item;
         let cooldown = stack.get_use_cooldown();
         let cooldown_group = cooldown
@@ -55,24 +55,29 @@ impl ItemRegistry {
             .unwrap_or_else(|| item.registry_key.to_string());
 
         if player.is_on_cooldown(&cooldown_group) {
-            return;
+            return BlockActionResult::Pass;
         }
 
-        if let Some(pumpkin_item) = self.get_pumpkin_item(item.id) {
+        let result = if let Some(pumpkin_item) = self.get_pumpkin_item(item.id) {
             pumpkin_item.normal_use_with_rotation(item, player, yaw, pitch, hand);
+            pumpkin_item.use_result(stack)
         } else if stack
             .get_data_component::<pumpkin_data::data_component_impl::KineticWeaponImpl>()
             .is_some()
         {
             crate::item::items::spear::SpearItem
                 .normal_use_with_rotation(item, player, yaw, pitch, hand);
+            crate::item::items::spear::SpearItem.use_result(stack)
         } else if stack
             .get_data_component::<pumpkin_data::data_component_impl::RecipesImpl>()
             .is_some()
         {
             crate::item::items::knowledge_book::KnowledgeBookItem
                 .normal_use_with_rotation(item, player, yaw, pitch, hand);
-        }
+            crate::item::items::knowledge_book::KnowledgeBookItem.use_result(stack)
+        } else {
+            BlockActionResult::Pass
+        };
 
         if let Some(cooldown) = cooldown
             && self.get_use_duration(stack).is_none()
@@ -80,6 +85,8 @@ impl ItemRegistry {
         {
             player.start_cooldown(cooldown_group, (cooldown.seconds * 20.0) as i32);
         }
+
+        result
     }
 
     pub fn on_stopped_using(&self, stack: &ItemStack, player: &Player) {
