@@ -3770,6 +3770,30 @@ impl Entity {
 
         let final_move = self.adjust_movement_for_collisions(motion, caller);
 
+        // Vanilla `Entity.move` resets fall distance when a fast fall clips a
+        // fall-damage-resetting block (or water) along the movement segment.
+        if let Some(living) = caller.get_living_entity()
+            && living.fall_distance.load() != 0.0
+        {
+            let movement_length = final_move.length();
+            if movement_length >= 1.0 {
+                let check_distance = movement_length.min(8.0);
+                let from = self.pos.load();
+                let to = from + final_move.normalize() * check_distance;
+                let world = self.world.load();
+                if world
+                    .raycast(from, to, |pos, world| {
+                        let block = world.get_block(pos);
+                        block == &Block::WATER
+                            || block.has_tag(&tag::Block::MINECRAFT_FALL_DAMAGE_RESETTING)
+                    })
+                    .is_some()
+                {
+                    living.fall_distance.store(0.0);
+                }
+            }
+        }
+
         self.move_pos(final_move);
 
         let velocity_multiplier = f64::from(caller.get_block_speed_factor());

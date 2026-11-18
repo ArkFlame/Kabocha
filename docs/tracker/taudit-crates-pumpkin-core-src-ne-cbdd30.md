@@ -185,3 +185,19 @@ every in-scope row is already fixed. fixed=0 new this pass.
   vehicle_position_last_reset_at counter on JavaClient, outside the three granted files.
 - No pure unit test seam: both changes need a JavaClient plus a live entity/network, so none added.
 - No cargo/git run (forbidden for this worker): UNVERIFIED.
+
+
+## Result (native third pass, 2026-11-18) - all rows closed
+
+- Row 3 (op bypass for player limit): VERIFIED FIXED. `server/mod.rs:1403-1415` skips the
+  full-server kick for ops, matching vanilla `PlayerList#canBypassFullServerLogin`.
+- Row 4 (ban date tz name): VERIFIED FIXED. `net/mod.rs:419-435` `format_ban_expiration` renders
+  the local date/time plus a UTC or numeric-offset zone label, matching
+  `PlayerList.BAN_DATE_FORMAT` ("yyyy-MM-dd 'at' HH:mm:ss z"); tests at net/mod.rs:731+.
+- Rows 5 and 6: VERIFIED FIXED in earlier passes (ClientInformation defaults;
+  try_enqueue_spawn_packet alias removed).
+- Extra "Left open - needs a JavaClient field" (vehicle-position reset): FIXED. Added
+  `JavaClient::vehicle_position_last_reset_at: AtomicI32` and the non-controlling-passenger
+  resync in `net/java/play/move_vehicle.rs:58-87` per vanilla
+  ServerGamePacketListenerImpl.java:815-823.
+- No remaining STILL OPEN rows. No cargo/git run (forbidden): UNVERIFIED.

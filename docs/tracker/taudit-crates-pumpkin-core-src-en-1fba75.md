@@ -203,3 +203,7 @@ pickable, so a projectile near the mount was flagged as having left its owner to
   World under a Tokio runtime), so no test was added.
 Files changed: crates/pumpkin-core/src/entity/mod.rs, crates/pumpkin-core/src/entity/projectile/owner.rs.
 Compilation not run (worker restriction); rustfmt and compile are the orchestrator gate.
+
+## Result (third pass, final disposition)
+
+- Paper `setCollidable` / `LivingEntity.collides` sub-case: BLOCKED-DATA. Supersedes the prior "LEFT OPEN" line. Vanilla keeps a `public boolean collides = true` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java:299`, `// CraftBukkit`) read by `isPickable` (`:4154`) and the `// Paper - setCollidable API` path (`:4170`). Pumpkin has no `collides` field, no setter and no plugin/WIT API; its `is_collidable` trait method is a different push/mob predicate. Missing subsystem: a `collides: bool` field on `Entity` (default true) wired into `is_pickable`, a `set_collidable(bool)` setter, and a Paper-style plugin API. With no reachable caller the behaviour is equivalent today, so the is_pickable fix (owner.rs:213-215 / entity/mod.rs:713-715) stays correct. All other rows remain FIXED as previously documented. No source edit this pass.

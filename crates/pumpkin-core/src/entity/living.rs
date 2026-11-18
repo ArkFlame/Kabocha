@@ -5742,53 +5742,8 @@ mod consumable_effect_tests {
 /// Returns `true` if `damage_type` is in `#minecraft:bypasses_armor` (1.21.11).
 /// These sources bypass armor entirely (fall, drown, freeze, etc.).
 #[cfg(test)]
-pub(crate) const fn bypasses_armor_durability(damage_type: &DamageType) -> bool {
-    // Bitmask lookup: O(1) with two instructions (shift + AND), no array scan.
-    // DamageType IDs can exceed 31; use u64 for sufficient range.
-    // TODO: Make data-driven once the data pack system can handle it without performance regressions.
-    // Compile-time assertions: ensure all bypassing types fit in u64 bitmask.
-    const _: () = assert!(
-        DamageType::FALL.id < 64
-            && DamageType::FLY_INTO_WALL.id < 64
-            && DamageType::ON_FIRE.id < 64
-            && DamageType::IN_WALL.id < 64
-            && DamageType::CRAMMING.id < 64
-            && DamageType::DROWN.id < 64
-            && DamageType::GENERIC.id < 64
-            && DamageType::WITHER.id < 64
-            && DamageType::DRAGON_BREATH.id < 64
-            && DamageType::STARVE.id < 64
-            && DamageType::ENDER_PEARL.id < 64
-            && DamageType::FREEZE.id < 64
-            && DamageType::STALAGMITE.id < 64
-            && DamageType::MAGIC.id < 64
-            && DamageType::INDIRECT_MAGIC.id < 64
-            && DamageType::OUT_OF_WORLD.id < 64
-            && DamageType::GENERIC_KILL.id < 64
-            && DamageType::SONIC_BOOM.id < 64
-            && DamageType::OUTSIDE_BORDER.id < 64,
-        "One or more bypass DamageType IDs exceed u64 bitmask width (>= 64)"
-    );
-    const BYPASS_MASK: u64 = (1u64 << DamageType::FALL.id)
-        | (1u64 << DamageType::FLY_INTO_WALL.id)
-        | (1u64 << DamageType::ON_FIRE.id)
-        | (1u64 << DamageType::IN_WALL.id)
-        | (1u64 << DamageType::CRAMMING.id)
-        | (1u64 << DamageType::DROWN.id)
-        | (1u64 << DamageType::GENERIC.id)
-        | (1u64 << DamageType::WITHER.id)
-        | (1u64 << DamageType::DRAGON_BREATH.id)
-        | (1u64 << DamageType::STARVE.id)
-        | (1u64 << DamageType::ENDER_PEARL.id)
-        | (1u64 << DamageType::FREEZE.id)
-        | (1u64 << DamageType::STALAGMITE.id)
-        | (1u64 << DamageType::MAGIC.id)
-        | (1u64 << DamageType::INDIRECT_MAGIC.id)
-        | (1u64 << DamageType::OUT_OF_WORLD.id)
-        | (1u64 << DamageType::GENERIC_KILL.id)
-        | (1u64 << DamageType::SONIC_BOOM.id)
-        | (1u64 << DamageType::OUTSIDE_BORDER.id);
-    (damage_type.id < 64) && ((BYPASS_MASK >> damage_type.id) & 1 == 1)
+pub(crate) fn bypasses_armor_durability(damage_type: &DamageType) -> bool {
+    damage_type.has_tag(&tag::DamageType::MINECRAFT_BYPASSES_ARMOR)
 }
 
 pub(crate) fn prevents_armor_change(stack: &ItemStack) -> bool {

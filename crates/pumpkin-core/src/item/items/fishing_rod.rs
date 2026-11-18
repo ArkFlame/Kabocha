@@ -127,6 +127,10 @@ impl ItemBehaviour for FishingRodItem {
             // plugin cancellation and before the start vibration.
             player.increment_stat(StatisticCategory::Used, i32::from(item.id), 1);
             world.emit_game_event(GameEvent::ItemInteractStart.name(), player.position());
+            // Vanilla returns InteractionResult.SUCCESS (shouldSwing) on the cast branch too;
+            // the packet handler swings the arm toward other players. The rod's use_result is
+            // Pass, so the generic handler does not swing and this must be explicit.
+            player.swing_hand(hand, false);
         } else {
             // Reel in
             let mut keep_hook = false;
