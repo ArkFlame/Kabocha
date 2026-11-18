@@ -121,10 +121,13 @@ fn no_flower_found(mob: &dyn Mob) {
     }
 }
 
-/// Vanilla `BeePollinateGoal.start` sets the `pollinating` flag.
+/// Vanilla `BeePollinateGoal.start` sets the `pollinating` flag and resets the no-nectar timer.
 fn pollination_started(mob: &dyn Mob) {
     if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
         bee.set_pollinating(true);
+        // Vanilla `Bee.resetTicksWithoutNectarSinceExitingHive` at pollination start
+        // (`Bee.java:1176`); matters for a bee loaded from NBT with a stale timer.
+        bee.ticks_without_nectar.store(0, Ordering::Relaxed);
     }
 }
 

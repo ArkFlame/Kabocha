@@ -9,7 +9,15 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **own/tentities-mangrove-chest-boat** [partial/OWN-OPEN] own audit: 7 open, 10 fixed, 1 verified, 0 blocked-data (docs/tracker/tentities-mangrove-chest-boat.md) docs/tracker/tentities-mangrove-chest-boat.md
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+No STILL OPEN rows remain. Per-row terminal disposition (full detail in the child trackers' final Result sections and in the third-pass section below):
+
+- 1fba75 / `entity/projectile/owner.rs` - projectile NBT persistence, EntityReference weak/UUID pre-registration, is_pickable predicate, vanish check, restore_from hook and lastDeflectedBy id: FIXED, VERIFIED (`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/Projectile.java:154-175,180-185,446-447,566`; `EntitySelector.java:19`; `LivingEntity.java:4153-4154`).
+- 1fba75 Paper `setCollidable`/`LivingEntity.collides`: BLOCKED-DATA. Missing subsystem: a `collides: bool` field on `Entity` (default true) wired into `is_pickable`, a `set_collidable(bool)` setter and a Paper-style plugin/WIT API (`.vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java:299,4170`). No reachable caller today, so behaviour is equivalent.
+- e4505c / `entity/projectile/ender_pearl.rs` rows 1-6 (portal particles, teleport sound, uncancellable dismount, connection gate, endermite gate, death status): FIXED, VERIFIED (`.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java:101,120,165-175,199,211,234,258-264,304-306`).
+- f688a8 / `entity/mod.rs` rows 1,2,4,5,6,7 (display-name team decoration, fire clears freeze, tick_block_underneath stub, teleport broadcast, set_rotation normalisation, kill fallback): FIXED/VERIFIED (`.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:6231,1168-1173,4083,913,765-768`).
+- f688a8 row 3 / entity-mod row 1 Bedrock `climate_variant`: BLOCKED-DATA. Missing generated Bedrock entity-property-ID registry mapping `minecraft:climate_variant` to its `u32` for `PropertySyncData`, plus a spawn-biome-temperature hook; Java has no such property, only `TemperatureVariants.java`.
+- entity-mod rows 2-6: VERIFIED against `Entity.java` (ignite clears freeze, team name decoration, non-living kill, no dead tick_block_underneath stub, stopRiding `EntityDismount`).
+- mangrove-chest-boat rows 1-3: FIXED, VERIFIED (`.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractChestBoat.java:47-50,65-77,80-97`).
 
 ## Result (third pass, final disposition, 2026-11-18)
 
@@ -32,3 +40,11 @@ Re-verified every row still marked STILL OPEN across the five child trackers aga
 No STILL OPEN rows remain. Compile-pit replay: no source code added this pass, so no import/helper/macro/struct-initializer/clone/clippy-pedantic issues introduced; no unwrap/expect/panic; no em dashes; no generated-data edits.
 
 Status: PASS fixed=0 open=0 blocked-data=3 files=none (remaining blocks are missing generated Bedrock property-id data and a Paper setCollidable subsystem; all other rows VERIFIED)
+
+## Result (final pass, 2026-11-18)
+
+Independently re-read both editable source files (`owner.rs`, `ender_pearl.rs`) end to end and re-verified their rows directly against the decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/`: `Projectile.java:154-175,225-235,566` (NBT keys, `isOutsideOwnerCollisionRange`, owner hit rule), `EntitySelector.java:19` and `LivingEntity.java:4153-4154,299,4170` (`isPickable`/`collides`), and `ThrownEnderpearl.java:99-102,119-121,165-175,196-234,258-264,304-306` (dismount, endermite gate, particle burst, connection gate, teleport gate, sound). `should_spawn_monsters()` (`world/mod.rs:8346-8351`) confirms the SPAWN_MOBS && SPAWN_MONSTERS && !PEACEFUL gate matches `ThrownEnderpearl.java:211`. No code change was needed: every fixable row was resolved in earlier passes and the two files already match vanilla. The only non-FIXED rows are BLOCKED-DATA (missing generated Bedrock `climate_variant` property-id registry; missing Paper `collides`/`set_collidable` subsystem), both naming the exact missing data/subsystem above.
+
+Compile-pit replay: no `.rs` source added or changed this pass, so no import/helper/macro/struct-initializer/clone/clippy-pedantic issues introduced; no unwrap/expect/panic; no em dashes; no generated-data edits. Workers may not run cargo or rustfmt; compilation and formatting remain the orchestrator gate.
+
+Status: PASS fixed=0 open=0 blocked-data=3 files=docs/tracker/tpar-crates-pumpkin-core-src-entity-mod-rs.md (remaining blocks are missing generated Bedrock property-id data and a Paper setCollidable subsystem; every other row VERIFIED)

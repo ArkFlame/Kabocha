@@ -143,6 +143,11 @@ impl Goal for PollinateFlowerGoal {
         if !(self.gate)(mob) {
             return false;
         }
+        let world = mob.get_entity().world.load();
+        // Vanilla `BeePollinateGoal.canBeeContinueToUse` stops when it starts raining.
+        if world.is_raining_at(&mob.get_entity().block_pos.load()) {
+            return false;
+        }
         // Vanilla `BeePollinateGoal.canBeeContinueToUse`: after 400 ticks the bee keeps
         // hovering with a 20% chance each tick instead of stopping immediately.
         if pollination_complete(self.pollinate_ticks)
@@ -153,7 +158,7 @@ impl Goal for PollinateFlowerGoal {
         let Some(flower) = self.flower else {
             return false;
         };
-        Self::is_flower_at(&mob.get_entity().world.load(), &flower)
+        Self::is_flower_at(&world, &flower)
     }
 
     fn start(&mut self, mob: &dyn Mob) {
