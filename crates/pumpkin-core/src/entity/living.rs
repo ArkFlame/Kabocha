@@ -4356,6 +4356,17 @@ impl LivingEntity {
                             damage_type,
                             direct_entity_type: source
                                 .map(|s| s.get_entity().entity_type.resource_name.to_string()),
+                            source_entity_type: source
+                                .map(|s| s.get_entity().entity_type.resource_name.to_string()),
+                            source_distance: source.map(|s| {
+                                crate::entity::player::advancement::predicate::EntityDistance::between(
+                                    attacker_player.get_entity().pos.load(),
+                                    s.get_entity().pos.load(),
+                                )
+                            }),
+                            source_is_baby: source
+                                .and_then(|s| s.get_living_entity())
+                                .is_some_and(LivingEntity::is_baby),
                         },
                     );
                 }
@@ -4618,6 +4629,17 @@ impl LivingEntity {
                     damage_type,
                     direct_entity_type: source
                         .map(|s| s.get_entity().entity_type.resource_name.to_string()),
+                    source_entity_type: source
+                        .map(|s| s.get_entity().entity_type.resource_name.to_string()),
+                    source_distance: source.map(|s| {
+                        crate::entity::player::advancement::predicate::EntityDistance::between(
+                            attacker_player.get_entity().pos.load(),
+                            s.get_entity().pos.load(),
+                        )
+                    }),
+                    source_is_baby: source
+                        .and_then(|s| s.get_living_entity())
+                        .is_some_and(LivingEntity::is_baby),
                 },
             );
         }

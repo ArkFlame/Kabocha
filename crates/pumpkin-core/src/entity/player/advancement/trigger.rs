@@ -1,7 +1,7 @@
 use crate::entity::player::Player;
 use crate::entity::player::advancement::PlayerAdvancement;
 use crate::entity::player::advancement::predicate::{
-    self, CriterionConditions, DamagePair, EntityDistance,
+    self, CriterionConditions, DamageEntities, DamagePair, EntityDistance,
 };
 use pumpkin_util::math::position::BlockPos;
 
@@ -57,6 +57,9 @@ pub enum AdvancementTrigger {
         original_damage: f64,
         actual_damage: f64,
         direct_entity_type: Option<String>,
+        source_entity_type: Option<String>,
+        source_distance: Option<EntityDistance>,
+        source_is_baby: Option<bool>,
         damage_type: pumpkin_data::damage::DamageType,
     },
     Bullseye,
@@ -493,6 +496,9 @@ impl Player {
                 original_damage,
                 actual_damage,
                 direct_entity_type,
+                source_entity_type,
+                source_distance,
+                source_is_baby,
                 damage_type,
             } => {
                 self.trigger_criterion_event("minecraft:player_hurt_entity", |cond| match cond {
@@ -504,7 +510,12 @@ impl Player {
                             original: original_damage,
                             actual: actual_damage,
                         },
-                        direct_entity_type.as_deref(),
+                        &DamageEntities {
+                            direct_entity_type: direct_entity_type.as_deref(),
+                            source_entity_type: source_entity_type.as_deref(),
+                            source_distance,
+                            source_is_baby,
+                        },
                         &damage_type,
                     ),
                     CriterionConditions::Custom { .. } => true,

@@ -1,4 +1,5 @@
 use pumpkin_data::damage::DamageType;
+use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::potion::Effect;
 use pumpkin_data::tag::{RegistryKey, Taggable, get_tag_values};
@@ -954,6 +955,56 @@ impl EntityDistance {
     }
 }
 
+/// Snapshot of the target entity fields vanilla's entity sub-predicates read.
+///
+/// `None` means the caller did not collect that part, so a predicate that checks it is skipped.
+#[derive(Clone, Default)]
+pub struct EntityState {
+    pub distance: Option<EntityDistance>,
+    pub is_baby: Option<bool>,
+    pub effects: Option<Vec<Effect>>,
+    pub equipment: Option<Vec<(EquipmentSlot, String)>>,
+}
+
+impl EntityState {
+    /// Reads the active effects and equipped items of a living entity.
+    #[must_use]
+    pub fn from_living(
+        living: &crate::entity::living::LivingEntity,
+        distance: Option<EntityDistance>,
+    ) -> Self {
+        let effects = living
+            .active_effects
+            .try_lock()
+            .ok()
+            .map(|map| map.values().cloned().collect());
+        let equipment = living.entity_equipment.try_lock().ok().map(|eq| {
+            eq.equipment
+                .iter()
+                .filter(|(_, stack)| !stack.is_empty())
+                .map(|(slot, stack)| (slot.clone(), stack.item.registry_key.to_string()))
+                .collect()
+        });
+        Self {
+            distance,
+            is_baby: Some(living.is_baby()),
+            effects,
+            equipment,
+        }
+    }
+}
+
+impl std::fmt::Debug for EntityState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EntityState")
+            .field("distance", &self.distance)
+            .field("is_baby", &self.is_baby)
+            .field("effects", &self.effects.as_ref().map(Vec::len))
+            .field("equipment", &self.equipment)
+            .finish()
+    }
+}
+
 /// Strongly-typed entity condition.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct EntityPredicate {
@@ -967,6 +1018,10 @@ pub struct EntityPredicate {
     pub looking_at: Option<TagOrIdMatcher>,
     pub feet_item: Option<TagOrIdMatcher>,
     pub safe_armor_disallowed: Option<bool>,
+    /// Vanilla `EntityEffectsPredicate`.
+    pub effects: Option<MobEffectsPredicate>,
+    /// Vanilla `EntityEquipmentPredicate`, one entry per checked slot.
+    pub equipment: Vec<(EquipmentSlot, ItemPredicate)>,
 }
 
 /// True when a sub-tree of loot conditions requires an item from the `piglin_safe_armor` tag.
@@ -1065,6 +1120,28 @@ impl EntityPredicate {
         true
     }
 
+    /// Evaluates the entity parts needing a target snapshot:
+    /// vanilla's `EntityEffectsPredicate` and `EntityEquipmentPredicate`.
+    #[must_use]
+    pub fn matches_entity(&self, entity_type: &str, state: &EntityState) -> bool {
+        if !self.matches(entity_type, state.distance, state.is_baby) {
+            return false;
+        }
+        if let Some(effects) = &self.effects
+            && let Some(active) = state.effects.as_ref()
+            && !effects.matches(active)
+        {
+            return false;
+        }
+        self.equipment.iter().all(|(slot, predicate)| {
+            state.equipment.as_ref().is_none_or(|equipped| {
+                equipped.iter().any(|(equipped_slot, item)| {
+                    equipped_slot == slot && predicate.matches(item, 1, &[])
+                })
+            })
+        })
+    }
+
     #[must_use]
     pub fn from_value(val: &Value) -> Self {
         let pred_val = val.get("predicate").unwrap_or(val);
@@ -1145,6 +1222,26 @@ impl EntityPredicate {
             .and_then(|f| f.get("items"))
             .and_then(TagOrIdMatcher::from_value);
 
+        let effects = map
+            .get("minecraft:effects")
+            .or_else(|| map.get("effects"))
+            .map(MobEffectsPredicate::from_value);
+
+        let equipment = map
+            .get("minecraft:equipment")
+            .or_else(|| map.get("equipment"))
+            .and_then(Value::as_object)
+            .map(|slots| {
+                slots
+                    .iter()
+                    .filter_map(|(slot, pred)| {
+                        let slot = EquipmentSlot::get_from_name(slot)?.clone();
+                        Some((slot, ItemPredicate::from_value(pred)))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
         // Vanilla expresses "not wearing piglin safe armor" as an inverted loot condition
         // over an equipment predicate; detect that shape instead of scanning the whole JSON.
         let safe_armor_disallowed = (safe_armor_predicate_is_inverted(val)
@@ -1162,6 +1259,8 @@ impl EntityPredicate {
             looking_at,
             feet_item,
             safe_armor_disallowed,
+            effects,
+            equipment,
         }
     }
 }
@@ -1202,6 +1301,15 @@ pub struct DamagePair {
     pub actual: f64,
 }
 
+/// Entity context used to evaluate the direct and source entity predicates of a hit.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DamageEntities<'a> {
+    pub direct_entity_type: Option<&'a str>,
+    pub source_entity_type: Option<&'a str>,
+    pub source_distance: Option<EntityDistance>,
+    pub source_is_baby: Option<bool>,
+}
+
 /// Strongly-typed damage condition.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct DamagePredicate {
@@ -1212,7 +1320,7 @@ pub struct DamagePredicate {
     pub dealt: Option<FloatBounds>,
     pub taken: Option<FloatBounds>,
     pub type_tags: Vec<DamageTypeTagPredicate>,
-    pub source_entity: Option<String>,
+    pub source_entity: Option<EntityPredicate>,
 }
 
 impl DamagePredicate {
@@ -1304,7 +1412,7 @@ impl DamagePredicate {
         is_deflector: bool,
         is_mace_smash: bool,
         damage: DamagePair,
-        direct_entity_type: Option<&str>,
+        entities: &DamageEntities<'_>,
         damage_type: &DamageType,
     ) -> bool {
         if !self.matches_with_damage(
@@ -1313,18 +1421,22 @@ impl DamagePredicate {
             is_mace_smash,
             Some(damage.original),
             Some(damage.actual),
-            direct_entity_type,
+            entities.direct_entity_type,
         ) {
             return false;
         }
         if self.type_tags.iter().any(|tag| !tag.matches(damage_type)) {
             return false;
         }
-        if let Some(expected_source) = &self.source_entity {
-            let Some(actual_source) = direct_entity_type else {
+        if let Some(source_predicate) = &self.source_entity {
+            let Some(entity_type) = entities.source_entity_type else {
                 return false;
             };
-            if !matches_tag_or_id(RegistryKey::EntityType, expected_source, actual_source) {
+            if !source_predicate.matches(
+                entity_type,
+                entities.source_distance,
+                entities.source_is_baby,
+            ) {
                 return false;
             }
         }
@@ -1393,10 +1505,7 @@ impl DamagePredicate {
         let source_entity = damage_obj
             .get("source_entity")
             .or_else(|| damage_obj.get("type").and_then(|t| t.get("source_entity")))
-            .map(|se| se.get("predicate").unwrap_or(se))
-            .and_then(|se| se.get("minecraft:entity_type").or_else(|| se.get("type")))
-            .and_then(Value::as_str)
-            .map(ToString::to_string);
+            .map(EntityPredicate::from_value);
         let dealt = damage_obj.get("dealt").and_then(FloatBounds::from_value);
         let taken = damage_obj.get("taken").and_then(FloatBounds::from_value);
 
@@ -2245,6 +2354,8 @@ fn from_entity_condition(e: &pumpkin_data::advancement_data::EntityCondition) ->
         looking_at,
         feet_item,
         safe_armor_disallowed: e.safe_armor_disallowed,
+        effects: None,
+        equipment: Vec::new(),
     }
 }
 
@@ -3132,7 +3243,7 @@ mod tests {
             false,
             false,
             pair,
-            None,
+            &DamageEntities::default(),
             &DamageType::ARROW
         ));
         assert!(!predicate.matches_with_damage_type(
@@ -3143,7 +3254,7 @@ mod tests {
                 original: 9.0,
                 actual: 9.0,
             },
-            None,
+            &DamageEntities::default(),
             &DamageType::ARROW
         ));
         assert!(!predicate.matches_with_damage_type(
@@ -3154,7 +3265,49 @@ mod tests {
                 original: 4.5,
                 actual: 4.5,
             },
-            None,
+            &DamageEntities::default(),
+            &DamageType::ARROW
+        ));
+    }
+
+    #[test]
+    fn damage_source_entity_predicate_uses_distance_and_baby() {
+        let predicate = DamagePredicate {
+            source_entity: Some(EntityPredicate::from_value(&json!({
+                "minecraft:entity_type": "minecraft:zombie",
+                "minecraft:distance": { "horizontal": { "max": 4.0 } },
+                "minecraft:flags": { "is_baby": false }
+            }))),
+            ..DamagePredicate::default()
+        };
+        let pair = DamagePair {
+            original: 10.0,
+            actual: 10.0,
+        };
+        let near = DamageEntities {
+            source_entity_type: Some("minecraft:zombie"),
+            source_distance: Some(EntityDistance::from_delta(3.0, 0.0, 0.0)),
+            source_is_baby: Some(false),
+            ..DamageEntities::default()
+        };
+        assert!(predicate.matches_with_damage_type(
+            false,
+            false,
+            false,
+            pair,
+            &near,
+            &DamageType::ARROW
+        ));
+        let far = DamageEntities {
+            source_distance: Some(EntityDistance::from_delta(9.0, 0.0, 0.0)),
+            ..near
+        };
+        assert!(!predicate.matches_with_damage_type(
+            false,
+            false,
+            false,
+            pair,
+            &far,
             &DamageType::ARROW
         ));
     }
