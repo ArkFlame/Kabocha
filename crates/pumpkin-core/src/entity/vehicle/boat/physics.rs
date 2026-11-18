@@ -261,7 +261,9 @@ impl BoatEntity {
     }
 }
 
-/// Vanilla `Boat#getGroundFriction`: no supporting block yields 0.0 instead of a NaN average.
+/// Vanilla `Boat#getGroundFriction` divides by `count`, yielding NaN with no supporting block.
+///
+/// Pumpkin returns 0.0 instead: both values fail the `friction > 0.0` ground test in `get_status`.
 const fn average_ground_friction(total: f32, count: u32) -> f32 {
     if count == 0 {
         0.0

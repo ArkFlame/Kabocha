@@ -95,7 +95,6 @@ pub fn shape_occludes(from: BlockStateId, to: BlockStateId, dir: BlockDirection)
     face_occludes(from, dir) || face_occludes(to, dir.opposite())
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::{face_occludes, uses_shape_for_light_occlusion};

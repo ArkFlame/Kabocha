@@ -35,7 +35,7 @@ Variant pools and rare 1/1200 roll, group-data spawning/baby rule, air supply 60
 
 ## h2 parity sweep (status)
 - FIXED f090717d1 - `travel_in_water` falls back to `LivingEntity::travel_in_water` when `is_no_ai()` (vanilla `Axolotl.travel` gates the swim path on `isEffectiveAi() && isInWater()`). UNVERIFIED (no build).
-- Play-dead regen constants, no-AI air path, hurt condition: STILL OPEN - need decompiled 1.21.x source to confirm; not changed.
+- Play-dead regen constants, no-AI air path, hurt condition: VERIFIED against .vendor decompiled vanilla (PlayDead.java:32, Axolotl.java:184-189/256-266, Axolotl.java:396-408); already correct, no change.
 
 ## Result
 
@@ -73,3 +73,16 @@ The decompiled vanilla tree is now available under .vendor/vanilla-decompiled/ne
 - Row 6 (duplicated doc comment): axolotl.rs:183 is a single doc line. Already fixed.
 
 Outcome: fixed 0 rows this pass (all six already correct); row 5 newly verified against vanilla, closing the last open item. No pure unit test added: existing tests already cover hurt source/cause (:1358-1359) and bucket round trip (:1494-1545). No .rs file changed, so rustfmt was not applicable. No cargo/git run (per task rules); compile and tests UNVERIFIED.
+
+## Result (final)
+
+All six rows are closed. Each was re-verified this pass against the decompiled vanilla tree under .vendor/vanilla-decompiled/net/minecraft/; no source change was needed.
+
+- Row 1 (effective-AI travel guard): VERIFIED. axolotl.rs:592-599 falls back to LivingEntity::travel_in_water on is_no_ai(). The vanilla water swim path is Axolotl.travelInWater (.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/axolotl/Axolotl.java:531-535), dispatched from LivingEntity.travelInFluid (LivingEntity.java:3208-3219); the no-AI fallback matches vanilla. No change.
+- Row 2 (play-dead regen constants): VERIFIED. PlayDead.start (.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/axolotl/PlayDead.java:32) applies new MobEffectInstance(MobEffects.REGENERATION, 200, 0). Pumpkin uses duration 200, amplifier 0 (ai.rs:40,358-359); the doc's old 100/1 guess was wrong. No change.
+- Row 3 (no-AI air path): VERIFIED. Vanilla Axolotl.baseTick (Axolotl.java:184-189) runs standard air rules via super.baseTick() and the dry-out handler only with AI; handleAirSupply (Axolotl.java:256-266) equals water_animal::handle_air_supply (water_animal.rs:41-61), which sets air in both branches. Pumpkin routes no-AI to tick_air_supply and AI to handle_air_supply (axolotl.rs:574-580), so net air and dry-out damage match. No change.
+- Row 4 (hurt play-dead): VERIFIED. Vanilla Axolotl.hurtServer (Axolotl.java:396-408) uses the roll/half-health OR, damage < health, and (source.getEntity() != null || source.getDirectEntity() != null). Pumpkin's plays_dead_when_hurt and source.is_some() || cause.is_some() (axolotl.rs:158-166,374) match. No change.
+- Row 5 (bucket NBT keys): VERIFIED. Vanilla Axolotl.saveToBucketTag / loadFromBucketTag (Axolotl.java:427-449) write and restore Age, AgeLocked and the gated HuntingCooldown; Pumpkin (axolotl.rs:410-452) matches, including erasing the memory when the tag has no HuntingCooldown (no axolotl behavior requires that memory as VALUE_ABSENT, AxolotlAi.java:156). No change.
+- Row 6 (duplicated doc comment): VERIFIED. The apply_supporting_effects doc is a single line (axolotl.rs:183). No change.
+
+Outcome: 0 rows fixed this pass (all six already match vanilla); the stale open status line in the h2 parity sweep section was corrected to VERIFIED. No pure unit test added: existing tests already cover the hurt source/cause (axolotl.rs:1358-1359) and bucket round trip (axolotl.rs:1494-1545) seams, and travel/bucket have no smaller pure seam. No .rs file changed, so rustfmt was not applicable. No cargo/git command was run per task rules; compile and tests are UNVERIFIED.

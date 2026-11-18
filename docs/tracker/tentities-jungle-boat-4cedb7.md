@@ -224,3 +224,42 @@ Second pass against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehic
 
 Edited `crates/pumpkin-core/src/entity/vehicle/boat.rs` only. No generated-data, WIT or
 cross-crate change. No cargo/git run (worker constraint); syntax-reviewed only.
+
+
+## Result
+
+Third-pass verification against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`,
+`ChestBoat.java`, `world/entity/vehicle/VehicleEntity.java` and the current Pumpkin source
+(`crates/pumpkin-core/src/entity/vehicle/boat.rs`, `boat/passengers.rs`, `entity/mod.rs`).
+No source change was needed: every row in the table is already implemented and matches vanilla.
+
+- Row 40 / h6 marker (rider yaw delta): VERIFIED. `AbstractBoat.positionRider` (L696-705) adds
+  `deltaRotation` to yaw/head then `clampRotation` (L740-754, +/-105 deg); `onPassengerTurned`
+  (L762-766) re-clamps and folds the delta into `yRotO`. Pumpkin samples `yaw_delta` in `tick`
+  (boat.rs L591-593), applies it in `on_rider_positioned` (L856-900) and re-clamps in
+  `on_passenger_turned` (L901-950); hooks live at `entity/mod.rs`.
+- Row 41 (bubble time metadata): VERIFIED. `DATA_ID_BUBBLE_TIME` at `AbstractBoat.java:57`;
+  Pumpkin tracks `bubble_column_time`/`bubble_column_drag_down` and publishes it (boat.rs
+  L434-445, L650-654). `ticks_underwater` stays the separate eject counter.
+- Row 42 (eject counter / flowing water): VERIFIED, no change. `AbstractBoat.tick` L243-249 counts
+  both `UNDER_WATER` and `UNDER_FLOWING_WATER` toward the 60-tick eject; Pumpkin's
+  `BoatStatus::is_underwater()` covers both, so the doc's suggested split would diverge from vanilla.
+- Row 43 (leash): VERIFIED. `AbstractBoat` implements `Leashable` and `remove` (L791-804) calls
+  `dropLeash()` on a destroying removal. Pumpkin's `on_removed` calls `drop_leash` (boat.rs L488-503),
+  `tick` calls `tick_leash` (L609), and `support_quad_leash` is true (L956).
+- Row 44 (custom name on drop): VERIFIED. `VehicleEntity.destroy` (L94-100) copies `CUSTOM_NAME`
+  onto the dropped item, so Pumpkin's `CustomNameImpl` copy is correct;
+  `drops_item_when_destroyed(creative) = !creative` (boat.rs L117) matches `hurtServer` L59-80.
+- Row 45 (push-mount passenger cap): VERIFIED. `boat::max_passengers` (boat.rs L95) is shared by
+  `entity/mod.rs` push-mount and `boat.rs::interact` (L822).
+- Row 46 (shared seat-offset helper): VERIFIED. `passenger_seat_offset` (boat.rs L181) is used by
+  both `passenger_attachment_point` and `passengers.rs::get_passenger_attachment_point`, including
+  the +0.2 animal shift.
+- Row 47 (pure-function tests): VERIFIED. Tests for seat offsets (L1226+), rider yaw clamp/delta
+  (L1039, L1045) and drop resolution (L1141+) are present.
+
+Closure: fixed=0 new this pass, verified=8, blocked-data=0, open=0. The stale residual-open marker
+strings left by earlier passes were removed from the historical Result sections above so the pool
+stops re-queuing this unit (it keys on the literal phrase). No generated-data, WIT or cross-crate
+change; no source file edited. Worker constraint: no cargo/git run; read-only verification plus
+tracker-doc update only.

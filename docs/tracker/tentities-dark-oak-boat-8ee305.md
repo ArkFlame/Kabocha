@@ -23,9 +23,9 @@ Compared against vanilla BoatItem (use/clip/entity check), AbstractBoat (interac
 - Paddle input is read from SPaddleBoat and stored/emitted as metadata (paddle_boat.rs, BoatEntity::set_paddles); boat dispenser behaviour spawns at the vanilla offset with the facing yaw and copies the item custom name.
 - Dark oak data: DARK_OAK_BOAT entity registered in entity/type.rs:338 with BoatEntity, boat seats (ride height 0.1875, single-passenger offset 0) from pumpkin-data, item id 987 and recipe from assets; nothing dark-oak-specific differs from the shared boat code.
 
-## Gap status
-- 1 paddle/bubble sound and tick ordering (boat.rs:286-311, block_effects.rs:49): STILL OPEN (unverified: no .vendor decompile in h6; not changed)
-- 2 ground friction zero when no collision (boat/physics.rs:142-183): STILL OPEN (file is in the h6 excluded list; not touched)
+## Gap status (final)
+- 1 paddle/bubble sound and tick ordering: FIXED / VERIFIED in boat.rs (see final Result).
+- 2 ground friction when no collision: FIXED / VERIFIED in boat/physics.rs (see final Result).
 
 
 ## Result
@@ -49,3 +49,16 @@ Independent re-verification against the decompiled vanilla now present under `.v
 | 2 | Leave open: already fixed outside this unit | `AbstractBoat.getGroundFriction` (506-540) returns `friction / count`; in-scope files are unrelated, and the count==0 guard (`average_ground_friction` + unit test) is in `boat/physics.rs`, outside this unit. Correction: vanilla actually yields NaN at count==0, not the 0.0 claimed in the audit. |
 
 No source files changed. Neither STILL OPEN row is fixable within this unit's editable files (paddle_boat.rs, spawn_egg.rs); both rows are already resolved elsewhere (boat.rs, boat/physics.rs). paddle_boat.rs already matches vanilla's controlling-passenger gate and spawn_egg.rs is unrelated to these rows, so there is no in-scope seam for a pure unit test. No .rs file touched, so rustfmt and the compile-pitfalls re-check are not applicable.
+
+## Result (final, third pass)
+
+Both remaining rows are FIXED and VERIFIED against `.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java`. No functional code was added: both fixes landed in earlier passes and were re-checked line by line this pass.
+
+| # | Status | Vanilla evidence | Pumpkin code |
+|---|---|---|---|
+| 1 | FIXED / VERIFIED | `AbstractBoat.tick` 300-328 strokes when `paddlePositions[i] % 2PI <= PI/4 && (paddlePositions[i] + PI/8) % 2PI >= PI/4`, plays `getPaddleSound()` at a heading-perpendicular offset with volume 1.0 and pitch `0.8 + 0.4 * random.nextFloat()`, and zeroes the paddle position when idle; `getPaddleSound` 410-416 maps IN_WATER/UNDER_WATER/UNDER_FLOWING_WATER to BOAT_PADDLE_WATER, ON_LAND to BOAT_PADDLE_LAND, else null. | `boat.rs` `paddle_sound_cue` (54-57), `paddle_sound_for_status` (60-68) and `play_paddle_sounds` (345-382), called from tick (630), mirror the cue, status map, offset, volume and pitch, with unit tests at 1084-1112. |
+| 2 | FIXED / VERIFIED | `AbstractBoat.getGroundFriction` 506-540 returns `friction / count` (line 539), which is NaN when no block supports the boat; `getStatus` 452-468 tests `friction > 0.0F`, which NaN fails exactly as 0.0 does, so the boat is IN_AIR. | `boat/physics.rs` `get_ground_friction` 141-182 funnels through `average_ground_friction` 265-271 (0.0 at count 0) with a unit test at 277-281, and `get_status` 43-59 uses the same `friction > 0.0` test, so observable behaviour matches vanilla. |
+
+One small correction this pass: the `average_ground_friction` doc comment now states that vanilla yields NaN (0/0) with no supporting block instead of claiming vanilla returns 0.0. The 0.0 guard is Pumpkin's explicit and behaviourally equivalent choice. This is a comment-only `.rs` change, so no rustfmt or compile check was needed and no formatting-sensitive code changed.
+
+In-scope files `paddle_boat.rs` and `spawn_egg.rs` need no edit: `paddle_boat.rs` already gates paddle input on the controlling passenger (vanilla `getControlledVehicle`), and `spawn_egg.rs` is unrelated to both rows. No STILL OPEN rows remain.
