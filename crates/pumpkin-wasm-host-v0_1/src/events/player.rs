@@ -132,6 +132,7 @@ const fn to_wasm_fish_state(state: PlayerFishState) -> WasmPlayerFishState {
         PlayerFishState::FailedAttempt => WasmPlayerFishState::FailedAttempt,
         PlayerFishState::ReelIn => WasmPlayerFishState::ReelIn,
         PlayerFishState::Bite => WasmPlayerFishState::Bite,
+        PlayerFishState::Lured => WasmPlayerFishState::Lured,
     }
 }
 
@@ -144,6 +145,7 @@ const fn from_wasm_fish_state(state: WasmPlayerFishState) -> PlayerFishState {
         WasmPlayerFishState::FailedAttempt => PlayerFishState::FailedAttempt,
         WasmPlayerFishState::ReelIn => PlayerFishState::ReelIn,
         WasmPlayerFishState::Bite => PlayerFishState::Bite,
+        WasmPlayerFishState::Lured => PlayerFishState::Lured,
     }
 }
 
