@@ -4020,7 +4020,7 @@ mod tests {
             stepping_block: None,
         };
         assert!(!pred.matches_entity("minecraft:cow", &state));
-        let mut amplified = state.clone();
+        let mut amplified = state;
         if let Some(effect) = amplified.effects.first_mut() {
             effect.amplifier = 1;
         }

@@ -1247,7 +1247,7 @@ mod tests {
         let mut blocks = FxHashMap::default();
         blocks.insert(keep, (&Block::STONE, Block::STONE.default_state));
         blocks.insert(drop, (&Block::DIRT, Block::DIRT.default_state));
-        let allowed: FxHashSet<_> = [keep].into_iter().collect();
+        let allowed: FxHashSet<_> = std::iter::once(keep).collect();
 
         let filtered = filter_destroyed_blocks(blocks, &allowed);
 

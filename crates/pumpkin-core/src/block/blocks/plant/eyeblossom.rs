@@ -278,6 +278,6 @@ mod tests {
             &pos,
             &mut Xoroshiro::from_seed(0x5EED_1234),
         );
-        assert!(first == second);
+        assert_eq!(first, second);
     }
 }

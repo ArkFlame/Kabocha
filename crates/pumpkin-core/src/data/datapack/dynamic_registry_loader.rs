@@ -595,7 +595,7 @@ mod tests {
     }
 
     #[test]
-    fn test_instance_registry_uses_singular_directory_only() {
+    fn instance_registry_uses_singular_directory_only() {
         let temp_dir =
             std::env::temp_dir().join(format!("pumpkin_test_ti_{}", uuid::Uuid::new_v4()));
         let ns_dir = temp_dir.join("custom");

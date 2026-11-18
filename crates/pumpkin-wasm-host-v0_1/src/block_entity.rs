@@ -356,7 +356,7 @@ impl HostCommandBlockEntity for PluginHostState {
         Ok(self
             .get(&res)?
             .get_last_output()
-            .map_or_else(String::new, |output| output.get_text()))
+            .map_or_else(String::new, pumpkin_util::text::TextComponent::get_text))
     }
 
     fn track_output(&mut self, res: Resource<CommandBlockEntity>) -> wasmtime::Result<bool> {

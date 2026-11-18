@@ -165,7 +165,7 @@ mod tests {
         assert_eq!(
             state
                 .get(types::NEAREST_VISIBLE_ADULT_HOGLINS)
-                .map(|e| e.len()),
+                .map(std::vec::Vec::len),
             Some(1)
         );
         Ok(())

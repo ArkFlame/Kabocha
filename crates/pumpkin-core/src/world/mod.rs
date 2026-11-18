@@ -9878,7 +9878,7 @@ mod tests {
             let map = dirty();
             assert!(map.contains_key(&Vector2::new(0, 0)));
             assert_eq!(map.len(), 1);
-        }
+        };
         dirty().clear();
 
         // A block on the west border also dirties the chunk to the west.
@@ -9888,7 +9888,7 @@ mod tests {
             assert!(map.contains_key(&Vector2::new(0, 0)));
             assert!(map.contains_key(&Vector2::new(-1, 0)));
             assert_eq!(map.len(), 2);
-        }
+        };
         dirty().clear();
 
         // A block at the chunk corner dirties all four surrounding chunks.
@@ -9901,7 +9901,7 @@ mod tests {
                 }
             }
             assert_eq!(map.len(), 4);
-        }
+        };
         Ok(())
     }
 

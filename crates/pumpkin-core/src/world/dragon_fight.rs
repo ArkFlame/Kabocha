@@ -1261,7 +1261,7 @@ mod tests {
         let fight = DragonFight::new_with_seed(seed, BlockPos::ZERO);
         let expected =
             pumpkin_world::generation::feature::features::end_spike::EndSpikeFeature::get_spikes_for_seed(seed);
-        assert!(fight.get_spikes() == expected);
+        assert_eq!(fight.get_spikes(), expected);
     }
 
     #[test]

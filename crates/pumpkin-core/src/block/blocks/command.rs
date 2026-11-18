@@ -483,7 +483,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_placement_facing_mirrors_vanilla_nearest_looking_direction() {
+    fn placement_facing_mirrors_vanilla_nearest_looking_direction() {
         // Vanilla `getNearestLookingDirection().getOpposite()` also handles vertical placement.
         assert_eq!(
             placement_facing([

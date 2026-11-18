@@ -194,7 +194,7 @@ impl ItemEntity {
 
     /// Vanilla `ItemEntity.playerTouch`: an `Owner` target may only pick up its own items.
     fn target_allows_pickup(target: Option<uuid::Uuid>, player: uuid::Uuid) -> bool {
-        target.map_or(true, |owner| owner == player)
+        target.is_none_or(|owner| owner == player)
     }
 
     pub fn get_pickup_delay(&self) -> u8 {
