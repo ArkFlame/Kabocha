@@ -35,10 +35,10 @@ Remaining gaps:
 
 
 ## Gap status
-- `spreading_snowy_block.rs:30-36,177-179,199-201` no `getStateForPlacement` on grass/mycelium: STILL OPEN (S; vanilla relies on base class, verify before change).
-- `:57-64` `get_amount` generic for any fluid: STILL OPEN (M; world fluid normalisation is WATER/LAVA only).
-- `:80-95` `LAYERS == 1` short-circuit and light block: STILL OPEN (S).
-- `:121-150` randomTick test coverage: STILL OPEN (needs `pumpkin-gametest` scenario; no unit test possible).
+- `spreading_snowy_block.rs:29-34,192-201` on_place on grass/mycelium/podzol: VERIFIED, no change. Vanilla `SnowyBlock.getStateForPlacement` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/SnowyBlock.java:41-44`) sets SNOWY from the block above; GrassBlock/MyceliumBlock inherit it and Podzol is a plain SnowyBlock. Pumpkin's `SnowyBlock::on_place` matches.
+- `:57-63` `is_full_fluid` generic for any fluid: VERIFIED, no change. Matches vanilla `FluidState.isFull() == getAmount() == 8`; `fluid_state_from_block_state` (`crates/pumpkin-world/src/world.rs:140-178`) derives `level` from any liquid block's LEVEL property, so no WATER/LAVA special case remains.
+- `:70-94` `LAYERS == 1` short-circuit and light block: VERIFIED, no change. Matches vanilla `SpreadingSnowyBlock.canStayAlive` (`.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:33-42`); Pumpkin maps light dampening to `BlockState::opacity` (`crates/pumpkin-data/src/block_state.rs:35`) and `LightEngine::get_light_dampening_into` (`crates/pumpkin-world/src/lighting/engine.rs:1084-1099`).
+- `:116-179` randomTick test coverage: VERIFIED, no change. Live-world coverage exists in `crates/pumpkin-core/src/server/builtin_game_tests/plants_and_support_blocks.rs:315-361` (registered in `.../builtin_game_tests/mod.rs:231,1548-1552`) plus four pure unit tests at `:248-289`.
 
 ## Result
 
@@ -178,3 +178,35 @@ while pos holds the spreading block, and BlockSpreadEvent is fired with the same
 defaultBlockState.setValue(SNOWY, isSnowySetting(above)). Both match, no edit.
 
 Files touched this pass: this doc only. No .rs edits, so nothing to rustfmt.
+
+
+## Result (third pass, verify 2026-11-18)
+
+Read the previous Result (pass 4) and re-verified every remaining row directly against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/SpreadingSnowyBlock.java:25-104`,
+`SnowyBlock.java:24-48`, plus Pumpkin's helpers. No code changes were needed; the earlier
+passes' state already matches vanilla. The stale "Gap status" table was updated to VERIFIED
+so no STILL OPEN row remains.
+
+- Row 1 (on_place on grass/mycelium/podzol): VERIFIED, no change. Vanilla `SnowyBlock.getStateForPlacement`
+  (SnowyBlock.java:41-44) sets SNOWY from the block above; GrassBlock/MyceliumBlock inherit it and Podzol is
+  registered as a plain SnowyBlock. Pumpkin's `SnowyBlock::on_place` mirrors this, so it stays on all three.
+- Row 2 (fluid amount generic): VERIFIED, no change. Vanilla `FluidState.isFull()` is `getAmount() == 8` for
+  any fluid; `is_full_fluid` reads the normalized `fluid_state.level`, which `fluid_state_from_block_state`
+  (crates/pumpkin-world/src/world.rs:140-178) derives from any liquid block's LEVEL property. No WATER/LAVA
+  special case in this unit; no observable parity gap.
+- Row 3 (LAYERS == 1 short-circuit and light block): VERIFIED, no change. Vanilla `canStayAlive` short-circuits
+  on SNOW && LAYERS == 1 (SpreadingSnowyBlock.java:33-35) then returns
+  getLightDampeningInto(..., aboveState.getLightDampening()) < 15 (:41-42). Pumpkin uses `BlockState::opacity`
+  as the light dampening (block_state.rs:35, "light subtracted through this block") via
+  LightEngine::get_light_dampening_into (engine.rs:1084-1099). Both match.
+- Row 4 (randomTick coverage): VERIFIED, no change. Live-world fade/survival coverage exists at
+  plants_and_support_blocks.rs:315-361 (grass under opaque stone fades to dirt, grass under one snow layer
+  survives, grass under full water fades to dirt), registered as pumpkin:grass_random_tick_fade_and_survival
+  (builtin_game_tests/mod.rs:231,1546-1552). The pure seam keeps four unit tests (:248-289).
+
+Also re-checked the death branch (always fade on !canStayAlive, SpreadingSnowyBlock.java:68-75) and the
+canPropagate argument (defaultBlockState, :95); both match. No new test added: the only pure seam is covered
+and the live path has a GameTest.
+
+Files touched this pass: this doc only. No .rs edits, so no rustfmt run.
