@@ -252,3 +252,43 @@ edit was needed: neither row has a minimal in-scope fix.
 Rows 2, 4, 5 remain fixed. No new pure-test seam exists for either open row.
 No shell/cargo/git was used to verify; the orchestrator compiles once after all
 workers finish.
+
+## Result (third pass, final)
+
+Re-verified the two remaining rows against decompiled vanilla. No `.rs` source edit
+was needed or possible in scope; both rows are now terminal (no STILL OPEN remains).
+No shell/cargo/git was run; the orchestrator compiles once after all workers.
+
+- Row 1 (TOOT_HORN use animation): VERIFIED, matches vanilla; no server-side gap.
+  `getUseAnimation` is declared only on item classes and reached via
+  `ItemStack.getUseAnimation()`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/item/ItemStack.java:941-942`,
+  `InstrumentItem.java:65-68`, `ItemUseAnimation.java:20`); a full grep of
+  `.vendor/vanilla-decompiled/net/minecraft` found no server call site beyond that
+  delegate. The third-person TOOT_HORN animation is a client rendering decision
+  derived from the USING_ITEM living-entity flag. Pumpkin sets that flag and syncs
+  `DATA_LIVING_ENTITY_FLAGS` in `LivingEntity::set_active_hand`
+  (`crates/pumpkin-core/src/entity/living.rs:1084,1103,1151`), which the goat-horn use
+  path calls. No use-animation field or packet exists on the server, so an
+  `ItemBehaviour` hook would be dead code. No change.
+- Row 3 (registry-referenced datapack instruments): BLOCKED-DATA. Missing subsystem:
+  runtime resolution of a registry-backed `Holder<Instrument>` at use time. Vanilla
+  `Instrument.CODEC` / `STREAM_CODEC` are holders over `Registries.INSTRUMENT`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/item/Instrument.java:40-41`) with
+  fields `sound_event`, `use_duration`, `range`, `durability_damage`
+  (`Instrument.java:16-26`). Pumpkin discards the holder's positive raw id and falls
+  back to the ponder horn
+  (`crates/pumpkin-protocol/src/codec/data_component.rs:2890-2896`), `InstrumentImpl`
+  stores only a name string
+  (`crates/pumpkin-data/src/data_component_impl/basic.rs:555-557`), and there is no
+  instrument NBT decoder nor any path from the item-use code to `DynamicRegistryManager`
+  to read a datapack instrument's sound/duration/range/durability. The registry storage
+  does exist (`crates/pumpkin-core/src/data/datapack/dynamic_registry_loader.rs:17`,
+  `dynamic_registry_manager.rs:63-67`), but preserving the id + decoding the instrument
+  NBT + wiring it into the use path is a cross-crate subsystem (protocol codec + data
+  component + core use path), far beyond a minimal in-unit fix. No generated
+  pumpkin-data field is missing; the gap is the resolution subsystem itself.
+
+Rows 2, 4, 5 remain fixed from earlier passes. No new pure-test seam exists for either
+terminal row (Row 1 is client-visible only; Row 3 needs a runtime registry).
+No `.rs` file was touched this pass, so rustfmt was not applicable.
