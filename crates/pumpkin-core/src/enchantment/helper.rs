@@ -150,7 +150,10 @@ impl EnchantmentHelper {
                     }
                 } else if targeted_effect.enchanted == Some(EnchantmentTarget::Attacker)
                     && targeted_effect.affected == Some(EnchantmentTarget::Attacker)
-                    && matches!(&targeted_effect.effect, EnchantmentEntityEffect::Explode { .. })
+                    && matches!(
+                        &targeted_effect.effect,
+                        EnchantmentEntityEffect::Explode { .. }
+                    )
                 {
                     // Vanilla `Enchantments.WIND_BURST` requires `DIRECT_ATTACKER` to have
                     // `isFlying == false` (`!isFallFlying() && !abilities.flying`) and `fallDistance >= 1.5`.
@@ -527,6 +530,18 @@ impl EnchantmentHelper {
     }
 }
 
+/// Vanilla bane_of_arthropods.json post_attack requirement: the victim is an arthropod.
+///
+/// The other `all_of` term, `is_direct`, holds for every melee `on_post_attack` caller.
+const fn meets_bane_of_arthropods_requirements(victim_is_arthropod: bool) -> bool {
+    victim_is_arthropod
+}
+
+/// Vanilla wind_burst.json requirements: direct attacker is not flying and fell at least 1.5 blocks.
+const fn meets_wind_burst_requirements(is_flying: bool, fall_distance: f32) -> bool {
+    !is_flying && fall_distance >= 1.5
+}
+
 /// Vanilla frost_walker.json requirements: is_on_ground and no vehicle.
 fn meets_frost_walker_requirements(on_ground: bool, riding: bool) -> bool {
     on_ground && !riding
@@ -534,12 +549,29 @@ fn meets_frost_walker_requirements(on_ground: bool, riding: bool) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::meets_frost_walker_requirements;
+    use super::{
+        meets_bane_of_arthropods_requirements, meets_frost_walker_requirements,
+        meets_wind_burst_requirements,
+    };
 
     #[test]
     fn frost_walker_needs_ground_and_no_vehicle() {
         assert!(meets_frost_walker_requirements(true, false));
         assert!(!meets_frost_walker_requirements(false, false));
         assert!(!meets_frost_walker_requirements(true, true));
+    }
+
+    #[test]
+    fn bane_of_arthropods_needs_arthropod_victim() {
+        assert!(meets_bane_of_arthropods_requirements(true));
+        assert!(!meets_bane_of_arthropods_requirements(false));
+    }
+
+    #[test]
+    fn wind_burst_needs_fall_while_not_flying() {
+        assert!(meets_wind_burst_requirements(false, 1.5));
+        assert!(meets_wind_burst_requirements(false, 2.0));
+        assert!(!meets_wind_burst_requirements(false, 1.49));
+        assert!(!meets_wind_burst_requirements(true, 2.0));
     }
 }
