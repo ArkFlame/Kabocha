@@ -145,6 +145,11 @@ impl EntityBase for EnderPearlEntity {
         {
             let is_player = owner.get_player().is_some();
             if is_player {
+                // Vanilla spawns the endermite at the owner's position before the teleport,
+                // captured here before dismounting (`EnderPearl#onHit`), not at the pearl's
+                // impact point where the owner is about to be teleported.
+                let owner_pos = owner.get_entity().pos.load();
+
                 // Vanilla `stopRiding`s the shooter before teleporting it.
                 if let Some(vehicle) = owner.get_entity().get_vehicle() {
                     vehicle
@@ -155,9 +160,8 @@ impl EntityBase for EnderPearlEntity {
                 // Vanilla gates the endermite on `DO_MOB_SPAWNING` alone, not on difficulty.
                 let do_mob_spawning = world.level_info.load().game_rules.spawn_mobs;
                 if do_mob_spawning && should_spawn_endermite {
-                    let pearl_pos = entity.pos.load();
                     let pearl_yaw = entity.yaw.load();
-                    let entity = Entity::new(world.clone(), pearl_pos, &EntityType::ENDERMITE);
+                    let entity = Entity::new(world.clone(), owner_pos, &EntityType::ENDERMITE);
                     entity.set_rotation(pearl_yaw, 0.0);
                     let endermite = EndermiteEntity::new(entity);
                     finalize_spawn(

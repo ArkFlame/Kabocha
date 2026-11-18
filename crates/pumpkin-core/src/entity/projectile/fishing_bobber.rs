@@ -781,6 +781,13 @@ impl FishingBobberEntity {
                 self.fish_angle.store(rand::random::<f32>() * 360.0);
                 self.hook_countdown
                     .store(rand::random_range(20..=80), Ordering::Relaxed);
+                // Paper PlayerFishEvent.State.LURED: a cancelled lure closes the bite window.
+                if self
+                    .fire_fish_event(world, PlayerFishState::Lured, None, hand, 0)
+                    .is_none()
+                {
+                    self.hook_countdown.store(0, Ordering::Relaxed);
+                }
             }
         } else {
             self.wait_countdown.store(
