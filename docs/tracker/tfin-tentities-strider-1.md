@@ -8,7 +8,6 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 - STILL OPEN `strider.rs:178` passenger attachment: vanilla applies the rider offset only when `level().isClientSide()`, i.e. client-only visual effect; no server behaviour to port here.
 
 ## Result
-## Result
 
 Final pass. All four open rows verified against `.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Strider.java`; no source change needed, no BLOCKED-DATA.
 
