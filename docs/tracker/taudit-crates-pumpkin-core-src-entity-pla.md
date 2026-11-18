@@ -71,7 +71,7 @@ No BLOCKED rows: each gap is either already implemented or behaviourally equival
 
 ## Result
 
-Third pass (final verification): re-checked every row against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/` and against the current checkout. No source edit was needed: each fix is present and was landed by earlier passes. All rows are now closed; no STILL OPEN status remains.
+Third pass (final verification): re-checked every row against decompiled vanilla at `.vendor/vanilla-decompiled/net/minecraft/` and against the current checkout. No source edit was needed: each fix is present and was landed by earlier passes. All rows are now closed; no open status remains.
 
 - Row 3 (dig speed): VERIFIED. `MobEffectUtil.getDigSpeedAmplification` (world/effect/MobEffectUtil.java:29-41) returns `Math.max(hasteAmp, conduitAmp)` and `Player.getDestroySpeed` applies one `1 + (amp+1)*0.2` multiplier. `player.rs dig_speed_effect_multiplier` (line 440) takes the max once, wired into `get_mining_speed` (line 6941); test `dig_speed_effects_use_single_max_amplifier_multiplier` present. The full `SUBMERGED_MINING_SPEED` attribute path is BLOCKED-DATA: it requires the item attribute-modifier subsystem (equipment modifiers reaching the player). The aqua-affinity `/5` path yields the vanilla default 0.2 and is behaviorally equivalent until that subsystem exists.
 - Row 8 (fall-flying exhaustion): VERIFIED. `ServerPlayer.checkMovementStatistics` (server/level/ServerPlayer.java:2868-2870) awards `AVIATE_ONE_CM` with no food exhaustion while fall-flying; `player.rs progress_motion` returns without exhaustion.

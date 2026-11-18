@@ -494,6 +494,20 @@ impl Mob for CreakingEntity {
         self.mob_entity.living_entity.is_pushable() && self.can_move()
     }
 
+    /// Vanilla `Creaking.knockback`: a frozen creaking ignores knockback entirely, so report the
+    /// push as handled to skip the default knockback applied by the combat/living code.
+    fn mob_knockback(
+        &self,
+        _power: f64,
+        _x: f64,
+        _z: f64,
+        _source: Option<&Entity>,
+        _damage: f32,
+        _comes_from_effect: bool,
+    ) -> bool {
+        !self.can_move()
+    }
+
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {
         self.play_entity_sound(Sound::EntityCreakingStep, 0.15, 1.0);
     }

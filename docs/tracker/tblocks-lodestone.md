@@ -107,3 +107,41 @@ Fresh verification of every STILL OPEN row against `.vendor/vanilla-decompiled` 
 - Row 6 (compass.rs:62 insert order): NO CHANGE, re-confirmed. `insert_stack_anywhere` -> `insert_stack(-1, ..)` -> `add_stack` (player_inventory.rs:189-201) tries `get_occupied_slot_with_room_for_stack` (selected -> offhand -> main 0..36, lines 290-312) then `get_empty_slot` (main 0..36, lines 266-277). Vanilla `Inventory.add` -> `getSlotWithRemainingSpace` (Inventory.java:331-347: selected -> SLOT_OFFHAND -> items 0..36) then `getFreeSlot` (Inventory.java:206-214: items 0..36). Exact ordering match; the dropped-stack fallback (compass.rs:63-65) matches vanilla `player.drop` (CompassItem.java:64-66).
 
 No .rs files touched this pass, so no rustfmt run and no compile-pitfall diff to review. No pure unit-test seam: the remaining open rows (4, 5) live in player.rs and require live World/Player state, and inventory insertion already has tests in player_inventory.rs.
+
+
+## Result (final verification pass, 2026-11-18)
+
+Verified the two remaining STILL OPEN rows (4 and 5) against the decompiled vanilla tree under
+`.vendor/vanilla-decompiled/net/minecraft/`. Both rows' original premises are contradicted by the
+vanilla source, and the current Pumpkin code already matches vanilla, so no source change was
+needed.
+
+- Row 4 (player.rs:7255, "vanilla clears target when getLevel(...) returns null"): VERIFIED,
+  matches vanilla, no change. `LodestoneTracker.tick(ServerLevel)`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/item/component/LodestoneTracker.java:26-42`)
+  does NOT look up the target dimension's level. It compares
+  `this.target.get().dimension() != level.dimension()` and returns `this` unchanged on a
+  dimension mismatch (lines 28-30). `CompassItem.inventoryTick`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/item/CompassItem.java:35-43`) passes the
+  holder's current level to `tick`, confirming the comparison is against the holder's dimension.
+  Pumpkin's `tick_inventory_item_components` (player.rs:7250-7273) validates only while
+  `target.dimension == level.dimension.minecraft_name` and leaves the tracker untouched
+  otherwise. Exact behavioural match; the suggested "clear when no world matches" fix would
+  diverge from vanilla, so it was correctly not applied.
+- Row 5 (player.rs:7257-7261, "vanilla getBlockState forces the chunk"): VERIFIED, matches
+  vanilla, no change. The decompiled `LodestoneTracker.tick` uses `level.getChunkIfLoaded(blockPos)`
+  and keeps the tracker when `chunk == null`
+  (`.vendor/vanilla-decompiled/net/minecraft/world/item/component/LodestoneTracker.java:34-38`,
+  inline comment "Paper - Prevent compass from loading chunks"). Pumpkin's
+  `should_unlink_lodestone_tracker` (player.rs:470-476) unlinks only for an out-of-bounds target or
+  a loaded chunk whose block is not a lodestone, and this decision is covered by the pure unit test
+  `lodestone_tracker_unlinks_only_when_target_lodestone_is_gone` (player.rs:10879-10892). Exact
+  match.
+
+Rows 1, 3 and 6 were confirmed no-gap in earlier passes; row 2 is already fixed in-tree
+(empty `impl BlockBehaviour for LodestoneBlock`, lodestone.rs:8-11). No row remains STILL OPEN.
+No .rs files were edited this pass, so there is no rustfmt run or compile-pitfall diff to review.
+No new pure unit test seam: the dimension guard is a plain string equality already exercised
+through the tick path, and the unlink decision already has its pure unit test.
+
+Status: PASS fixed=0 open=0 files=docs/tracker/tblocks-lodestone.md
