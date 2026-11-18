@@ -191,3 +191,40 @@ epsilon (`DISMOUNT_EPSILON = 1.0e-5f32 as f64`) and the two pure unit tests. No 
 source change was needed and no rustfmt is required.
 
 Status: PASS fixed=1 open=0 files=none (doc updated; the fix is already on master)
+
+
+## Result (final third-pass verification)
+
+All table rows are resolved; none remains STILL OPEN. Each was re-verified against
+decompiled vanilla under `.vendor/vanilla-decompiled/net/minecraft/`:
+
+- row 22 (spectator interact) VERIFIED: `boat.rs` intentionally does not gate spectators in
+  `interact`; the comment (291-295) records that vanilla `AbstractChestBoat` has no spectator
+  restriction at the screen step and Pumpkin's screen handler refuses loot-table containers to
+  spectators. Matches `AbstractBoat.interact` (AbstractBoat.java:779-780).
+- row 23 (creative spill) VERIFIED: `hurt` calls `scatter_chest_contents()` for any destroying
+  removal regardless of `doEntityDrops`/creative (`boat.rs:739-746`), while only the boat item is
+  gated by `drops_item_when_destroyed(creative, named)` = `!creative`. Matches
+  `AbstractChestBoat.remove` (AbstractChestBoat.java:71-77) and `destroy` (65-68); covered by the
+  `creative_boat_drops_no_item_even_when_named` unit test.
+- row 24 (custom name on drop) VERIFIED, no change: the literal suggestion (remove `CustomNameImpl`)
+  rests on a misreading of vanilla. `VehicleEntity.destroy(ServerLevel,Item)` copies the entity
+  custom name onto the drop (`itemStack.set(DataComponents.CUSTOM_NAME, this.getCustomName())`,
+  VehicleEntity.java:94-100), so Pumpkin's `CustomNameImpl` block (`boat.rs:754-758`) is correct.
+- row 25 (scatter position) already FIXED (ff30569c9): `scatter_chest_contents` uses the entity
+  position via `scatter_inventory_at` (`boat.rs:287`).
+- row 26 (bubble time) already FIXED and VERIFIED: full bubble-column state machine in `boat.rs`
+  (fields 237-239, `on_above_bubble_column` 647, `tick_bubble_column` 429, `ID_BUBBLE_TIME`
+  publications, `bubble_column_vertical_velocity` 976), matching vanilla
+  `AbstractBoat.onAboveBubbleColumn` / `tickBubbleColumn` / `handleBubbleColumnEffect`, covered by
+  the `bubble_column_impulse_matches_vanilla_boat_effect` unit test.
+
+Editable file `boat/dismount.rs` re-read and verified against vanilla
+`Entity.getCollisionHorizontalEscapeVector` (Entity.java:6645-6651) and
+`Entity.getDismountLocationForPassenger` (6653-6655): escape-vector math, the f32-as-f64
+`DISMOUNT_EPSILON`, and the fallback position all match; the two pure tests cover the escape
+vector and pose selection. No divergence found.
+
+No source change was required, so no rustfmt was needed.
+
+Status: PASS fixed=0 open=0 files=none (all rows VERIFIED/FIXED on master; doc updated)

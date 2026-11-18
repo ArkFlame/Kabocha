@@ -126,3 +126,44 @@ No new pure unit test added: the only pure seam (`clicked_slot`, flag/stack
 helpers) is already covered, and sync/event behaviour needs a live world/server.
 Rustfmt not required (no .rs change). Build/tests not run (worker rule:
 orchestrator compiles once after all workers finish).
+
+
+## Result (THIRD PASS final verification)
+
+Re-verified all eight STILL OPEN rows from the stale "Gap status" list against
+decompiled `.vendor/vanilla-decompiled/net/minecraft/world/entity/decoration/ArmorStand.java`
+(Paper behaviour where applicable) and the current Pumpkin source. No .rs file
+needed changes: every row is already implemented in `armor_stand.rs` and matches
+decompiled vanilla. Static verification only (no cargo, per worker rules).
+
+1. Flags synced: FIXED. `set_bit_field` (armor_stand.rs:162-168) and
+   `read_custom_nbt` (:688-691) call `sync_flags()`, writing `DATA_CLIENT_FLAGS`
+   (tracked_data.rs:2791); matches decompiled `defineSynchedData` (Java:141).
+2. Pose synced: FIXED. `new()` (:126) and `unpack_rotation()` (:210-213) call
+   `sync_pose()` (:217-244), writing the six pose entries (tracked_data.rs:2811..2843)
+   as `Vector3<f32>` (MetadataSerializer at entity_metadata.rs:419); matches
+   decompiled `defineSynchedData` (Java:142-147).
+3. Clicked-slot hitboxes: VERIFIED, no code change. `clicked_slot` (:555-579)
+   matches decompiled `getClickedSlot` (Java:257-275) exactly; regression test
+   at :1031 and :909-921.
+4. PlayerArmorStandManipulateEvent: FIXED. `swap_item` (:392-439) fires it via
+   `fire_blocking` (:420-422) after the disabled-slot checks and returns true
+   without mutating either stack on cancel; matches decompiled `swapItem`
+   (Java:281-305). The `#[cancellable]` macro supplies the `cancelled` field.
+5. ENTITY_DIE on destroy paths: FIXED. `kill` (:707-714), explosion branch
+   (:757-763) and `cause_damage` break branch (:351-357) emit `EntityDie`;
+   matches decompiled `kill` (Java:591-600) and `hurt` (Java:358-364).
+6. ENTITY_DAMAGE on survivable damage: FIXED. `cause_damage` surviving branch
+   (:358-360) and wobble branch (:820-821) emit `EntityDamage`; matches
+   decompiled `causeDamage` (Java:483-486) and `hurt` (Java:413-415).
+7. Break particle state: VERIFIED, no code change. `spawn_break_particles`
+   (:329-343) uses `OAK_PLANKS`, count 10, speed 0.05, height/1.5, matching
+   decompiled `showBreakingParticles` (Java:451-466).
+8. Equipment drops: VERIFIED, no code change. `broken_by_anything` (:276-326)
+   drops every slot at pos+1.0 via `drop_stack_at`, matching decompiled
+   `brokenByAnything` (Java:497-518).
+
+No BLOCKED-DATA rows: all required generated constants exist and no subsystem
+is missing. No new pure unit test needed (pure seams already covered). No .rs
+change, so rustfmt was not required. Build/tests not run (orchestrator compiles
+once after all workers finish).

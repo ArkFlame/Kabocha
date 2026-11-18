@@ -70,3 +70,16 @@ Re-read the last Result and re-checked every row against the checkout and decomp
 - Row 16 (`world_or_first`): VERIFIED, no change. Console/dummy sources anchoring to the first (overworld) world (`command/mod.rs:299-302`) matches vanilla.
 
 Final row status: 11 FIXED, 12 FIXED, 13 FIXED, 14 FIXED, 15 FIXED, 16 VERIFIED. No BLOCKED-DATA rows (no missing generated fields or subsystems). No STILL OPEN rows.
+
+## Result (third pass re-verification, no source edits)
+
+Independent re-verification of all six rows against the checkout and decompiled vanilla at .vendor/vanilla-decompiled/net/minecraft/. No STILL OPEN rows remain; no source edit was needed this pass (all fixes already present), so no rustfmt run.
+
+- Row 11 (CustomName in Display / into_source): VERIFIED FIXED. command_block_name (command/mod.rs:129-136) returns custom_name or @, used by Display (line 143) and into_source (line 395). Vanilla CommandBlockEntity.createCommandSourceStack passes this.getName() (.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/CommandBlockEntity.java:55-65), where BaseCommandBlock.getName returns the custom name or @ (BaseCommandBlock.java:147).
+- Row 12 (LastExecution / UpdateLastExecution / CustomName NBT): VERIFIED FIXED. CommandBlockEntity fields (last_execution, update_last_execution, custom_name) plus NBT read/write (block/entities/command_block.rs:14-160) and the round-trip tests match vanilla BaseCommandBlock.save/load (.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java:52-76).
+- Row 13 (chain_execute / conditions): VERIFIED FIXED. conditions_met (block/blocks/command.rs:61-83) returns true for unconditional blocks and checks the block behind facing plus SuccessCount > 0 for conditional ones, matching vanilla CommandBlockEntity.markConditionMet (.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/CommandBlockEntity.java:146-155). The once-per-tick guard last_execution == world_age in execute/chain_execute (lines 164, 240-244) matches vanilla BaseCommandBlock.performCommand (.vendor/vanilla-decompiled/net/minecraft/world/level/BaseCommandBlock.java:93-97). The row's original suggestion to gate unconditional links on the previous SuccessCount contradicts vanilla and stays rejected.
+- Row 14 (admin broadcast target): VERIFIED FIXED. send_to_ops (command/context/command_source.rs:383-413) targets op-list members via operator_config.get_entry(...).is_some() instead of a permission-level threshold, matching vanilla broadcastToAdmins gating on op status (.vendor/vanilla-decompiled/net/minecraft/commands/CommandSourceStack.java:539-548).
+- Row 15 (console feedback): VERIFIED FIXED. CommandSender::Console routes through tracing::info! (command/mod.rs:154); no println!/print!/eprintln! remains under command/. Matches vanilla server LOGGER routing.
+- Row 16 (world_or_first): VERIFIED, no change. Console/dummy sources anchor to the first (overworld) world (command/mod.rs:299-302), matching vanilla.
+
+Final status: rows 11-16 all FIXED or VERIFIED. No BLOCKED-DATA rows (no missing generated fields or subsystems). No STILL OPEN rows. No source files edited this pass.
