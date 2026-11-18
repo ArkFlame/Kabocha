@@ -1,7 +1,7 @@
 # DONE (merged PRs and closed issues, one per line)
 Format: `- #N (PR|issue) title [commit]`
 
-## Summary (from docs/LEDGER.md, generated 2026-11-17)
+## Summary (from docs/LEDGER.md, generated 2026-11-18)
 
 | State | PR | Issue | Total |
 |---|---|---|---|

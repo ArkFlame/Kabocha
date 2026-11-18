@@ -14,7 +14,7 @@ high performance, but it does not have 100% vanilla parity yet. Kabocha works th
 parity gap, driven by AI agents (Claude as orchestrator, DeepSeek as implementer). It tracks upstream hourly and stays ahead of it.
 
 - **Goal:** close all open upstream issues and PRs, then reach full vanilla parity, keeping the build green and the code clean.
-- **Status** (as of 2026-11-17):
+- **Status** (as of 2026-11-18):
   - Upstream: all 782 upstream issues and PRs are processed: 516 DONE and 266 SKIPPED, none pending ([docs/LEDGER.md](docs/LEDGER.md), [docs/DONE.md](docs/DONE.md)).
   - Parity: audit notes cover the tracker rows; 42 gaps are deferred because they need missing data or a larger change ([docs/TODO.md](docs/TODO.md)).
   - Tracking: [TRACKER.md](TRACKER.md) (parity gaps) and [docs/GAPS_FIXED.md](docs/GAPS_FIXED.md) (what was fixed).
