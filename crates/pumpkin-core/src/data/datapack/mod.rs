@@ -92,6 +92,7 @@ pub enum DatapackError {
     AlreadyEnabled(String),
     NotEnabled(String),
     Embedded(String),
+    Incompatible(String),
 }
 
 impl DatapackError {
@@ -103,7 +104,8 @@ impl DatapackError {
             | Self::UnknownAnchor(name)
             | Self::AlreadyEnabled(name)
             | Self::NotEnabled(name)
-            | Self::Embedded(name) => name,
+            | Self::Embedded(name)
+            | Self::Incompatible(name) => name,
         }
     }
 }
@@ -116,7 +118,30 @@ impl fmt::Display for DatapackError {
             Self::AlreadyEnabled(name) => write!(f, "Datapack '{name}' is already enabled"),
             Self::NotEnabled(name) => write!(f, "Datapack '{name}' is not enabled"),
             Self::Embedded(name) => write!(f, "Cannot disable required datapack '{name}'"),
+            Self::Incompatible(name) => {
+                write!(f, "Datapack '{name}' has an incompatible pack_format")
+            }
         }
+    }
+}
+
+/// Outcome of comparing a pack's declared data pack format to the game's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PackCompatibility {
+    TooOld,
+    TooNew,
+    Compatible,
+}
+
+/// Mirrors vanilla PackCompatibility.forVersion for the single-format case:
+/// a pack is usable only when its pack_format equals the game's format.
+fn pack_format_compatibility(pack_format: u32, current_format: u32) -> PackCompatibility {
+    if pack_format < current_format {
+        PackCompatibility::TooOld
+    } else if pack_format > current_format {
+        PackCompatibility::TooNew
+    } else {
+        PackCompatibility::Compatible
     }
 }
 
@@ -316,7 +341,7 @@ impl DatapackManager {
         world_path: &Path,
         enabled_packs: &[String],
         recipe_manager: &RecipeManager,
-    ) {
+    ) -> Result<(), String> {
         let datapacks_dir = world_path.join("datapacks");
         structure_loader::clear_dynamic_worldgen_data();
         let mut loaded_packs_vec = Vec::new();
@@ -378,7 +403,7 @@ impl DatapackManager {
         // Vanilla keeps built-in packs at the bottom of the selected list, so world
         // packs loaded later override them.
         load_bundled_datapacks(enabled_packs, &mut acc, &mut loaded_packs_vec);
-        scan_datapacks_dir(
+        let reload_result = scan_datapacks_dir(
             &datapacks_dir,
             enabled_packs,
             &mut acc,
@@ -479,6 +504,7 @@ impl DatapackManager {
             .tags
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = all_tags;
+        reload_result
     }
 
     #[must_use]
@@ -1648,6 +1674,18 @@ impl DatapackManager {
         Self::get_enabled_packs(server).contains(&resolved)
     }
 
+    /// Returns the declared pack_format of an on-disk file/<name> pack.
+    fn pack_file_format(server: &Server, name: &str) -> Option<u32> {
+        let stripped = name.strip_prefix("file/")?;
+        let pack_path = server
+            .basic_config
+            .get_world_path()
+            .join("datapacks")
+            .join(stripped);
+        let (_, pack_format, _) = read_pack_mcmeta(&pack_path);
+        Some(pack_format)
+    }
+
     /// Enables a pack and returns its resolved id, with a typed error so
     /// command callers can map it to the matching translation error.
     pub fn enable_pack_checked(
@@ -1662,6 +1700,19 @@ impl DatapackManager {
         let enabled = Self::get_enabled_packs(server);
         if enabled.contains(&resolved_name) {
             return Err(DatapackError::AlreadyEnabled(resolved_name));
+        }
+
+        // Vanilla refuses to enable a pack whose declared data pack format does
+        // not match the game's (PackCompatibility.forVersion). Embedded packs
+        // have no on-disk mcmeta and are always treated as current.
+        if let Some(pack_format) = Self::pack_file_format(server, &resolved_name) {
+            let current = CURRENT_MC_VERSION.data_pack_format();
+            if pack_format_compatibility(pack_format, current) != PackCompatibility::Compatible {
+                tracing::warn!(
+                    "Refusing to enable datapack '{resolved_name}': pack_format {pack_format} is incompatible with the game's format {current}"
+                );
+                return Err(DatapackError::Incompatible(resolved_name));
+            }
         }
 
         // Resolve a before/after anchor up front; an invalid anchor must not
@@ -1716,7 +1767,9 @@ impl DatapackManager {
             tracing::error!("Failed to save world info: {err}");
         }
 
-        server.reload_datapacks();
+        if let Err(err) = server.reload_datapacks() {
+            tracing::warn!("Datapack reload failed after enable: {err}");
+        }
         Ok(target)
     }
 
@@ -1760,7 +1813,9 @@ impl DatapackManager {
             tracing::error!("Failed to save world info: {err}");
         }
 
-        server.reload_datapacks();
+        if let Err(err) = server.reload_datapacks() {
+            tracing::warn!("Datapack reload failed after disable: {err}");
+        }
         Ok(target)
     }
 
@@ -1771,8 +1826,7 @@ impl DatapackManager {
     }
 
     pub fn reload(server: &Arc<Server>) -> Result<(), String> {
-        server.reload_datapacks();
-        Ok(())
+        server.reload_datapacks()
     }
 
     pub fn execute_function_from_console(
@@ -2249,14 +2303,25 @@ fn scan_datapacks_dir(
     enabled_packs: &[String],
     acc: &mut PackContentAccumulators<'_>,
     loaded_packs_vec: &mut Vec<LoadedDatapack>,
-) {
+) -> Result<(), String> {
     if !datapacks_dir.is_dir() {
-        return;
+        return Ok(());
     }
 
+    let mut first_failure: Option<String> = None;
     for file_name in enabled_world_pack_dirs(datapacks_dir, enabled_packs) {
         let pack_path = datapacks_dir.join(&file_name);
         let pack_id = format!("file/{file_name}");
+
+        // Vanilla fails the whole reload when a selected pack has malformed metadata,
+        // rather than silently loading the rest. Skip the bad pack and remember why.
+        if let Some(err) = pack_metadata_error(&pack_path) {
+            tracing::warn!("Skipping invalid datapack '{file_name}': {err}");
+            if first_failure.is_none() {
+                first_failure = Some(format!("datapack '{file_name}': {err}"));
+            }
+            continue;
+        }
 
         let (description, pack_format, known_packs) = read_pack_mcmeta(&pack_path);
         let counts = load_pack_contents(&pack_path, acc);
@@ -2290,6 +2355,11 @@ fn scan_datapacks_dir(
             function_count: counts.functions,
             known_packs,
         });
+    }
+
+    match first_failure {
+        Some(err) => Err(err),
+        None => Ok(()),
     }
 }
 
@@ -2597,6 +2667,22 @@ pub fn merge_damage_type_entries<S: std::hash::BuildHasher>(
     merged
 }
 
+/// Returns a reason when an enabled pack's `pack.mcmeta` exists but cannot be read or parsed.
+///
+/// A missing file is not an error: many internal packs have no metadata file. Vanilla rejects a
+/// selected pack whose metadata is malformed, which is the one failure this loader can surface.
+fn pack_metadata_error(pack_path: &Path) -> Option<String> {
+    let mcmeta_path = pack_path.join("pack.mcmeta");
+    let content = match fs::read_to_string(&mcmeta_path) {
+        Ok(content) => content,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return None,
+        Err(err) => return Some(format!("failed to read {}: {err}", mcmeta_path.display())),
+    };
+    serde_json::from_str::<serde_json::Value>(&content)
+        .err()
+        .map(|err| format!("invalid pack.mcmeta in {}: {err}", mcmeta_path.display()))
+}
+
 fn read_pack_mcmeta(pack_path: &Path) -> (String, u32, Vec<KnownPackData>) {
     let mcmeta_path = pack_path.join("pack.mcmeta");
     if let Ok(content) = fs::read_to_string(mcmeta_path)
@@ -2742,6 +2828,23 @@ mod tests {
         assert_eq!(super::configurable_index(1, 2, 3), 0);
         assert_eq!(super::configurable_index(4, 2, 3), 2);
         assert_eq!(super::configurable_index(9, 2, 3), 3);
+    }
+
+    #[test]
+    fn pack_format_compatibility_matches_vanilla() {
+        let current = CURRENT_MC_VERSION.data_pack_format();
+        assert_eq!(
+            super::pack_format_compatibility(current, current),
+            super::PackCompatibility::Compatible
+        );
+        assert_eq!(
+            super::pack_format_compatibility(current.saturating_sub(1), current),
+            super::PackCompatibility::TooOld
+        );
+        assert_eq!(
+            super::pack_format_compatibility(current.saturating_add(1), current),
+            super::PackCompatibility::TooNew
+        );
     }
 
     #[test]
@@ -3260,8 +3363,17 @@ mod tests {
             counts.test_instances, 1,
             "all vanilla test instances must load"
         );
+        // These registry entries are split between the generic dynamic loader and the
+        // dedicated typed loaders (item modifiers, slot sources, trades, template pools,
+        // processor lists); together they must still cover every vanilla registry entry.
+        let dedicated_registry_entries = counts.item_modifiers
+            + counts.slot_sources
+            + counts.trade_sets
+            + counts.trades
+            + counts.template_pools
+            + counts.processor_lists;
         assert!(
-            counts.dynamic_registries >= 2080,
+            counts.dynamic_registries + dedicated_registry_entries >= 2080,
             "all vanilla dynamic registry entries must load"
         );
         assert!(counts.tags >= 1406, "all vanilla tags must load");
@@ -3525,6 +3637,30 @@ mod tests {
     }
 
     #[test]
+    fn malformed_pack_metadata_is_a_reload_failure() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+
+        let valid = temp.path().join("valid");
+        std::fs::create_dir(&valid)?;
+        std::fs::write(
+            valid.join("pack.mcmeta"),
+            r#"{"pack":{"description":"ok","pack_format":61}}"#,
+        )?;
+        assert!(super::pack_metadata_error(&valid).is_none());
+
+        let broken = temp.path().join("broken");
+        std::fs::create_dir(&broken)?;
+        std::fs::write(broken.join("pack.mcmeta"), "{not json")?;
+        assert!(super::pack_metadata_error(&broken).is_some());
+
+        let missing = temp.path().join("missing");
+        std::fs::create_dir(&missing)?;
+        assert!(super::pack_metadata_error(&missing).is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn scan_datapacks_dir_loads_packs_in_enabled_order() {
         fn load_shared_function(root: &std::path::Path, enabled: &[&str]) -> String {
             let mut recipes = Vec::new();
@@ -3564,7 +3700,7 @@ mod tests {
             };
             let enabled: Vec<String> = enabled.iter().map(|name| (*name).to_string()).collect();
             let mut loaded = Vec::new();
-            super::scan_datapacks_dir(root, &enabled, &mut acc, &mut loaded);
+            let _ = super::scan_datapacks_dir(root, &enabled, &mut acc, &mut loaded);
 
             functions
                 .get("test:shared")

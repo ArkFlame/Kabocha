@@ -1,8 +1,9 @@
 use pumpkin_data::recipes::RecipeCategoryTypes;
 use pumpkin_protocol::codec::recipe::{
     DynamicRecipe, OwnedBrewingRecipe, OwnedCookingRecipe, OwnedCookingRecipeType,
-    OwnedCraftingRecipe, OwnedRecipeIngredient, OwnedRecipeResult, OwnedSmithingTransformRecipe,
-    OwnedSmithingTrimRecipe, OwnedSpecialCraftingRecipe, OwnedStonecutterRecipe,
+    OwnedCraftingRecipe, OwnedPotionIngredient, OwnedRecipeIngredient, OwnedRecipeResult,
+    OwnedSmithingTransformRecipe, OwnedSmithingTrimRecipe, OwnedSpecialCraftingRecipe,
+    OwnedStonecutterRecipe,
 };
 use serde_json::Value;
 
@@ -304,32 +305,64 @@ fn parse_cooking(
     })
 }
 
+// A potion holder set may be a single id, a list of ids, or a tag reference.
+fn normalize_potion_id(id: &str) -> String {
+    match id.strip_prefix('#') {
+        Some(rest) if rest.contains(':') => id.to_string(),
+        Some(rest) => format!("#minecraft:{rest}"),
+        None => normalize_id(id),
+    }
+}
+
+// Vanilla PotionIngredient is an Ingredient plus an optional PotionsPredicate.
+fn parse_potion_ingredient(value: &Value) -> Option<OwnedPotionIngredient> {
+    let ingredient = parse_ingredient(value.get("item")?)?;
+    let mut potions = Vec::new();
+    if let Some(contents) = value.get("potion_contents")
+        && let Some(ids) = contents.get("potions")
+    {
+        match ids {
+            Value::String(s) => potions.push(normalize_potion_id(s)),
+            Value::Array(arr) => {
+                for id in arr {
+                    if let Some(s) = id.as_str() {
+                        potions.push(normalize_potion_id(s));
+                    } else if let Some(tag) = id.get("tag").and_then(Value::as_str) {
+                        potions.push(normalize_potion_id(tag));
+                    } else {
+                        return None;
+                    }
+                }
+            }
+            Value::Object(map) => {
+                potions.push(normalize_potion_id(map.get("tag").and_then(Value::as_str)?));
+            }
+            _ => return None,
+        }
+    }
+    Some(OwnedPotionIngredient {
+        ingredient,
+        potions,
+    })
+}
+
 fn parse_brewing(recipe_id: String, value: &Value) -> Option<OwnedBrewingRecipe> {
-    let input = value.get("input")?;
-    let input_item = normalize_id(input.get("item")?.as_str()?);
-    let input_potion = input
-        .get("potion_contents")
-        .and_then(|pc| pc.get("potions").or_else(|| pc.get("potion")))
-        .and_then(Value::as_str)
-        .map(normalize_id);
-
-    let reagent = normalize_id(value.get("reagent")?.get("item")?.as_str()?);
-
-    let output = value.get("output")?;
-    let output_item = normalize_id(output.get("id").or_else(|| output.get("item"))?.as_str()?);
-    let output_potion = output
+    let input = parse_potion_ingredient(value.get("input")?)?;
+    let reagent = parse_potion_ingredient(value.get("reagent")?)?;
+    let output_value = value.get("output")?;
+    let output = parse_result(output_value)?;
+    let output_potion = output_value
         .get("components")
         .and_then(|c| c.get("minecraft:potion_contents"))
         .and_then(|pc| pc.get("potion"))
         .and_then(Value::as_str)
-        .map(normalize_id);
+        .map(normalize_potion_id);
 
     Some(OwnedBrewingRecipe {
         recipe_id,
-        input_item,
-        input_potion,
+        input,
         reagent,
-        output_item,
+        output,
         output_potion,
     })
 }
@@ -648,19 +681,52 @@ mod tests {
         }"#;
 
         let parsed = parse_recipe("minecraft", "brewing/potion_water_nether_wart", json);
-        assert!(parsed.is_some());
+        assert!(matches!(parsed, Some(DynamicRecipe::Brewing(_))));
         if let Some(DynamicRecipe::Brewing(brewing)) = parsed {
             assert_eq!(
                 brewing.recipe_id,
                 "minecraft:brewing/potion_water_nether_wart"
             );
-            assert_eq!(brewing.input_item, "minecraft:potion");
-            assert_eq!(brewing.input_potion.as_deref(), Some("minecraft:water"));
-            assert_eq!(brewing.reagent, "minecraft:nether_wart");
-            assert_eq!(brewing.output_item, "minecraft:potion");
+            assert!(matches!(
+                brewing.input.ingredient,
+                OwnedRecipeIngredient::Simple(ref id) if id == "minecraft:potion"
+            ));
+            assert_eq!(brewing.input.potions, vec!["minecraft:water".to_string()]);
+            assert!(matches!(
+                brewing.reagent.ingredient,
+                OwnedRecipeIngredient::Simple(ref id) if id == "minecraft:nether_wart"
+            ));
+            assert!(brewing.reagent.potions.is_empty());
+            assert_eq!(brewing.output.item_id, "minecraft:potion");
             assert_eq!(brewing.output_potion.as_deref(), Some("minecraft:awkward"));
-        } else {
-            panic!("Expected brewing recipe");
+        }
+    }
+
+    #[test]
+    fn brewing_potion_holder_set_is_kept_as_a_list() {
+        let json = r#"{
+            "type": "minecraft:brewing",
+            "input": {
+                "item": "minecraft:potion",
+                "potion_contents": { "potions": ["minecraft:water", "minecraft:awkward"] }
+            },
+            "reagent": { "item": "minecraft:nether_wart" },
+            "output": {
+                "id": "minecraft:potion",
+                "components": { "minecraft:potion_contents": { "potion": "minecraft:strength" } }
+            }
+        }"#;
+        let parsed = parse_recipe("minecraft", "brewing/multi", json);
+        assert!(matches!(parsed, Some(DynamicRecipe::Brewing(_))));
+        if let Some(DynamicRecipe::Brewing(brewing)) = parsed {
+            assert_eq!(
+                brewing.input.potions,
+                vec![
+                    "minecraft:water".to_string(),
+                    "minecraft:awkward".to_string()
+                ]
+            );
+            assert_eq!(brewing.output_potion.as_deref(), Some("minecraft:strength"));
         }
     }
 

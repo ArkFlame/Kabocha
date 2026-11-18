@@ -40,13 +40,9 @@ pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
         "minecraft:zombie_nautilus_variant",
         &["zombie_nautilus_variant"],
     ),
-    ("minecraft:trade_set", &["trade_set"]),
-    ("minecraft:villager_trade", &["villager_trade"]),
     ("minecraft:painting_variant", &["painting_variant"]),
     ("minecraft:dimension", &["dimension"]),
     ("minecraft:dimension_type", &["dimension_type"]),
-    ("minecraft:item_modifier", &["item_modifier"]),
-    ("minecraft:slot_source", &["slot_source"]),
     ("minecraft:jukebox_song", &["jukebox_song"]),
     ("minecraft:dialog", &["dialog"]),
     ("minecraft:timeline", &["timeline"]),
@@ -103,10 +99,6 @@ pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
         &["worldgen/placed_feature"],
     ),
     (
-        "minecraft:worldgen/processor_list",
-        &["worldgen/processor_list"],
-    ),
-    (
         "minecraft:worldgen/structure",
         &["worldgen/structure", "worldgen/configured_structure"],
     ),
@@ -115,14 +107,16 @@ pub const DYNAMIC_REGISTRIES: &[(&str, &[&str])] = &[
         &["worldgen/structure_set"],
     ),
     (
-        "minecraft:worldgen/template_pool",
-        &["worldgen/template_pool"],
-    ),
-    (
         "minecraft:worldgen/world_preset",
         &["worldgen/world_preset"],
     ),
 ];
+
+/// Worldgen subdirectories that already have dedicated typed loaders in `datapack/mod.rs`
+/// (`structure_loader`). They are parsed there into the gameplay registries, and none of
+/// these registry ids is in vanilla's `RegistryDataLoader.SYNCHRONIZED_REGISTRIES`, so a
+/// second generic NBT copy here would be redundant I/O with no client or gameplay reader.
+const DEDICATED_WORLDGEN_DIRS: &[&str] = &["template_pool", "processor_list"];
 
 /// Field names that vanilla levelgen/datapack codecs declare as `Codec.LONG`.
 ///
@@ -318,7 +312,10 @@ pub fn load_dynamic_registries_from_ns<
                 for sub_entry in sub_entries.flatten() {
                     let sub_path = sub_entry.path();
                     let sub_name = sub_entry.file_name().to_string_lossy().to_string();
-                    if sub_path.is_dir() && !visited_paths.contains(&sub_path) {
+                    if sub_path.is_dir()
+                        && !visited_paths.contains(&sub_path)
+                        && !DEDICATED_WORLDGEN_DIRS.contains(&sub_name.as_str())
+                    {
                         // Vanilla worldgen registry keys are fixed `minecraft:` ids
                         // (`Registries` constants), never derived from the pack namespace.
                         let reg_id = format!("minecraft:worldgen/{sub_name}");
