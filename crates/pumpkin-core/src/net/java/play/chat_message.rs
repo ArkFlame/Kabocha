@@ -6,7 +6,7 @@ use rsa::pkcs8::DecodePublicKey;
 use sha2::Sha256;
 use uuid::Uuid;
 
-/// A signed message is stale after five minutes (PlayerChatMessage.MESSAGE_EXPIRES_AFTER_SERVER).
+/// A signed message is stale after five minutes (`PlayerChatMessage.MESSAGE_EXPIRES_AFTER_SERVER`).
 const EXPIRED_CHAT_MS: i64 = 5 * 60 * 1000;
 
 impl JavaClient {
@@ -377,8 +377,8 @@ fn verify_chat_signature(
         acknowledged,
     );
     let signature_bytes = chat_message.signature.ok_or(ChatError::UnsignedChat)?;
-    let signature = RsaPkcs1v15Signature::try_from(signature_bytes)
-        .map_err(|_| ChatError::UnsignedChat)?;
+    let signature =
+        RsaPkcs1v15Signature::try_from(signature_bytes).map_err(|_| ChatError::UnsignedChat)?;
     let public_key = RsaPublicKey::from_public_key_der(&session.public_key)
         .map_err(|_| ChatError::InvalidPublicKey)?;
     if VerifyingKey::<Sha256>::new(public_key)
@@ -408,7 +408,7 @@ fn is_chat_message_illegal(message: &str) -> bool {
         .any(|c| c == '\u{a7}' || c < ' ' || c == '\u{7f}')
 }
 
-/// The byte sequence vanilla signs with SHA256withRSA: Ints.toByteArray(1), then the
+/// The byte sequence vanilla signs with `SHA256withRSA`: `Ints.toByteArray(1)`, then the
 /// link and the body (PlayerChatMessage.updateSignature and its nested updates).
 #[must_use]
 fn signed_message_payload(
@@ -461,15 +461,13 @@ mod tests {
             "a",
             2,
             3,
-            &[signature.clone()],
+            std::slice::from_ref(&signature),
         );
         let mut expected = vec![
             0, 0, 0, 1, // Ints.toByteArray(1)
             // sender (nil UUID)
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            // session id (nil UUID)
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 1, // link index
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // session id (nil UUID)
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, // link index
             0, 0, 0, 0, 0, 0, 0, 3, // salt
             0, 0, 0, 0, 0, 0, 0, 2, // timestamp seconds
             0, 0, 0, 1, b'a', // content length and content

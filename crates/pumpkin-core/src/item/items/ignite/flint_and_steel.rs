@@ -1,14 +1,15 @@
 use crate::block::registry::BlockActionResult;
+use crate::entity::EntityBase;
 use crate::entity::player::Player;
 use crate::item::ItemBehaviour;
 use crate::item::ItemMetadata;
 use crate::server::Server;
 use crate::world::World;
-use pumpkin_data::{BlockDirection, HorizontalFacingExt};
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::{Block, BlockStateId};
+use pumpkin_data::{BlockDirection, HorizontalFacingExt};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::world::BlockFlags;
@@ -86,7 +87,10 @@ impl ItemBehaviour for FlintAndSteelItem {
             location,
             fire_pos,
             block,
-            player.get_entity().get_horizontal_facing().to_block_direction(),
+            player
+                .get_entity()
+                .get_horizontal_facing()
+                .to_block_direction(),
         );
 
         if ignited && player.gamemode.load() != pumpkin_util::GameMode::Creative {

@@ -1,10 +1,10 @@
-use pumpkin_data::{BlockDirection, HorizontalFacingExt};
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::sound::SoundCategory;
 use pumpkin_data::{Block, BlockStateId};
+use pumpkin_data::{BlockDirection, HorizontalFacingExt};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::world::BlockFlags;
@@ -12,6 +12,7 @@ use rand::{RngExt, rng};
 use std::sync::Arc;
 
 use crate::block::registry::BlockActionResult;
+use crate::entity::EntityBase;
 use crate::entity::player::Player;
 use crate::item::items::ignite::ignition::Ignition;
 use crate::item::{ItemBehaviour, ItemMetadata};
@@ -87,7 +88,10 @@ impl ItemBehaviour for FireChargeItem {
             location,
             fire_pos,
             block,
-            player.get_entity().get_horizontal_facing().to_block_direction(),
+            player
+                .get_entity()
+                .get_horizontal_facing()
+                .to_block_direction(),
         );
 
         if ignited {

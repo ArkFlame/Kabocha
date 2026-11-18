@@ -343,14 +343,15 @@ fn cycle_active_display_item(args: &OnScheduledTickArgs<'_>, ominous: bool) {
         })
         .unwrap_or_default();
 
-    let mut display_event =
-        crate::plugin::block::vault_display_item::VaultDisplayItemEvent::new(
-            *args.position,
-            args.world.clone(),
-            random_display_item(&stacks),
-        );
+    let mut display_event = crate::plugin::block::vault_display_item::VaultDisplayItemEvent::new(
+        *args.position,
+        args.world.clone(),
+        random_display_item(&stacks),
+    );
     if let Some(server) = args.world.server.upgrade() {
-        server.plugin_manager.fire_blocking(&server, &mut display_event);
+        server
+            .plugin_manager
+            .fire_blocking(&server, &mut display_event);
     }
     if !display_event.cancelled {
         vault_entity.set_display_item(&display_event.item);
@@ -362,7 +363,7 @@ fn random_display_item(stacks: &[ItemStack]) -> ItemStack {
     if stacks.is_empty() {
         return (*ItemStack::EMPTY).clone();
     }
-    let index = rand::random::<usize>() % stacks.len();
+    let index = rand::random_range(0..stacks.len());
     stacks[index].clone()
 }
 
@@ -397,7 +398,7 @@ mod tests {
     #[test]
     fn random_display_item_returns_a_generated_stack() {
         let stack = ItemStack::new(1, &Item::DIAMOND);
-        let picked = random_display_item(&[stack.clone()]);
-        assert!(picked.item.id == stack.item.id);
+        let picked = random_display_item(std::slice::from_ref(&stack));
+        assert_eq!(picked.item.id, stack.item.id);
     }
 }

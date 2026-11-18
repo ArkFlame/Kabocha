@@ -4,9 +4,9 @@ use std::sync::{
     atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering},
 };
 
-use pumpkin_data::{BlockDirection, BlockId};
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::world::WorldEvent;
+use pumpkin_data::{BlockDirection, BlockId};
 use pumpkin_util::Difficulty;
 use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
@@ -114,7 +114,9 @@ impl LightningBoltEntity {
         }
 
         let try_place = |p: BlockPos| {
-            if world.get_block_state(&p).is_air() && FireBlockBase::can_place_at(world, &p, BlockDirection::Up) {
+            if world.get_block_state(&p).is_air()
+                && FireBlockBase::can_place_at(world, &p, BlockDirection::Up)
+            {
                 let state = FireBlock.get_placement_state(world, &p, 0);
                 world.set_block_state(&p, state, BlockFlags::NOTIFY_ALL);
                 self.blocks_set_on_fire.fetch_add(1, Ordering::Relaxed);

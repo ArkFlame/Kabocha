@@ -1,8 +1,8 @@
 use super::{Controls, Goal};
 
-use crate::entity::ai::pathfinder::PathNavigationTrait;
 use crate::entity::EntityBase;
 use crate::entity::ageable::AgeableMob;
+use crate::entity::ai::pathfinder::PathNavigationTrait;
 use crate::entity::living::LivingEntity;
 use crate::entity::mob::Mob;
 use crate::entity::passive::goat::GoatEntity;
@@ -156,7 +156,8 @@ fn is_walkable_block(
     pos: BlockPos,
 ) -> bool {
     let path_type = navigator.get_path_type(living, pos);
-    navigator.get_pathfinding_malus(path_type) == 0.0 && navigator.is_stable_destination(world, &pos)
+    navigator.get_pathfinding_malus(path_type) == 0.0
+        && navigator.is_stable_destination(world, &pos)
 }
 
 /// Pure directional scan of vanilla `calculateRammingStartPosition`: from the target, walk out in
@@ -404,21 +405,27 @@ impl Goal for RamTargetGoal {
         let target_pos = BlockPos::containing_vec(target.get_entity().pos.load());
 
         if self.preparing {
+            #[expect(
+                clippy::single_match_else,
+                reason = "the other arm is the charge start"
+            )]
             match self.candidate {
                 Some(candidate) => {
                     if candidate.target_position != target_pos {
                         // Vanilla re-chooses the ram position when the target moves.
                         self.candidate =
-                            calculate_ram_start_position(mob, target_pos).map(|start| RamCandidate {
-                                start_position: start,
-                                target_position: target_pos,
+                            calculate_ram_start_position(mob, target_pos).map(|start| {
+                                RamCandidate {
+                                    start_position: start,
+                                    target_position: target_pos,
+                                }
                             });
                         return;
                     }
                     if mob.get_entity().block_pos.load() != candidate.start_position {
                         self.repath_to(
                             mob,
-                            candidate.start_position.0.to_centered_f64(),
+                            candidate.start_position.to_centered_f64(),
                             PREPARE_SPEED,
                         );
                         return;

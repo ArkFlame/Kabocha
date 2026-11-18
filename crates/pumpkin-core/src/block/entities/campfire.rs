@@ -114,7 +114,7 @@ impl BlockEntity for CampfireBlockEntity {
 
         // Vanilla's `CampfireBlockEntity.particleTick` runs client-side; emit the
         // equivalent smoke packets from the server so players see the same effect.
-        self.particle_tick(world, &properties);
+        self.particle_tick(world, properties);
 
         let mut changed = false;
         let mut completed = false;
@@ -355,7 +355,7 @@ impl CampfireBlockEntity {
     /// Server-side counterpart of vanilla `CampfireBlockEntity.particleTick`
     /// (`CampfireBlockEntity.java:165-188`): occasional cosy/signal smoke puffs
     /// and smoke over each cooking slot.
-    fn particle_tick(&self, world: &Arc<World>, props: &CampfireLikeProperties) {
+    fn particle_tick(&self, world: &Arc<World>, props: CampfireLikeProperties) {
         let pos = self.position;
         let smoke = if props.signal_fire {
             Particle::CampfireSignalSmoke
@@ -382,6 +382,10 @@ impl CampfireBlockEntity {
         }
 
         let rotation = Self::facing_2d_data_value(props.facing);
+        #[expect(
+            clippy::needless_range_loop,
+            reason = "slot also derives the item position"
+        )]
         for slot in 0..Self::SLOT_COUNT {
             let filled = !self.items[slot]
                 .lock()
@@ -602,10 +606,22 @@ mod tests {
 
     #[test]
     fn facing_2d_data_value_matches_vanilla_order() {
-        assert_eq!(CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::South), 0);
-        assert_eq!(CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::West), 1);
-        assert_eq!(CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::North), 2);
-        assert_eq!(CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::East), 3);
+        assert_eq!(
+            CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::South),
+            0
+        );
+        assert_eq!(
+            CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::West),
+            1
+        );
+        assert_eq!(
+            CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::North),
+            2
+        );
+        assert_eq!(
+            CampfireBlockEntity::facing_2d_data_value(HorizontalFacing::East),
+            3
+        );
     }
 
     #[test]

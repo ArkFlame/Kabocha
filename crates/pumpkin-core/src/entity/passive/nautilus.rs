@@ -346,9 +346,10 @@ impl Mob for NautilusEntity {
             .living_entity
             .get_attribute_value(&Attributes::MOVEMENT_SPEED);
         let factor = f64::from(self.get_block_speed_factor());
-        let look = self
-            .saddled_controlling_passenger(None)
-            .map_or_else(|| entity.get_looking_vector(), |rider| rider.get_looking_vector());
+        let look = self.saddled_controlling_passenger(None).map_or_else(
+            || entity.get_looking_vector(),
+            |rider| rider.get_looking_vector(),
+        );
         entity.add_velocity(look * (momentum * amount * speed * factor));
         self.dash_cooldown.store(40, Ordering::Relaxed);
         self.set_dashing(true);

@@ -1499,12 +1499,9 @@ mod tests {
         body.was_hurt_by(attacker_dyn.as_ref());
         world.level.shutdown().await;
 
-        assert!(
-            ally.mob_entity
-                .get_target()
-                .is_some_and(|target| target.get_entity().entity_uuid
-                    == attacker_dyn.get_entity().entity_uuid)
-        );
+        assert!(ally.mob_entity.get_target().is_some_and(
+            |target| target.get_entity().entity_uuid == attacker_dyn.get_entity().entity_uuid
+        ));
         Ok(())
     }
 }

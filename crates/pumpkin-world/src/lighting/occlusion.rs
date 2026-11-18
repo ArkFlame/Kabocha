@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn daylight_detector_occludes_only_its_bottom_face() {
         let detector = Block::DAYLIGHT_DETECTOR.default_state;
-        assert!(uses_shape_for_light_occlusion(&detector));
+        assert!(uses_shape_for_light_occlusion(detector));
         assert!(face_occludes(detector.id, BlockDirection::Down));
         assert!(!face_occludes(detector.id, BlockDirection::Up));
         for face in [
