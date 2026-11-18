@@ -1,6 +1,7 @@
 use super::BlockEntity;
 use crate::entity::EntityBase;
 use crate::entity::r#type::load_entity_from_nbt;
+use crate::plugin::api::events::entity::entity_target::TargetReason;
 use crate::world::World;
 use pumpkin_data::block_properties::Facing;
 use pumpkin_data::{Property, PropertyKey};
@@ -215,6 +216,93 @@ impl BeehiveBlockEntity {
         true
     }
 
+    /// Spawn one released bee in front of the hive, applying the vanilla release
+    /// transformations: `Bee.dropOffNectar`, flower inheritance and `Occupant.createEntity`.
+    fn release_occupant(
+        world: &Arc<World>,
+        pos: BlockPos,
+        hive_flower: Option<BlockPos>,
+        player: Option<Arc<dyn EntityBase>>,
+        mut entity_data: NbtCompound,
+    ) {
+        // Vanilla HONEY_DELIVERED release calls Bee.dropOffNectar, which resets the
+        // no-nectar timer; without this a released forager would re-enter immediately.
+        if entity_data.get_bool("HasNectar").unwrap_or(false) {
+            entity_data.put_bool("HasNectar", false);
+            entity_data.put_int("TicksSincePollination", 0);
+            entity_data.put_int("CropsGrownSincePollination", 0);
+        }
+        // Vanilla BeehiveBlockEntity.releaseOccupant gives a bee with no remembered
+        // flower the hive's flower with 90% chance.
+        let bee_has_flower = entity_data.get_compound("flower_pos").is_some()
+            || entity_data.get_int_array("flower_pos").is_some();
+        if inherits_flower(bee_has_flower, hive_flower.is_some(), rand::random::<f32>() < 0.9f32)
+            && let Some(flower) = hive_flower
+        {
+            let mut tag = NbtCompound::new();
+            tag.put_int("X", flower.0.x);
+            tag.put_int("Y", flower.0.y);
+            tag.put_int("Z", flower.0.z);
+            entity_data.put_compound("flower_pos", tag);
+        }
+        let state_id = world.get_block_state_id(&pos);
+        let facing = world.get_block(&pos).get_property(state_id, PropertyKey::Facing);
+        let (dx, dz) = front_offset(facing);
+        let spawn = Vector3::new(
+            f64::from(pos.0.x) + 0.5 + 0.6 * dx,
+            f64::from(pos.0.y) + 0.5 - 0.4,
+            f64::from(pos.0.z) + 0.5 + 0.6 * dz,
+        );
+        let Some(entity) = load_entity_from_nbt(&entity_data, spawn, world) else {
+            return;
+        };
+        // Entity.read_placement_nbt restores the saved Pos, so override it with the
+        // front-face spawn, like vanilla Occupant.createEntity.
+        entity.get_entity().set_pos(spawn);
+        entity.get_entity().set_has_no_gravity(true);
+        if let Some(player) = player
+            && player.get_entity().pos.load().squared_distance_to_vec(&spawn) <= 16.0
+            && let Some(mob) = entity.get_mob()
+        {
+            mob.set_mob_target(Some(player), TargetReason::ClosestPlayer);
+        }
+        world.spawn_entity(entity);
+    }
+
+    /// Vanilla `BeehiveBlockEntity.emptyAllLivingFromHive` with `EMERGENCY` status: force
+    /// every stored bee out of the hive regardless of time or weather.
+    pub fn empty_all_living_from_hive(
+        &self,
+        world: &Arc<World>,
+        player: Option<Arc<dyn EntityBase>>,
+    ) {
+        let taken = self
+            .bees
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
+        let Some(bees) = taken else {
+            return;
+        };
+        let hive_flower = *self
+            .flower_pos
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        for bee in bees {
+            if let NbtTag::Compound(compound) = bee
+                && let Some(entity_data) = compound.get_compound("entity_data").cloned()
+            {
+                Self::release_occupant(
+                    world,
+                    self.position,
+                    hive_flower,
+                    player.clone(),
+                    entity_data,
+                );
+            }
+        }
+    }
+
     /// Vanilla BeehiveBlockEntity.tickOccupants: age stored bees and respawn the finished ones
     /// in front of the hive. Hiving without this release would permanently delete the bee.
     pub fn tick_occupants(&self, world: &Arc<World>) {
@@ -256,47 +344,8 @@ impl BeehiveBlockEntity {
             .flower_pos
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
-        let state_id = world.get_block_state_id(&self.position);
-        let facing = world
-            .get_block(&self.position)
-            .get_property(state_id, PropertyKey::Facing);
-        let (dx, dz) = front_offset(facing);
-        let pos = self.position;
-        let spawn = Vector3::new(
-            f64::from(pos.0.x) + 0.5 + 0.6 * dx,
-            f64::from(pos.0.y) + 0.5 - 0.4,
-            f64::from(pos.0.z) + 0.5 + 0.6 * dz,
-        );
-        for mut entity_data in ready {
-            // Vanilla HONEY_DELIVERED release calls Bee.dropOffNectar, which resets the
-            // no-nectar timer; without this a released forager would re-enter immediately.
-            if entity_data.get_bool("HasNectar").unwrap_or(false) {
-                entity_data.put_bool("HasNectar", false);
-                entity_data.put_int("TicksSincePollination", 0);
-                entity_data.put_int("CropsGrownSincePollination", 0);
-            }
-            // Vanilla BeehiveBlockEntity.releaseOccupant gives a bee with no remembered
-            // flower the hive's flower with 90% chance.
-            let bee_has_flower = entity_data.get_compound("flower_pos").is_some()
-                || entity_data.get_int_array("flower_pos").is_some();
-            let roll_passed = rand::random::<f32>() < 0.9f32;
-            if inherits_flower(bee_has_flower, hive_flower.is_some(), roll_passed)
-                && let Some(flower) = hive_flower
-            {
-                let mut tag = NbtCompound::new();
-                tag.put_int("X", flower.0.x);
-                tag.put_int("Y", flower.0.y);
-                tag.put_int("Z", flower.0.z);
-                entity_data.put_compound("flower_pos", tag);
-            }
-            let Some(entity) = load_entity_from_nbt(&entity_data, spawn, world) else {
-                continue;
-            };
-            // Entity.read_placement_nbt restores the saved Pos, so override it with the
-            // front-face spawn, like vanilla Occupant.createEntity.
-            entity.get_entity().set_pos(spawn);
-            entity.get_entity().set_has_no_gravity(true);
-            world.spawn_entity(entity);
+        for entity_data in ready {
+            Self::release_occupant(world, self.position, hive_flower, None, entity_data);
         }
     }
 }

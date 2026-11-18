@@ -105,11 +105,17 @@ impl BowAttackGoal {
         let world = entity.world.load();
         let world_full = entity.world.load_full();
 
-        let arrow_entity = Entity::new(world.clone(), entity.pos.load(), &EntityType::ARROW);
-
         let projectile = mob
             .get_arrow_projectile()
             .unwrap_or_else(|| ItemStack::new(1, &Item::ARROW));
+
+        // Vanilla `ProjectileUtil.getMobArrow` builds the arrow entity from the projectile
+        // item (plain, spectral or tipped), so a variant's projectile decides its type.
+        let arrow_entity = Entity::new(
+            world.clone(),
+            entity.pos.load(),
+            ArrowEntity::entity_type_for_item(projectile.item),
+        );
 
         let bow_item = Self::hand_item(mob, hand);
         let arrow = ArrowEntity::new_shot_with_weapon(

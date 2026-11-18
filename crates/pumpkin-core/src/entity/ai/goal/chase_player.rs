@@ -2,6 +2,7 @@ use std::sync::{Arc, Weak};
 
 use super::{Controls, Goal};
 use crate::entity::EntityBase;
+use crate::entity::ai::control::LookControlTrait;
 use crate::entity::mob::Mob;
 use crate::entity::mob::enderman::EndermanEntity;
 
@@ -71,8 +72,8 @@ impl Goal for ChasePlayerGoal {
                 .look_control
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            // Vanilla EndermanFreezeWhenLookedAt turns the head with 30 deg limits.
-            look_control.look_at_with_range(player_pos.x, eye_y, player_pos.z, 30.0, 30.0);
+            // Vanilla EndermanFreezeWhenLookedAt uses the 3-arg setLookAt (mob head rot speed / pitch limits).
+            look_control.look_at(mob, player_pos.x, eye_y, player_pos.z);
         }
     }
 
