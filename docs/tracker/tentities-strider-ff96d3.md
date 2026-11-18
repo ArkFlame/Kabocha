@@ -31,3 +31,13 @@ Reviewed after `065a8148a` (sync ride boost time and expire boost).
 - `strider.rs` navigation hook (line 20, M): left open - needs a `Mob::create_navigation` hook and amphibious node-evaluator selection in `ai/pathfinder` (cross-crate refactor outside this unit's files).
 - `strider.rs` jockey spawn (line 21, M): left open - needs jockey entity creation/ride APIs plus `SpawnGroupData::Ageable.baby_spawn_chance` override; not attempted in this pass.
 - `strider.rs` eating sound (line 25, M): left open - needs an eat-sound hook in `Animal::animal_interact` (file outside this unit).
+
+## Result
+
+- `strider.rs` eating sound (line 25, M): FIXED this pass. The `Animal::play_eating_sound` seam already exists (called from both feeding paths in `animal_interact`), so no file outside this unit is needed. Removed the incorrect `use_player_item` override that played `EntityStriderHappy` on feeding; added a `play_eating_sound` override that plays `EntityStriderEat`. Verified against decompiled `Strider.mobInteract` (line 434): feeding plays `STRIDER_EAT`; `STRIDER_HAPPY` is only the tempted ambient (line 301). Default `use_player_item` still decrements the stack.
+- `strider.rs` hot-block suffocation tick (line 19, M): verified against decompiled `Strider.tick` (lines 306-321). Implementation already present and correct (warm blocks/lava/vehicle check, flip-only `StriderTemperatureChangeEvent`, `cast_any` downcast). No change needed.
+- `strider.rs` navigation (line 20, M): verified against decompiled `Strider.StriderPathNavigation` (lines 523-538) and `getWalkTargetValue` (lines 393-399). Vanilla uses a `GroundPathNavigation` with a `WalkNodeEvaluator` (not amphibious), overriding only `isStableDestination` (lava) and `getWalkTargetValue`. Both hooks are already overridden in `strider.rs` and wired through the shared `Mob` trait. No cross-crate `create_navigation` hook is required for this vanilla version. Remaining lava-traversal quality depends on the per-mob pathfinding-malus API (line 22, L, not STILL OPEN). No change needed.
+- `strider.rs` jockey spawn (line 21, M): verified against decompiled `Strider.finalizeSpawn`/`spawnJockey` (lines 451-487). Implementation already present (1/30 zombified piglin with 0.05 baby odds + warped fungus + saddle; 1/10 baby strider; else 0.5 GroupData baby chance; jockey group 0.0 baby chance). No change needed.
+- `strider.rs` passenger attachment (line 24, S): verified decompiled `getPassengerAttachmentPoint` (lines 190-199) returns `super` on the server. No override needed.
+- Tests: no new pure unit test; `play_eating_sound` needs a live entity. Row 23's boost test already exists in `item_steerable.rs`.
+- Not compiled by this worker (per unit rules); orchestrator batch-checks.
