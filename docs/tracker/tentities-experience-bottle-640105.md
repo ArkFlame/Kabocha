@@ -223,3 +223,33 @@ refactor is needed. Smallest rows first:
 Files changed this pass: `crates/pumpkin-core/src/item/items/snowball.rs` (added the
 `throw_spawn_pos_uses_eye_height` unit test). All earlier row fixes were already present
 and left untouched. Build not run (orchestrator compiles once after all workers finish).
+
+## Result (fourth pass, re-verification)
+
+No row is left STILL OPEN. Re-verified all five rows against decompiled vanilla at
+.vendor/vanilla-decompiled/net/minecraft/ (protocol 777 Paper/Canvas). No source change
+was needed: every earlier fix is present in the working tree and matches vanilla.
+
+- Row 2 (dispenser launch power): VERIFIED, NO CHANGE.
+  world/item/ExperienceBottleItem.java:64-67 createDispenseConfig() uses
+  DEFAULT.uncertainty()*0.5 (3.0) and DEFAULT.power()*1.25 (1.375); dispenser.rs:1345-1346
+  passes POTION_PROJECTILE_POWER 1.375 / POTION_PROJECTILE_UNCERTAINTY 3.0.
+- Row 3 (thrown items spawn at feet): VERIFIED, NO CHANGE.
+  entity/projectile/throwableitemprojectile/ThrowableItemProjectile.java:32-35 spawns at
+  owner.getEyeY() - 0.1F; all four items throw_spawn_pos match, sound stays at feet.
+- Row 5 (splash potion sound): VERIFIED, NO CHANGE.
+  entity/projectile/throwableitemprojectile/AbstractThrownPotion.java:87-97 emits particles
+  2002/2007 plus sound 1053/1054 (data 0), each sound gated on !isSilent(); splash_potion.rs
+  matches, including the silent gate. Generated world_event.rs confirms all four IDs.
+- Row 1 (XP orbs never merged): VERIFIED, NO CHANGE.
+  entity/ExperienceOrb.java:274-316 splits via getExperienceValue then tryMergeToExisting
+  (equal value in a 1x1x1 box, age reset); spawn_with_direction (orb_sizes +
+  try_merge_to_existing, amount: AtomicU32) matches and all award sites route through it.
+- Row 4 (automated test): VERIFIED, NO CHANGE. Pure unit tests present in this unit:
+  orb_sizes split tiers, throw_spawn_pos eye offset, water buoyancy, orb direction, unstuck.
+  The on_hit integration test needs a live World; out of scope for pure-unit scope.
+
+Also re-checked ThrownExperienceBottle.java:41-69: colour -13083194, sound gated on
+!isSilent(), show-effect gate, and 3+rand(5)+rand(5) XP all match experience_bottle.rs.
+No generated data, WIT, cross-crate refactor or compile fix was needed. Build not run
+(orchestrator compiles once after all workers finish).

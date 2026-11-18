@@ -2,7 +2,7 @@ use super::BlockEntity;
 use crate::block::blocks::sculk::sculk_shrieker::SculkShriekerBlock;
 use crate::world::World;
 use crate::world::game_event::GameEventContext;
-use pumpkin_data::game_event::GameEvent;
+use pumpkin_data::{game_event::GameEvent, tag};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -46,6 +46,18 @@ impl BlockEntity for SculkShriekerBlockEntity {
         let Some(source) = context.source_entity else {
             return;
         };
+        // Vanilla VibrationSystem.User.isValidVibration: spectators, sneaking
+        // players for damped events, and vibration-dampening sources are ignored.
+        if source.is_spectator() || source.dampens_vibrations() {
+            return;
+        }
+        if source.is_stepping_carefully()
+            && tag::GameEvent::MINECRAFT_IGNORE_VIBRATIONS_SNEAKING
+                .0
+                .contains(&event.name())
+        {
+            return;
+        }
         let entity = source.get_entity();
         let player = world.get_player_by_id(entity.entity_id).or_else(|| {
             let passengers = entity
