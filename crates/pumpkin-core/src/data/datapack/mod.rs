@@ -2850,7 +2850,19 @@ fn read_pack_mcmeta(pack_path: &Path) -> PackMetadata {
                 component => {
                     serde_json::from_value::<pumpkin_util::text::TextComponent>(component.clone())
                         .map_or_else(
-                            |_| component.to_string(),
+                            |_| {
+                                component
+                                    .get("text")
+                                    .and_then(serde_json::Value::as_str)
+                                    .map(ToString::to_string)
+                                    .or_else(|| {
+                                        component
+                                            .get("translate")
+                                            .and_then(serde_json::Value::as_str)
+                                            .map(ToString::to_string)
+                                    })
+                                    .unwrap_or_else(|| component.to_string())
+                            },
                             pumpkin_util::text::TextComponent::get_text,
                         )
                 }
