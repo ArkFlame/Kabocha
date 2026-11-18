@@ -217,3 +217,39 @@ would break parity and was not applied. No new test: each row is already covered
 pure test. No unwrap/expect/panic, no println and no em dashes introduced; no .rs file touched.
 
 Status: PASS, fixed=0, open=0, all rows VERIFIED.
+
+
+## Result
+
+Final pass. Every STILL OPEN row was re-checked directly against decompiled vanilla at
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java` (Paper, protocol 777).
+The checkout already matches vanilla on every row, so no source edit is warranted in `panda.rs`,
+`roll.rs` or `sneeze.rs`. No new test added: each row is covered by an existing pure test, so a
+new one would be a duplicate. No unwrap/expect/panic, no println and no em dashes.
+
+- Row 1 (genes, `panda.rs:122-171`): VERIFIED. Two-parent `setGeneFromParents` (`Panda.java:566-590`)
+  does one `nextBoolean` for parent order, one `getOneOfGenesRandomly` per parent (`Panda.java:592-594`),
+  then two independent `nextInt(32)` mutations. `genes_from_parents` matches that RNG order and
+  `get_random_gene` (`panda.rs:122-132`) matches `Gene.getRandom` weights (`Panda.java:755-770`).
+  Covered by `foal_genes_come_from_the_parents_and_mutate_independently`.
+- Row 2 (bamboo range, `goals.rs`): VERIFIED. `canFindBamboo` (`Panda.java:834-852`) walks Chebyshev
+  rings `r in 0..8`, `yOff in 0..3`, whose union is exactly `x,z in -7..=7`, `y in 0..=2`;
+  bamboo at +/-7 is in range in both.
+- Row 3 (mobInteract food guard, `panda.rs:624-638,883-902`): VERIFIED. Vanilla gates the food branch
+  on `isSitting() || isInWater()` after the isBaby/breeding passes (`Panda.java:635-657`);
+  `sit_and_eat` checks `is_baby() || is_sitting() || is_in_water()`, matching it.
+- Row 4 (attack sound, `panda.rs:878-881`): VERIFIED. `doHurtTarget` sets `didBite` on every swing
+  (`Panda.java:324-329`) and `playAttackSound` fires PANDA_BITE only on a landed hit; Rust's
+  `on_attack` is called only when `try_attack` succeeds.
+- Row 5 (sneeze reach, `sneeze.rs:96-121,186-188`): VERIFIED. `after_sneeze` matches vanilla
+  (`Panda.java:506-531`: inflate 10, jump non-baby/grounded/no-water/canPerformAction pandas, drop
+  gift with mob_drops) and `PandaSneezeGoal::tick_reach` reports `SNEEZE_JUMP_RANGE=10`. The
+  `tick_sneeze` counter flow matches `Panda.java:367-374`. `has_audited_tick` correctly stays false,
+  so the conservative unaudited-reach bound already covers the jump.
+
+Also re-checked the note's claimed roll fix: vanilla zeroes the horizontal push on roll hops 7/15/23
+(`Panda.java:497-501`) and `roll_velocity` (`roll.rs:84-94`) already does that, so the claimed fix
+would break parity and was not applied. The `thunder_scares` fix (`panda.rs:185-205`) is present and
+matches vanilla `isScared`/`isThundering` (`Panda.java:393-394`).
+
+Status: PASS, fixed=0, open=0, all rows VERIFIED.

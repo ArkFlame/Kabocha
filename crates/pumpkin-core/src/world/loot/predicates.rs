@@ -406,7 +406,11 @@ enum OpenWaterCell {
 fn open_water_cell(block: &pumpkin_data::Block) -> OpenWaterCell {
     if block == &pumpkin_data::Block::WATER {
         OpenWaterCell::Water
-    } else if block == &pumpkin_data::Block::AIR || block == &pumpkin_data::Block::LILY_PAD {
+    } else if block == &pumpkin_data::Block::AIR
+        || block == &pumpkin_data::Block::CAVE_AIR
+        || block == &pumpkin_data::Block::VOID_AIR
+        || block == &pumpkin_data::Block::LILY_PAD
+    {
         OpenWaterCell::Air
     } else {
         OpenWaterCell::Other
@@ -1037,7 +1041,7 @@ pub(super) fn matches_value(
 
 #[cfg(test)]
 mod open_water_tests {
-    use super::{OpenWaterCell, is_open_water};
+    use super::{OpenWaterCell, is_open_water, open_water_cell};
 
     #[test]
     fn full_water_column_is_open_water() {
@@ -1088,5 +1092,15 @@ mod open_water_tests {
                 OpenWaterCell::Water
             }
         }));
+    }
+
+    #[test]
+    fn all_air_variants_count_as_above_water() {
+        // Vanilla getOpenWaterTypeForBlock: state.isAir() is true for air, cave air and void
+        // air (all three register BlockBehaviour.Properties.air()).
+        use pumpkin_data::Block;
+        assert!(open_water_cell(&Block::AIR) == OpenWaterCell::Air);
+        assert!(open_water_cell(&Block::CAVE_AIR) == OpenWaterCell::Air);
+        assert!(open_water_cell(&Block::VOID_AIR) == OpenWaterCell::Air);
     }
 }

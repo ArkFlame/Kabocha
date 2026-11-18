@@ -131,3 +131,41 @@ All rows are resolved; no further source edit is required.
 - Effective sky brightness can go negative (S) - FIXED at HEAD. `crates/pumpkin-core/src/world/mod.rs:7372-7375` `effective_sky_brightness_from` applies `.max(0)`, matching `LevelReader#getEffectiveSkyBrightness` in `.vendor/vanilla-decompiled/net/minecraft/world/level/LevelReader.java`. No change.
 - Shape-based light occlusion / 6px column (L) - FIXED in tree and VERIFIED. `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java:30,38-45` defines `SHAPE = Block.column(16.0, 0.0, 6.0)` and `useShapeForLightOcclusion = true`. Pumpkin now implements shape occlusion in `crates/pumpkin-world/src/lighting/occlusion.rs`: `Block::DAYLIGHT_DETECTOR.id` is in `SINGLETONS`, so `uses_shape_for_light_occlusion` is true. The generated default state (state id 13046 in `crates/pumpkin-data/src/generated/block.rs`) carries `state_flags = 2122` (CAN_OCCLUDE bit 11 set), `side_flags = 65` (DOWN_SIDE_SOLID + DOWN_CENTER_SOLID only), and `opacity = 0`. Only the bottom face occludes, so light enters through the open top and sides, exactly matching the 6px column. `shape_occludes`/`face_occludes` are consumed in `chunk_access.rs::raise_light`, `engine.rs`, `runtime.rs` and `sky_light_height`. No generated field or subsystem is missing: the earlier BLOCKED-DATA note (needing a generated `use_shape_for_light_occlusion` flag) is obsolete, because the flag is derived from a hardcoded singleton/tag list plus generated collision side flags, not a generated boolean. No change.
 - `crates/pumpkin-core/src/world/brightness.rs` and `crates/pumpkin-core/src/block/entities/daylight_detector.rs` have no STILL OPEN rows and match vanilla; left untouched.
+
+
+## Result (final pass 2026-11-18)
+
+All three rows from the "Remaining gaps" table are resolved against
+`.vendor/vanilla-decompiled/net/minecraft/`. No source edit was needed: every fix is already
+present in the tree and matches vanilla. The `STILL OPEN until closed...` placeholder referenced
+by the brief is not present in this doc, so there was nothing to replace.
+
+1. Plugin same-state redundant update (S) - VERIFIED, not a gap. Vanilla
+   `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java:60-63`
+   wraps both `CraftEventFactory.callRedstoneChange` and
+   `setBlockAndUpdate(pos, state.setValue(POWER, target))` in one
+   `if (state.getValue(POWER) != target)` guard. Pumpkin `update_signal_strength`
+   (`crates/pumpkin-core/src/block/blocks/redstone/daylight_detector.rs:112-132`) has the identical
+   guard, fires `BlockRedstoneEvent`, clamps `new_current` to 0-15 and writes with
+   `BlockFlags::NOTIFY_ALL` (no `FORCE_STATE`), so a plugin restoring the old power emits no
+   redundant neighbour/client update, matching `LevelChunk.setBlockState` returning null for an
+   interned equal state. No change.
+2. Effective sky brightness can go negative (S) - FIXED and VERIFIED. Vanilla
+   `.vendor/vanilla-decompiled/net/minecraft/world/level/LevelReader.java:171-173` returns
+   `Math.max(getBrightness(LightLayer.SKY, pos) - getSkyDarken(), 0)`. Pumpkin
+   `crates/pumpkin-core/src/world/mod.rs:7389-7392` `effective_sky_brightness_from` applies
+   `.max(0)` and `get_effective_sky_brightness` (7385-7387) routes through it. No change.
+3. Shape-based light occlusion / 6px column (L) - FIXED and VERIFIED. Vanilla
+   `.vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java:30,38-45`
+   defines `SHAPE = Block.column(16, 0, 6)` and `useShapeForLightOcclusion = true`. Pumpkin
+   `crates/pumpkin-world/src/lighting/occlusion.rs:9-39` puts `Block::DAYLIGHT_DETECTOR.id` in
+   `SINGLETONS`, so `uses_shape_for_light_occlusion` is true; `OCCLUDING_FACES` is built from the
+   generated `is_side_solid` flags (only the DOWN face is solid for the detector default state),
+   and `shape_occludes`/`face_occludes` are consumed in `chunk_access.rs:261`,
+   `engine.rs:329,368,699` and `runtime.rs:61,97,460,628,730,757`. The unit test
+   `daylight_detector_occludes_only_its_bottom_face` (occlusion.rs:105-119) locks in the 6px-column
+   behaviour. No generated boolean or subsystem is missing: the flag is derived from a hardcoded
+   singleton/tag list plus generated collision side flags, not a generated boolean field.
+
+`brightness.rs` and `block/entities/daylight_detector.rs` have no gaps and were left untouched.
+No generated `pumpkin-data` fields, WIT changes or cross-crate refactors remain outstanding.
