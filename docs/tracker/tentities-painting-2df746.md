@@ -65,8 +65,8 @@ Not gaps (checked, no change):
   variant is applied.
 
 ## Gap status
-- 1 front-space check accepts any non-solid block (M): STILL OPEN (painting.rs excluded; needs vanilla confirm)
-- 2 placement space and hanging-entity check (M): STILL OPEN (painting.rs excluded)
+- 1 front-space check accepts any non-solid block (M): CLOSED (verified against decompiled vanilla; no change needed, see Result)
+- 2 placement space and hanging-entity check (M): CLOSED (fixed in code, see Result)
 
 
 ## Result
@@ -95,3 +95,10 @@ Not gaps (checked, no change):
 - Files edited (rustfmt --edition 2024 clean):
   `crates/pumpkin-core/src/entity/decoration/painting.rs`,
   `crates/pumpkin-core/src/item/items/hanging_entity.rs`.
+- Re-verified against decompiled vanilla now present in this worktree:
+  HangingEntity.survives (world/entity/decoration/HangingEntity.java:82-93)
+  uses hasLevelCollision(getPopBox()), a support box filtered by isSolid or
+  DiodeBlock.isDiode, and canCoexist(false); no air check, confirming row 1
+  needs no change. Painting.create sets each candidate variant and calls
+  survives() before selection, matching the added PaintingEntity.survives()
+  and its call in HangingEntityItem.use_on_block. No code change was needed.
