@@ -15,3 +15,14 @@ Per sub-row of docs/tracker/tworld-sweep3.md:
 - Bedrock palette bit table: BLOCKED-DATA. `.vendor/vanilla-decompiled/net/minecraft/` is Java Edition only; no Bedrock Edition palette reference exists. Missing subsystem: a Bedrock-format palette bit-width reference. `crates/pumpkin-world/src/chunk/palette.rs:14` `bedrock_palette_bits` cannot be verified without it.
 
 No STILL OPEN rows remain. No .rs file touched, so rustfmt not required.
+
+### FINAL PASS 2026-11-18
+
+All rows closed, no STILL OPEN rows remain. Verified each row against decompiled vanilla:
+- encompassing_bits: `crates/pumpkin-util/src/lib.rs:98-104` matches `Mth.ceillog2`/`smallestEncompassingPowerOfTwo` (.vendor/vanilla-decompiled/net/minecraft/util/Mth.java:283-312). VERIFIED FIXED.
+- LastUpdate + MODELLED_ROOT_TAGS: `chunk/format/mod.rs:59,763` present. VERIFIED FIXED.
+- Light nibble packing: `chunk/format/mod.rs` LightContainer index `y*256+z*16+x`; byte `index>>1`, nibble `index&1` matches `DataLayer.getIndex/getNibbleIndex/getByteIndex` (.vendor/vanilla-decompiled/net/minecraft/world/level/chunk/DataLayer.java:40-69). VERIFIED.
+- BlendedNoise constants 684.412/0.99998474F/12.75/-15/-7 match BlendedNoise.java:33-37; no STANDARD_DEVIATION constant in vanilla. VERIFIED.
+- Bedrock palette bit table: BLOCKED-DATA. Missing subsystem: a Bedrock Edition palette bit-width reference; `.vendor/vanilla-decompiled` is Java Edition only. Code `crates/pumpkin-world/src/chunk/palette.rs:14` `bedrock_palette_bits` is otherwise sound.
+
+Source edit this pass: added pure regression test `bedrock_palette_bits_match_bedrock_supported_widths` in `crates/pumpkin-world/src/chunk/palette.rs` test module, pinning the supported Bedrock widths {1,2,3,4,5,6,8,16} (7 skipped) across all palette-length boundaries. No unwrap/expect/panic added; no em dashes. rustfmt run by orchestrator.

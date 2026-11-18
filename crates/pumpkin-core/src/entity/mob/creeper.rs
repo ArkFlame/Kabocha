@@ -381,10 +381,11 @@ impl Mob for CreeperEntity {
 
     // Creeper.killedEntityPreEvent: a charged creeper drops a single mob head.
     fn killed_entity(&self, killed: &dyn EntityBase) -> bool {
-        // Vanilla guards with `!droppedSkulls`: only the first head-dropping victim yields a head.
+        // Vanilla guards with `!droppedSkulls` and checks the killer's own
+        // `shouldDropLoot(level)` (a Monster's gamerule check), not the victim's.
         if self.charged.load(Ordering::Relaxed)
             && !self.dropped_skulls.load(Ordering::Relaxed)
-            && killed.should_drop_loot()
+            && Mob::should_drop_loot(self)
         {
             let world = killed.get_entity().world.load_full();
             if let Some(table) = world.get_loot_table("minecraft:charged_creeper/root") {

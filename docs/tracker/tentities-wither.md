@@ -157,3 +157,31 @@ All rows are now closed; no row is left STILL OPEN. One source fix was applied t
 
 Files touched this pass: crates/pumpkin-core/src/entity/boss/wither.rs and this doc.
 No build run (task rules); compile verification left to the orchestrator.
+
+
+## Result (FINAL PASS, 2026-11-18)
+
+Independent verification of all nine gap rows against
+.vendor/vanilla-decompiled/net/minecraft/world/entity/boss/wither/WitherBoss.java
+and the wither-skull reference
+.vendor/vanilla-decompiled/net/minecraft/world/entity/projectile/hurtingprojectile/WitherSkull.java.
+Every row is now closed (FIXED or VERIFIED); no row is left STILL OPEN. One source
+fix was applied this pass to wither_skull.rs, superseding the two wither-effect
+bullets in the "Fixed in this pass" section above, which were incorrect.
+
+- Row 1 (lift clause): VERIFIED. WitherBoss.java:170 keeps `!isPowered() && getY() < entity.getY() + 5.0`; wither.rs:354 matches.
+- Row 2 (WitherDoNothingGoal during spawn): VERIFIED. WitherBoss.java:102 and 613-620 register WitherDoNothingGoal (MOVE/JUMP/LOOK) while Invul > 0. Pumpkin disables LOOK in mob_tick (wither.rs:653-661); LookAtEntityGoal (look_at_entity.rs:88) and RandomLookAroundGoal (look_around.rs:17) declare LOOK, and goal_selector.rs:334-340 stops a running goal that uses a disabled control while 234-238 blocks new ones. Ranged attacks run only in the invul==0 branch (wither.rs:469).
+- Row 3 (gravity / floating): VERIFIED (NOT A GAP). WitherBoss.java:87 sets only `FlyingMoveControl(this, 10, false)` with no setNoGravity; FlyingMoveControl.tick clears no-gravity in WAIT. Adding set_has_no_gravity(true) would be wrong. A full flying-navigator port is a separate cross-cutting item.
+- Row 4 (main-head line of sight): FIXED (prior 7bdd7bd9a) and VERIFIED. wither.rs:383 gates the main-head shot on `has_line_of_sight`, matching RangedAttackGoal; the aim uses `target.getY() + getEyeHeight() * 0.5` (WitherBoss.java:460; wither.rs:395).
+- Row 5 (bossbar progress): VERIFIED. Spawn uses `1 - newCount/220` (WitherBoss.java:273; wither.rs:441); post-spawn uses `health/maxHealth` (WitherBoss.java:391; wither.rs:606-611); make_invulnerable sets 0.0 (WitherBoss.java:401; wither.rs:171).
+- Row 6 (block destruction drops): FIXED (prior) and VERIFIED. wither.rs:582 uses `break_block(&bpos, None, BlockFlags::NOTIFY_ALL)` with no SKIP_DROPS, matching `level.destroyBlock(pos, true, this)` (WitherBoss.java:377).
+- Row 7 (idle head offsets / head index): FIXED (prior) and VERIFIED. Uniform offsets (WitherBoss.java:319-321; wither.rs:486-488); side heads use `i + 1` (WitherBoss.java:322, 330; wither.rs:492, 508); getHeadX/Z wrap via `180 * (index - 1)` (WitherBoss.java:426, 441).
+- Row 8 (peaceful despawn): VERIFIED. WitherBoss.java:536-543 checkDespawn discards the wither on Peaceful; wither.rs:414-422 tick_wither_lifecycle clears the bossbar and removes the entity.
+- Row 9 (projectile immunity): FIXED (prior) and VERIFIED. WitherBoss.java:504-508 blocks AbstractArrow and WindCharge via getDirectEntity; is_projectile_immune_to_powered_wither (wither.rs:65-69) uses the arrows tag + TRIDENT + WIND_CHARGE, and pre_damage's `source` is the direct projectile (mob/mod.rs:3276). BREEZE_WIND_CHARGE is excluded. Unit test at wither.rs:736-758.
+
+Additional correction this pass (wither_skull.rs, outside the nine rows):
+- Wither effect: WitherSkull.java:78-88 applies Wither II (amplifier 1) for 10 s on Normal and 40 s on Hard, and NO wither effect on Easy/Peaceful (`witherSeconds` stays 0). The code had amplifier 0 and granted Easy 10 s; changed wither_skull.rs:169-181 to amplifier 1 and Easy/Peaceful 0.
+- Explosion interaction / per-block resistance (WitherSkull.java:52-56, 100) is a deeper explosion-model change left as-is: Pumpkin's explode_from (world/mod.rs:5115) does not model per-block explosion resistance for dangerous skulls, so widening plain skulls to MOB would need that model first (out of scope).
+
+Files touched this pass: crates/pumpkin-core/src/entity/projectile/wither_skull.rs and this doc.
+No build run (task rules); compile verification left to the orchestrator.
