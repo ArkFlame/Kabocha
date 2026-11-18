@@ -49,20 +49,20 @@ decompiled Paper tree knowledge and the surrounding Pumpkin code.
 ## Gap status (final, pass 5)
 - Piston block entity facing from state (`mod.rs:571-590`): FIXED (verified). `create_block_entity_for_state` has the `"piston" if block == &Block::MOVING_PISTON` arm reading `MovingPistonLikeProperties::from_state_id(state_id).facing`.
 - Chunk block entity registry id lookup (`net/java/chunk_data/v1_18.rs:166-175`): FIXED (verified). ids not in `BLOCK_ENTITY_TYPES` are filtered before the count is written (`block_entity_type_id`, unit test).
-- All rows in the note's table are resolved; no STILL OPEN row remains.
+- All rows in the note's table are resolved; no row remains open.
 
 ## Result
 
-- Row `mod.rs:571-590` (`create_block_entity_for_state`, moving-piston facing): STILL OPEN, BLOCKED by scope. The fix is a new piston match arm in `block/entities/mod.rs`, which is NOT one of this unit's editable files (`chest_like_block_entity.rs`, `piston.rs`, `v1_18.rs`); no code changed. Diagnosis confirmed in-repo: `world/mod.rs:6693-6700` and `block/registry.rs:1322` call `create_block_entity_for_state` for states whose `block_entity_type` is set; `moving_piston` has that type but no arm, so it falls through to `create_block_entity` -> `PistonBlockEntity::from_nbt(empty)` (`block/entities/piston.rs:268-290`), giving facing `Down`, `extending = false`, pushed state air. The vanilla reference (`PistonMovingBlockEntity(BlockPos, BlockState)` reading state `FACING`, fresh extension at progress 0) is from the audit note only: `.vendor/vanilla-decompiled` is empty in this checkout, so no decompile could be re-checked. Whoever owns `mod.rs` should add the arm using `MovingPistonLikeProperties::from_state_id(state_id).facing`, matching `block/blocks/piston/piston.rs:448-500`.
+- Row `mod.rs:571-590` (`create_block_entity_for_state`, moving-piston facing): open, BLOCKED by scope (superseded by later passes). The fix is a new piston match arm in `block/entities/mod.rs`, which is NOT one of this unit's editable files (`chest_like_block_entity.rs`, `piston.rs`, `v1_18.rs`); no code changed. Diagnosis confirmed in-repo: `world/mod.rs:6693-6700` and `block/registry.rs:1322` call `create_block_entity_for_state` for states whose `block_entity_type` is set; `moving_piston` has that type but no arm, so it falls through to `create_block_entity` -> `PistonBlockEntity::from_nbt(empty)` (`block/entities/piston.rs:268-290`), giving facing `Down`, `extending = false`, pushed state air. The vanilla reference (`PistonMovingBlockEntity(BlockPos, BlockState)` reading state `FACING`, fresh extension at progress 0) is from the audit note only: `.vendor/vanilla-decompiled` is empty in this checkout, so no decompile could be re-checked. Whoever owns `mod.rs` should add the arm using `MovingPistonLikeProperties::from_state_id(state_id).facing`, matching `block/blocks/piston/piston.rs:448-500`.
 - Row `v1_18.rs:166-175` (chunk block entity registry id): verified already FIXED. `block_entity_type_id` (`v1_18.rs:309-315`) resolves the NBT `id` to a `BLOCK_ENTITY_TYPES` position, the writer filters unknown ids before writing the count (`v1_18.rs:154-171`), and the unit test `unknown_block_entity_id_is_dropped` (`v1_18.rs:328-334`) covers the Pumpkin-only `bed`/`map` case. No change needed.
-- `chest_like_block_entity.rs`: no STILL OPEN row names this file; left untouched.
+- `chest_like_block_entity.rs`: no open row names this file; left untouched.
 - No `.rs` file was modified, so rustfmt was not run.
 
 ## Result
 
 - Row `mod.rs:571-590` (`create_block_entity_for_state`, moving-piston facing): verified resolved in code, no edit by this unit. `mod.rs:598-614` now has a `"piston"` arm that reads `MovingPistonLikeProperties::from_state_id(state_id).facing.to_block_direction()` and builds `PistonBlockEntity` with progress 0, `extending: false` and pushed state air. Vanilla check at `.vendor/vanilla-decompiled/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java:38-60`: the `PistonMovingBlockEntity(BlockPos, BlockState)` constructor leaves `extending = false`, `progress = 0`, `movedState = DEFAULT` (air) and `direction = DOWN`; the only caller (`MovingPistonBlock.java:51-60`) passes facing explicitly via `newMovingBlockEntity`, and `newBlockEntity` returns null (`MovingPistonBlock.java:46-49`). The arm therefore matches vanilla defaults except it derives facing from the state, which is the correct fallback for a restored moving-piston state. The real move-start path already builds the entity explicitly (`block/blocks/piston/piston.rs:457-498`), so the arm is only a load/restore fallback. Facing NBT byte order also matches: vanilla `LEGACY_ID_CODEC` uses `get3DDataValue` 0..5 (`core/Direction.java:33-45`) and Pumpkin `BlockDirection::to_index/from_index` use the same 0..5 (`pumpkin-data/src/block_direction.rs:84-107`). The audit note's claim that the 2-arg constructor starts `extending = true` is incorrect; current code is right. The file is outside this unit's editable set, so no change was made here.
 - Row `v1_18.rs:166-175` (chunk block entity registry id): verified fixed. `block_entity_type_id` (`v1_18.rs:309-315`) resolves the unqualified NBT `id` against `BLOCK_ENTITY_TYPES` (`pumpkin-data/src/generated/block.rs:6468`, unqualified names), the writer filters unknown ids before the count (`v1_18.rs:154-171`) and `unknown_block_entity_id_is_dropped` (`v1_18.rs:328-334`) covers Pumpkin-only `bed`/`map`.
-- `chest_like_block_entity.rs`: no STILL OPEN row names it; left untouched.
+- `chest_like_block_entity.rs`: no open row names it; left untouched.
 - No `.rs` file was modified, so rustfmt was not run.
 
 ## Result (pass 3)
@@ -80,7 +80,7 @@ Verified against `.vendor/vanilla-decompiled/net/minecraft/world/level/block/pis
 - Row `v1_18.rs:166-175` (chunk block entity registry id): verified FIXED earlier;
   `block_entity_type_id` plus the pre-count filter and `unknown_block_entity_id_is_dropped`
   test are unchanged and correct.
-- `chest_like_block_entity.rs`: no STILL OPEN row names it. Its `from_nbt`/`write_nbt`
+- `chest_like_block_entity.rs`: no open row names it. Its `from_nbt`/`write_nbt`
   loot path matches `RandomizableContainer.tryLoadLootTable`/`trySaveLootTable` (seed only
   when non-zero), and `chunk_data_nbt` matches `saveAdditional`; left untouched.
 
@@ -110,7 +110,7 @@ unpacking pending loot (vanilla `RandomizableContainerBlockEntity.isEmpty` does)
 
 Re-verified against `.vendor/vanilla-decompiled` (`PistonMovingBlockEntity.java`,
 `Direction.java`, `RandomizableContainer.java`, `RandomizableContainerBlockEntity.java`).
-No STILL OPEN row remains in this unit, so no source file was edited.
+No row remains open in this unit, so no source file was edited.
 
 - Row `mod.rs:571-590` (moving-piston facing from state): already FIXED in tree, outside
   this unit's scope. `block/entities/mod.rs:598-613` has the `"piston" if block ==
@@ -172,4 +172,4 @@ no source file needed editing in this pass.
   `unpackLootTable(null)`, which no-ops without a level); hoppers already call `take_loot_table`,
   so no observable gap. VERIFIED not a gap; no edit.
 
-No STILL OPEN row remains. No `.rs` file modified, so rustfmt was not run. Status: PASS.
+No row remains open. No `.rs` file modified, so rustfmt was not run. Status: PASS.
