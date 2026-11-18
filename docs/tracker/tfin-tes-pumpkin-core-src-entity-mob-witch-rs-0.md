@@ -17,5 +17,5 @@ FINAL PASS. All rows closed. Only witch.rs was in scope; no source change was ne
   - Item 4 (tick order): `mob_tick` runs the drink branch then the hat-magic status; reordering has no observable difference, listed only for completeness.
   - Item 5 (pure seams): throw speed pinned by the `potion_throw_speed` test and the drink modifier amount by `drinking_speed_modifier_matches_vanilla`; the drink math itself needs a `LivingEntity` (`Witch.java:133-135`, `potion.forEachEffect(... POTION_DURATION_SCALE ...)`), so no pure seam exists there. Self-damage zero (`Witch.java:215-217`) is handled by `pre_damage`; the `WITCH_RESISTANT_TO` 0.15 multiplier (`Witch.java:219-221`) by `modify_incoming_damage`.
 
-No remaining STILL OPEN rows, no BLOCKED-DATA. Files changed this pass: none (documentation only); witch.rs left unmodified and already rustfmt-clean.
+No remaining STILL OPEN rows, no BLOCKED-DATA. Files changed this pass: witch.rs (one-line clippy fix: `potion_throw_speed` marked `const fn`, matching the established pure-float-helper pattern in e.g. `net/mod.rs:157`; no behaviour change) and this tracker doc. rustfmt --edition 2024 to be applied by the orchestrator.
 

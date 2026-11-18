@@ -44,7 +44,7 @@ const SPEED_MODIFIER_DRINKING_ID: &str = "minecraft:drinking";
 const SPEED_MODIFIER_DRINKING_AMOUNT: f64 = -0.25;
 
 /// Vanilla `Witch.performRangedAttack`: 0.45 speed within 2 blocks, else 0.75.
-fn potion_throw_speed(dist: f64) -> f64 {
+const fn potion_throw_speed(dist: f64) -> f64 {
     if dist <= 2.0 { 0.45 } else { 0.75 }
 }
 
