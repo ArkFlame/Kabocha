@@ -8,7 +8,7 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 - Row 3 stonecutter-only recipe packet (mod.rs:772-781): FIXED, VERIFIED (same as above).
 
 ## Result
-All rows closed. Per item: FIXED/VERIFIED with citations above. `play/keep_alive.rs` unchanged and correct (Paper `ServerCommonPacketListenerImpl#handleKeepAlive`, `.vendor/.../ServerCommonPacketListenerImpl.java:103-144`); covered by `only_the_oldest_challenge_is_accepted`. No source files modified this pass; no new clippy surfaces.
+All rows closed. Per item: FIXED/VERIFIED with citations above. `play/keep_alive.rs` unchanged and correct (Paper `ServerCommonPacketListenerImpl#handleKeepAlive`, `.vendor/vanilla-decompiled/.../ServerCommonPacketListenerImpl.java:103-144`); covered by `only_the_oldest_challenge_is_accepted`. No source files modified this pass; no new clippy surfaces.
 
 ### Final pass (main checkout) - all rows closed
 - Row 1 chat/command/chat-ack/session spawned off-thread: FIXED, VERIFIED. `crates/pumpkin-core/src/net/java/mod.rs:404-415` `enqueue_ordered_packet` chains each job behind `deferred_packet_tail` via `chain_after` (`mod.rs:107`); `SChatAck`/`SChatCommand`/`SChatCommandSigned`/`SChatMessage`/`SPlayerSession` dispatch through it (`mod.rs:946, 958, 980, 1001, 1246`) instead of `spawn_task`, preserving arrival order like vanilla `ServerGamePacketListenerImpl#handleChat`/`#handleChatCommand`/`#handleCommand`/`#handleChatAck`/`#handleChatSessionUpdate` (`.vendor/vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java:2552, 2582, 2799, 2869, 3905`). Covered by the `chain_after` ordering test (`mod.rs:1449`). No edit needed.
