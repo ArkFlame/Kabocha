@@ -16,6 +16,7 @@ use crate::command::node::dispatcher::CommandDispatcher;
 use crate::command::node::{CommandExecutor, CommandExecutorResult};
 use crate::command::suggestion::provider::{SuggestionProvider, SuggestionProviderResult};
 use crate::command::suggestion::suggestions::SuggestionsBuilder;
+use crate::world::time::default_clock_name;
 use pumpkin_util::identifier::Identifier;
 
 const DESCRIPTION: &str = "Query or modify the world time and clocks.";
@@ -50,6 +51,11 @@ const ERROR_ALREADY_AT_TIME_MARKER: CommandErrorType<2> = CommandErrorType::new(
     translation::java::COMMANDS_TIME_SET_ALREADY_AT_TIME_MARKER,
     translation::java::COMMANDS_TIME_SET_ALREADY_AT_TIME_MARKER,
 );
+// Bedrock has no time/no-default-clock key, so both editions use the Java text.
+const ERROR_NO_DEFAULT_CLOCK: CommandErrorType<1> = CommandErrorType::new(
+    translation::java::COMMANDS_TIME_NO_DEFAULT_CLOCK,
+    translation::java::COMMANDS_TIME_NO_DEFAULT_CLOCK,
+);
 
 // Vanilla resolves `/time of <clock>` through ResourceArgument.resource(WORLD_CLOCK); an
 // unknown id fails before any mutation. Bedrock's message uses only the id and ignores
@@ -57,6 +63,14 @@ const ERROR_ALREADY_AT_TIME_MARKER: CommandErrorType<2> = CommandErrorType::new(
 const ERROR_UNKNOWN_CLOCK: CommandErrorType<2> = CommandErrorType::new(
     translation::java::ARGUMENT_RESOURCE_NOT_FOUND,
     translation::bedrock::COMMANDS_TIME_CLOCK_FAILED,
+);
+
+// The vanilla `minecraft:day` timeline registry entry sets `clock` to
+// `minecraft:overworld`, so a query through any other clock fails with this error.
+// Bedrock has no matching key, so both editions use the Java text.
+const ERROR_WRONG_TIMELINE_FOR_CLOCK: CommandErrorType<2> = CommandErrorType::new(
+    translation::java::COMMANDS_TIME_WRONG_TIMELINE_FOR_CLOCK,
+    translation::java::COMMANDS_TIME_WRONG_TIMELINE_FOR_CLOCK,
 );
 
 #[derive(Clone, Copy)]
@@ -140,6 +154,13 @@ fn resolve_clock_name(
         IdentifierArgumentType::get(context, "clock")
             .map_or_else(|_| DEFAULT_CLOCK.to_string(), |id| id.to_string())
     } else {
+        let world = context.source.world();
+        // Vanilla getDefaultClock fails when the dimension type has no default_clock.
+        if default_clock_name(world.dimension.minecraft_name).is_none() {
+            return Err(ERROR_NO_DEFAULT_CLOCK.create_without_context_args_slice(&[
+                TextComponent::text(world.dimension.minecraft_name),
+            ]));
+        }
         DEFAULT_CLOCK.to_string()
     };
     if has_clock
@@ -155,6 +176,22 @@ fn resolve_clock_name(
         ]));
     }
     Ok(name)
+}
+
+/// Vanilla `queryTimelineTicks`/`queryTimelineRepetitions` reject a timeline whose
+/// `clock` field differs from the requested clock. Pumpkin only models the
+/// `minecraft:day` timeline, whose registry NBT sets `clock` to `minecraft:overworld`.
+fn ensure_day_timeline_clock(clock_name: &str) -> Result<(), CommandSyntaxError> {
+    if clock_name == DEFAULT_CLOCK {
+        Ok(())
+    } else {
+        Err(
+            ERROR_WRONG_TIMELINE_FOR_CLOCK.create_without_context_args_slice(&[
+                TextComponent::text(DAY_TIMELINE),
+                TextComponent::text(clock_name),
+            ]),
+        )
+    }
 }
 
 struct QueryExecutor {
@@ -200,6 +237,7 @@ impl CommandExecutor for QueryExecutor {
                 Ok(wrap_time(total_ticks))
             }
             QueryMode::DayTime => {
+                ensure_day_timeline_clock(&clock_name)?;
                 let curr_time = level_time.query_daytime();
                 context.source.send_feedback(
                     day_timeline_feedback(
@@ -213,6 +251,7 @@ impl CommandExecutor for QueryExecutor {
                 Ok(wrap_time(curr_time))
             }
             QueryMode::Day => {
+                ensure_day_timeline_clock(&clock_name)?;
                 let curr_time = level_time.query_day();
                 context.source.send_feedback(
                     day_timeline_feedback(
@@ -620,6 +659,12 @@ mod tests {
         assert_eq!(wrap_time(2_147_483_646), 2_147_483_646);
         assert_eq!(wrap_time(2_147_483_647), 0);
         assert_eq!(wrap_time(2_147_483_648), 1);
+    }
+
+    #[test]
+    fn day_timeline_query_rejects_other_clocks() {
+        assert!(ensure_day_timeline_clock(DEFAULT_CLOCK).is_ok());
+        assert!(ensure_day_timeline_clock("minecraft:the_end").is_err());
     }
 
     #[test]

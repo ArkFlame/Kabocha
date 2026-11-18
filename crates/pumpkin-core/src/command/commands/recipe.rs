@@ -67,6 +67,34 @@ fn new_learnable_recipes<'a>(
         .collect()
 }
 
+/// Display ids a `take` request removes, mirroring vanilla `ServerRecipeBook.removeRecipes`:
+/// only recipes the player actually knows and that have a recipe-book display, matched by id
+/// (or all when `*` was given). Each matched id is removed from `known`.
+fn take_display_ids(
+    known: &mut HashSet<String>,
+    recipes: &[DynamicRecipe],
+    display_ids: &[Option<i32>],
+    is_all: bool,
+    matches: &dyn Fn(&DynamicRecipe) -> bool,
+) -> Vec<VarInt> {
+    let mut ids_to_remove = Vec::new();
+    for (recipe, display_id) in recipes.iter().zip(display_ids.iter()) {
+        let Some(display_id) = *display_id else {
+            continue;
+        };
+        if !is_all && !matches(recipe) {
+            continue;
+        }
+        let Some(id) = learnable_recipe_id(recipe) else {
+            continue;
+        };
+        if known.remove(id) {
+            ids_to_remove.push(VarInt(display_id));
+        }
+    }
+    ids_to_remove
+}
+
 /// Vanilla's recipe argument suggests recipe-manager keys only, filtered to learnable recipes.
 fn recipe_suggestion_ids(recipes: &[DynamicRecipe]) -> Vec<String> {
     let mut seen = HashSet::new();
@@ -238,21 +266,8 @@ impl CommandExecutor for RecipeTakeExecutor {
                 .known_recipes
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let mut ids_to_remove = Vec::new();
-            for (recipe, display_id) in all_recipes.iter().zip(display_ids.iter()) {
-                let Some(display_id) = *display_id else {
-                    continue;
-                };
-                if !is_all && !matches(recipe) {
-                    continue;
-                }
-                let Some(id) = learnable_recipe_id(recipe) else {
-                    continue;
-                };
-                if known.remove(id) {
-                    ids_to_remove.push(VarInt(display_id));
-                }
-            }
+            let ids_to_remove =
+                take_display_ids(&mut *known, &all_recipes, &display_ids, is_all, &matches);
             drop(known);
             total += ids_to_remove.len() as i32;
             if !ids_to_remove.is_empty() {
@@ -374,6 +389,67 @@ mod tests {
         assert!(
             new.iter()
                 .all(|recipe| learnable_recipe_id(recipe) == Some("test:a"))
+        );
+    }
+
+    #[test]
+    fn take_removes_only_known_recipes_with_displays() {
+        use pumpkin_protocol::codec::recipe::{
+            OwnedCraftingRecipe, OwnedRecipeIngredient, OwnedRecipeResult, OwnedStonecutterRecipe,
+        };
+
+        let crafting = |id: &str| {
+            DynamicRecipe::Crafting(OwnedCraftingRecipe::Shapeless {
+                recipe_id: Some(id.to_string()),
+                category: pumpkin_data::recipes::RecipeCategoryTypes::Misc,
+                group: None,
+                ingredients: vec![OwnedRecipeIngredient::Simple("minecraft:stone".to_string())],
+                result: OwnedRecipeResult {
+                    item_id: "minecraft:dirt".to_string(),
+                    count: 1,
+                },
+            })
+        };
+        let stonecutting = |id: &str| {
+            DynamicRecipe::Stonecutting(OwnedStonecutterRecipe {
+                recipe_id: id.to_string(),
+                group: None,
+                ingredient: OwnedRecipeIngredient::Simple("minecraft:stone".to_string()),
+                result: OwnedRecipeResult {
+                    item_id: "minecraft:dirt".to_string(),
+                    count: 1,
+                },
+            })
+        };
+
+        // Known displayed recipe, non-displayed recipe, unknown displayed recipe, duplicate known id.
+        let recipes = [
+            crafting("test:a"),
+            stonecutting("test:b"),
+            crafting("test:c"),
+            crafting("test:a"),
+        ];
+        let display_ids = dynamic_recipe_display_ids(&recipes);
+        let offset = display_ids.iter().flatten().next().map_or(0, |id| id.0);
+
+        let mut known = HashSet::from(["test:a".to_string()]);
+        let matches = |recipe: &DynamicRecipe| recipe.recipe_id() == Some("test:a");
+        let removed = take_display_ids(&mut known, &recipes, &display_ids, false, &matches);
+        let removed_ids: Vec<i32> = removed.iter().map(|id| id.0).collect();
+
+        assert_eq!(removed_ids, vec![offset]);
+        assert!(known.is_empty());
+
+        // The wildcard removes every known displayed recipe regardless of the match filter.
+        let mut known_all = HashSet::from(["test:a".to_string(), "test:c".to_string()]);
+        let removed_all = take_display_ids(&mut known_all, &recipes, &display_ids, true, &matches);
+        assert_eq!(removed_all.len(), 2);
+        assert!(known_all.is_empty());
+
+        // Nothing known means nothing removed and no packet would be sent.
+        let mut known_none = HashSet::new();
+        assert!(
+            take_display_ids(&mut known_none, &recipes, &display_ids, true, &matches).is_empty()
         );
     }
 }

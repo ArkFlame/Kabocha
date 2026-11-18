@@ -184,6 +184,27 @@ impl CommandExecutor for BlockReplaceExecutor {
     }
 }
 
+/// Vanilla `CommandResponseTracker` inputs: (total changed slots, non-zero target count, sole non-zero index).
+const fn response_counts(per_target: &[usize]) -> (usize, usize, Option<usize>) {
+    let mut total = 0usize;
+    let mut succeeded = 0usize;
+    let mut sole = None;
+    let mut i = 0;
+    while i < per_target.len() {
+        let changed = per_target[i];
+        total += changed;
+        if changed > 0 {
+            succeeded += 1;
+            sole = Some(i);
+        }
+        i += 1;
+    }
+    if succeeded != 1 {
+        sole = None;
+    }
+    (total, succeeded, sole)
+}
+
 struct EntityReplaceExecutor {
     has_count: bool,
     feedback: SuccessFeedback,
@@ -208,19 +229,24 @@ impl CommandExecutor for EntityReplaceExecutor {
             1
         };
 
-        let mut modified_count = 0;
+        // Vanilla's CommandResponseTracker tracks a count per target and dispatches over
+        // ElementType.NON_ZERO: only targets that changed a slot count towards success.
+        let mut per_target = Vec::with_capacity(targets.len());
         let mut item_stack = parsed_stack.clone();
         item_stack.item_count = count as u8;
 
         for target in &targets {
+            let mut target_count = 0usize;
             for &slot in slots {
                 if write_entity_slot(target, slot, &item_stack) {
-                    modified_count += 1;
+                    target_count += 1;
                 }
             }
+            per_target.push(target_count);
         }
+        let (modified_count, succeeded_targets, sole_target) = response_counts(&per_target);
 
-        if modified_count == 0 {
+        if succeeded_targets == 0 {
             if matches!(self.feedback, SuccessFeedback::Set) {
                 return Err(
                     ERROR_NO_SUCH_SLOT.create_without_context(TextComponent::text(
@@ -256,41 +282,41 @@ impl CommandExecutor for EntityReplaceExecutor {
                 count: Some(count),
                 components: None,
             });
-        let msg = match (self.feedback, targets.len() == 1) {
-            (SuccessFeedback::Replace, true) => TextComponent::translate_cross(
+        let msg = match (self.feedback, sole_target) {
+            (SuccessFeedback::Replace, Some(i)) => TextComponent::translate_cross(
                 translation::java::COMMANDS_ITEM_ENTITY_REPLACE_SUCCESS_SINGLE_KNOWN_ITEM,
                 translation::java::COMMANDS_ITEM_ENTITY_REPLACE_SUCCESS_SINGLE_KNOWN_ITEM,
                 [
                     TextComponent::text(modified_count.to_string()),
-                    targets[0].as_ref().get_display_name(),
+                    targets[i].as_ref().get_display_name(),
                     item_component,
                 ],
             ),
-            (SuccessFeedback::Replace, false) => TextComponent::translate_cross(
+            (SuccessFeedback::Replace, None) => TextComponent::translate_cross(
                 translation::java::COMMANDS_ITEM_ENTITY_REPLACE_SUCCESS_MULTIPLE_KNOWN_ITEM,
                 translation::java::COMMANDS_ITEM_ENTITY_REPLACE_SUCCESS_MULTIPLE_KNOWN_ITEM,
                 [
-                    TextComponent::text(targets.len().to_string()),
+                    TextComponent::text(succeeded_targets.to_string()),
                     item_component,
                 ],
             ),
-            (SuccessFeedback::Set, true) => TextComponent::translate_cross(
+            (SuccessFeedback::Set, Some(i)) => TextComponent::translate_cross(
                 translation::java::COMMANDS_ITEM_ENTITY_SET_SUCCESS_SINGLE,
                 translation::java::COMMANDS_ITEM_ENTITY_SET_SUCCESS_SINGLE,
-                [targets[0].as_ref().get_display_name(), item_component],
+                [targets[i].as_ref().get_display_name(), item_component],
             ),
-            (SuccessFeedback::Set, false) => TextComponent::translate_cross(
+            (SuccessFeedback::Set, None) => TextComponent::translate_cross(
                 translation::java::COMMANDS_ITEM_ENTITY_SET_SUCCESS_MULTIPLE,
                 translation::java::COMMANDS_ITEM_ENTITY_SET_SUCCESS_MULTIPLE,
                 [
-                    TextComponent::text(targets.len().to_string()),
+                    TextComponent::text(succeeded_targets.to_string()),
                     item_component,
                 ],
             ),
         };
         context.source.send_feedback(msg, true);
 
-        Ok(modified_count)
+        Ok(modified_count as i32)
     }
 }
 
@@ -1241,5 +1267,13 @@ mod tests {
                 .iter()
                 .any(|(id, value)| *id == DataComponent::Glider && value.is_none())
         );
+    }
+    #[test]
+    fn response_counts_match_vanilla_non_zero_dispatch() {
+        // (total changed slots, non-zero target count, sole changed target index)
+        assert_eq!(response_counts(&[0, 0, 0]), (0, 0, None));
+        assert_eq!(response_counts(&[3, 0, 2]), (5, 2, None));
+        assert_eq!(response_counts(&[0, 4, 0]), (4, 1, Some(1)));
+        assert_eq!(response_counts(&[7]), (7, 1, Some(0)));
     }
 }
