@@ -6,4 +6,5 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 - All STILL OPEN rows resolved and verified against decompiled vanilla; see ## Result below.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+
+- Row 5 (play-dead regeneration duration): VERIFIED, matches decompiled vanilla, no change. `PlayDead.start` grants `new MobEffectInstance(MobEffects.REGENERATION, 200, 0)` (200 ticks, amplifier 0) at `.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/axolotl/PlayDead.java:32`. Pumpkin matches: `PLAY_DEAD_REGENERATION_DURATION: i32 = 200` (`axolotl/ai.rs:40`) and `start()` applies `Effect { effect_type: &StatusEffect::REGENERATION, duration: PLAY_DEAD_REGENERATION_DURATION, amplifier: 0, .. }` (`axolotl/ai.rs:356-364`). The wiki statement documented only Regeneration I without a duration; the decompiled source confirms 200 ticks at amplifier 0, so the constant stays at 200. No source files touched (no rustfmt needed).

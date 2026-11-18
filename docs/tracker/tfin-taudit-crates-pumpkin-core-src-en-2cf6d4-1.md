@@ -5,7 +5,6 @@ Close each item below completely: read the vanilla class under .vendor/vanilla-d
 All five STILL OPEN markers closed. fixed=0 open=0.
 No rows remain STILL OPEN. fixed=0 open=0 for this pass.
 
-## Result
 ## Result (FINAL PASS - every row terminal, re-verified against vendored vanilla)
 
 Re-read the on-disk source for every in-scope file and re-checked each row against the
