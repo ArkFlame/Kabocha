@@ -650,7 +650,7 @@ impl EntityBase for BoatEntity {
         // while the boat is not fully submerged, using the controlling passenger as the
         // vibration source, alongside the splash sound and particle.
         if !self.status.load().is_some_and(BoatStatus::is_underwater)
-            && rand::random::<u32>() % 100 == 0
+            && rand::random::<u32>().is_multiple_of(100)
         {
             let entity = &self.vehicle.entity;
             let pos = entity.pos.load();
