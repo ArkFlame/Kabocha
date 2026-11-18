@@ -61,3 +61,20 @@ gap found.
    `pickup_timer`, `from_bucket`, `fuse`) could not be checked against decompiled
    `SulfurCube.addAdditionalSaveData`/`readAdditionalSaveData`; verify the key names and
    that `fuse` defaults to -1 on read. Size S, verify only.
+
+## Result
+
+STILL OPEN row `9728ac352` (apply sulfur cube body state on item pickup): VERIFIED, already
+fixed in the current tree. Decompiled vanilla `SulfurCube.pickUpItem`
+(`net/minecraft/world/entity/monster/cubemob/SulfurCube.java:720-729`) calls `onItemPickup`
+then `setItemSlot(BODY, split)`; the body state is applied by `SulfurCube.collectEquipmentChanges`
+(lines 404-457: goal clear/register, speed reset, old/new archetype attribute modifiers and
+explosion/contact/buoyancy state), which the base entity runs once per tick. Pumpkin's
+`pick_up_item` (`sulfur_cube.rs:903-937`) sets the BODY slot at 922-923 then calls
+`self.detect_body_item_change()` immediately at 924 before the absorb sound; that routes to
+`on_body_item_changed` (402-474) which applies the same state set. The per-tick call at
+`mob_tick:839` mirrors vanilla's collection point, so the immediate pickup call removes the
+one-tick lag with no divergence. No code change needed. No pure unit-test seam exists: the
+paths require a live MobEntity/world, and `detect_body_item_change` is covered by the
+pickup/equip/shear integration paths. Remaining gaps 3-8 were not marked STILL OPEN and were
+left untouched.
