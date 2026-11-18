@@ -2619,3 +2619,14 @@ impl ToFromWasmEvent for PlayerUnregisterChannelEvent {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fish_state_lured_round_trip() {
+        let wasm = to_wasm_fish_state(PlayerFishState::Lured);
+        assert!(from_wasm_fish_state(wasm) == PlayerFishState::Lured);
+    }
+}

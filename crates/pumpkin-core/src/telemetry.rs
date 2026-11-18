@@ -39,6 +39,19 @@ pub const HEADER_TIMESTAMP: &str = "X-Telemetry-Timestamp";
 /// Maximum allowable clock drift between telemetry client and server (300 seconds / 5 minutes).
 pub const MAX_CLOCK_DRIFT_SECS: u64 = 300;
 
+/// HTTP header name for the replay-protection nonce (lowercase hex).
+///
+/// The authoritative copy is embedded in the signed JSON body; the header is provided for
+/// verifier convenience only.
+pub const HEADER_NONCE: &str = "X-Telemetry-Nonce";
+
+/// JSON field carrying the replay-protection nonce inside the signed request body.
+pub const NONCE_FIELD: &str = "nonce";
+
+/// How long a seen nonce is retained by a verifier, twice the drift window to cover
+/// the worst-case skew between a request's timestamp and the time it was first seen.
+pub const NONCE_CACHE_TTL_SECS: u64 = MAX_CLOCK_DRIFT_SECS * 2;
+
 /// Minimum heartbeat interval in seconds, applied to the configured value and to backend
 /// recommendations.
 pub const MIN_HEARTBEAT_INTERVAL_SECS: u64 = 60;
@@ -358,6 +371,28 @@ pub fn compute_signed_data(timestamp_str: &str, body_bytes: &[u8]) -> Vec<u8> {
     signed_data
 }
 
+/// Generates a fresh random replay-protection nonce as 32 lowercase hex characters.
+fn generate_nonce() -> String {
+    hex::encode(rand::random::<[u8; 16]>())
+}
+
+/// Serializes a telemetry payload and embeds a fresh nonce in the resulting signed body.
+///
+/// The nonce goes into the JSON body so it is covered by the Ed25519 signature: a captured
+/// request cannot be replayed with a swapped nonce without invalidating the signature.
+fn serialize_signed_body<T: Serialize>(payload: &T, nonce: &str) -> Vec<u8> {
+    #[allow(clippy::expect_used)]
+    let mut value = serde_json::to_value(payload).expect("Serialization failed");
+    if let serde_json::Value::Object(map) = &mut value {
+        map.insert(
+            NONCE_FIELD.to_string(),
+            serde_json::Value::String(nonce.to_string()),
+        );
+    }
+    #[allow(clippy::expect_used)]
+    serde_json::to_vec(&value).expect("Serialization failed")
+}
+
 /// Signs telemetry message data using an Ed25519 signing key and returns `(public_key_hex, signature_hex)`.
 #[must_use]
 pub fn sign_telemetry_payload(
@@ -391,6 +426,10 @@ pub enum TelemetryVerificationError {
     InvalidSignature(String),
     #[error("Signature verification failed: {0}")]
     VerificationFailed(String),
+    #[error("Replay protection: signed request body is missing a valid nonce")]
+    InvalidNonce,
+    #[error("Replay detected: this request nonce has already been seen")]
+    ReplayDetected,
 }
 
 /// Verifies a signed telemetry request against an Ed25519 public key and timestamp.
@@ -427,6 +466,71 @@ pub fn verify_telemetry_request(
         .map_err(|e| TelemetryVerificationError::VerificationFailed(e.to_string()))?;
 
     Ok(())
+}
+
+/// Time-bounded cache of nonces already accepted by a telemetry verifier.
+///
+/// Entries older than [`NONCE_CACHE_TTL_SECS`] are pruned on each check, so the cache stays
+/// bounded: a nonce whose request timestamp is that old can no longer pass the drift window.
+#[derive(Debug, Default)]
+pub struct NonceCache {
+    seen: Mutex<FxHashMap<String, u64>>,
+}
+
+impl NonceCache {
+    /// Creates an empty replay-protection nonce cache.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Records a nonce and returns `true` when it was unseen, or `false` on a replay.
+    pub fn check_and_insert(&self, nonce: &str, current_time_secs: u64) -> bool {
+        let mut seen = self
+            .seen
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        seen.retain(|_, seen_at| {
+            current_time_secs.saturating_sub(*seen_at) <= NONCE_CACHE_TTL_SECS
+        });
+        if seen.contains_key(nonce) {
+            return false;
+        }
+        seen.insert(nonce.to_string(), current_time_secs);
+        true
+    }
+}
+
+/// Verifies a signed telemetry request and rejects replays via its signed-body nonce.
+///
+/// The nonce is read from the signature-verified body, so an attacker cannot swap in a fresh
+/// nonce to bypass the seen-nonce cache. Signature and drift checks run before the cache.
+pub fn verify_telemetry_request_with_replay_protection(
+    cache: &NonceCache,
+    pubkey_hex: &str,
+    sig_hex: &str,
+    timestamp_str: &str,
+    body_bytes: &[u8],
+    current_time_secs: u64,
+) -> Result<(), TelemetryVerificationError> {
+    verify_telemetry_request(
+        pubkey_hex,
+        sig_hex,
+        timestamp_str,
+        body_bytes,
+        current_time_secs,
+    )?;
+    let body: serde_json::Value =
+        serde_json::from_slice(body_bytes).map_err(|_| TelemetryVerificationError::InvalidNonce)?;
+    let nonce = body
+        .get(NONCE_FIELD)
+        .and_then(serde_json::Value::as_str)
+        .ok_or(TelemetryVerificationError::InvalidNonce)?;
+    if cache.check_and_insert(nonce, current_time_secs) {
+        Ok(())
+    } else {
+        Err(TelemetryVerificationError::ReplayDetected)
+    }
 }
 
 /// Derives the shutdown endpoint from an endpoint or its heartbeat-stripped prefix.
@@ -534,8 +638,8 @@ impl TelemetryClient {
         &self,
         payload: &HeartbeatPayload,
     ) -> Result<HeartbeatResponse, reqwest::Error> {
-        #[allow(clippy::expect_used)]
-        let body_bytes = serde_json::to_vec(payload).expect("Serialization failed");
+        let nonce = generate_nonce();
+        let body_bytes = serialize_signed_body(payload, &nonce);
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -552,6 +656,7 @@ impl TelemetryClient {
             .header(HEADER_PUBLIC_KEY, pubkey_hex)
             .header(HEADER_SIGNATURE, sig_hex)
             .header(HEADER_TIMESTAMP, timestamp_str)
+            .header(HEADER_NONCE, nonce)
             .body(body_bytes)
             .send()
             .await?
@@ -572,8 +677,8 @@ impl TelemetryClient {
             reason: reason.unwrap_or("server shutdown").to_string(),
             players,
         };
-        #[allow(clippy::expect_used)]
-        let body_bytes = serde_json::to_vec(&payload).expect("Serialization failed");
+        let nonce = generate_nonce();
+        let body_bytes = serialize_signed_body(&payload, &nonce);
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -589,6 +694,7 @@ impl TelemetryClient {
             .header(HEADER_PUBLIC_KEY, pubkey_hex)
             .header(HEADER_SIGNATURE, sig_hex)
             .header(HEADER_TIMESTAMP, timestamp_str)
+            .header(HEADER_NONCE, nonce)
             .body(body_bytes)
             .send()
             .await?
@@ -1700,6 +1806,79 @@ mod tests {
         assert_eq!(
             from_disk.verifying_key().to_bytes(),
             disk.verifying_key().to_bytes()
+        );
+    }
+
+    #[test]
+    fn replay_nonce_guard_rejects_captured_request() {
+        let cache = NonceCache::new();
+        let signing_key = SigningKey::from_bytes(&[13u8; 32]);
+        let timestamp_str = "1757185000";
+        let now = 1_757_185_000u64;
+
+        let mut body = serde_json::json!({ "server_type": "pumpkin" });
+        body[NONCE_FIELD] = serde_json::Value::String(generate_nonce());
+        let body_bytes = serde_json::to_vec(&body).unwrap();
+        let (pubkey_hex, sig_hex) =
+            sign_telemetry_payload(&signing_key, timestamp_str, &body_bytes);
+
+        // First delivery of the signed request is accepted.
+        assert!(
+            verify_telemetry_request_with_replay_protection(
+                &cache,
+                &pubkey_hex,
+                &sig_hex,
+                timestamp_str,
+                &body_bytes,
+                now
+            )
+            .is_ok()
+        );
+
+        // Replaying the exact captured request is rejected by the nonce cache.
+        assert_eq!(
+            verify_telemetry_request_with_replay_protection(
+                &cache,
+                &pubkey_hex,
+                &sig_hex,
+                timestamp_str,
+                &body_bytes,
+                now
+            ),
+            Err(TelemetryVerificationError::ReplayDetected)
+        );
+
+        // A request carrying a fresh signed nonce is accepted.
+        body[NONCE_FIELD] = serde_json::Value::String(generate_nonce());
+        let fresh_body = serde_json::to_vec(&body).unwrap();
+        let (fresh_pubkey, fresh_sig) =
+            sign_telemetry_payload(&signing_key, timestamp_str, &fresh_body);
+        assert!(
+            verify_telemetry_request_with_replay_protection(
+                &cache,
+                &fresh_pubkey,
+                &fresh_sig,
+                timestamp_str,
+                &fresh_body,
+                now
+            )
+            .is_ok()
+        );
+
+        // A signed body without a nonce is rejected.
+        let no_nonce =
+            serde_json::to_vec(&serde_json::json!({ "server_type": "pumpkin" })).unwrap();
+        let (pk, sig) = sign_telemetry_payload(&signing_key, timestamp_str, &no_nonce);
+        assert_eq!(
+            verify_telemetry_request_with_replay_protection(
+                &cache,
+                &pk,
+                &sig,
+                timestamp_str,
+                &no_nonce,
+                now
+            ),
+            Err(TelemetryVerificationError::InvalidNonce)
         );
     }
 }
