@@ -23,6 +23,15 @@ use crate::entity::{
 
 const VEHICLE_SEAT_HEIGHT: f64 = 0.218_75;
 
+/// Vanilla `CaveSpider.doHurtTarget` poison in ticks: 7 s on Normal, 15 s on Hard, none otherwise.
+const fn poison_ticks(difficulty: pumpkin_util::Difficulty) -> i32 {
+    match difficulty {
+        pumpkin_util::Difficulty::Normal => 7 * 20,
+        pumpkin_util::Difficulty::Hard => 15 * 20,
+        _ => 0,
+    }
+}
+
 pub struct CaveSpiderEntity {
     pub mob_entity: MobEntity,
     pub is_climbing: AtomicBool,
@@ -115,11 +124,7 @@ impl Mob for CaveSpiderEntity {
     fn on_attack(&self, target: &dyn EntityBase) {
         if let Some(living) = target.get_living_entity() {
             let world = self.mob_entity.living_entity.entity.world.load();
-            let duration = match world.level_info.load().difficulty {
-                pumpkin_util::Difficulty::Normal => 7 * 20,
-                pumpkin_util::Difficulty::Hard => 15 * 20,
-                _ => 0,
-            };
+            let duration = poison_ticks(world.level_info.load().difficulty);
             if duration > 0 {
                 living.add_effect(Effect {
                     effect_type: &StatusEffect::POISON,
@@ -132,5 +137,20 @@ impl Mob for CaveSpiderEntity {
                 });
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_util::Difficulty;
+
+    use super::poison_ticks;
+
+    #[test]
+    fn poison_scales_with_difficulty() {
+        assert_eq!(poison_ticks(Difficulty::Peaceful), 0);
+        assert_eq!(poison_ticks(Difficulty::Easy), 0);
+        assert_eq!(poison_ticks(Difficulty::Normal), 140);
+        assert_eq!(poison_ticks(Difficulty::Hard), 300);
     }
 }
