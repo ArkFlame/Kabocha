@@ -67,7 +67,7 @@ pub struct PollinateFlowerGoal {
     on_pollinated: fn(&dyn Mob),
     on_no_flower: fn(&dyn Mob),
     on_stop: fn(&dyn Mob),
-    on_start: fn(&dyn Mob),
+    on_start: fn(&dyn Mob, BlockPos),
     flower: Option<BlockPos>,
     pollinate_ticks: i32,
     repath_ticks: i32,
@@ -76,15 +76,15 @@ pub struct PollinateFlowerGoal {
 
 impl PollinateFlowerGoal {
     /// `gate` says whether the bee wants nectar and may search. `on_pollinated` records the
-    /// nectar; `on_start` and `on_stop` track the vanilla `pollinating` flag, and
-    /// `on_no_flower` drives the flower-search cooldown.
+    /// nectar; `on_start` receives the found flower and tracks the vanilla `pollinating` flag,
+    /// `on_stop` clears it and `on_no_flower` drives the flower-search cooldown.
     #[must_use]
     pub const fn new(
         gate: MobFilter,
         on_pollinated: fn(&dyn Mob),
         on_no_flower: fn(&dyn Mob),
         on_stop: fn(&dyn Mob),
-        on_start: fn(&dyn Mob),
+        on_start: fn(&dyn Mob, BlockPos),
     ) -> Self {
         Self {
             gate,
@@ -162,8 +162,11 @@ impl Goal for PollinateFlowerGoal {
     }
 
     fn start(&mut self, mob: &dyn Mob) {
-        // Vanilla `BeePollinateGoal.start` sets `pollinating = true`.
-        (self.on_start)(mob);
+        // Vanilla `BeePollinateGoal.canBeeUse` saves the found flower and `start` sets
+        // `pollinating = true`, so the bee remembers the flower block, not its own position.
+        if let Some(flower) = self.flower {
+            (self.on_start)(mob, flower);
+        }
         self.pollinate_ticks = 0;
         self.repath_ticks = 0;
     }

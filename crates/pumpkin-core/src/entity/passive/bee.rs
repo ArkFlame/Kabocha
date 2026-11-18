@@ -122,9 +122,11 @@ fn no_flower_found(mob: &dyn Mob) {
 }
 
 /// Vanilla `BeePollinateGoal.start` sets the `pollinating` flag and resets the no-nectar timer.
-fn pollination_started(mob: &dyn Mob) {
+fn pollination_started(mob: &dyn Mob, flower: BlockPos) {
     if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
         bee.set_pollinating(true);
+        // Vanilla `BeePollinateGoal.canBeeUse` saves the found flower block on the bee.
+        bee.set_flower_pos(Some(flower));
         // Vanilla `Bee.resetTicksWithoutNectarSinceExitingHive` at pollination start
         // (`Bee.java:1176`); matters for a bee loaded from NBT with a stale timer.
         bee.ticks_without_nectar.store(0, Ordering::Relaxed);
@@ -141,10 +143,9 @@ fn pollination_stopped(mob: &dyn Mob) {
 
 fn record_nectar(mob: &dyn Mob) {
     if let Some(bee) = mob.cast_any().downcast_ref::<BeeEntity>() {
-        // Vanilla `Bee.setHasNectar(true)` resets the no-nectar timer.
+        // Vanilla `Bee.setHasNectar(true)` resets the no-nectar timer. The flower was
+        // already remembered at pollination start, matching vanilla `savedFlowerPos`.
         bee.set_has_nectar(true);
-        // Vanilla remembers the flower found at pollination start; here the bee is at the flower.
-        bee.set_flower_pos(Some(bee.get_entity().block_pos.load()));
     }
 }
 
