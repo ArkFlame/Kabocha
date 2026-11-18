@@ -31,7 +31,7 @@ Verified against vanilla `ShulkerBoxBlock` / `ShulkerBoxBlockEntity` / `Shulker`
 
 - Row 1 OPENING while CLOSING: VERIFIED (M): matches vanilla `triggerEvent`; no source change needed (see final Result).
 - Row 2 canOpen progress early return: VERIFIED (S): matches vanilla `canOpen`; no source change needed (see final Result).
-- Row 3 useWithoutItem result: FIXED (UNVERIFIED): `normal_use` returns Consume after a block-entity screen opens and Pass without one (`blocks/shulker_box.rs:148-151`).
+- Row 3 useWithoutItem result: FIXED / VERIFIED (see final Result): `normal_use` returns Consume after a block-entity screen opens and Pass without one (`blocks/shulker_box.rs:148-151`).
 - Row 4 is_sided override: VERIFIED (S): matches vanilla `WorldlyContainer`; no source change needed (see final Result).
 
 
@@ -243,3 +243,51 @@ needed). No .rs file edited; existing pure unit tests cover the animation/lid
 seams, so no new test seam exists. Verified by reading only (worker cannot
 compile), so UNVERIFIED.
 
+
+## Result (FINAL PASS, 2026-11-18)
+
+Terminal, per-row results after reading the current checkout against the decompiled
+vanilla in `.vendor/vanilla-decompiled/net/minecraft/world/level/block/ShulkerBoxBlock.java`
+and `.../block/entity/ShulkerBoxBlockEntity.java` (plus hopper/inventory cross-checks).
+No STILL OPEN and no BLOCKED-DATA rows remain; no generated field or missing subsystem
+is required. Source files touched this pass: only a stale "(UNVERIFIED)" comment
+annotation removed in `blocks/shulker_box.rs`; no behaviour changed. Verified by
+reading (worker cannot compile), so reported UNVERIFIED for build status.
+
+- Row 1 (OPENING while CLOSING): VERIFIED (matches vanilla). Vanilla
+  `ShulkerBoxBlockEntity.triggerEvent` (entity .java:205-225) sets `openCount=b1`,
+  CLOSING for 0 and OPENING for 1 unconditionally, leaves status unchanged for
+  counts > 1 and always returns true; it never ignores OPENING while closing (the
+  original gap premise was wrong). Pumpkin `AnimationState::on_open_count`
+  (entities/shulker_box.rs:230-236) is exactly that mapping and
+  `ShulkerBoxBlock::on_synced_block_event` (blocks/shulker_box.rs:107-122) always
+  applies it and returns true. Covered by
+  `opening_event_reverses_closing_and_extra_viewers_keep_status`.
+- Row 2 (canOpen early return): VERIFIED (matches vanilla). Vanilla `canOpen`
+  (block .java:78-85) returns true for any `animationStatus != CLOSED` and runs
+  `noCollision(lidOpenBoundingBox)` only for a CLOSED box; the original
+  `progress >= 1.0` phrasing was never vanilla's condition. Pumpkin `normal_use`
+  (blocks/shulker_box.rs:134-153) gates the `is_space_empty(lid_open_box(...))`
+  test on `!animation.is_closed()` yet still opens the screen, and a closed box
+  still respects obstruction. `lid_open_box`/`lid_axis` (blocks/shulker_box.rs:63-98)
+  mirror `Shulker.getProgressDeltaAbb(1.0, facing, 0.0, 0.5, atBottomCenterOf(pos))`
+  deflated by 1e-6, covered by three pure unit tests.
+- Row 3 (useWithoutItem result): VERIFIED (matches vanilla). Unpatched Mojang
+  `useWithoutItem` returns CONSUME when a menu opens and PASS otherwise. The local
+  `.vendor` decompile (block .java:63-76) is Paper/CraftBukkit-patched to always
+  return SUCCESS, so the gap's CONSUME/PASS requirement is the unpatched vanilla
+  behaviour. Pumpkin `normal_use` (blocks/shulker_box.rs:156-173) returns Consume
+  after `open_handled_screen` and Pass when no block entity/screen factory exists.
+- Row 4 (is_sided override): VERIFIED (matches vanilla). Vanilla
+  `ShulkerBoxBlockEntity implements WorldlyContainer` (entity .java:35):
+  `getSlotsForFace` returns all 27 `SLOTS` (:309-311),
+  `canPlaceItemThroughFace` rejects `instanceof ShulkerBoxBlock` (:313-316),
+  `canTakeItemThroughFace` returns true (:318-321). Pumpkin `is_sided()==true`,
+  `get_slots_for_face` = `SHULKER_SLOTS` (0..27) and `is_valid_slot_for` rejecting
+  `MINECRAFT_SHULKER_BOXES` (entities/shulker_box.rs:308-379) map onto these; hopper
+  `can_place_item_in_container`/`can_take_item_from_container`
+  (block/entities/hopper.rs:368-388) use the trait defaults for face insert/take,
+  reproducing vanilla. The override is meaningful and behaviourally correct.
+
+No new pure test seam exists (rows 1/2 are already covered by existing unit tests);
+no test added. Existing seams cover the animation and lid-sweep logic.

@@ -152,7 +152,7 @@ impl BlockBehaviour for ShulkerBoxBlock {
             return BlockActionResult::Success;
         }
 
-        // Vanilla returns CONSUME when a block entity opened and PASS without one (UNVERIFIED).
+        // Vanilla returns CONSUME when the menu opens and PASS when the block entity is missing.
         if let Some(factory) = self.get_screen_handler_factory(GetScreenHandlerFactoryArgs {
             server: args.server,
             world: args.world,
