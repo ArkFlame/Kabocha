@@ -63,6 +63,16 @@ impl BlockEntity for CampfireBlockEntity {
                 entity.cooking_total_times[slot] = Mutex::new(value);
             }
         }
+        // Paper persists `stopCooking` as a byte buffer; a cancelled slot must stay cancelled across a reload.
+        if let Some(arr) = nbt.get_byte_array("Paper.StopCooking") {
+            for (slot, &value) in arr.iter().enumerate().take(Self::SLOT_COUNT) {
+                if value != 0 {
+                    *entity.cooking_cancelled[slot]
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
+                }
+            }
+        }
 
         entity
     }
@@ -320,6 +330,19 @@ impl CampfireBlockEntity {
             })
             .collect();
         nbt.put("CookingTotalTimes", NbtTag::IntArray(cooking_total_times));
+
+        let stop_cooking: Vec<i8> = self
+            .cooking_cancelled
+            .iter()
+            .map(|flag| {
+                i8::from(
+                    *flag
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner),
+                )
+            })
+            .collect();
+        nbt.put("Paper.StopCooking", NbtTag::ByteArray(stop_cooking.into()));
     }
 
     fn cool_down(&self) -> bool {
@@ -416,5 +439,25 @@ mod tests {
         assert_eq!(item3.get_string("Name"), Some("minecraft:porkchop"));
         assert_eq!(item3.get_byte("Count"), Some(1));
         assert_eq!(item3.get_byte("Slot"), Some(2));
+    }
+
+    #[test]
+    fn cancelled_cooking_survives_nbt_roundtrip() {
+        let pos = BlockPos::new(1, 64, 1);
+        let entity = CampfireBlockEntity::new(pos);
+        *entity.cooking_cancelled[2]
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
+
+        let mut nbt = NbtCompound::new();
+        entity.write_cooking_nbt(&mut nbt);
+        let loaded = <CampfireBlockEntity as BlockEntity>::from_nbt(&nbt, pos);
+
+        assert!(*loaded.cooking_cancelled[2]
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner));
+        assert!(!*loaded.cooking_cancelled[0]
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner));
     }
 }

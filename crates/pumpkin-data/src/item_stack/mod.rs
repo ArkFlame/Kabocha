@@ -469,6 +469,7 @@ impl ItemStack {
     /// Rolls Unbreaking once per damage point and returns the durability actually applied.
     /// Exposed so vanilla `PlayerItemDamageEvent` can fire with the post-Unbreaking amount
     /// before the wear is committed (`ItemStack.hurtAndBreak` -> `processDurabilityChange`).
+    #[must_use]
     pub fn compute_durability_damage_applied(&self, amount: i32) -> Option<(i32, i32)> {
         if amount <= 0 || !self.is_damageable() || self.is_unbreakable() {
             return None;
