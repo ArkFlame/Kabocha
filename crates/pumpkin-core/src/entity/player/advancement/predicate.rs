@@ -964,6 +964,9 @@ pub struct EntityState {
     pub effects: Option<Vec<Effect>>,
     /// Slot name to item id, as vanilla equipment predicate reads them.
     pub equipment: Option<Vec<(String, String)>>,
+    /// Block under the entity, set only when it is on the ground;
+    /// vanilla skips `SteppingOnPredicate` otherwise.
+    pub stepping_block: Option<String>,
 }
 
 impl EntityState {
@@ -990,11 +993,20 @@ impl EntityState {
                 })
                 .collect::<Vec<(String, String)>>()
         });
+        let stepping_block = living
+            .entity
+            .on_ground
+            .load(std::sync::atomic::Ordering::Relaxed)
+            .then(|| {
+                let pos = living.entity.get_on_pos();
+                living.entity.world.load().get_block(&pos).name.to_string()
+            });
         Self {
             distance,
             is_baby: Some(living.is_baby()),
             effects,
             equipment,
+            stepping_block,
         }
     }
 }
@@ -1006,6 +1018,7 @@ impl std::fmt::Debug for EntityState {
             .field("is_baby", &self.is_baby)
             .field("effects", &self.effects.as_ref().map(Vec::len))
             .field("equipment", &self.equipment)
+            .field("stepping_block", &self.stepping_block)
             .finish()
     }
 }
@@ -1019,7 +1032,7 @@ pub struct EntityPredicate {
     pub is_baby: Option<bool>,
     pub vehicle_type: Option<TagOrIdMatcher>,
     pub passenger_type: Option<TagOrIdMatcher>,
-    pub stepping_on: Option<String>,
+    pub stepping_on: Option<TagOrIdMatcher>,
     pub looking_at: Option<TagOrIdMatcher>,
     pub feet_item: Option<TagOrIdMatcher>,
     pub safe_armor_disallowed: Option<bool>,
@@ -1138,6 +1151,14 @@ impl EntityPredicate {
         {
             return false;
         }
+        if let Some(stepping) = &self.stepping_on {
+            let Some(block) = state.stepping_block.as_deref() else {
+                return false;
+            };
+            if !stepping.matches(RegistryKey::Block, block) {
+                return false;
+            }
+        }
         self.equipment.iter().all(|(slot, predicate)| {
             state.equipment.as_ref().is_none_or(|equipped| {
                 equipped.iter().any(|(equipped_slot, item)| {
@@ -1209,10 +1230,12 @@ impl EntityPredicate {
         let stepping_on = map
             .get("minecraft:stepping_on")
             .or_else(|| map.get("stepping_on"))
-            .and_then(|s| s.get("block").or_else(|| s.get("blocks")))
-            .and_then(|b| b.get("blocks").or(Some(b)))
-            .and_then(Value::as_str)
-            .map(ToString::to_string);
+            .and_then(|s| {
+                s.get("block")
+                    .and_then(|b| b.get("blocks").or(Some(b)))
+                    .or_else(|| s.get("blocks"))
+            })
+            .and_then(TagOrIdMatcher::from_value);
 
         let looking_at = map
             .get("minecraft:type_specific/player")
@@ -2352,7 +2375,9 @@ fn from_entity_condition(e: &pumpkin_data::advancement_data::EntityCondition) ->
             patterns: vpatterns,
         }),
         passenger_type,
-        stepping_on: e.stepping_on.map(ToString::to_string),
+        stepping_on: e.stepping_on.map(|b| TagOrIdMatcher {
+            patterns: vec![b.to_string()],
+        }),
         looking_at,
         feet_item,
         safe_armor_disallowed: e.safe_armor_disallowed,
@@ -3988,6 +4013,7 @@ mod tests {
                 "head".to_string(),
                 "minecraft:leather_helmet".to_string(),
             )]),
+            stepping_block: None,
         };
         assert!(!pred.matches_entity("minecraft:cow", &state));
         let mut amplified = state.clone();

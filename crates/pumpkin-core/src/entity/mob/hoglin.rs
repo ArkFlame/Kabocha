@@ -13,21 +13,59 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
 
+use crate::entity::ai::brain::memory::types;
 use crate::entity::ai::brain::sensing::SensorType;
 use crate::entity::ai::brain::{Brain, BrainProvider, PackedMemories};
+use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::mob::spawn::SpawnGroupData;
 use crate::entity::{
     Entity, EntityBase,
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
-        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, revenge::RevengeGoal,
-        swim::SwimGoal, wander_around::WanderAroundGoal,
+        active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        melee_attack::MeleeAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
+        wander_around::WanderAroundGoal,
     },
     living::LivingEntity,
     mob::{Mob, MobEntity},
 };
 use crate::world::World;
+
+/// Vanilla `HoglinAi.piglinsOutnumberHoglins`: piglins outnumber when there are strictly more
+/// visible adult piglins than visible adult hoglins plus the fleeing hoglin itself.
+const fn outnumbered_by_piglins(piglin_count: i32, hoglin_count: i32) -> bool {
+    piglin_count > hoglin_count + 1
+}
+
+/// Reads the visible-adult counts the brain sensor stores and decides whether to retreat.
+fn piglins_outnumber_hoglins(hoglin: &HoglinEntity) -> bool {
+    if hoglin.is_baby() {
+        return false;
+    }
+    hoglin
+        .mob_entity
+        .read_brain(|state| {
+            outnumbered_by_piglins(
+                state
+                    .get(types::VISIBLE_ADULT_PIGLIN_COUNT)
+                    .copied()
+                    .unwrap_or(0),
+                state
+                    .get(types::VISIBLE_ADULT_HOGLIN_COUNT)
+                    .copied()
+                    .unwrap_or(0),
+            )
+        })
+        .unwrap_or(false)
+}
+
+/// Goal predicate mirroring the piglin retreat: flee piglins while outnumbered by them.
+fn flee_from_piglins_when_outnumbered(mob: &dyn Mob) -> bool {
+    mob.cast_any()
+        .downcast_ref::<HoglinEntity>()
+        .is_some_and(piglins_outnumber_hoglins)
+}
 
 pub struct HoglinEntity {
     pub mob_entity: MobEntity,
@@ -90,6 +128,13 @@ impl HoglinEntity {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            goal_selector.add_goal(
+                2,
+                Box::new(
+                    AvoidEntityGoal::new(TargetMatch::Type(&EntityType::PIGLIN), 8.0, 1.0, 1.2)
+                        .when(flee_from_piglins_when_outnumbered),
+                ),
+            );
             goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.0, true)));
             goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(
@@ -354,5 +399,14 @@ mod tests {
     #[test]
     fn conversion_time_matches_vanilla() {
         assert_eq!(HoglinEntity::CONVERSION_TIME, 300);
+    }
+
+    #[test]
+    fn outnumbered_by_piglins_matches_vanilla_boundary() {
+        // Vanilla: piglinCount > hoglinCount + 1, where hoglinCount excludes the fleeing hoglin.
+        assert!(!outnumbered_by_piglins(1, 0));
+        assert!(!outnumbered_by_piglins(2, 1));
+        assert!(outnumbered_by_piglins(2, 0));
+        assert!(outnumbered_by_piglins(3, 1));
     }
 }

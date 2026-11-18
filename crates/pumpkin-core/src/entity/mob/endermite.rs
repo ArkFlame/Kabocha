@@ -7,7 +7,6 @@ use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::Sound;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
-use rand::RngExt;
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::goal::revenge::RevengeGoal;
@@ -24,12 +23,6 @@ use crate::entity::{
 
 const ENDERMITE_HUNTS: &[Hunt] = &[Hunt::new(2, TargetMatch::Type(&EntityType::PLAYER), true)];
 const MAX_LIFETIME: i32 = 2400;
-
-/// Vanilla `Entity#getRandomX(0.5)` / `getRandomZ(0.5)` is
-/// `getX((2 * r - 1) * 0.5) = position + width * (r - 0.5)`, a full `+-width * 0.5` spread.
-fn particle_xz_offset(r: f64, width: f32) -> f64 {
-    (r - 0.5) * f64::from(width)
-}
 
 pub struct EndermiteEntity {
     pub mob_entity: MobEntity,
@@ -114,52 +107,10 @@ impl Mob for EndermiteEntity {
         }
     }
 
-    fn post_tick(&self) {
-        let entity = &self.mob_entity.living_entity.entity;
-        if !entity.is_alive() {
-            return;
-        }
-
-        let dimensions = entity.entity_dimension.load();
-        let position = entity.pos.load();
-        let mut rng = self.get_random();
-        for _ in 0..2 {
-            // Vanilla `getRandomX(0.5)` / `getRandomZ(0.5)`: full +-width * 0.5 spread.
-            let width = dimensions.width;
-            let particle_position = pumpkin_util::math::vector3::Vector3::new(
-                position.x + particle_xz_offset(rng.random::<f64>(), width),
-                position.y + rng.random::<f64>() * f64::from(dimensions.height),
-                position.z + particle_xz_offset(rng.random::<f64>(), width),
-            );
-            let velocity = pumpkin_util::math::vector3::Vector3::new(
-                (rng.random::<f64>() - 0.5) * 2.0,
-                -rng.random::<f64>(),
-                (rng.random::<f64>() - 0.5) * 2.0,
-            );
-            entity.world.load().spawn_particle(
-                particle_position,
-                velocity.to_f32_lossy(),
-                1.0,
-                0,
-                pumpkin_data::particle::Particle::Portal,
-            );
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::particle_xz_offset;
-
-    #[test]
-    fn particle_xz_offset_matches_vanilla_get_random_x() {
-        // getRandomX(0.5) = getX((2*r - 1) * 0.5) = position + width*(r - 0.5):
-        // a full +-width*0.5 spread (width 0.4 => +-0.2), not +-width*0.25.
-        let width = 0.4f32;
-        for r in [0.0f64, 0.25, 0.5, 0.75, 1.0] {
-            let vanilla = f64::from(width) * (2.0 * r - 1.0) * 0.5;
-            assert!((particle_xz_offset(r, width) - vanilla).abs() < 1e-12);
-        }
-        assert!((particle_xz_offset(0.0, width).abs() - 0.2).abs() < 1e-6);
-    }
+    // Vanilla `Endermite#aiStep` spawns the two portal particles only in its
+    // `level().isClientSide()` branch, with an explicit per-particle velocity
+    // that the LEVEL_PARTICLES packet cannot express. A vanilla client ticks
+    // remote entities and runs that branch itself, so the server must not
+    // broadcast a duplicate particle packet here; `mob_tick` above is the
+    // complete server-side half (lifetime).
 }
