@@ -1,11 +1,13 @@
 # Final rows from docs/tracker/taudit-crates-pumpkin-core-src-co-1acbb3.md
 
-Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
+Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files).
 
-- 4. `if function` missing: STILL OPEN. Pumpkin has no datapack functions in this command tree.
-- 6. Positioned over ocean_floor fallback: STILL OPEN. Needs an `OceanFloor` variant added to
-Re-checked each STILL OPEN row against the decompiled tree; several were already stale.
-- 7. store score orphan objectives: STILL OPEN (M). The scoreboard cannot retain scores whose
+- 4. `if function` missing
+- 6. Positioned over `ocean_floor` fallback
+- 7. store score orphan objectives
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+
+- 4. `if function` missing: **FIXED/VERIFIED** (already implemented in this checkout; no source changes needed). `crates/pumpkin-core/src/command/commands/execute.rs` registers `execute if|unless function <name>` with `FunctionArgumentType`, runs the datapack function via `server.datapack_manager.execute_function_with` in `function_condition_value`, and gates the branch with `execute_if_function_modifier` / `execute_unless_function_modifier` (registered under both `if` and `unless`, with conditional/numeric executors), returning the function result as the condition. Matches vanilla `ExecuteCommand` / `ExecuteIfFunctionCustomModifier` behavior. Vanilla ref: `.vendor/vanilla-decompiled/net/minecraft/server/commands/ExecuteCommand.java` (`scheduleFunctionConditionsAndTest`, `ExecuteIfFunctionCustomModifier`, function condition path around ~710/1088/1155; `FunctionArgument.getFunctions`).
+- 6. Positioned over `ocean_floor`: **FIXED/VERIFIED** (already implemented in this checkout; no source changes needed). `execute_positioned_over_modifier` in `crates/pumpkin-core/src/command/commands/execute.rs` accepts `ocean_floor` in `heightmap_kind` and resolves it with `world.get_ocean_floor_height(block_x, block_z)` (not a `WorldSurface` fallback). `World::get_ocean_floor_height` in `crates/pumpkin-core/src/world/mod.rs` performs a live block-state scan for the ocean-floor height (topmost block in `blocks_motion_in_heightmap`, fluids excluded), matching vanilla `Heightmap.Types.OCEAN_FLOOR` live-world behavior. `positioned_over_accepts_only_kept_heightmaps` covers accepted kept heightmaps. Vanilla ref: `.vendor/vanilla-decompiled/net/minecraft/server/commands/ExecuteCommand.java` (`positioned over` -> `level.getHeight(HeightmapTypeArgument.getHeightmap(...))`, ~192-201).
+- 7. store score orphan objectives: **FIXED/VERIFIED** (already implemented in this checkout; no source changes needed). `write_stored_score` in `crates/pumpkin-core/src/command/commands/execute.rs` stores into the captured objective instance via `scoreboard.set_orphan_score` when the objective is no longer active (so a same-name live replacement objective is not touched), and updates active objectives normally. `Scoreboard` in `crates/pumpkin-core/src/world/scoreboard.rs` retains orphan scores in memory on objective removal, supports `set_orphan_score`/`get_orphan_score`, and clears them on saved-NBT load; behavior is covered by existing tests (e.g. `loading_saved_nbt_discards_orphan_scores` and score-store/identity tests in `execute.rs`). Matches vanilla storing into the captured objective's player scores for `execute store ... score`. Vanilla ref: `.vendor/vanilla-decompiled/net/minecraft/server/commands/ExecuteCommand.java` (`storeValue` captures the objective and writes via `scoreboard.getOrCreatePlayerScore(name, objective)` in the result callback, ~426-437).
