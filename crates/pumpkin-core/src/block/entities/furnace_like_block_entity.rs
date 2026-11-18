@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use pumpkin_data::{BlockId, item_stack::ItemStack, recipes::CookingRecipe};
 
 use crate::block::entities::{BlockEntity, PropertyDelegate};
-pub use pumpkin_inventory::ExperienceContainer;
 use pumpkin_inventory::{Clearable, Inventory};
+pub use pumpkin_inventory::{ExperienceContainer, RecipeExperience};
 
 /// `FurnaceLikeProperties::handles_block_id` also matches `REDSTONE_WALL_TORCH`, which shares the
 /// same `lit`+`facing` property layout as the cooking blocks - so it can't be used to guard
@@ -114,13 +114,16 @@ pub(crate) fn stored_experience(recipes_used: &HashMap<String, u32>) -> i32 {
 pub(crate) fn experience_per_recipe(
     recipes_used: &HashMap<String, u32>,
     roll: impl Fn() -> f32,
-) -> Vec<i32> {
+) -> Vec<RecipeExperience> {
     recipes_used
         .iter()
         .map(|(recipe_id, count)| {
             let experience = pumpkin_data::recipes::get_recipe_experience(recipe_id).unwrap_or(0.0)
                 * (*count as f32);
-            split_experience(experience, roll())
+            RecipeExperience {
+                recipe_id: recipe_id.clone(),
+                experience: split_experience(experience, roll()),
+            }
         })
         .collect()
 }
@@ -141,7 +144,7 @@ pub trait CookingBlockEntityBase:
     fn add_recipe_used(&self, recipe: &CookingRecipe);
     /// Extract and reset the used-recipe map, returning one XP amount per recipe id so callers
     /// spawn one orb per recipe, matching vanilla `getRecipesToAwardAndPopExperience`.
-    fn extract_experience_from_recipes(&self) -> Vec<i32>;
+    fn extract_experience_from_recipes(&self) -> Vec<RecipeExperience>;
 
     fn get_input_item(&self) -> ItemStack;
     fn get_fuel_item(&self) -> ItemStack;
@@ -241,9 +244,11 @@ macro_rules! impl_cooking_block_entity_base {
                 *recipes.entry(recipe_id).or_insert(0) += 1;
             }
 
-            fn extract_experience_from_recipes(&self) -> Vec<i32> {
-                // Vanilla derives XP from `RecipesUsed` at take time and rolls each recipe's
-                // fractional part once, then clears the map.
+            fn extract_experience_from_recipes(
+                &self,
+            ) -> Vec<$crate::block::entities::furnace_like_block_entity::RecipeExperience> {
+                // Vanilla derives xp and the awarded recipe list from `RecipesUsed` at take time,
+                // rolling each recipe's fractional part once, then clears the map.
                 let mut recipes = self
                     .recipes_used
                     .lock()
@@ -402,7 +407,9 @@ macro_rules! impl_experience_container_for_cooking {
         impl $crate::block::entities::furnace_like_block_entity::ExperienceContainer
             for $struct_name
         {
-            fn extract_experience(&self) -> Vec<i32> {
+            fn extract_recipes(
+                &self,
+            ) -> Vec<$crate::block::entities::furnace_like_block_entity::RecipeExperience> {
                 // Delegate to the CookingBlockEntityBase method
                 self.extract_experience_from_recipes()
             }
@@ -1038,8 +1045,8 @@ mod tests {
         let high = experience_per_recipe(&recipes_used, || 1.0);
         assert_eq!(low.len(), 2, "one amount per recipe id, not a summed total");
         assert_eq!(high.len(), 2);
-        let low_sum: i32 = low.iter().sum();
-        let high_sum: i32 = high.iter().sum();
+        let low_sum: i32 = low.iter().map(|entry| entry.experience).sum();
+        let high_sum: i32 = high.iter().map(|entry| entry.experience).sum();
         // Only iron's 0.4 fraction differs between the two rolls.
         assert_eq!(low_sum - high_sum, 1);
     }
