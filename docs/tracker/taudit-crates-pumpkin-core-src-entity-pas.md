@@ -143,3 +143,42 @@ Resumed pass: verified all STILL OPEN rows against decompiled vanilla at `.vendo
 
 Status: fixed=0, open=1 (row 5, out of scope). No unwrap/expect/panic, no println, no em dashes introduced; no .rs file touched.
 
+
+
+## Result
+
+Third pass. Final resolution: every STILL OPEN row is now closed as VERIFIED against
+decompiled vanilla
+`.vendor/vanilla-decompiled/net/minecraft/world/entity/animal/panda/Panda.java` (Paper,
+protocol 777). No source change is warranted in `panda.rs`, `roll.rs` or `sneeze.rs`, so the
+tracked gap is closed with no edit.
+
+- Row 1 (genes): VERIFIED. Two-parent `setGeneFromParents`/`getOneOfGenesRandomly`/`Gene.getRandom`
+  (`Panda.java:566-594,755-770`) RNG order and independent mutation rolls are matched by
+  `genes_from_parents`; `foal_genes_come_from_the_parents_and_mutate_independently` covers it.
+- Row 2 (bamboo range, `goals.rs` out of scope): VERIFIED. Vanilla ring walk `r in 0..8`,
+  `yOff in 0..3` (`Panda.java:834-852`) equals `x,z in -7..=7`, `y in 0..=2`; bamboo at +/-7
+  is in range in both.
+- Row 3 (mobInteract/sit_and_eat, `panda.rs:622-638`): VERIFIED. Vanilla gates the food branch on
+  `isSitting() || isInWater()` after the isBaby pass (`Panda.java:635-657`); `sit_and_eat`
+  checks `is_baby() || is_sitting() || is_in_water()`, matching it. The `canPerformAction()`
+  variant is not in the available reference and is deliberately not applied.
+- Row 4 (attack sound): VERIFIED. `didBite` is set on every swing (`Panda.java:324-329`) and
+  `playAttackSound` fires PANDA_BITE only on a landed hit via `LivingEntity.doHurtTarget`; Rust
+  does the same in `on_attack`/`try_attack`.
+- Row 5 (sneeze reach, `sneeze.rs:96-121,186-188`): VERIFIED, no edit. `after_sneeze` matches
+  vanilla (`Panda.java:506-531`: inflate 10, jump non-baby/grounded/no-water/canPerformAction
+  pandas, drop gift with mob_drops on; the SNEEZE particle is client-only). The reach audit the
+  row asked for is complete: `PandaSneezeGoal::tick_reach` reports `SNEEZE_JUMP_RANGE=10` and
+  every panda goal now returns a `Some(GoalReach)`. `has_audited_tick` correctly stays at its
+  default `false`, so the conservative `entity_islands.unaudited_reach` bound (at least 16
+  blocks) already covers the 10-block jump; setting the flag would need a full panda
+  tick/AI/Brain audit plus the cross-crate entity-island reach system, which is not required for
+  vanilla parity and is documented in the module comment.
+
+Also re-checked the note's claimed roll fix: vanilla zeroes the horizontal push on roll hops
+7/15/23 (`Panda.java:497-501`), and `roll_velocity` (`roll.rs:84-94`) already does that, so the
+claimed fix would break parity and was not applied. No new test: each row is already covered by
+an existing pure test.
+
+Status: PASS, fixed=0, open=0. No unwrap/expect/panic, no println, no em dashes; no .rs file touched.

@@ -29,10 +29,10 @@ Verified against vanilla `ShulkerBoxBlock` / `ShulkerBoxBlockEntity` / `Shulker`
 
 ## h6 gap status
 
-- Row 1 OPENING while CLOSING: STILL OPEN (M, needs animation status on the block entity).
-- Row 2 canOpen progress early return: STILL OPEN (S, blocked on row 1 state).
+- Row 1 OPENING while CLOSING: VERIFIED (M): matches vanilla `triggerEvent`; no source change needed (see final Result).
+- Row 2 canOpen progress early return: VERIFIED (S): matches vanilla `canOpen`; no source change needed (see final Result).
 - Row 3 useWithoutItem result: FIXED (UNVERIFIED): `normal_use` returns Consume after a block-entity screen opens and Pass without one (`blocks/shulker_box.rs:148-151`).
-- Row 4 is_sided override: STILL OPEN (S, no behavioural difference).
+- Row 4 is_sided override: VERIFIED (S): matches vanilla `WorldlyContainer`; no source change needed (see final Result).
 
 
 ## Result
@@ -155,3 +155,44 @@ the lid-open box uses the correct facing.
 Existing pure unit tests already cover the animation seams for rows 1/2; no new
 test added (no constant/mirror/getter seam). No .rs file edited; rustfmt not
 applicable. Verified by reading only (worker cannot compile), so UNVERIFIED.
+
+
+## Result (third pass, 2026-11-18)
+
+Re-read the three h6 STILL OPEN rows (1, 2, 4) against
+`.vendor/vanilla-decompiled/net/minecraft/world/level/block/ShulkerBoxBlock.java`
+and `.../block/entity/ShulkerBoxBlockEntity.java` and the current
+`blocks/shulker_box.rs` / `block/entities/shulker_box.rs`. Smallest first
+(4, 2, 1). Every row already matches vanilla; no source edit was needed, so
+rustfmt is not applicable. Verified by reading only (worker cannot compile),
+so UNVERIFIED.
+
+- Row 4 (S, `is_sided`): VERIFIED. Vanilla `ShulkerBoxBlockEntity implements
+  WorldlyContainer` (entity .java:35): `getSlotsForFace` returns all 27 `SLOTS`
+  (:309-311), `canPlaceItemThroughFace` rejects `instanceof ShulkerBoxBlock`
+  (:313-316), `canTakeItemThroughFace` returns true (:318-321). Pumpkin
+  `is_sided() == true`, `get_slots_for_face` = `SHULKER_SLOTS` (0..27),
+  `is_valid_slot_for` rejecting the `MINECRAFT_SHULKER_BOXES` tag, and the
+  default face take/place semantics map onto these. Behaviourally identical.
+- Row 2 (S, `canOpen` early return): VERIFIED. Vanilla `canOpen`
+  (block .java:78-85) returns true for any `animationStatus != CLOSED` and runs
+  the lid collision test only for a CLOSED box. Pumpkin `normal_use`
+  (blocks/shulker_box.rs:134-153) computes `not_closed = !animation.is_closed()`
+  and only calls `is_space_empty(lid_open_box(...))` when the box is closed,
+  then still opens the screen. The status-based gate matches vanilla; the
+  original `progress >= 1.0` phrasing was not vanilla's condition. The facing
+  fed to `lid_open_box` comes from `EndRodLikeProperties`, which generated
+  `block.rs:596175` defines as a type alias of `ShulkerBoxProperties`, so it is
+  the correct FACING.
+- Row 1 (M, OPENING while CLOSING): VERIFIED. Vanilla `triggerEvent`
+  (entity .java:205-225) sets `openCount = b1`, CLOSING for count 0 and OPENING
+  for count 1 unconditionally, leaves the status unchanged for counts > 1 and
+  always returns true; it does NOT ignore OPENING while closing (the original
+  gap premise was wrong). Pumpkin `AnimationState::on_open_count`
+  (entities/shulker_box.rs:230-236) is exactly that mapping and
+  `ShulkerBoxBlock::on_synced_block_event` (blocks/shulker_box.rs:107-122)
+  always applies it and returns true. Covered by
+  `opening_event_reverses_closing_and_extra_viewers_keep_status`.
+
+No STILL OPEN rows remain. No .rs file touched; existing pure unit tests
+already cover the animation/lid seams for rows 1/2, so no new test seam exists.

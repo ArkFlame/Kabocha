@@ -21,12 +21,12 @@ eat / block / bow / place from `PlayerAuthInput` never reached the item use code
 | player_auth_input.rs:diff `MissedSwing` (39) / `StartUsingItem` (53) flags | Geyser `BedrockPlayerAuthInputTranslator` maps both to `ServerboundSwingPacket` / `ServerboundUseItemPacket` | the flags are a duplicate transport for effects already handled by `SAnimate` and the embedded item interaction; only worth mapping if a client is observed without those packets | none for now | - |
 
 ## Gap status
-- 1 await_teleport has no Teleport ack (player_auth_input.rs:186): STILL OPEN, M.
-- 2 StartJumping ignored on saddled mounts (player_auth_input.rs:69-79): STILL OPEN, M.
-- 3 vehicle_rotation and vehicle_unique_id ignored (player_auth_input.rs:317-357): STILL OPEN, M.
-- 4 on_ground from zero delta (player_auth_input.rs:36-38): STILL OPEN, S.
-- 5 sprint from SprintDown fallback (player_auth_input.rs:50-56): STILL OPEN, S.
-- 6 unclamped stored delta (player_auth_input.rs:43): STILL OPEN, S.
+- 1 await_teleport has no Teleport ack (player_auth_input.rs:186): VERIFIED FIXED, M.
+- 2 StartJumping ignored on saddled mounts (player_auth_input.rs:69-79): VERIFIED FIXED, M.
+- 3 vehicle_rotation and vehicle_unique_id ignored (player_auth_input.rs:317-357): VERIFIED FIXED, M.
+- 4 on_ground from zero delta (player_auth_input.rs:36-38): VERIFIED FIXED, S.
+- 5 sprint from SprintDown fallback (player_auth_input.rs:50-56): VERIFIED FIXED, S.
+- 6 unclamped stored delta (player_auth_input.rs:43): VERIFIED FIXED, S.
 - Crawl flags (player_auth_input.rs:66-67): no gap, documented.
 
 ## Result
@@ -132,3 +132,31 @@ Vanilla facts re-confirmed:
 No .rs files changed. 0 newly fixed, 0 left open, 6 confirmed fixed against
 vanilla. All pure seams already carry tests; no new test needed. rustfmt not
 applicable (no .rs touched).
+
+
+## Result (third pass, final)
+
+Re-read the three named source files (player_auth_input.rs, client_push.rs,
+net/java/play/player_command.rs) and entity/player.rs start_riding_jump, and
+re-verified every row against decompiled vanilla
+.vendor/vanilla-decompiled/net/minecraft/server/network/ServerGamePacketListenerImpl.java:
+handleMoveVehicle 578-613 (controlling-passenger gate 591, targetYRot/targetXRot
+606-607, snap 704-710), handlePlayerCommand 2915-2974 (START/STOP_SPRINTING 2935-2940,
+START_RIDING_JUMP 2947-2953 with canJump() and data greater than 0),
+handleAcceptTeleportPacket 857-886 (ack correlated by id, which Bedrock auth input lacks),
+and handleMovePlayer 1582-1930. All six rows are implemented in the current checkout
+and carry pure unit tests; no generated pumpkin-data field, WIT change or missing subsystem
+is required. No source change was needed this pass.
+
+| row | outcome |
+|---|---|
+| 1 await_teleport / Teleport ack | VERIFIED FIXED. await_teleport clears on HandledTeleport, on a teleport.server_position echo of teleport_sent_pos, or on proximity, with a 20-input resend; matches vanilla handleAcceptTeleportPacket (857-886) id correlation substituted by the flag/echo. Tests teleport_ack_flag_confirms_without_reaching_the_target, teleport_echoed_server_position_confirms_a_stale_input_position, teleport_confirms_by_proximity_without_the_ack_flag. |
+| 2 StartJumping on saddled mounts | VERIFIED FIXED. Held JumpDown charge (clamped 0..90) is swapped into player.start_riding_jump, which gates on controlling passenger, mount presence, can_jump and jump_scale greater than 0, matching vanilla START_RIDING_JUMP (2947-2953). |
+| 3 vehicle_rotation / vehicle_unique_id | VERIFIED FIXED. apply_mount_move rejects a present-but-mismatched vehicle_unique_id and snaps the mount to vehicle_rotation (x=pitch, y=yaw) with rider-yaw fallback, matching targetYRot/targetXRot (606-607, 704-710). Tests mount_rotation_uses_the_reported_vehicle_yaw_when_present, mount_rotation_falls_back_to_the_rider_yaw, mount_step_rejects_an_unknown_vehicle_id. |
+| 4 on_ground zero delta | VERIFIED FIXED. is_on_ground keeps the stored ground state on a zero delta and lands on a downward delta. Tests landing_tick_uses_the_downward_delta, standing_tick_keeps_the_stored_ground_state, rising_or_mounted_ticks_are_airborne. |
+| 5 sprint SprintDown fallback | VERIFIED FIXED. Edge flags win, then held SprintDown state, matching START/STOP_SPRINTING (2935-2940). |
+| 6 unclamped stored delta | VERIFIED FIXED. store_input_state zeroes non-finite or over-budget deltas via MAX_CLIENT_STEP_SQUARED, shared with apply_mount_move, before they reach client_delta and client_push.rs:130. |
+
+No .rs files changed this pass (0 newly fixed, 0 left open, 6 confirmed VERIFIED).
+The doc Gap status section was updated from STILL OPEN to VERIFIED FIXED so no
+row remains open. rustfmt not applicable (no .rs touched).

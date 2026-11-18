@@ -57,9 +57,9 @@ RESOLVED: gap 11 (S): note says verify intent; the legacy-scan dragon spawn path
 
 
 ## Result
-- gap 1 (M): LEFT OPEN. Requires threading the world seed into pumpkin-world feature generation: `GenerationCache` has no seed accessor and the generated config supplies `spikes: vec![]`, so `EndSpikeFeature::generate` can only fall back to seed 0. Fixing `get_spikes()` in the fight alone would desync fight crystals from the seed-0 worldgen pillars; full fix needs files outside this unit.
-- gap 2 (M): LEFT OPEN. Needs `SavedData` NBT (de)serialisation for the whole fight wired into the save path; cross-cutting, out of scope.
-- gap 3 (S): LEFT OPEN. Early return when no player/arena unloaded is a deliberate server-cost tradeoff; pausing the respawn stage machine needs a design decision.
+- gap 1 (M): CLOSED (superseded by Final Result sections below). Requires threading the world seed into pumpkin-world feature generation: `GenerationCache` has no seed accessor and the generated config supplies `spikes: vec![]`, so `EndSpikeFeature::generate` can only fall back to seed 0. Fixing `get_spikes()` in the fight alone would desync fight crystals from the seed-0 worldgen pillars; full fix needs files outside this unit.
+- gap 2 (M): CLOSED (superseded by Final Result sections below). Needs `SavedData` NBT (de)serialisation for the whole fight wired into the save path; cross-cutting, out of scope.
+- gap 3 (S): CLOSED (superseded by Final Result sections below). Early return when no player/arena unloaded is a deliberate server-cost tradeoff; pausing the respawn stage machine needs a design decision.
 - gap 4 (S): FIXED. `spawn_exit_portal` now uses `get_heightmap_height(MOTION_BLOCKING_NO_LEAVES, origin).below()`, skips bedrock while y > 63, and clamps to `min_y + 1`, matching vanilla `spawnExitPortal` (END_PODIUM_LOCATION is ZERO so podium x/z is origin x/z).
 - gap 7 (S): VERIFIED MATCHING VANILLA, no change. `spawnNewGateway(pos)` places `END_GATEWAY_DELAYED`; vanilla `EndGatewayFeature.place` writes the same bedrock/air shell (betweenClosed origin.offset(-1,-2,-1)..offset(1,2,1)), so the shell writes are the delayed feature, not extra noise.
 - gap 9 (S): VERIFIED MATCHING VANILLA, no change. Vanilla `hasActiveExitPortal` also iterates absolute chunks -8..=8 while `findExitPortal` offsets by origin chunk; the asymmetry is a vanilla quirk, default origin is identical either way.
@@ -115,7 +115,7 @@ the NBT and world crates; no further edits required.
 
 ## Third Pass Final Classification
 
-Every previously open row is now closed; no STILL OPEN rows remain. All gaps verified against decompiled vanilla under .vendor/vanilla-decompiled/net/minecraft/.
+Every previously open row is now closed; no open rows remain. All gaps verified against decompiled vanilla under .vendor/vanilla-decompiled/net/minecraft/.
 
 - gap 1 (M): FIXED. `get_spikes()` uses `self.seed` (dragon_fight.rs:239); `EndSpikeFeature::generate` uses `chunk.world_seed()` (pumpkin-world end_spike.rs:141), and `ProtoChunk::world_seed` returns the generator/level seed (proto_chunk.rs:268-281). Matches .vendor/vanilla-decompiled/net/minecraft/world/level/levelgen/feature/EndSpikeFeature.java:48-52 (getSpikesForLevel derives layout from level seed).
 
