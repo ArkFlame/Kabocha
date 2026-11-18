@@ -145,3 +145,18 @@ Re-verified every STILL OPEN row against `.vendor/vanilla-decompiled/net/minecra
 | 8 | VERIFIED (matches vanilla) | `PrimedTnt.explode()` checks `GameRules.TNT_EXPLODES` at detonation (PrimedTnt.java:151) while `TntBlock.prime()` gates only ignition (TntBlock.java:98). Pumpkin's tick-time re-check (tnt.rs:212) matches. No change. |
 
 Also re-confirmed row 4 is fixed: `fuse_from_nbt` returns `TNTEntity::DEFAULT_FUSE` (80) for a missing tag (tnt.rs:63-66), matching `getShortOr("fuse", (short)80)` (PrimedTnt.java:186), with tests at tnt.rs:284-301. No new unit test: the portal damage calculator needs a live `World`/`Explosion`, so there is no cheap pure seam, and the other rows have no behaviour change. Compilation is deferred to the orchestrator batch check.
+
+
+## Result (final re-verification)
+
+Re-checked every formerly STILL OPEN row against `.vendor/vanilla-decompiled/net/minecraft/world/entity/item/PrimedTnt.java` and `world/level/block/TntBlock.java` (Paper/CraftBukkit) and the live sources. No row remains STILL OPEN; no behaviour change was needed.
+
+| # | Outcome | Evidence |
+|---|---------|----------|
+| 3 | FIXED (present) | Row-3 portal-damage fix is already implemented across `entity/tnt.rs` (`used_portal: AtomicBool`, `UsedPortalDamageCalculator`, `on_changed_dimension` hook, `tick_portal` call, `explode_from_with_calculator` detonation) plus shared hooks in `entity/mod.rs:321`, `world/mod.rs:6638/5093` and `world/explosion.rs:58`. Verified every symbol/signature resolves. The claimed cross-dimension `ignoreExplosion` chain immunity does not exist in decompiled `PrimedTnt`. |
+| 5 | VERIFIED (matches vanilla) | `addAdditionalSaveData` stores `owner` (PrimedTnt.java:181) and `readAdditionalSaveData` reads it (line 189); Pumpkin's `owner.write_nbt`/`read_nbt` (tnt.rs:160,171) matches. |
+| 6 | VERIFIED (matches vanilla) | `readAdditionalSaveData` clamps `getFloatOr("explosion_power", 4.0F)` to `0.0F..128.0F` (PrimedTnt.java:188); Pumpkin's `.unwrap_or(DEFAULT_POWER).clamp(0.0, 128.0)` (tnt.rs:166-170) matches. |
+| 7 | FIXED (present, out of unit) | `block/blocks/tnt.rs:97-116` fires `ExplosionPrimeEvent` with `tnt.power()` and feeds a modified radius back via `tnt.set_power`; vanilla `event.getRadius()` (PrimedTnt.java:166). |
+| 8 | VERIFIED (matches vanilla) | `PrimedTnt.explode()` checks `GameRules.TNT_EXPLODES` at detonation (PrimedTnt.java:151) while `TntBlock` gates only ignition; Pumpkin's tick-time re-check (tnt.rs:212) matches. |
+
+Additionally fixed a compile-pitfall defect in this unit: the doc comments on `power()` and `set_power()` contained literal escaped backticks (backslash before backtick) that break `clippy::doc_markdown` under `-D warnings`; replaced with proper single backticks (tnt.rs:102,108). Verified `fuse_from_nbt` default (row 4) and `EntityReference::none()`/`AtomicBool::new` const-initializer compatibility. `entity_index.rs:665` is test-only and not a production dimension-change path, so no hook is missing there. Compilation is deferred to the orchestrator batch check.

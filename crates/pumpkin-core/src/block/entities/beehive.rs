@@ -279,11 +279,9 @@ impl BeehiveBlockEntity {
             // flower the hive's flower with 90% chance.
             let bee_has_flower = entity_data.get_compound("flower_pos").is_some()
                 || entity_data.get_int_array("flower_pos").is_some();
-            if inherits_flower(
-                bee_has_flower,
-                hive_flower.is_some(),
-                rand::random::<f32>() < 0.9f32,
-            ) && let Some(flower) = hive_flower
+            let roll_passed = rand::random::<f32>() < 0.9f32;
+            if inherits_flower(bee_has_flower, hive_flower.is_some(), roll_passed)
+                && let Some(flower) = hive_flower
             {
                 let mut tag = NbtCompound::new();
                 tag.put_int("X", flower.0.x);

@@ -390,13 +390,13 @@ impl WitherEntity {
                     } else if self.has_line_of_sight(target.get_entity()) {
                         self.main_attack_timer.store(40, Ordering::Relaxed);
                         let dangerous = rand::random_range(0.0..1.0) < 0.001;
-                        // Vanilla aims at `target.getY(0.5)`, half the bounding-box height.
-                        let bb = target.get_entity().bounding_box.load();
-                        let half_height = (bb.max.y - bb.min.y) * 0.5;
+                        // Vanilla aims at `target.getY() + target.getEyeHeight() * 0.5`
+                        // (WitherBoss.java:460), not half the bounding-box height.
+                        let aim_y = target_pos.y + target.get_entity().get_eye_height() * 0.5;
                         self.perform_ranged_attack(
                             0,
                             target_pos.x,
-                            target_pos.y + half_height,
+                            aim_y,
                             target_pos.z,
                             dangerous,
                         );
@@ -502,12 +502,12 @@ impl WitherEntity {
                                 && (wither_pos - t_pos).length_squared() <= 900.0
                                 && self.has_line_of_sight(target.get_entity())
                             {
-                                let bb = target.get_entity().bounding_box.load();
-                                let half_height = (bb.max.y - bb.min.y) * 0.5;
+                                // Vanilla aims at `getEyeHeight() * 0.5` (WitherBoss.java:460).
+                                let aim_y = t_pos.y + target.get_entity().get_eye_height() * 0.5;
                                 self.perform_ranged_attack(
                                     i + 1,
                                     t_pos.x,
-                                    t_pos.y + half_height,
+                                    aim_y,
                                     t_pos.z,
                                     false,
                                 );

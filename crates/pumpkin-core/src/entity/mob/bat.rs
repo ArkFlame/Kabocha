@@ -98,7 +98,7 @@ impl BatEntity {
         let above_state = world.get_block_state(above_pos);
         if above_state.is_redstone_conductor() {
             let rotate_head = {
-                let mut rng = rand::rng();
+                let mut rng = self.get_random();
                 (rng.random_range(0u32..200) == 0).then(|| rng.random_range(0i32..360) as f32)
             };
             if let Some(head_yaw) = rotate_head {
@@ -139,7 +139,7 @@ impl BatEntity {
             *hanging_pos = None;
         }
 
-        let mut rng = rand::rng();
+        let mut rng = self.get_random();
 
         let should_pick_new = hanging_pos.is_none()
             || rng.random_range(0u32..30) == 0
@@ -207,7 +207,8 @@ impl BatEntity {
 
 impl Mob for BatEntity {
     fn get_ambient_sound(&self) -> Option<Sound> {
-        (!self.is_roosting() || rand::random_range(0..4) == 0).then_some(Sound::EntityBatAmbient)
+        (!self.is_roosting() || self.get_random().random_range(0..4) == 0)
+            .then_some(Sound::EntityBatAmbient)
     }
 
     fn should_check_fall_damage(&self) -> bool {
