@@ -67,7 +67,7 @@ Known intentional deviation: creative players destroy a stack that fits nowhere
 - 1 despawn before merge check (S): RESOLVED (decompile verified; already merged before age/despawn in code; see Result)
 - 2 is_mergeable age guard (S): RESOLVED (no age guard remains; matches vanilla; see Result)
 - 3 Pumpkin-only Health NBT tag (S): RESOLVED (vanilla persists Health; doc premise wrong; no change; see Result)
-- 4 owner and thrower collapsed (M): STILL OPEN (needs owner-setting call sites outside item.rs; see Result)
+- 4 owner and thrower collapsed (M): RESOLVED (already ported in main checkout: separate target/thrower + Owner NBT + call sites + test; see recheck Result)
 
 ## Result
 
@@ -99,3 +99,48 @@ Verified against .vendor/vanilla-decompiled/net/minecraft/world/entity/item/Item
 
 No .rs file was modified, so no pure unit test was added (no new seam introduced) and rustfmt
 was not required.
+
+## Result (recheck 2026-11-18, current main checkout)
+
+- 4 owner and thrower collapsed (M): RESOLVED, already ported in the main checkout; no change needed.
+  Rechecked .vendor/vanilla-decompiled/net/minecraft/world/entity/item/ItemEntity.java: `thrower` is
+  an `EntityReference` written as "Thrower" and read by getOwner (lines 53/94/388), `target` is a
+  UUID written as "Owner" (lines 54/389/405), playerTouch gates on
+  `pickupDelay == 0 && (target == null || target.equals(player.getUUID()))` (line 490), and
+  tryToMerge gates on `Objects.equals(this.target, other.target)` (line 284).
+  Current item.rs already carries the split: separate `thrower` and `target` fields (item.rs:41-43),
+  `set_target`/`get_target`/`target_allows_pickup` (item.rs:187-198), pickup gate (item.rs:822),
+  merge gate (item.rs:315), both "Thrower" and "Owner" NBT (item.rs:963-967, 972-973), and the
+  thrower-only 60-tick head start kept separately (item.rs:827-836). Call sites are also in place:
+  give.rs:67 calls `dropped.set_target(...)`, player.rs:6991 and the mob drops (dolphin/allay/fox/
+  brain utils) call `set_thrower(...)`. A pure unit test already covers the pickup gate
+  (`target_gate_matches_vanilla_player_touch`, item.rs:1116). Nothing left to fix in this unit.
+
+No .rs file was modified this pass (only this doc), so no new test or rustfmt run was needed.
+
+## Result (give.rs pass 2026-11-18, current main checkout)
+
+Checked `give.rs` against
+`.vendor/vanilla-decompiled/net/minecraft/server/commands/GiveCommand.java` (73-118) and
+`LivingEntity.createItemStackToDrop` (4257-4299), `ItemEntity.setNoPickUpDelay`/`makeFakeItem`
+(561-588).
+
+- 4 follow-up, the `Owner` target was set but not the matching no-delay part: vanilla giveItem's
+  not-added branch does `drop.setNoPickUpDelay(); drop.setTarget(player.getUUID())`, so the player
+  the command was run for can collect at once while everyone else cannot. Pumpkin only called
+  `set_target`, leaving `pickup_delay` at the 40 from `drop_item`, so the giving player had to wait
+  ~2 s before collecting. Fixed in give.rs: `dropped.set_pickup_delay(0)` before `set_target`.
+- Still open, out of this unit's file scope (item.rs): `on_player_collision` keeps an age-based
+  thrower gate (`item_age <= 60` blocks every player except the thrower, item.rs:826-838). Vanilla
+  `playerTouch` gates only on `pickupDelay` and `target`; the thrower reference is not a pickup
+  gate. Needs confirmation of the 1.21 behaviour before it is removed, and it is in item.rs.
+- Still open, client-only: the `added && copyToDrop.isEmpty()` branch spawns a fake item entity
+  (`makeFakeItem`: never pickable, `age = despawnRate - 1`) purely so the client animates the
+  pickup. Pumpkin has no such visual entity; it needs a `make_fake_item` helper in item.rs plus a
+  spawn here, so it is left for an item.rs unit.
+
+No pure unit test: testing the pickup delay needs a spawned ItemEntity and a world, no seam exists
+in a command executor.
+
+`rustfmt --edition 2024 crates/pumpkin-core/src/command/commands/give.rs` was NOT run (no shell or
+cargo access in this worker; the edit is a single added line inside an existing block).

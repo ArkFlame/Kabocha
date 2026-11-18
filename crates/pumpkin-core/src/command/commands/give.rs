@@ -62,8 +62,10 @@ impl CommandExecutor for GiveExecutor {
                 stack.item_count = take as u8;
                 target.inventory().insert_stack_anywhere(&mut stack);
                 if !stack.is_empty() {
-                    // Vanilla GiveCommand.setTarget(player.getUUID()).
+                    // Vanilla GiveCommand: the stack that does not fit drops with no pickup
+                    // delay and is restricted to the player it was given to.
                     let dropped = target.drop_item(stack);
+                    dropped.set_pickup_delay(0);
                     dropped.set_target(target.gameprofile.id);
                 }
                 remaining -= take;
