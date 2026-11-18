@@ -83,22 +83,28 @@ impl BlockBehaviour for VaultBlock {
         };
 
         if !is_valid_key {
-            args.world.play_sound(
-                Sound::BlockVaultInsertItemFail,
-                SoundCategory::Blocks,
-                &args.position.to_f64(),
-            );
+            // Vanilla `VaultBlockEntity.Server.playInsertFailSound` throttles fail sounds.
+            if vault_entity.should_play_insert_fail_sound(args.world.get_world_age()) {
+                args.world.play_sound(
+                    Sound::BlockVaultInsertItemFail,
+                    SoundCategory::Blocks,
+                    &args.position.to_f64(),
+                );
+            }
             return BlockActionResult::SuccessServer;
         }
 
         let player_uuid = args.player.gameprofile.id;
 
         if vault_entity.has_rewarded(&player_uuid) {
-            args.world.play_sound(
-                Sound::BlockVaultRejectRewardedPlayer,
-                SoundCategory::Blocks,
-                &args.position.to_f64(),
-            );
+            // Vanilla shares the same 15-tick fail-sound buffer for this reason too.
+            if vault_entity.should_play_insert_fail_sound(args.world.get_world_age()) {
+                args.world.play_sound(
+                    Sound::BlockVaultRejectRewardedPlayer,
+                    SoundCategory::Blocks,
+                    &args.position.to_f64(),
+                );
+            }
             return BlockActionResult::SuccessServer;
         }
 

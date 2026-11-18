@@ -44,9 +44,9 @@ Pale oak tag membership in `minecraft:boat`/`c_boats` statistics paths, chest bo
 metadata pairing (vehicle.rs:167-188), seat indices 0.2/-0.6 for two passengers, dismount spot search,
 `blocks_building = true` on construction, and dispenser spawning.
 
-## h6 status
-- get_ground_friction NaN with no supporting block: FIXED 426efffdc (returns 0.0). No unit test: needs a world fixture.
-- Row 1 (chest interact result discarded), row 2 (eye-in-water mount gate), row 3 (damage prediction coupling), row 5 (client velocity vs last_yd): STILL OPEN, not attempted this pass, needs decompiled interact ordering or a shared vehicle destroy return value.
+## h6 status (superseded by the Result sections below)
+- get_ground_friction NaN with no supporting block: FIXED 080a2e01e (returns 0.0 on empty count, with unit test).
+- Row 1 VERIFIED, row 2 NOT A GAP, row 3 VERIFIED, row 5 VERIFIED: all resolved in the current source (see Result sections).
 
 
 ## Result
@@ -224,3 +224,34 @@ tests; spawn_egg.rs apply_variant preserves the custom name and applies variants
 entity_data.
 
 fixed=0 open=0 verified=5 files=<doc only: docs/tracker/tentities-pale-oak-boat.md>
+
+
+## Result (third pass, final: all rows terminal)
+
+Independently re-verified all five rows against decompiled vanilla under
+.vendor/vanilla-decompiled/net/minecraft/world/entity/vehicle/boat/ and the current Pumpkin source.
+This unit's editable files (dismount.rs, spawn_egg.rs) are complete; no source edit was needed, so
+no rustfmt or test run was required. No generated pumpkin-data field or missing subsystem blocks a row.
+
+- Row 1 VERIFIED: AbstractChestBoat.interact (AbstractChestBoat.java:80-96) returns the
+  interactWithContainerVehicle result (PASS on a failed open). Pumpkin boat.rs:832 returns
+  open_custom_inventory_screen(player) directly, which is false on a failed open. No change.
+- Row 2 NOT A GAP: AbstractBoat.canAddPassenger (AbstractBoat.java:836-837) is
+  getPassengers().size() < getMaxPassengers() && !isEyeInFluid(FluidTags.WATER), so blocking mount
+  when the boat's eye is in water is vanilla. Pumpkin models this in boat_interact_outcome
+  (boat.rs:169) fed the boat's own eye at boat.rs:826. The doc's ticksUnderwater-only premise was wrong.
+- Row 3 VERIFIED: VehicleEntity.hurtServer destroys the vehicle inside damage; Pumpkin boat.rs
+  drops from a single post-hit was_alive && is_removed() && drops_item_when_destroyed() check
+  (boat.rs:730-740), with no pre-computed will_break flag that can drift from the destroy threshold.
+- Row 4 FIXED 080a2e01e: average_ground_friction returns 0.0 on empty count with a unit test
+  (physics.rs:267-282).
+- Row 5 VERIFIED: AbstractBoat.tick (AbstractBoat.java:275) zeroes delta movement on the
+  client-authoritative branch and checkFallDamage (AbstractBoat.java:809) stores lastYd from it.
+  Pumpkin stores last_yd = 0.0 in the same branch (boat.rs:618). No change.
+
+Editable files re-checked against vanilla, no gaps: dismount.rs get_dismount_location_for_passenger
+matches AbstractBoat.getDismountLocationForPassenger (AbstractBoat.java:709-738) with two pure unit
+tests; spawn_egg.rs apply_variant preserves the custom name (lines 152-154) and applies variants
+before entity_data (apply_entity_variant, lines 146-149).
+
+Status: fixed=0 open=0 verified=5 files=<doc only: docs/tracker/tentities-pale-oak-boat.md>
