@@ -5,4 +5,4 @@ Close every row below (status partial/planned in docs/PARITY.tsv): read the vani
 - **blocks/Beacon** [partial/AUDITED] The reviewed source has changed. The previous assessment needs a new review. The reviewed source has changed.
 
 ## Result
-STILL OPEN until closed. Per row record: FIXED, VERIFIED with the vanilla path, or BLOCKED-DATA with the exact missing generated field)
+- blocks/Beacon FIXED. Vanilla path: .vendor/vanilla-decompiled/net/minecraft/world/level/block/BeaconBlock.java. useWithoutItem always returns InteractionResult.SUCCESS, and awards INTERACT_WITH_BEACON only when player.openMenu(beacon).isPresent(). Pumpkin now returns BlockActionResult::Success unconditionally (no longer Fail when no factory) and increments the stat only when open_handled_screen(...) returns Some (the equivalent of isPresent()), so a cancelled or failed menu open no longer awards the stat. No pure unit-test seam exists (needs a live Player/World), so none added. Verified by source comparison; not compiled by this worker (orchestrator compiles).
