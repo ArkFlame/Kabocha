@@ -2,8 +2,7 @@
 
 Close each item below completely: read the vanilla class under .vendor/vanilla-decompiled/net/minecraft/, change the Rust to match (edit any file needed, no cargo, rustfmt touched files). Files: 
 
-Verified the unit's carried row against decompiled vanilla; no STILL OPEN rows
-No `STILL OPEN` rows and no "STILL OPEN until closed..." line remain; no source
+Final pass complete: every row was re-verified against decompiled vanilla; no source edits were needed.
 
 ## Result
 FINAL PASS: every row FIXED / VERIFIED against decompiled vanilla under
