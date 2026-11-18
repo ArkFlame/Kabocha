@@ -252,10 +252,13 @@ impl FishingBobberEntity {
             // Vanilla `FishingHook.retrieve:537` fires FISHING_ROD_HOOKED once with the full
             // caught-item list before spawning the items. The item predicate matches when any
             // caught item qualifies, so fire a single event rather than one per item.
-            let caught_items: Vec<String> = loot
+            let caught_items: Vec<(String, u32)> = loot
                 .iter()
                 .filter(|stack| !stack.is_empty())
-                .map(|stack| format!("minecraft:{}", stack.item.registry_key))
+                .map(|stack| (
+                    format!("minecraft:{}", stack.item.registry_key),
+                    u32::from(stack.item_count),
+                ))
                 .collect();
             player.trigger_advancement(
                 crate::entity::player::advancement::trigger::AdvancementTrigger::FishedItem {

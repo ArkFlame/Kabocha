@@ -266,6 +266,7 @@ impl CrossbowItem {
                 player.trigger_advancement(
                     crate::entity::player::advancement::trigger::AdvancementTrigger::ShotCrossbow {
                         item_id: held.item.registry_key.to_string(),
+                        count: u32::from(held.item_count),
                     },
                 );
 

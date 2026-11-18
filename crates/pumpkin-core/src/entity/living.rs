@@ -3422,6 +3422,7 @@ impl LivingEntity {
                 player.trigger_advancement(
                     crate::entity::player::advancement::trigger::AdvancementTrigger::UsedTotem {
                         item_id: protection_item.item.registry_key.to_string(),
+                        count: u32::from(protection_item.item_count),
                     },
                 );
                 self.cause_use_vibration(
@@ -5035,6 +5036,7 @@ impl EntityBase for LivingEntity {
                     player.trigger_advancement(
                         crate::entity::player::advancement::trigger::AdvancementTrigger::ConsumeItem {
                             item_id: format!("minecraft:{}", item.item.registry_key),
+                            count: u32::from(item.item_count),
                         },
                     );
 

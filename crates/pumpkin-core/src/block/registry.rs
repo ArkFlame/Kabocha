@@ -963,6 +963,8 @@ impl BlockRegistry {
         player.trigger_advancement(
             crate::entity::player::advancement::trigger::AdvancementTrigger::PlacedBlock {
                 block_id: format!("minecraft:{}", placed_block.name),
+                item_id: Some(stack.item.registry_key.to_string()),
+                count: u32::from(stack.item_count),
             },
         );
 

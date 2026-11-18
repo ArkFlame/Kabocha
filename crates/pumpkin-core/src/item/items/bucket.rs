@@ -117,6 +117,7 @@ fn give_filled_bucket_stack(
     player.trigger_advancement(
         crate::entity::player::advancement::trigger::AdvancementTrigger::FilledBucket {
             item_id: filled.item.registry_key.to_string(),
+            count: u32::from(filled.item_count),
         },
     );
     create_filled_result(stack, player, filled, limit_creative_stack_size);
