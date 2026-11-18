@@ -8,4 +8,9 @@ Re-verified all three STILL OPEN rows against the decompiled vanilla tree; no so
 Resume check after server restart: all three STILL OPEN rows are already resolved in the checkout; no source file needed a change this pass, so no rustfmt run.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+
+- Row 3 (explodeCreeper on-death effects): VERIFIED FIXED. `Creeper.explodeCreeper` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/monster/Creeper.java:245-264`) runs `dead=true` -> explode -> `spawnLingeringCloud` (Creeper.java:266-284, radius 2.5, radiusOnUse -0.5, wait 10, duration 300, potionDurationScale 0.25, radiusPerTick -radius/duration) -> `triggerOnDeathMobEffects(KILLED)` -> `discard`; `LivingEntity.triggerOnDeathMobEffects` (`.vendor/vanilla-decompiled/net/minecraft/world/entity/LivingEntity.java:826-833`) delegates to `MobEffectInstance.onMobRemoved`. `CreeperEntity::explode` (`crates/pumpkin-core/src/entity/mob/creeper.rs:121-196`) fires `MobEffect::on_mob_removed` (trait hook in `entity/effect/mod.rs:47`, impls in `oozing.rs`/`weaving.rs`/`wind_charged.rs`) for each active effect after spawning the cloud and before `entity.remove()`, which only calls `world.remove_entity`, so no double activation. Cloud built by `AreaEffectCloudEntity::create` (`area_effect_cloud.rs:93-125`) with matching geometry. Effect counts match `MobEffects.java:120-123` (OOZING 2 slimes, WEAVING 2-3 cobwebs, WIND_CHARGED 3-5 gust). No code change this pass; `reason == KILLED` guard left unobservable (fires only on KILLED-equivalent paths).
+
+No pure unit-test seam exists (all rows fire through World/entity/loot/effect state) and no `.rs` file was touched, so no rustfmt run.
+
+Status: PASS fixed=1 open=0 files=tfin-tentities-creeper-0de8b3-0.md
