@@ -209,7 +209,9 @@ mod tests {
             EntitySpawnReason::Conversion,
             true
         ));
-        assert!(!tried);
+        // A non-natural spawn marks the group as tried up front (vanilla).
+        assert!(tried);
+        let mut tried = false;
         assert!(!claim_camel_jockey_attempt(
             &mut tried,
             EntitySpawnReason::Natural,

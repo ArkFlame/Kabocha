@@ -350,9 +350,22 @@ impl CreakingEntity {
                 let dot = look_dir.dot(&norm_dir);
                 // Vanilla `isLookingAtMe` divides the cone size by distance only when
                 // `adjustForDistance` is true; the creaking passes false, so the
-                // threshold stays constant.
-                if dot > 1.0 - GAZE_CONE_SIZE && player_entity.has_line_of_sight(creaking_entity) {
-                    return true;
+                // threshold stays constant. LOS uses the per-gaze-height endpoint
+                // (seeThroughTransparentBlocks=true -> ClipBlock::Visual).
+                if dot > 1.0 - GAZE_CONE_SIZE {
+                    let distance_sq = dir.x * dir.x + dir.y * dir.y + dir.z * dir.z;
+                    if distance_sq <= 128.0 * 128.0 {
+                        let world = player_entity.world.load_full();
+                        let hit = world.clip(&pumpkin_world::clip::ClipContext::new(
+                            player_eye_pos,
+                            target,
+                            pumpkin_world::clip::ClipBlock::Visual,
+                            pumpkin_world::clip::ClipFluid::None,
+                        ));
+                        if hit.is_miss {
+                            return true;
+                        }
+                    }
                 }
             }
         }
