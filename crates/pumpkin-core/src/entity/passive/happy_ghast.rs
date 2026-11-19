@@ -4,7 +4,6 @@ use std::sync::{
 };
 
 use pumpkin_data::BlockState;
-use pumpkin_data::entity::EntityType;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::{self, Taggable};
@@ -12,14 +11,11 @@ use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
 use rand::RngExt;
 
-use crate::entity::ai::goal::{Controls, Goal};
+use crate::entity::ai::goal::{Controls, Goal, GoalReach};
 use crate::entity::{
     Entity, EntityBase,
     ageable::{AgeableData, AgeableMob},
-    ai::goal::{
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
-        tempt::TemptGoal,
-    },
+    ai::goal::{swim::SwimGoal, tempt::TemptGoal},
     custom_sound::CustomSound,
     mob::{Mob, MobEntity, equipment::equip_on_target},
     passive::animal::Animal,
@@ -60,18 +56,17 @@ impl HappyGhastEntity {
             observed_passenger_count: AtomicUsize::new(0),
         };
         let mob_arc = Arc::new(happy_ghast);
-        let mob_weak: Weak<dyn Mob> = {
-            let mob_arc: Arc<dyn Mob> = mob_arc.clone();
-            Arc::downgrade(&mob_arc)
-        };
         let happy_ghast_weak: Weak<Self> = Arc::downgrade(&mob_arc);
 
         {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(
-                1,
+                3,
+                Box::new(HappyGhastFloatGoal::new(happy_ghast_weak.clone())),
+            );
+            goal_selector.add_goal(
+                4,
                 Box::new(TemptGoal::with_tag_and_stop_distance(
                     1.0,
                     &tag::Item::MINECRAFT_HAPPY_GHAST_TEMPT_ITEMS,
@@ -81,14 +76,9 @@ impl HappyGhastEntity {
             );
             // Vanilla uses a ghast-style random float goal instead of ground wandering.
             goal_selector.add_goal(
-                2,
+                5,
                 Box::new(HappyGhastFloatAroundGoal::new(happy_ghast_weak)),
             );
-            goal_selector.add_goal(
-                3,
-                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
-            );
-            goal_selector.add_goal(4, Box::new(RandomLookAroundGoal::default()));
         };
 
         mob_arc
@@ -443,6 +433,68 @@ impl Mob for HappyGhastEntity {
             entity.add_passenger(vehicle, passenger as Arc<dyn EntityBase>);
         }
         true
+    }
+}
+
+/// Vanilla `HappyGhast.HappyGhastFloatGoal`: `FloatGoal` (`SwimGoal` here) that also
+/// requires the ghast to not be on a still timeout.
+pub struct HappyGhastFloatGoal {
+    ghast: Weak<HappyGhastEntity>,
+    swim: SwimGoal,
+}
+
+impl HappyGhastFloatGoal {
+    #[must_use]
+    pub fn new(ghast: Weak<HappyGhastEntity>) -> Self {
+        Self {
+            ghast,
+            swim: SwimGoal::default(),
+        }
+    }
+}
+
+impl Goal for HappyGhastFloatGoal {
+    fn tick_reach(&self, mob: &dyn Mob, running: bool) -> Option<GoalReach> {
+        self.swim.tick_reach(mob, running)
+    }
+
+    fn can_start(&mut self, mob: &dyn Mob) -> bool {
+        let Some(ghast) = self.ghast.upgrade() else {
+            return false;
+        };
+        !ghast.is_on_still_timeout() && self.swim.can_start(mob)
+    }
+
+    fn should_continue(&mut self, mob: &dyn Mob) -> bool {
+        self.swim.should_continue(mob)
+    }
+
+    fn start(&mut self, mob: &dyn Mob) {
+        self.swim.start(mob);
+    }
+
+    fn stop(&mut self, mob: &dyn Mob) {
+        self.swim.stop(mob);
+    }
+
+    fn tick(&mut self, mob: &dyn Mob) {
+        self.swim.tick(mob);
+    }
+
+    fn should_run_every_tick(&self) -> bool {
+        self.swim.should_run_every_tick()
+    }
+
+    fn can_stop(&self) -> bool {
+        self.swim.can_stop()
+    }
+
+    fn get_tick_count(&self, ticks: i32) -> i32 {
+        self.swim.get_tick_count(ticks)
+    }
+
+    fn controls(&self) -> Controls {
+        self.swim.controls()
     }
 }
 
