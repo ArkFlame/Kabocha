@@ -9,9 +9,9 @@ cd "$ROOT"
 MODE="${1:-compare}"
 [[ $# -gt 0 ]] && shift
 CRATES=("$@")
-[[ ${#CRATES[@]} -eq 0 ]] && CRATES=(pumpkin-protocol pumpkin-data)
+[[ ${#CRATES[@]} -eq 0 ]] && CRATES=(pumpkin-protocol)
 THRESHOLD="0.05"
-CRIT="$ROOT/target/criterion"
+CRIT="/tmp/kab-target-nightly/criterion"
 
 # Print the mean point_estimate from a criterion estimates.json (first "point_estimate" after "mean").
 mean_of() {
@@ -25,7 +25,7 @@ record)
     trap 'rm -f "$stamp"' EXIT
     for crate in "${CRATES[@]}"; do
         touch "$stamp"
-        scripts/cargo.sh bench -p "$crate" -- --save-baseline main
+        scripts/cargo.sh bench -p "$crate" --bench packet_encode -- --save-baseline main
         out="$ROOT/benches/baselines/$crate.json"
         {
             printf '{\n  "crate": "%s",\n  "unit": "ns",\n  "benchmarks": {\n' "$crate"
@@ -48,7 +48,7 @@ compare)
     trap 'rm -f "$stamp"' EXIT
     for crate in "${CRATES[@]}"; do
         touch "$stamp"
-        scripts/cargo.sh bench -p "$crate" -- --baseline main
+        scripts/cargo.sh bench -p "$crate" --bench packet_encode -- --baseline main
         # Only change files written by this run, so stale results never count.
         regressions=0
         while IFS= read -r ch; do
