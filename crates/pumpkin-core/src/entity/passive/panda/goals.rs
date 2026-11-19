@@ -99,16 +99,6 @@ impl<G: Goal> Goal for PandaGoal<G> {
     }
 }
 
-/// The extra reach of `PandaBreedGoal` over the shared breeder: without bamboo the sulk looks at
-/// the nearest player within 8 blocks. The bamboo search reads blocks up to 7 blocks away, which
-/// `GoalReach` cannot express, so pandas keep `has_audited_tick` false.
-fn sulk_reach() -> GoalReach {
-    GoalReach {
-        players: SULK_LOOK_RANGE,
-        ..GoalReach::default()
-    }
-}
-
 /// Vanilla `PandaBreedGoal`: `BreedGoal` that needs bamboo nearby and sulks when there is none.
 pub struct PandaBreedGoal {
     inner: Box<BreedGoal>,
@@ -210,13 +200,6 @@ impl Goal for PandaBreedGoal {
     fn controls(&self) -> Controls {
         self.inner.controls()
     }
-
-    /// Delegates to the breeder and adds the sulk's nearest-player look reach.
-    fn tick_reach(&self, mob: &dyn Mob, running: bool) -> Option<GoalReach> {
-        let mut reach = self.inner.tick_reach(mob, running)?;
-        reach.add(sulk_reach());
-        Some(reach)
-    }
 }
 
 /// Vanilla `Panda.doHurtTarget` as the swing of `PandaAttackGoal`: a panda that is not aggressive
@@ -254,16 +237,6 @@ pub fn hurt_by_target_goal() -> RevengeGoal {
                 !panda.got_bamboo.load(Relaxed) && !panda.did_bite.load(Relaxed)
             })
         })
-}
-
-/// The reach of `PandaSitGoal`: an empty-mouthed panda searches ground food within 8 blocks and
-/// walks towards the first one at speed 1.2.
-fn sit_goal_reach() -> GoalReach {
-    GoalReach {
-        entities: SIT_GROUND_ITEM_WALK_RANGE,
-        speed: SIT_GROUND_ITEM_SPEED,
-        ..GoalReach::default()
-    }
 }
 
 /// Vanilla `PandaSitGoal`: a panda that holds an item sits down with it (and eats it, see
@@ -362,34 +335,5 @@ impl Goal for PandaSitGoal {
 
     fn controls(&self) -> Controls {
         Controls::MOVE
-    }
-
-    /// The goal only searches ground items and the navigation bound covers the walk.
-    fn tick_reach(&self, _mob: &dyn Mob, _running: bool) -> Option<GoalReach> {
-        Some(sit_goal_reach())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_sulk_looks_for_players_within_eight_blocks() {
-        let reach = sulk_reach();
-        assert_eq!(reach.players, SULK_LOOK_RANGE);
-        assert_eq!(reach.entities, 0.0);
-        assert!(!reach.changes_blocks);
-        assert!(reach.links.is_empty());
-    }
-
-    #[test]
-    fn sitting_searches_ground_food_within_eight_blocks_and_walks_faster() {
-        let reach = sit_goal_reach();
-        assert_eq!(reach.entities, SIT_GROUND_ITEM_WALK_RANGE);
-        assert_eq!(reach.speed, SIT_GROUND_ITEM_SPEED);
-        assert_eq!(reach.players, 0.0);
-        assert!(!reach.changes_blocks);
-        assert!(reach.links.is_empty());
     }
 }

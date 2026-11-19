@@ -33,15 +33,6 @@ fn rolls_sneeze(weak: bool, mut next_int: impl FnMut(i32) -> i32) -> bool {
         || next_int(to_goal_ticks(BABY_SNEEZE_BOUND)) == 1
 }
 
-/// The entity reach of the delayed `after_sneeze` jump. The goal reports it so an audited panda's
-/// island reach covers the jump, which the mob tick drives outside any goal callback.
-fn sneeze_reach() -> GoalReach {
-    GoalReach {
-        entities: SNEEZE_JUMP_RANGE,
-        ..GoalReach::default()
-    }
-}
-
 impl PandaEntity {
     /// The condition of `PandaSneezeGoal.canUse` before the random roll.
     fn can_sneeze(&self) -> bool {
@@ -87,12 +78,9 @@ impl PandaEntity {
     /// Vanilla `Panda.afterSneeze`. The client adds the sneeze particle from the synched counter, so no
     /// particle packet is sent.
     ///
-    /// This reads and changes other entities up to 10 blocks away from the panda's tick. The
-    /// conservative island reach covers that because pandas keep `has_audited_tick` false:
-    /// `entity_islands.unaudited_reach` plus the follow range is at least 16 blocks.
-    /// `PandaSneezeGoal::tick_reach` reports this jump, but the shared melee and revenge goals stay
-    /// unaudited and the bamboo search exceeds `GoalReach`'s block-read bound, so an audited panda
-    /// would fall back to this conservative bound anyway.
+    /// This reads and changes other entities up to 10 blocks away from the panda's tick, which
+    /// the conservative entity island reach covers only because `has_audited_tick` is false for
+    /// pandas; audit it before ever setting that.
     fn after_sneeze(&self) {
         self.play_entity_sound(Sound::EntityPandaSneeze, 1.0, 1.0);
 
@@ -181,10 +169,9 @@ impl Goal for PandaSneezeGoal {
         }
     }
 
-    /// The goal only raises the sneeze flag, but that flag drives the delayed `after_sneeze` jump
-    /// of other pandas. Report the jump reach so it is included in an audited panda's island reach.
+    /// Reads the panda itself and raises its sneeze flag, so it reaches no other entity.
     fn tick_reach(&self, _mob: &dyn Mob, _running: bool) -> Option<GoalReach> {
-        Some(sneeze_reach())
+        Some(GoalReach::default())
     }
 }
 
@@ -208,15 +195,6 @@ mod tests {
         assert!(!rolls(true, &[(250, 0), (3000, 0)]));
         assert!(rolls(false, &[(3000, 1)]));
         assert!(!rolls(false, &[(3000, 0)]));
-    }
-
-    #[test]
-    fn sneeze_goal_reports_the_jump_range_as_entity_reach() {
-        let reach = sneeze_reach();
-        assert_eq!(reach.entities, SNEEZE_JUMP_RANGE);
-        assert_eq!(reach.players, 0.0);
-        assert!(!reach.changes_blocks);
-        assert!(reach.links.is_empty());
     }
 
     #[tokio::test]

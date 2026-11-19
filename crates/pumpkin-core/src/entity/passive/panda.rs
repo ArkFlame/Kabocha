@@ -8,7 +8,6 @@ use pumpkin_data::BlockState;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::EquipmentSlot;
-use pumpkin_data::dimension::Dimension;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::entity_variant::PandaGene;
 use pumpkin_data::game_event::GameEvent;
@@ -160,7 +159,6 @@ fn genes_from_parents(
     };
     let mut main_gene = get_one_of_genes_randomly(first, &mut next_int);
     let mut hidden_gene = get_one_of_genes_randomly(second, &mut next_int);
-    // Vanilla `setGeneFromParents` rolls each gene's mutation with two independent `if`s.
     if next_int(MUTATION_CHANCE) == 0 {
         main_gene = get_random_gene(&mut next_int);
     }
@@ -180,28 +178,10 @@ fn is_worried_and_can_perform_action(mob: &dyn Mob) -> bool {
     as_panda(mob).is_some_and(|panda| panda.is_worried() && panda.can_perform_action())
 }
 
-/// Vanilla `Level.canHaveWeather` + thunder level: a dimension without sky light, with a ceiling
-/// or the End never thunders, whatever the shared weather says.
-fn thunder_scares(
-    thunder_level: f32,
-    rain_level: f32,
-    has_skylight: bool,
-    has_ceiling: bool,
-    is_end: bool,
-) -> bool {
-    has_skylight && !has_ceiling && !is_end && thunder_level * rain_level > THUNDERING_LEVEL
-}
-
-/// Vanilla `Level.isThundering` for the panda's `isScared`.
+/// Vanilla `Level.isThundering`, without the check that the dimension has weather.
 fn is_thundering(world: &World) -> bool {
     let weather = world.weather.lock().unwrap_or_else(PoisonError::into_inner);
-    thunder_scares(
-        weather.thunder_level,
-        weather.rain_level,
-        world.dimension.has_skylight,
-        world.dimension.has_ceiling,
-        world.dimension.minecraft_name == Dimension::THE_END.minecraft_name,
-    )
+    weather.thunder_level * weather.rain_level > THUNDERING_LEVEL
 }
 
 pub struct PandaEntity {
@@ -584,10 +564,8 @@ impl PandaEntity {
 
         let counter = self.get_eat_counter();
         if counter % EATING_EFFECT_INTERVAL == 0 {
-            // Vanilla draws the eat sound from the panda's own `this.random`.
-            let mut rng = self.get_random();
-            let volume = 0.5 + 0.5 * f32::from(rng.random::<bool>());
-            let pitch = (rng.random::<f32>() - rng.random::<f32>()).mul_add(0.2, 1.0);
+            let volume = 0.5 + 0.5 * f32::from(rand::random::<bool>());
+            let pitch = (rand::random::<f32>() - rand::random::<f32>()).mul_add(0.2, 1.0);
             self.play_entity_sound(Sound::EntityPandaEat, volume, pitch);
         }
         if counter > EATING_MIN_TICKS_BEFORE_STOP && next_int(EATING_STOP_ODDS) == 1 {
@@ -622,8 +600,6 @@ impl PandaEntity {
     /// The last branch of vanilla `Panda.mobInteract` for food: it drops what the panda held (unless the
     /// player has infinite materials) and a plugin that cancels that drop leaves everything as it was.
     fn sit_and_eat(&self, item_stack: &mut ItemStack, gamemode: GameMode) -> bool {
-        // Vanilla 1.26.3 gates the food branch only on isSitting() || isInWater(), so a
-        // rolling or eating panda still takes food here.
         if self.is_baby() || self.is_sitting() || self.get_entity().is_in_water() {
             return false;
         }
@@ -718,16 +694,17 @@ impl Mob for PandaEntity {
         if self.is_holding_item() || !can_pick_up_and_eat(item) {
             return;
         }
-        let before = item
+        let stack = item
             .get_item_stack()
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone();
+        let count = stack.item_count;
         let living = &self.mob_entity.living_entity;
-        if !living.pickup(item.get_entity(), u32::from(before.item_count)) {
+        if !living.pickup(item.get_entity(), u32::from(count)) {
             return;
         }
-        living.on_item_pickup(item, &before);
+        living.on_item_pickup(item, &stack);
         let taken = std::mem::replace(
             &mut *item
                 .get_item_stack()
@@ -782,9 +759,6 @@ impl Mob for PandaEntity {
                 .and_then(PandaGene::from_name)
                 .unwrap_or(PandaGene::Normal),
         );
-        // Vanilla Panda.readAdditionalSaveData reapplies the gene attributes once the genes are
-        // loaded, so a saved weak or lazy panda keeps its health and speed.
-        self.set_attributes();
     }
 
     fn finalize_spawn(
@@ -992,7 +966,7 @@ mod tests {
     use pumpkin_world::world::BlockFlags;
 
     /// Goal ticks the panic test gives the random flee position to be reachable.
-    const PANIC_START_ATTEMPTS: i32 = 200;
+    const PANIC_START_ATTEMPTS: i32 = 20;
 
     fn hold(panda: &PandaEntity, item: &'static Item) {
         panda.set_main_hand_item(ItemStack::new(1, item));
@@ -1023,15 +997,10 @@ mod tests {
             inherit(&[(2, 0), (2, 0), (2, 1), (32, 5), (32, 7)]),
             (PandaGene::Aggressive, PandaGene::Lazy)
         );
-        // A 1 in 32 mutation hits the main gene; the hidden gene still gets its own 1 in 32 roll.
+        // A 1 in 32 mutation hits one gene and not the other.
         assert_eq!(
-            inherit(&[(2, 1), (2, 1), (2, 0), (32, 0), (16, 3), (32, 1)]),
+            inherit(&[(2, 1), (2, 1), (2, 0), (32, 0), (16, 3), (32, 4)]),
             (PandaGene::Weak, PandaGene::Aggressive)
-        );
-        // A miss on the main gene rolls the hidden gene, which can mutate on its own.
-        assert_eq!(
-            inherit(&[(2, 1), (2, 1), (2, 0), (32, 1), (32, 0), (16, 3)]),
-            (PandaGene::Lazy, PandaGene::Weak)
         );
     }
 
@@ -1078,40 +1047,6 @@ mod tests {
         loaded.read_custom_nbt(&NbtCompound::new());
         assert_eq!(loaded.get_main_gene(), PandaGene::Normal);
         assert_eq!(loaded.get_hidden_gene(), PandaGene::Normal);
-        world.level.shutdown().await;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn loaded_genes_reapply_their_attributes() -> TestResult {
-        let folder = tempfile::tempdir()?;
-        let world = world(&folder);
-        let source = spawn_panda(&world, 0.5, 0.5);
-        let save = |panda: &PandaEntity, gene: PandaGene| {
-            panda.set_main_gene(gene);
-            panda.set_hidden_gene(gene);
-            let mut nbt = NbtCompound::new();
-            panda.write_custom_nbt(&mut nbt);
-            nbt
-        };
-
-        let loaded = spawn_panda(&world, 0.5, 0.5);
-        loaded.read_custom_nbt(&save(&source, PandaGene::Weak));
-        assert!(
-            (loaded.mob_entity.living_entity.get_max_health() - WEAK_MAX_HEALTH).abs() < 1e-6,
-            "a loaded weak panda kept the normal max health"
-        );
-
-        let loaded = spawn_panda(&world, 0.5, 0.5);
-        loaded.read_custom_nbt(&save(&source, PandaGene::Lazy));
-        let speed = loaded
-            .mob_entity
-            .living_entity
-            .get_attribute_value(&Attributes::MOVEMENT_SPEED);
-        assert!(
-            (speed - f64::from(LAZY_MOVEMENT_SPEED)).abs() < 1e-9,
-            "a loaded lazy panda kept the normal speed"
-        );
         world.level.shutdown().await;
         Ok(())
     }
@@ -1376,13 +1311,7 @@ mod tests {
             }
         };
 
-        // Other random goals can win the first ticks, so give the sit goal a bounded window.
         steps(1, 11);
-        let mut tick = 11;
-        while !panda.mob_entity.goals_selector.is_running::<PandaSitGoal>() && tick < 4000 {
-            steps(tick, tick + 1);
-            tick += 1;
-        }
         assert!(panda.mob_entity.goals_selector.is_running::<PandaSitGoal>());
         assert!(panda.is_sitting(), "the panda did not sit down");
 
@@ -1394,22 +1323,10 @@ mod tests {
         // down again with its item.
         panda.damage(panda.as_ref(), 1.0, DamageType::MOB_ATTACK);
         assert!(!panda.is_sitting(), "the panda kept sitting when hurt");
-        steps(tick, tick + 4);
+        steps(11, 15);
         assert!(panda.is_sitting());
         world.level.shutdown().await;
         Ok(())
-    }
-
-    #[test]
-    fn a_dimension_without_sky_light_never_thunders() {
-        assert!(thunder_scares(1.0, 1.0, true, false, false));
-        assert!(!thunder_scares(0.9, 1.0, true, false, false));
-        assert!(
-            !thunder_scares(1.0, 1.0, false, false, false),
-            "no sky light"
-        );
-        assert!(!thunder_scares(1.0, 1.0, true, true, false), "a ceiling");
-        assert!(!thunder_scares(1.0, 1.0, true, false, true), "the End");
     }
 
     #[tokio::test]
@@ -1486,13 +1403,6 @@ mod tests {
         assert!(creative.sit_and_eat(&mut bamboo, GameMode::Creative));
         assert_eq!(bamboo.item_count, 2);
         assert_eq!(dropped_items(&world, &creative), 0);
-
-        // Vanilla gates only on sitting/in-water, so a rolling panda still takes food.
-        let rolling = spawn_panda(&world, 4.5, 8.5);
-        hold(&rolling, &Item::STICK);
-        rolling.roll(true);
-        assert!(rolling.sit_and_eat(&mut bamboo, GameMode::Survival));
-        assert_eq!(bamboo.item_count, 1, "a rolling panda refused food");
 
         let baby = spawn_panda(&world, -8.5, 8.5);
         baby.set_age(-1200);

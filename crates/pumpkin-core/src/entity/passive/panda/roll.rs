@@ -82,7 +82,6 @@ fn roll_velocity(
         );
         *roll_delta + Vector3::new(0.0, ROLL_JUMP_SPEED, 0.0)
     } else if ROLL_HOP_STEPS.contains(&counter) {
-        // Vanilla `Panda.handleRoll` zeroes the horizontal push on these hops.
         Vector3::new(
             0.0,
             if on_ground {
@@ -111,7 +110,7 @@ impl PandaEntity {
         }
     }
 
-    /// Vanilla `Panda.handleRoll`: steps 7, 15 and 23 hop on top of the roll push.
+    /// Vanilla `Panda.handleRoll`: steps 7, 15 and 23 stop the push and hop.
     fn handle_roll(&self) {
         let counter = self.roll_counter.fetch_add(1, Relaxed) + 1;
         let entity = self.get_entity();
@@ -225,7 +224,7 @@ mod tests {
         let world = world(&folder);
         let panda = spawn_panda(&world, 0.5, 0.5);
 
-        // A baby pushes less, and a hop in the air keeps the vertical speed but not the push.
+        // A baby pushes less, and a hop in the air keeps the vertical speed.
         let mut delta = Vector3::new(0.0, 0.0, 0.0);
         let rest = Vector3::new(0.0, 0.0, 0.0);
         assert_eq!(
@@ -252,14 +251,14 @@ mod tests {
         for counter in 1..=TOTAL_ROLL_STEPS {
             panda.tick_roll();
             assert!(panda.is_rolling(), "the roll ended at step {counter}");
-            let expected = if ROLL_HOP_STEPS.contains(&counter) {
-                Vector3::new(0.0, ROLL_JUMP_SPEED, 0.0)
+            let push = if ROLL_HOP_STEPS.contains(&counter) {
+                0.0
             } else {
-                Vector3::new(0.0, ROLL_JUMP_SPEED, f64::from(ADULT_ROLL_SPEED))
+                f64::from(ADULT_ROLL_SPEED)
             };
             assert_eq!(
                 panda.get_entity().velocity.load(),
-                expected,
+                Vector3::new(0.0, ROLL_JUMP_SPEED, push),
                 "step {counter}"
             );
         }
