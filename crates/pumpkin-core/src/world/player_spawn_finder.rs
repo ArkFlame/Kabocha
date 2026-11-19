@@ -10,7 +10,6 @@ use pumpkin_util::{
 };
 use pumpkin_world::{chunk::ChunkHeightmapType, generation::generator::WorldGenerator};
 use rand::RngExt;
-use rustc_hash::FxHashSet;
 
 use super::World;
 use crate::entity::{
@@ -96,7 +95,6 @@ impl World {
         // Vanilla PlayerSpawnFinder.findSpawn reads the level's own game type
         // (serverLevelData.getGameType() from level.dat), not a transient server setting.
         let default_adventure = self.level_info.load().game_type == GameMode::Adventure;
-        let mut loaded_chunks = FxHashSet::default();
         if !default_adventure {
             let radius = {
                 let border = self
@@ -120,16 +118,15 @@ impl World {
                 let (Some(x), Some(z)) = (spawn_x.checked_add(dx), spawn_z.checked_add(dz)) else {
                     continue;
                 };
-                if let Some(position) = self.check_spawn_column(x, z, &mut loaded_chunks).await {
-                    self.release_spawn_search_chunks(&loaded_chunks);
+                if let Some(position) = self.check_spawn_column(x, z).await {
                     return position.to_f64();
                 }
             }
         }
 
-        // Vanilla drops the chunks the search fetched; a void world scans the whole
-        // radius, and they would otherwise stay resident forever.
-        self.release_spawn_search_chunks(&loaded_chunks);
+        // The chunks the search fetched stay owned by the chunk scheduler: it unloads them once
+        // their force tickets are gone. Removing them from `loaded_chunks` here would leave the
+        // scheduler thinking they are still published, so a later fetch would wait forever.
 
         // Adventure mode fixes height without a SPAWN_SEARCH chunk load.
         if !default_adventure {
@@ -189,25 +186,9 @@ impl World {
         position.up()
     }
 
-    /// Drops chunks fetched only for the spawn search, unless a player already watches them.
-    fn release_spawn_search_chunks(&self, chunks: &FxHashSet<Vector2<i32>>) {
-        for pos in chunks {
-            if !self.level.is_chunk_watched(pos) {
-                self.level.loaded_chunks.remove(pos);
-                self.level.chunks_with_scheduled_ticks.remove(pos);
-            }
-        }
-    }
-
-    pub(super) async fn check_spawn_column(
-        &self,
-        x: i32,
-        z: i32,
-        loaded_chunks: &mut FxHashSet<Vector2<i32>>,
-    ) -> Option<BlockPos> {
+    pub(super) async fn check_spawn_column(&self, x: i32, z: i32) -> Option<BlockPos> {
         let chunk_pos = Vector2::new(x >> 4, z >> 4);
         if !self.level.is_chunk_loaded(&chunk_pos) {
-            loaded_chunks.insert(chunk_pos);
             self.level.get_or_fetch_chunk(chunk_pos, |_| ()).await;
         }
         let feet = self.get_level_respawn_pos(x, z)?;

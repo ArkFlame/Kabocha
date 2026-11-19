@@ -8,7 +8,6 @@ use pumpkin_util::{
     world_seed::Seed,
 };
 use pumpkin_world::{chunk::ChunkData, level::Level, world_info::LevelData};
-use rustc_hash::FxHashSet;
 use tempfile::TempDir;
 
 use super::{World, border::Worldborder};
@@ -92,12 +91,8 @@ async fn zero_radius_checks_the_suggested_column() {
 #[tokio::test]
 async fn world_border_limits_radius_but_does_not_reject_spawn_positions() {
     let fixture = SpawnWorld::new();
-    let mut loaded_chunks = FxHashSet::default();
     assert_eq!(
-        fixture
-            .world
-            .check_spawn_column(10, 10, &mut loaded_chunks)
-            .await,
+        fixture.world.check_spawn_column(10, 10).await,
         Some(BlockPos::new(10, 65, 10)),
     );
     assert_eq!(
@@ -140,7 +135,6 @@ async fn collision_checks_include_ground_and_neighbouring_overhangs() {
 async fn fluid_columns_are_rejected_even_when_their_collision_shape_is_empty() {
     let fixture = SpawnWorld::new();
     let feet = BlockPos::new(0, 65, 0);
-    let mut loaded_chunks = FxHashSet::default();
     for block in [&Block::SEAGRASS, &Block::KELP_PLANT, &Block::BUBBLE_COLUMN] {
         fixture.set_block(feet, block.default_state.id);
         assert!(
@@ -148,13 +142,7 @@ async fn fluid_columns_are_rejected_even_when_their_collision_shape_is_empty() {
             "{}",
             block.name
         );
-        assert_eq!(
-            fixture
-                .world
-                .check_spawn_column(0, 0, &mut loaded_chunks)
-                .await,
-            None
-        );
+        assert_eq!(fixture.world.check_spawn_column(0, 0).await, None);
     }
     fixture.set_block(feet, Block::WATER.default_state.id);
     assert!(!fixture.world.no_collision_no_liquid_at(&feet));
@@ -306,7 +294,6 @@ async fn split_collision_shapes_can_form_a_full_spawn_floor() {
     let floor = BlockPos::new(0, 64, 0);
     let mut properties = OakStairsProperties::from_state_id(Block::OAK_STAIRS.default_state.id);
     properties.half = Half::Top;
-    let mut loaded_chunks = FxHashSet::default();
     for facing in [
         HorizontalFacing::North,
         HorizontalFacing::South,
@@ -324,23 +311,14 @@ async fn split_collision_shapes_can_form_a_full_spawn_floor() {
             properties.shape = shape;
             fixture.set_block(floor, properties.to_state_id(&Block::OAK_STAIRS));
             assert_eq!(
-                fixture
-                    .world
-                    .check_spawn_column(0, 0, &mut loaded_chunks)
-                    .await,
+                fixture.world.check_spawn_column(0, 0).await,
                 Some(BlockPos::new(0, 65, 0))
             );
         }
     }
     properties.half = Half::Bottom;
     fixture.set_block(floor, properties.to_state_id(&Block::OAK_STAIRS));
-    assert_eq!(
-        fixture
-            .world
-            .check_spawn_column(0, 0, &mut loaded_chunks)
-            .await,
-        None
-    );
+    assert_eq!(fixture.world.check_spawn_column(0, 0).await, None);
     fixture.shutdown().await;
 }
 
@@ -349,22 +327,12 @@ async fn motion_heightmap_uses_the_26_3_tag_not_legacy_sign_solidity() {
     let mut fixture = SpawnWorld::new();
     fixture.set_block(BlockPos::new(0, 63, 0), Block::STONE.default_state.id);
     fixture.set_block(BlockPos::new(0, 64, 0), Block::OAK_SIGN.default_state.id);
-    let mut loaded_chunks = FxHashSet::default();
     assert_eq!(
-        fixture
-            .world
-            .check_spawn_column(0, 0, &mut loaded_chunks)
-            .await,
+        fixture.world.check_spawn_column(0, 0).await,
         Some(BlockPos::new(0, 64, 0))
     );
     fixture.world.dimension.has_ceiling = true;
-    assert_eq!(
-        fixture
-            .world
-            .check_spawn_column(0, 0, &mut loaded_chunks)
-            .await,
-        None
-    );
+    assert_eq!(fixture.world.check_spawn_column(0, 0).await, None);
     fixture.shutdown().await;
 }
 
@@ -380,24 +348,11 @@ async fn waterlogged_support_and_partial_top_faces_are_not_spawn_floors() {
             .unwrap()
             .id,
     );
-    let mut loaded_chunks = FxHashSet::default();
-    assert_eq!(
-        fixture
-            .world
-            .check_spawn_column(0, 0, &mut loaded_chunks)
-            .await,
-        None
-    );
+    assert_eq!(fixture.world.check_spawn_column(0, 0).await, None);
     // A full outline/sturdy face is not necessarily a full collision face.
     let snow = pumpkin_data::block_properties::SnowLikeProperties { layers: 8 };
     fixture.set_block(floor, snow.to_state_id(&Block::SNOW));
-    assert_eq!(
-        fixture
-            .world
-            .check_spawn_column(0, 0, &mut loaded_chunks)
-            .await,
-        None
-    );
+    assert_eq!(fixture.world.check_spawn_column(0, 0).await, None);
     fixture.shutdown().await;
 }
 
@@ -425,12 +380,8 @@ async fn ceiling_dimensions_use_the_fixed_get_spawn_height() {
     // NoiseBasedChunkGenerator does not override getSpawnHeight, so the base
     // ChunkGenerator constant 64 is used regardless of the generator sea level.
     fixture.world.sea_level = 32;
-    let mut loaded_chunks = FxHashSet::default();
     assert_eq!(
-        fixture
-            .world
-            .check_spawn_column(0, 0, &mut loaded_chunks)
-            .await,
+        fixture.world.check_spawn_column(0, 0).await,
         Some(BlockPos::new(0, 65, 0)),
     );
     fixture.shutdown().await;

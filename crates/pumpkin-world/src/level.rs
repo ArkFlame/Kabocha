@@ -754,6 +754,12 @@ impl Level {
     async fn fetch_chunk(self: &Arc<Self>, pos: Vector2<i32>) -> SyncChunk {
         let recv = self.chunk_listener.add_single_chunk_listener(pos);
 
+        // The scheduler publishes into `loaded_chunks` before it notifies listeners, so a chunk
+        // published between the caller's cache miss and this registration is never announced.
+        if let Some(chunk) = self.loaded_chunks.get(&pos).map(|c| c.value().clone()) {
+            return chunk;
+        }
+
         {
             let mut lock = self
                 .chunk_loading
