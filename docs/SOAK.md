@@ -26,3 +26,8 @@ Known unbounded case, not changed: `read_gzip_compound_tag` (`crates/pumpkin-nbt
 
 ## Bot soak (`pumpkin-tester --soak <minutes>`)
 Runs 8 headless bots moving in circles against a real `Ticker` loop, samples the tick ring every second, and fails when MSPT p99 exceeds 50 ms. Prints RSS first/max/last. Gate on a release build: `scripts/cargo.sh run --release -p pumpkin-tester -- --soak 30`. Debug smoke (1 min, 8 bots) measured p99 74.7 ms, RSS 221 to 265 MB, so debug is not the gate.
+
+## Result 2026-11-19 (release, commit after fix(tester) soak drain)
+
+`pumpkin-tester --soak 5`: bots=8 samples=6000 mspt_p99=38.85ms rss_first_kb=132180 rss_max_kb=247648 rss_last_kb=250516, exit 0.
+Soak length is 5 minutes by user decision. An earlier 30 minute run failed because bots never read server packets (socket stall); bots now `drain` between moves.
