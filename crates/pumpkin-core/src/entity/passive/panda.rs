@@ -90,8 +90,6 @@ const TOTAL_UNHAPPY_TIME: i32 = 32;
 const UNHAPPY_SOUND_TICKS: [i32; 2] = [29, 14];
 /// Vanilla turns the panda to its target by up to this many degrees per axis while it sulks.
 const UNHAPPY_LOOK_ANGLE: f32 = 90.0;
-/// Vanilla `isThundering` needs the thunder level above this.
-const THUNDERING_LEVEL: f32 = 0.9;
 
 /// A sitting panda that holds an item starts to eat with a chance of 1 in this many per tick.
 const EATING_START_ODDS: i32 = 80;
@@ -178,11 +176,6 @@ fn is_worried_and_can_perform_action(mob: &dyn Mob) -> bool {
     as_panda(mob).is_some_and(|panda| panda.is_worried() && panda.can_perform_action())
 }
 
-/// Vanilla `Level.isThundering`, without the check that the dimension has weather.
-fn is_thundering(world: &World) -> bool {
-    let weather = world.weather.lock().unwrap_or_else(PoisonError::into_inner);
-    weather.thunder_level * weather.rain_level > THUNDERING_LEVEL
-}
 
 pub struct PandaEntity {
     pub mob_entity: MobEntity,
@@ -594,7 +587,7 @@ impl PandaEntity {
     /// Vanilla `isScared`: a worried panda during a thunderstorm.
     #[must_use]
     pub fn is_scared(&self) -> bool {
-        self.is_worried() && is_thundering(&self.get_entity().world.load())
+        self.is_worried() && self.get_entity().world.load().is_thundering()
     }
 
     /// The last branch of vanilla `Panda.mobInteract` for food: it drops what the panda held (unless the
