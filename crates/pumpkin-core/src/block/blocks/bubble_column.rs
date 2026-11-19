@@ -156,8 +156,12 @@ pub(crate) fn update_column(world: &Arc<World>, position: BlockPos) {
     }
 }
 
+/// Schedules a reconcile for the block currently at `position`. Scheduled ticks are dropped when
+/// the block at the position no longer matches the scheduled block, so water above a column must
+/// be scheduled as water, not as a bubble column.
 fn schedule_reconcile(world: &Arc<World>, position: BlockPos, delay: u32) {
-    world.schedule_block_tick(&Block::BUBBLE_COLUMN, position, delay, TickPriority::Normal);
+    let block = Block::from_state_id(world.get_block_state_id(&position));
+    world.schedule_block_tick(block, position, delay, TickPriority::Normal);
 }
 
 fn bubble_column_vertical_velocity(

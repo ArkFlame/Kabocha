@@ -217,7 +217,7 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:dirt_path_turns_to_dirt_under_solid_block",
     "pumpkin:farmland_turns_to_dirt_under_solid_block",
     "pumpkin:campfire_signal_fire_over_hay_block",
-    "pumpkin:campfire_waterlogged_extinguishes_lit",
+    "pumpkin:campfire_waterlogged_neighbor_keeps_lit",
     // plants_and_support_blocks (13)
     "pumpkin:cactus_breaks_when_solid_block_placed_adjacent",
     "pumpkin:cactus_breaks_when_sand_below_removed",
@@ -1476,11 +1476,11 @@ pub fn ensure_builtin_game_tests_registered() {
             walls_stairs_and_shapes::test_campfire_signal_fire_over_hay_block,
         );
         register_function_test(
-            "pumpkin:campfire_waterlogged_extinguishes_lit",
+            "pumpkin:campfire_waterlogged_neighbor_keeps_lit",
             "pumpkin:empty_4x4x4",
             20,
             0,
-            walls_stairs_and_shapes::test_campfire_waterlogged_extinguishes_lit,
+            walls_stairs_and_shapes::test_campfire_waterlogged_neighbor_keeps_lit,
         );
 
         // plants_and_support_blocks (13)

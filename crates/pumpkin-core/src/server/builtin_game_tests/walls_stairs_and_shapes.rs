@@ -316,7 +316,9 @@ pub(super) async fn test_campfire_signal_fire_over_hay_block(
     Ok(())
 }
 
-pub(super) async fn test_campfire_waterlogged_extinguishes_lit(
+/// Vanilla `CampfireBlock.updateShape` only schedules the water tick for a
+/// waterlogged campfire; extinguishing happens in `placeLiquid`, not on neighbor updates.
+pub(super) async fn test_campfire_waterlogged_neighbor_keeps_lit(
     helper: GameTestHelper,
 ) -> GameTestResult<()> {
     build_stone_floor(&helper, 4, 4).await?;
@@ -327,15 +329,14 @@ pub(super) async fn test_campfire_waterlogged_extinguishes_lit(
     helper
         .set_block(&fire, props.to_state_id(&Block::CAMPFIRE))
         .await?;
-    // Trigger neighbor shape update so waterlogged campfire extinguishes
     helper
         .set_block_default(&BlockPos::new(2, 1, 1), &Block::STONE)
         .await?;
 
     let after = CampfireLikeProperties::from_state_id(helper.block_state_id(&fire).await);
     helper.assert_true(
-        !after.lit,
-        "Expected waterlogged campfire to extinguish lit=false on neighbor update",
+        after.lit,
+        "Expected waterlogged campfire to stay lit on neighbor update (vanilla updateShape)",
     )?;
     helper.succeed();
     Ok(())
