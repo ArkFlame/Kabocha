@@ -144,7 +144,6 @@ impl JavaClient {
                 };
                 let mut stack = player.inventory().get_stack_in_hand(used_hand);
 
-                let item_id = stack.item.id;
                 let before = stack.clone();
                 let mut interacted = match event.target_position {
                     Some(position) if event.action == ActionType::InteractAt => {
@@ -200,25 +199,36 @@ impl JavaClient {
                     // Vanilla swings the used hand whenever the entity interaction consumes the action.
                     player.swing_hand(used_hand, true);
                 }
-                // An emptied stack only counts as use when the tool wore out, not when it was handed over.
-                let broke = before.is_damageable()
-                    && stack.is_empty()
-                    && before
-                        .get_max_damage()
-                        .is_some_and(|max| before.get_damage() >= max - 1);
-                if !stack.are_equal(&before) && (!stack.is_empty() || broke) {
-                    player.increment_stat(StatisticCategory::Used, item_id as i32, 1);
-                    if broke {
-                        player.increment_stat(StatisticCategory::Broken, item_id as i32, 1);
-                        player.world().send_entity_status(
-                            player.get_entity(),
-                            equipment_break_status(&crate::entity::hand_equipment_slot(used_hand)),
-                            pumpkin_protocol::bedrock::server::actor_event::ActorEventID::None,
-                        );
-                    }
-                }
+                count_interaction_stats(player, &before, &stack, used_hand);
                 player.inventory().set_stack_in_hand(used_hand, stack);
             }
         }
+    }
+}
+
+/// Counts use and break stats; an emptied stack only counts when the tool wore out, not when it was handed over.
+fn count_interaction_stats(
+    player: &Player,
+    before: &ItemStack,
+    after: &ItemStack,
+    used_hand: pumpkin_util::Hand,
+) {
+    let broke = before.is_damageable()
+        && after.is_empty()
+        && before
+            .get_max_damage()
+            .is_some_and(|max| before.get_damage() >= max - 1);
+    if after.are_equal(before) || (after.is_empty() && !broke) {
+        return;
+    }
+    let item_id = before.item.id as i32;
+    player.increment_stat(StatisticCategory::Used, item_id, 1);
+    if broke {
+        player.increment_stat(StatisticCategory::Broken, item_id, 1);
+        player.world().send_entity_status(
+            player.get_entity(),
+            equipment_break_status(&crate::entity::hand_equipment_slot(used_hand)),
+            pumpkin_protocol::bedrock::server::actor_event::ActorEventID::None,
+        );
     }
 }
