@@ -23,3 +23,6 @@ Deterministic never-panic tests feed a fixed-seed xorshift and mutated seeds int
 Parser bounds added: `read_var_i32_array_from_slice` and `read_var_i64_array_from_slice` (`crates/pumpkin-nbt/src/deserializer.rs`) now pre-allocate at most 4096 elements from the wire length prefix. Other length-prefixed reads already had bounds (`MAX_ARRAY_LENGTH`, `MAX_LIST_SIZE`, `BitSet::MAX_LENGTH`, `MAX_CHANGED_SLOTS`, anvil sector limits, `MAX_DECOMPRESSED_CHUNK_SIZE`).
 
 Known unbounded case, not changed: `read_gzip_compound_tag` (`crates/pumpkin-nbt/src/nbt_compress.rs`) reads the full decompressed stream into a Vec. It is only used for local files, so it is not a network risk.
+
+## Bot soak (`pumpkin-tester --soak <minutes>`)
+Runs 8 headless bots moving in circles against a real `Ticker` loop, samples the tick ring every second, and fails when MSPT p99 exceeds 50 ms. Prints RSS first/max/last. Gate on a release build: `scripts/cargo.sh run --release -p pumpkin-tester -- --soak 30`. Debug smoke (1 min, 8 bots) measured p99 74.7 ms, RSS 221 to 265 MB, so debug is not the gate.

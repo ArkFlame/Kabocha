@@ -2,6 +2,7 @@ mod bot;
 mod bot_tests;
 mod gametests;
 mod harness;
+mod soak;
 
 use std::{net::SocketAddr, process::ExitCode, sync::Arc, time::Instant};
 
@@ -72,7 +73,17 @@ async fn main() -> ExitCode {
     let tasks = TaskTracker::new();
     harness::spawn_java_listener(listener, server.clone(), cancel.clone(), &tasks);
 
-    let result = run_all_suites(&server, local_addr).await;
+    let soak_minutes = std::env::args()
+        .skip_while(|a| a != "--soak")
+        .nth(1)
+        .and_then(|m| m.parse::<u64>().ok());
+    let result = if let Some(minutes) = soak_minutes {
+        soak::run_soak(&server, local_addr, minutes)
+            .await
+            .map(|line| vec![line])
+    } else {
+        run_all_suites(&server, local_addr).await
+    };
 
     cancel.cancel();
     for player in server.get_all_players() {
