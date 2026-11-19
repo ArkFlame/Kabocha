@@ -33,6 +33,9 @@ pub mod serializer;
 /// The individual NBT tag types.
 pub mod tag;
 
+#[cfg(test)]
+mod robustness_tests;
+
 pub use compound::NbtCompound;
 
 // This NBT crate is inspired from CrabNBT

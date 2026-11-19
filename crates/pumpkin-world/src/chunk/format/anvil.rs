@@ -193,6 +193,9 @@ impl From<pumpkin_config::chunk::Compression> for Compression {
     }
 }
 
+#[cfg(test)]
+mod robustness_tests;
+
 impl AnvilChunkData {
     /// Raw size of serialized chunk
     #[inline]

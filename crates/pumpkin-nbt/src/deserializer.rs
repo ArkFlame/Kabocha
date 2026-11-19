@@ -88,7 +88,7 @@ fn read_var_i32_array_from_slice(
     position: &mut usize,
     len: usize,
 ) -> Result<Vec<i32>> {
-    let mut values = Vec::with_capacity(len);
+    let mut values = Vec::with_capacity(len.min(4096));
     for _ in 0..len {
         let value = read_var_u32(|| {
             let byte = data.get(*position).copied().ok_or_else(unexpected_eof)?;
@@ -105,7 +105,7 @@ fn read_var_i64_array_from_slice(
     position: &mut usize,
     len: usize,
 ) -> Result<Vec<i64>> {
-    let mut values = Vec::with_capacity(len);
+    let mut values = Vec::with_capacity(len.min(4096));
     for _ in 0..len {
         let value = read_var_u64(|| {
             let byte = data.get(*position).copied().ok_or_else(unexpected_eof)?;
