@@ -1294,6 +1294,10 @@ mod tests {
         stone_floor(&world);
         let panda = spawn_panda(&world, 0.5, 0.5);
         hold(&panda, &Item::BAMBOO);
+        // The sit goal ends on a random roll each goal tick; a fixed seed keeps the test stable.
+        if let Ok(mut rng) = panda.get_entity().rng.lock() {
+            *rng = <rand::rngs::StdRng as rand::SeedableRng>::seed_from_u64(1);
+        }
         let steps = |from: i32, to: i32| {
             for tick in from..to {
                 set_tick(&panda, tick);
