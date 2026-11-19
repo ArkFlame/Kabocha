@@ -7,7 +7,7 @@ use pumpkin_data::{
     entity::EntityType,
 };
 use pumpkin_macros::pumpkin_block;
-use pumpkin_util::{Difficulty, GameMode, math::vector3::Vector3};
+use pumpkin_util::{Difficulty, math::vector3::Vector3};
 use rand::RngExt;
 use uuid::Uuid;
 
@@ -30,14 +30,22 @@ impl NetherPortalBlock {
         let entity_type = entity.get_entity().entity_type;
         let level_info = world.level_info.load();
         match entity_type.id {
-            id if id == EntityType::PLAYER.id => (world
-                .get_player_by_id(entity.get_entity().entity_id))
-            .map_or(80, |player| match player.gamemode.load() {
-                GameMode::Creative => {
-                    level_info.game_rules.players_nether_portal_creative_delay as u32
-                }
-                _ => level_info.game_rules.players_nether_portal_default_delay as u32,
-            }),
+            id if id == EntityType::PLAYER.id => {
+                (world.get_player_by_id(entity.get_entity().entity_id)).map_or(80, |player| {
+                    // Vanilla `NetherPortalBlock#getPortalTime` keys on `abilities.invulnerable`,
+                    // which spectators also set, not on the creative gamemode.
+                    let invulnerable = player
+                        .abilities
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .invulnerable;
+                    if invulnerable {
+                        level_info.game_rules.players_nether_portal_creative_delay as u32
+                    } else {
+                        level_info.game_rules.players_nether_portal_default_delay as u32
+                    }
+                })
+            }
             _ => 0,
         }
     }

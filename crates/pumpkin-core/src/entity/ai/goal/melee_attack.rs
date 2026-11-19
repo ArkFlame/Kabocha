@@ -222,8 +222,9 @@ impl Goal for MeleeAttackGoal {
         if let Some(on_stop) = self.on_stop {
             on_stop(mob);
         }
-        // Vanilla clears the target unless it is a creative or spectator player. Read the stored
-        // value raw: `get_target` hides those players, so it cannot tell them apart from no target.
+        // Vanilla clears the target only when it is a creative or spectator player
+        // (`!NO_CREATIVE_OR_SPECTATOR.test(target)`). Read the stored value raw: `get_target`
+        // hides those players, so it cannot tell them apart from no target.
         let stored_target = mob
             .get_mob_entity()
             .target
@@ -232,7 +233,7 @@ impl Goal for MeleeAttackGoal {
             .as_ref()
             .and_then(std::sync::Weak::upgrade);
         if stored_target
-            .is_some_and(|target| EntityPredicate::ExceptCreativeOrSpectator.test(target.as_ref()))
+            .is_some_and(|target| !EntityPredicate::ExceptCreativeOrSpectator.test(target.as_ref()))
         {
             mob.get_mob_entity().set_target(None);
         }

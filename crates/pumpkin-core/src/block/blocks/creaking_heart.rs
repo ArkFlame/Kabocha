@@ -162,7 +162,10 @@ impl BlockBehaviour for CreakingHeartBlock {
         // 20-24 experience, skipped for creative and spectator players. Silk Touch does not
         // block it, since the heart is not `dropExperienceWhenMined`.
         let props = CreakingHeartLikeProperties::from_state_id(args.state.id);
+        // Vanilla `Block#popExperience` is gated on the `block_drops` gamerule and spawns at the
+        // block center (`Vec3.atCenterOf`), not the block corner.
         if !props.natural
+            || !args.world.level_info.load().game_rules.block_drops
             || matches!(
                 args.player.gamemode.load(),
                 GameMode::Creative | GameMode::Spectator
@@ -173,7 +176,7 @@ impl BlockBehaviour for CreakingHeartBlock {
         let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(get_seed()));
         // Vanilla `nextIntBetweenInclusive(20, 24)`.
         let amount = 20 + random.next_bounded_i32(5) as u32;
-        ExperienceOrbEntity::spawn(args.world, args.position.to_f64(), amount);
+        ExperienceOrbEntity::spawn(args.world, args.position.to_centered_f64(), amount);
     }
 }
 

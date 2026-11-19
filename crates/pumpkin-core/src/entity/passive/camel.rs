@@ -356,7 +356,10 @@ crate::impl_abstract_horse!(
         }
 
         fn can_jump(&self) -> bool {
-            !self.refuse_to_move() && self.is_saddled()
+            !self.refuse_to_move()
+                && self.is_saddled()
+                && self.dash_cooldown.load(Ordering::Relaxed) <= 0
+                && self.get_entity().on_ground.load(Ordering::Relaxed)
         }
 
         fn handle_start_jump(&self, _jump_scale: i32) {

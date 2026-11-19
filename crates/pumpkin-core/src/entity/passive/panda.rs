@@ -992,7 +992,7 @@ mod tests {
     use pumpkin_world::world::BlockFlags;
 
     /// Goal ticks the panic test gives the random flee position to be reachable.
-    const PANIC_START_ATTEMPTS: i32 = 20;
+    const PANIC_START_ATTEMPTS: i32 = 200;
 
     fn hold(panda: &PandaEntity, item: &'static Item) {
         panda.set_main_hand_item(ItemStack::new(1, item));

@@ -249,8 +249,8 @@ impl Mob for SilverfishEntity {
         }
 
         let yaw = entity.yaw.load();
+        // Vanilla `Silverfish.tick` only sets `yBodyRot`; head yaw is left to the look control.
         entity.body_yaw.store(yaw);
-        entity.head_yaw.store(yaw);
     }
 
     fn pre_damage(&self, damage_type: DamageType, source: Option<&dyn EntityBase>) -> bool {

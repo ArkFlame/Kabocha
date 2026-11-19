@@ -874,13 +874,12 @@ impl Mob for FoxEntity {
             let entity = self.get_entity();
             let world = entity.world.load();
             if !world.is_bright_outside() && rand::rng().random_range(0..10) == 0 {
-                let pos = entity.pos.load();
+                // Vanilla: non-spectator players in `getBoundingBox().inflate(16.0)`.
+                let search_box = entity.bounding_box.load().expand_all(16.0);
                 let player_nearby = world
-                    .get_nearest_player(pos, 16.0, |p| {
-                        let gm = p.gamemode.load();
-                        gm != GameMode::Spectator
-                    })
-                    .is_some();
+                    .get_players_at_box(&search_box)
+                    .iter()
+                    .any(|p| p.gamemode.load() != GameMode::Spectator);
                 if !player_nearby {
                     return Some(Sound::EntityFoxScreech);
                 }

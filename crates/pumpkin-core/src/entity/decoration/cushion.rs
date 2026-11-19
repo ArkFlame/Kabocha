@@ -438,7 +438,7 @@ impl EntityBase for CushionEntity {
         _amount: f32,
         damage_type: DamageType,
         _position: Option<Vector3<f64>>,
-        source: Option<&dyn EntityBase>,
+        _source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
     ) -> bool {
         let world = self.entity.world.load();
@@ -470,7 +470,7 @@ impl EntityBase for CushionEntity {
         if !self.entity.is_alive() {
             return false;
         }
-        self.drop_and_remove(source);
+        self.drop_and_remove(cause);
         true
     }
 

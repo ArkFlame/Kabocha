@@ -87,8 +87,8 @@ impl ElderGuardianEntity {
             );
             // Vanilla `Guardian.registerGoals`: restriction at 5 keeps the elder near home.
             goal_selector.add_goal(5, Box::new(MoveTowardsRestrictionGoal::new(1.0)));
-            // Vanilla `RandomStrollGoal(this, 1.0, 80)`.
-            goal_selector.add_goal(7, Box::new(WanderAroundGoal::with_interval(1.0, 80)));
+            // Vanilla `ElderGuardian` sets `RandomStrollGoal(this, 1.0, 400)`.
+            goal_selector.add_goal(7, Box::new(WanderAroundGoal::with_interval(1.0, 400)));
             goal_selector.add_goal(
                 8,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
