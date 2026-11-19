@@ -46,7 +46,7 @@ pub async fn run_soak(
             let base = bot.position;
             let mut step = 0.0f64;
             while Instant::now() < end {
-                step += 0.2;
+                step += 0.02;
                 let pos = Vector3::new(
                     base.x + (step + i as f64).sin() * 20.0,
                     base.y,
@@ -55,7 +55,8 @@ pub async fn run_soak(
                 if bot.move_to(pos, true).await.is_err() {
                     return Err(format!("bot {i} lost its connection"));
                 }
-                tokio::time::sleep(Duration::from_millis(50)).await;
+                // Reading keeps the server's socket from stalling on unread packets.
+                bot.drain(Duration::from_millis(50)).await;
             }
             Ok(())
         }));
