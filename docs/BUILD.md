@@ -14,3 +14,11 @@ rustup + nightly (1.102) installed in ~/.cargo/bin with rustc-codegen-cranelift-
 
 ## Low-stack / mobile builds (#2861)
 On aarch64 Termux/Android, rustc can SIGSEGV while compiling `cranelift-codegen`: the backtrace is in `rustc_parse` with "cycle encountered" and "recursed" frames, i.e. the parser overflows the process stack on cranelift's very large generated expressions. This is not codegen: `CARGO_BUILD_JOBS=1` and `RUST_MIN_STACK` (which only sizes spawned threads) do not help. Raise the shell stack limit for the build instead: `ulimit -s 65536` (or `ulimit -s unlimited` where the platform allows it), then `cargo run --release`.
+
+## Compile time depends on the purpose (community advice, 2026-11-19)
+Release is slow by design here: fat LTO plus `codegen-units = 1` makes the final `pumpkin` crate compile single-threaded (about 35 min, about 10 GB RAM). A build without `--release` takes a fraction of that but runs noticeably slower. Pick the profile by what you need:
+- Checking that code compiles or lints: `scripts/check.sh <crate>` (`cargo check`), never a full build.
+- Running tests, bot scenarios or boot checks: debug profile through `scripts/cargo.sh`.
+- Playing, benchmarks, soak or the `dist/` binary: `--release` only for these, and only once per batch of changes.
+- Need a faster optimized binary for local play: add a `[profile.fast]` (inherits release, `lto = "thin"`, `codegen-units = 16`) rather than waiting on the fat-LTO build.
+Always ask "why do I need to compile?" first; most answers do not need `--release`.
