@@ -43,6 +43,16 @@ const REPATH_INTERVAL_TICKS: i32 = 10;
 const MIN_KNOCKBACK_DIRECTION_LENGTH: f64 = 1e-4;
 /// Vanilla `RamTarget.RAM_SPEED_FORCE_FACTOR`.
 const RAM_SPEED_FORCE_FACTOR: f64 = 1.65;
+/// Vanilla `PrepareRamNearestTarget.TIME_OUT_DURATION`: preparing gives up after this many ticks.
+const PREPARE_TIMEOUT_TICKS: i64 = 160;
+/// Vanilla `RamTarget.TIME_OUT_DURATION`: the charge gives up after this many ticks.
+const RAM_TIMEOUT_TICKS: i64 = 200;
+
+/// Vanilla `Behavior.timedOut`: a behaviour started at `started_at` times out once `now` is past
+/// `started_at + timeout`.
+const fn behavior_timed_out(now: i64, started_at: i64, timeout: i64) -> bool {
+    now - started_at > timeout
+}
 
 /// Ram timer kept in world ticks, so it needs no per-tick countdown while the goal is idle.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -222,12 +232,17 @@ pub struct RamTargetGoal {
     charging: bool,
     repath_ticks: i32,
     candidate: Option<RamCandidate>,
+    /// World age when the prepare behaviour started, for `PREPARE_TIMEOUT_TICKS`.
+    prepare_started_at: i64,
+    /// World age when the charge started, for `RAM_TIMEOUT_TICKS`.
+    charge_started_at: i64,
 }
 
 impl RamTargetGoal {
     fn begin_charge(&mut self, mob: &dyn Mob) {
         self.preparing = false;
         self.charging = true;
+        self.charge_started_at = mob.get_entity().world.load().get_world_age();
         let prepare_sound = if is_screaming(mob) {
             Sound::EntityGoatScreamingPrepareRam
         } else {
@@ -359,6 +374,17 @@ impl Goal for RamTargetGoal {
     }
 
     fn should_continue(&mut self, mob: &dyn Mob) -> bool {
+        let now = mob.get_entity().world.load().get_world_age();
+        // Vanilla RamTarget has no stop override, so a timed-out charge clears silently: no
+        // END_RAM and no cooldown. Clearing `charging` before the stop path keeps `stop` quiet.
+        if self.charging && behavior_timed_out(now, self.charge_started_at, RAM_TIMEOUT_TICKS) {
+            self.charging = false;
+        }
+        // A timed-out prepare keeps `preparing` set so `stop` broadcasts END_RAM and sets the fail cooldown.
+        if self.preparing && behavior_timed_out(now, self.prepare_started_at, PREPARE_TIMEOUT_TICKS)
+        {
+            return false;
+        }
         (self.preparing || self.charging)
             && mob
                 .get_mob_entity()
@@ -371,6 +397,7 @@ impl Goal for RamTargetGoal {
         self.charging = false;
         self.prepare_ticks = 0;
         self.repath_ticks = 0;
+        self.prepare_started_at = mob.get_entity().world.load().get_world_age();
         // Vanilla PrepareRamNearestTarget.start picks a ram position 4..7 blocks from the target;
         // START_RAM is broadcast once the goat reaches it (handled in tick).
         let target_position = mob
@@ -472,6 +499,20 @@ impl Goal for RamTargetGoal {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn behavior_times_out_only_after_its_duration() {
+        assert!(!behavior_timed_out(
+            100 + RAM_TIMEOUT_TICKS,
+            100,
+            RAM_TIMEOUT_TICKS
+        ));
+        assert!(behavior_timed_out(
+            101 + RAM_TIMEOUT_TICKS,
+            100,
+            RAM_TIMEOUT_TICKS
+        ));
+    }
 
     #[test]
     fn first_check_rolls_cooldown_and_waits() {

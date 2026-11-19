@@ -15,7 +15,7 @@ use crate::entity::ai::goal::{Controls, Goal, GoalReach};
 use crate::entity::{
     Entity, EntityBase,
     ageable::{AgeableData, AgeableMob},
-    ai::goal::{swim::SwimGoal, tempt::TemptGoal},
+    ai::goal::{goal_selector::GoalSelector, swim::SwimGoal, tempt::TemptGoal},
     custom_sound::CustomSound,
     mob::{Mob, MobEntity, equipment::equip_on_target},
     passive::animal::Animal,
@@ -41,12 +41,32 @@ pub struct HappyGhastEntity {
     pub stays_still: AtomicBool,
     /// Last observed passenger count, used to replay vanilla `addPassenger`/`removePassenger` side effects.
     pub observed_passenger_count: AtomicUsize,
+    /// Weak self handle, so `age_boundary_reached` can re-register goals that need it.
+    self_weak: Weak<Self>,
+}
+
+/// Vanilla `HappyGhast.registerGoals` predicate: babies and harnessed ghasts temp on
+/// `HAPPY_GHAST_FOOD`, other adults on `HAPPY_GHAST_TEMPT_ITEMS`.
+fn tempt_item_predicate(mob: &dyn Mob, stack: &ItemStack) -> bool {
+    let baby = mob
+        .as_ageable()
+        .is_some_and(crate::entity::ageable::AgeableMob::is_baby);
+    let harnessed = !mob
+        .get_mob_entity()
+        .is_slot_empty(&pumpkin_data::data_component_impl::EquipmentSlot::BODY);
+    if !baby && !harnessed {
+        stack
+            .item
+            .has_tag(&tag::Item::MINECRAFT_HAPPY_GHAST_TEMPT_ITEMS)
+    } else {
+        stack.item.has_tag(&tag::Item::MINECRAFT_HAPPY_GHAST_FOOD)
+    }
 }
 
 impl HappyGhastEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
-        let happy_ghast = Self {
+        let mob_arc = Arc::new_cyclic(|self_weak| Self {
             mob_entity,
             ageable_data: AgeableData::default(),
             server_still_timeout: AtomicI32::new(0),
@@ -54,34 +74,29 @@ impl HappyGhastEntity {
             is_leash_holder: AtomicBool::new(false),
             stays_still: AtomicBool::new(false),
             observed_passenger_count: AtomicUsize::new(0),
-        };
-        let mob_arc = Arc::new(happy_ghast);
-        let happy_ghast_weak: Weak<Self> = Arc::downgrade(&mob_arc);
-
-        {
-            let goal_selector = &mob_arc.mob_entity.goals_selector;
-
-            goal_selector.add_goal(
-                3,
-                Box::new(HappyGhastFloatGoal::new(happy_ghast_weak.clone())),
-            );
-            goal_selector.add_goal(
-                4,
-                Box::new(TemptGoal::with_tag_and_stop_distance(
-                    1.0,
-                    &tag::Item::MINECRAFT_HAPPY_GHAST_TEMPT_ITEMS,
-                    false,
-                    7.0,
-                )),
-            );
-            // Vanilla uses a ghast-style random float goal instead of ground wandering.
-            goal_selector.add_goal(
-                5,
-                Box::new(HappyGhastFloatAroundGoal::new(happy_ghast_weak)),
-            );
-        };
-
+            self_weak: self_weak.clone(),
+        });
+        Self::register_goals(
+            &mob_arc.mob_entity.goals_selector,
+            mob_arc.self_weak.clone(),
+        );
         mob_arc
+    }
+
+    /// Vanilla `HappyGhast.registerGoals`.
+    fn register_goals(goal_selector: &GoalSelector, ghast: Weak<Self>) {
+        goal_selector.add_goal(3, Box::new(HappyGhastFloatGoal::new(ghast.clone())));
+        goal_selector.add_goal(
+            4,
+            Box::new(TemptGoal::with_item_predicate(
+                1.0,
+                tempt_item_predicate,
+                false,
+                7.0,
+            )),
+        );
+        // Vanilla uses a ghast-style random float goal instead of ground wandering.
+        goal_selector.add_goal(5, Box::new(HappyGhastFloatAroundGoal::new(ghast)));
     }
 
     pub fn set_server_still_timeout(&self, timeout: i32) {
@@ -190,6 +205,19 @@ impl HappyGhastEntity {
 impl AgeableMob for HappyGhastEntity {
     fn get_ageable_data(&self) -> &AgeableData {
         &self.ageable_data
+    }
+
+    /// Vanilla `HappyGhast.ageBoundaryReached`: babies drop every goal and clear the still
+    /// timeout; adults rebuild their goals.
+    fn age_boundary_reached(&self) {
+        let goal_selector = &self.mob_entity.goals_selector;
+        if self.is_baby() {
+            self.set_server_still_timeout(0);
+            goal_selector.clear(self);
+        } else {
+            goal_selector.clear(self);
+            Self::register_goals(goal_selector, self.self_weak.clone());
+        }
     }
 }
 

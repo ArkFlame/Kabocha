@@ -622,6 +622,46 @@ impl HopperBlockEntity {
         item_entity.insert_into(|stack| Self::add_item(None, into, stack, None))
     }
 
+    /// Vanilla `HopperBlockEntity.entityInside`: an item entity touching `SUCK_AABB` is offered
+    /// through `tryMoveItems`, so the cooldown gates it and a success sets `setCooldown(8)`.
+    pub fn entity_inside(
+        &self,
+        world: &Arc<World>,
+        state: HopperLikeProperties,
+        item_entity: &ItemEntity,
+        entity_box: &BoundingBox,
+    ) {
+        if self.cooldown_time.load(Ordering::Relaxed) > 0
+            || !state.enabled
+            || !SUCK_AABB.at_pos(self.position).intersects(entity_box)
+        {
+            return;
+        }
+        let (is_empty, item_id) = {
+            let stack = item_entity
+                .get_item_stack()
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            (stack.is_empty(), stack.item.registry_key)
+        };
+        if is_empty
+            || world.cancelled_by_plugin(|| {
+                InventoryPickupItemEvent::new(
+                    self.position,
+                    item_entity.get_entity().entity_id,
+                    item_id.to_string(),
+                )
+            })
+        {
+            return;
+        }
+        if Self::pickup_item_entity(self, item_entity) {
+            self.cooldown_time
+                .store(Self::MOVE_ITEM_SPEED, Ordering::Relaxed);
+            self.mark_dirty();
+        }
+    }
+
     /// Vanilla `HopperBlockEntity.addItem(from, container, stack, direction)`: returns what did
     /// not fit. A `WorldlyContainer` only offers the slots of the face `direction` names.
     pub fn add_item(

@@ -111,6 +111,21 @@ impl TemptGoal {
         self
     }
 
+    /// Tempts with a per-item predicate evaluated on every check, so it can follow the mob's
+    /// state (for example vanilla's baby or harnessed `HappyGhast` food tag switch).
+    #[must_use]
+    pub fn with_item_predicate(
+        speed: f64,
+        predicate: fn(&dyn Mob, &pumpkin_data::item_stack::ItemStack) -> bool,
+        can_scare: bool,
+        stop_distance: f64,
+    ) -> Self {
+        Self {
+            tempt_items: TemptItems::Predicate(predicate),
+            ..Self::with_stop_distance(speed, &[], can_scare, stop_distance)
+        }
+    }
+
     #[must_use]
     pub fn for_cube_mob(
         speed: f64,

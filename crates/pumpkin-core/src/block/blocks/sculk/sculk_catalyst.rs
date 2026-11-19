@@ -1,7 +1,14 @@
 use crate::block::entities::sculk_catalyst::SculkCatalystBlockEntity;
-use crate::block::{BlockBehaviour, BlockMetadata, OnPlaceArgs, OnScheduledTickArgs};
-use pumpkin_data::{BlockId, BlockStateId, block_properties::SculkCatalystLikeProperties};
+use crate::block::{BlockBehaviour, BlockMetadata, BrokenArgs, OnPlaceArgs, OnScheduledTickArgs};
+use crate::entity::experience_orb::ExperienceOrbEntity;
+use pumpkin_data::{
+    BlockId, BlockStateId, Enchantment, block_properties::SculkCatalystLikeProperties,
+};
+use pumpkin_util::GameMode;
 use pumpkin_world::world::BlockFlags;
+
+/// Vanilla `SculkCatalystBlock.xpRange` (`ConstantInt.of(5)`).
+const SCULK_CATALYST_XP: u32 = 5;
 
 pub struct SculkCatalystBlock;
 
@@ -34,5 +41,26 @@ impl BlockBehaviour for SculkCatalystBlock {
         {
             catalyst.end_bloom();
         }
+    }
+
+    fn broken(&self, args: BrokenArgs<'_>) {
+        // Vanilla `SculkCatalystBlock.getExpDrop`: `tryDropExperience` returns 0 with Silk Touch,
+        // and `popExperience` is gated on the `block_drops` gamerule. Creative players get no drop.
+        if args.player.gamemode.load() == GameMode::Creative
+            || !args.world.level_info.load().game_rules.block_drops
+            || args
+                .player
+                .inventory()
+                .held_item()
+                .get_enchantment_level(&Enchantment::SILK_TOUCH)
+                > 0
+        {
+            return;
+        }
+        ExperienceOrbEntity::spawn(
+            args.world,
+            args.position.to_centered_f64(),
+            SCULK_CATALYST_XP,
+        );
     }
 }

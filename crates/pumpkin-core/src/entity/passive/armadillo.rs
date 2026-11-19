@@ -1,16 +1,17 @@
 use std::sync::{
     Arc, Weak,
-    atomic::{AtomicI32, AtomicU64, Ordering},
+    atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering},
 };
 
 use pumpkin_data::BlockState;
 use pumpkin_data::damage::DamageType;
-use pumpkin_data::entity::EntityType;
+use pumpkin_data::entity::{EntityStatus, EntityType};
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_protocol::bedrock::server::actor_event::ActorEventID;
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_util::math::position::BlockPos;
 
@@ -37,6 +38,30 @@ pub const SCARE_SCAN_INTERVAL: i32 = 5;
 pub const SCARE_CHECK_INTERVAL: i32 = 80;
 pub const SCARE_DISTANCE_HORIZONTAL: f64 = 7.0;
 pub const SCARE_DISTANCE_VERTICAL: f64 = 2.0;
+/// Vanilla `ArmadilloBallUp.DANGER_DETECTED_RECENTLY_DANGER_THRESHOLD`: a peek needs more danger ticks left than this.
+const PEEK_DANGER_THRESHOLD_TICKS: i32 = 75;
+/// Vanilla `ArmadilloState.UNROLLING.animationDuration()`: the unroll gate in `ArmadilloBallUp`.
+const BALL_UP_UNROLLING_TICKS: i32 = 30;
+
+/// Vanilla `ArmadilloBallUp.pickNextPeekTimer`: scared animation plus 100..=400 ticks.
+fn pick_next_peek_timer() -> i32 {
+    i32::try_from(ArmadilloState::Scared.animation_duration()).unwrap_or_default()
+        + rand::random_range(100..=400)
+}
+
+/// Vanilla `ArmadilloBallUp.tick` unroll gates: a scared ball unrolls once the danger timer drops
+/// below the unroll animation, and an unrolling ball rolls back up when danger returns above it.
+const fn ball_up_transition(state: ArmadilloState, danger_ticks: i32) -> Option<ArmadilloState> {
+    match state {
+        ArmadilloState::Scared if danger_ticks < BALL_UP_UNROLLING_TICKS => {
+            Some(ArmadilloState::Unrolling)
+        }
+        ArmadilloState::Unrolling if danger_ticks > BALL_UP_UNROLLING_TICKS => {
+            Some(ArmadilloState::Scared)
+        }
+        _ => None,
+    }
+}
 
 fn pick_next_scute_drop_time() -> i32 {
     let rand_ticks = (rand::random::<u32>() % 6000) as i32;
@@ -125,6 +150,10 @@ pub struct ArmadilloEntity {
     pub in_state_ticks: AtomicU64,
     pub scute_time: AtomicI32,
     pub danger_detected_recently_ticks: AtomicI32,
+    /// Vanilla `ArmadilloBallUp.nextPeekTimer`.
+    pub next_peek_timer: AtomicI32,
+    /// Vanilla `ArmadilloBallUp.dangerWasAround`.
+    pub danger_was_around: AtomicBool,
 }
 
 impl ArmadilloEntity {
@@ -137,6 +166,8 @@ impl ArmadilloEntity {
             in_state_ticks: AtomicU64::new(0),
             scute_time: AtomicI32::new(pick_next_scute_drop_time()),
             danger_detected_recently_ticks: AtomicI32::new(0),
+            next_peek_timer: AtomicI32::new(0),
+            danger_was_around: AtomicBool::new(false),
         };
         let mob_arc = Arc::new(armadillo);
         let mob_weak: Weak<dyn Mob> = {
@@ -244,6 +275,43 @@ impl ArmadilloEntity {
                 pos,
             );
             self.switch_to_state(ArmadilloState::Idle);
+        }
+    }
+
+    /// Vanilla `ArmadilloBallUp.tick` for a threatened ball: the peek timer, then the unroll gates.
+    fn tick_ball_up(&self, state: ArmadilloState, danger_ticks: i32) {
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        let mut next_peek = self.next_peek_timer.load(Ordering::Relaxed);
+        if next_peek > 0 {
+            next_peek -= 1;
+        }
+        let danger_is_around = danger_ticks > PEEK_DANGER_THRESHOLD_TICKS;
+        if danger_is_around
+            != self
+                .danger_was_around
+                .swap(danger_is_around, Ordering::Relaxed)
+        {
+            next_peek = pick_next_peek_timer();
+        }
+        if state == ArmadilloState::Scared
+            && next_peek == 0
+            && danger_is_around
+            && entity.on_ground.load(Ordering::Relaxed)
+        {
+            world.broadcast_entity_event(entity, EntityStatus::ArmadilloPeek, ActorEventID::None);
+            next_peek = pick_next_peek_timer();
+        }
+        self.next_peek_timer.store(next_peek, Ordering::Relaxed);
+        if let Some(next) = ball_up_transition(state, danger_ticks) {
+            if next == ArmadilloState::Unrolling {
+                world.play_sound(
+                    Sound::EntityArmadilloUnrollStart,
+                    SoundCategory::Neutral,
+                    &entity.pos.load(),
+                );
+            }
+            self.switch_to_state(next);
         }
     }
 
@@ -520,18 +588,13 @@ impl Mob for ArmadilloEntity {
                     self.switch_to_state(ArmadilloState::Scared);
                 }
             }
-            ArmadilloState::Scared => {
-                if !self.can_stay_rolled_up() {
+            ArmadilloState::Scared | ArmadilloState::Unrolling => {
+                let danger_ticks = self.danger_detected_recently_ticks.load(Ordering::Relaxed);
+                // Vanilla ARMADILLO_ROLLING_OUT: rolls out once DANGER_DETECTED_RECENTLY expires.
+                if !self.can_stay_rolled_up() || danger_ticks == 0 {
                     self.roll_out();
-                } else if ticks_in_state > ArmadilloState::Scared.animation_duration()
-                    && self.danger_detected_recently_ticks.load(Ordering::Relaxed) == 0
-                {
-                    self.switch_to_state(ArmadilloState::Unrolling);
-                }
-            }
-            ArmadilloState::Unrolling => {
-                if ticks_in_state > ArmadilloState::Unrolling.animation_duration() {
-                    self.roll_out();
+                } else {
+                    self.tick_ball_up(state, danger_ticks);
                 }
             }
             ArmadilloState::Idle => {}
@@ -575,6 +638,21 @@ const _: () = assert!(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ball_up_unroll_gates_match_vanilla_threshold() {
+        use ArmadilloState::{Scared, Unrolling};
+        assert_eq!(ball_up_transition(Scared, BALL_UP_UNROLLING_TICKS), None);
+        assert_eq!(
+            ball_up_transition(Scared, BALL_UP_UNROLLING_TICKS - 1),
+            Some(Unrolling)
+        );
+        assert_eq!(ball_up_transition(Unrolling, BALL_UP_UNROLLING_TICKS), None);
+        assert_eq!(
+            ball_up_transition(Unrolling, BALL_UP_UNROLLING_TICKS + 1),
+            Some(Scared)
+        );
+    }
 
     #[test]
     fn state_ids_and_names_match_vanilla_order() {
