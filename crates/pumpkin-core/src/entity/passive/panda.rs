@@ -176,7 +176,6 @@ fn is_worried_and_can_perform_action(mob: &dyn Mob) -> bool {
     as_panda(mob).is_some_and(|panda| panda.is_worried() && panda.can_perform_action())
 }
 
-
 pub struct PandaEntity {
     pub mob_entity: MobEntity,
     pub ageable_data: AgeableData,
