@@ -507,6 +507,10 @@ impl GameTestWorld for ServerGameTestWorld {
         self.world.add_block_entity(entity.clone());
         // Vanilla `BlockEntity.loadStatic` + `setChanged`: mark the chunk dirty so the replacement syncs and saves.
         self.world.update_block_entity(&entity);
+        // Vanilla structure placement sends neighbour updates after block entities
+        // load, so comparators re-read the entity's output signal (e.g. a shelf's
+        // `last_interacted_slot`) that the placeholder entity did not have.
+        self.world.update_neighbors(position, None);
         Ok(())
     }
 

@@ -550,6 +550,13 @@ pub(super) async fn test_chiseled_bookshelf_comparator_reads_last_slot(
         .set_block(&wire_pos, wire_props.to_state_id(&Block::REDSTONE_WIRE))
         .await?;
 
+    let mut comp_props = ComparatorLikeProperties::default(&Block::COMPARATOR);
+    comp_props.facing = HorizontalFacing::North;
+    comp_props.mode = ModeComparator::Compare;
+    helper
+        .set_block(&comp_pos, comp_props.to_state_id(&Block::COMPARATOR))
+        .await?;
+
     // Slot index 2 was interacted with last, so the comparator should read 3.
     let mut shelf_nbt = NbtCompound::new();
     shelf_nbt.put_string("id", "minecraft:chiseled_bookshelf".to_string());
@@ -560,16 +567,6 @@ pub(super) async fn test_chiseled_bookshelf_comparator_reads_last_slot(
             Block::CHISELED_BOOKSHELF.default_state.id,
             &shelf_nbt,
         )
-        .await?;
-
-    // Place the comparator after the shelf's NBT is applied: a replaced block
-    // entity does not notify comparators, so a comparator placed earlier would
-    // keep the output it read from the placeholder entity (0).
-    let mut comp_props = ComparatorLikeProperties::default(&Block::COMPARATOR);
-    comp_props.facing = HorizontalFacing::North;
-    comp_props.mode = ModeComparator::Compare;
-    helper
-        .set_block(&comp_pos, comp_props.to_state_id(&Block::COMPARATOR))
         .await?;
 
     helper
