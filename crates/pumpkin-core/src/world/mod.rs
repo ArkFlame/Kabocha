@@ -505,6 +505,12 @@ impl World {
         self.pathfinding_time_spent.load(Ordering::Relaxed) < PATHFINDING_TIME_BUDGET_PER_TICK
     }
 
+    /// Restarts this tick's pathfinding time budget.
+    pub fn reset_path_search_budget(&self) {
+        self.pathfinding_time_spent
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+    }
+
     /// Accounts one finished A* search's wall time against this tick's budget.
     pub fn add_path_search_time(&self, nanos: u64) {
         self.pathfinding_time_spent
@@ -2156,8 +2162,7 @@ impl World {
 
         let start = std::time::Instant::now();
 
-        self.pathfinding_time_spent
-            .store(0, std::sync::atomic::Ordering::Relaxed);
+        self.reset_path_search_budget();
 
         #[cfg(profiler)]
         let profile_setup = pumpkin_profiler::cpu::span(pumpkin_profiler::cpu::Phase::WorldSetup);

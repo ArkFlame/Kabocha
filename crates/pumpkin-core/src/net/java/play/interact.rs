@@ -136,7 +136,13 @@ impl JavaClient {
                         return;
                     }
                 }
-                let mut stack = player.inventory().held_item();
+                // The packet names the hand; vanilla reads that hand's stack and keeps the hand.
+                let used_hand = if hand.is_some_and(|h| h.0 != 0) {
+                    pumpkin_util::Hand::Left
+                } else {
+                    pumpkin_util::Hand::Right
+                };
+                let mut stack = player.inventory().get_stack_in_hand(used_hand);
 
                 let item_id = stack.item.id;
                 let before = stack.clone();
@@ -144,7 +150,10 @@ impl JavaClient {
                     Some(position) if event.action == ActionType::InteractAt => {
                         event.target.interact_at(player, &mut stack, position)
                     }
-                    _ => event.target.interact(player, &mut stack),
+                    _ => event
+                        .target
+                        .interact_with_hand(player, &mut stack, used_hand)
+                        .unwrap_or_else(|| event.target.interact(player, &mut stack)),
                 };
                 if !interacted {
                     let result = server.item_registry.use_on_entity(
@@ -184,12 +193,7 @@ impl JavaClient {
                         },
                     );
                     // Vanilla swings the used hand whenever the entity interaction consumes the action.
-                    let swing_hand = if hand.is_some_and(|h| h.0 != 0) {
-                        pumpkin_util::Hand::Left
-                    } else {
-                        pumpkin_util::Hand::Right
-                    };
-                    player.swing_hand(swing_hand, true);
+                    player.swing_hand(used_hand, true);
                 }
                 if !stack.are_equal(&before) {
                     player.increment_stat(StatisticCategory::Used, item_id as i32, 1);
@@ -197,12 +201,12 @@ impl JavaClient {
                         player.increment_stat(StatisticCategory::Broken, item_id as i32, 1);
                         player.world().send_entity_status(
                             player.get_entity(),
-                            equipment_break_status(&EquipmentSlot::MAIN_HAND),
+                            equipment_break_status(&crate::entity::hand_equipment_slot(used_hand)),
                             pumpkin_protocol::bedrock::server::actor_event::ActorEventID::None,
                         );
                     }
                 }
-                player.inventory().set_held_item(stack);
+                player.inventory().set_stack_in_hand(used_hand, stack);
             }
         }
     }

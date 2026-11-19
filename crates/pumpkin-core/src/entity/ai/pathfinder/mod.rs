@@ -3144,6 +3144,8 @@ mod tests {
         navigation.move_to_coords(8.0, 64.0, 0.0, 2.0, &living);
         navigation.tick(&living);
         let reused_index = navigation.get_path().map(Path::get_next_node_index);
+        // Searches share one per-tick budget that only a world tick restarts; this test runs no tick.
+        world.reset_path_search_budget();
         navigation.move_to_coords(0.0, 64.0, 8.0, 1.0, &living);
         navigation.tick(&living);
         let target = navigation.get_path().map(Path::get_target);

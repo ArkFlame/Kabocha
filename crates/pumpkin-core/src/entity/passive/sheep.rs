@@ -23,7 +23,7 @@ use crate::entity::{
     mob::{Mob, MobEntity, spawn::SpawnGroupData},
     passive::animal::{Animal, get_mixed_color},
     player::Player,
-    shearable::{Shearable, shear_by_player_in_hand},
+    shearable::{Shearable, shear_by_player, shear_by_player_in_hand},
 };
 use crate::world::World;
 use crate::world::loot::{LootContextParameters, generate_loot_from_handle};
@@ -361,6 +361,21 @@ impl Mob for SheepEntity {
         self.finalize_spawn_super(group_data)
     }
 
+    fn mob_interact_with_hand(
+        &self,
+        player: &Arc<Player>,
+        item_stack: &mut ItemStack,
+        hand: Hand,
+    ) -> Option<bool> {
+        if item_stack.get_item() != &Item::SHEARS {
+            return None;
+        }
+        if !self.ready_for_shearing() {
+            return Some(true);
+        }
+        Some(shear_by_player_in_hand(self, player, item_stack, hand))
+    }
+
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
         let item = item_stack.get_item();
 
@@ -368,7 +383,7 @@ impl Mob for SheepEntity {
             if !self.ready_for_shearing() {
                 return true;
             }
-            return shear_by_player_in_hand(self, player, item_stack, Hand::Right);
+            return shear_by_player(self, player, item_stack);
         }
 
         self.animal_interact(player, item_stack)

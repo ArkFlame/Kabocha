@@ -20,7 +20,7 @@ use crate::entity::{
     item::ItemEntity,
     mob::{Mob, MobEntity, skeleton::SkeletonEntityBase},
     player::Player,
-    shearable::{Shearable, shear_by_player_in_hand, shearing_loot},
+    shearable::{Shearable, shear_by_player, shear_by_player_in_hand, shearing_loot},
 };
 
 const BOGGED_SHEAR_LOOT_TABLE: &str = "minecraft:shearing/bogged";
@@ -157,9 +157,21 @@ impl Mob for BoggedSkeletonEntity {
             .set_synced_data(tracked_data::bogged::DATA_SHEARED, self.is_sheared());
     }
 
+    fn mob_interact_with_hand(
+        &self,
+        player: &Arc<Player>,
+        item_stack: &mut ItemStack,
+        hand: Hand,
+    ) -> Option<bool> {
+        if item_stack.get_item() == &Item::SHEARS && self.ready_for_shearing() {
+            return Some(shear_by_player_in_hand(self, player, item_stack, hand));
+        }
+        None
+    }
+
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
         if item_stack.get_item() == &Item::SHEARS && self.ready_for_shearing() {
-            return shear_by_player_in_hand(self, player, item_stack, Hand::Right);
+            return shear_by_player(self, player, item_stack);
         }
         self.entity
             .mob_entity

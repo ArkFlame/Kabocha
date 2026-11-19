@@ -75,15 +75,8 @@ fn shear_with_player(
             source_entity: Some(player.as_ref()),
         },
     );
-    // Without a hand, the interact handler writes `tool` back to the hand and counts the break.
-    match hand {
-        Some(hand) => {
-            let _ = player.damage_held_stack(tool, 1, hand);
-        }
-        None => {
-            let _ = player.damage_item_stack(tool, 1);
-        }
-    }
+    // The caller writes `tool` back to its hand and counts the break, so it is not counted here.
+    let _ = player.damage_item_stack(tool, 1);
     true
 }
 

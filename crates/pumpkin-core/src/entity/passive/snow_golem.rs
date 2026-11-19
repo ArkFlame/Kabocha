@@ -30,7 +30,7 @@ use crate::entity::{
     mob::{Mob, MobEntity, RangedAttackMob},
     player::Player,
     projectile::snowball::SnowballEntity,
-    shearable::{Shearable, shear_by_player_in_hand, shearing_loot},
+    shearable::{Shearable, shear_by_player, shear_by_player_in_hand, shearing_loot},
 };
 
 const SNOW_GOLEM_HUNTS: &[Hunt] = &[Hunt::new(1, TargetMatch::Enemy, true)];
@@ -278,6 +278,13 @@ impl Mob for SnowGolemEntity {
             pumpkin_data::tracked_data::snow_golem::DATA_PUMPKIN_ID,
             flags,
         );
+    }
+
+    fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
+        if item_stack.get_item() == &Item::SHEARS && self.ready_for_shearing() {
+            return shear_by_player(self, player, item_stack);
+        }
+        false
     }
 
     fn mob_interact_with_hand(

@@ -11014,29 +11014,31 @@ mod tests {
             value: BASE64_STANDARD.encode(textures).into(),
             signature: None,
         }];
+        // Generous enough that a loaded test run cannot expire it before the host accepts.
         let auth_config = AuthenticationConfig {
-            connect_timeout: 200,
-            read_timeout: 200,
+            connect_timeout: 1_000,
+            read_timeout: 1_000,
             ..AuthenticationConfig::default()
         };
 
         let started = Instant::now();
-        let skin = tokio::time::timeout(
-            Duration::from_secs(10),
-            Player::fetch_skin(&properties, &auth_config),
-        )
-        .await
-        .expect("the skin download should give up on its own");
-
-        assert!(skin.is_none());
-        assert!(started.elapsed() < Duration::from_secs(5));
-        // A `None` without ever connecting would pass for the wrong reason.
+        let fetch =
+            tokio::spawn(async move { Player::fetch_skin(&properties, &auth_config).await });
+        // A `None` without ever connecting would pass for the wrong reason, so wait
+        // for the host to accept before the download's own timeout can run.
         assert!(
-            tokio::time::timeout(Duration::from_secs(2), connected_rx)
+            tokio::time::timeout(Duration::from_secs(5), connected_rx)
                 .await
                 .is_ok_and(|connected| connected.is_ok()),
             "fetch_skin should have reached the silent host"
         );
+        let skin = tokio::time::timeout(Duration::from_secs(10), fetch)
+            .await
+            .expect("the skin download should give up on its own")
+            .expect("the skin download task should not panic");
+
+        assert!(skin.is_none());
+        assert!(started.elapsed() < Duration::from_secs(10));
     }
 
     #[test]

@@ -1305,6 +1305,11 @@ impl Server {
             if infer_played_before(&nbt_data) {
                 player.has_played_before.store(true, Ordering::Relaxed);
             }
+            // A save whose dimension is disabled loses its Pos (saved_login_world), so
+            // the join must place it at world spawn, not at the default entity position.
+            if !has_saved_position(&nbt_data) {
+                player.has_played_before.store(false, Ordering::Relaxed);
+            }
         }
 
         // Wrap in Arc after data is loaded
@@ -2293,8 +2298,12 @@ fn join_gamemode(default: GameMode, forced: bool, nbt: Option<&NbtCompound>) -> 
 
 /// Only old Bedrock saves lack `HasPlayedBefore`; infer it from a saved Pos.
 fn infer_played_before(nbt: &NbtCompound) -> bool {
-    nbt.get_bool("HasPlayedBefore").is_none()
-        && nbt.get_list("Pos").is_some_and(|pos| pos.len() >= 3)
+    nbt.get_bool("HasPlayedBefore").is_none() && has_saved_position(nbt)
+}
+
+/// Whether the save still holds a usable `Pos`.
+fn has_saved_position(nbt: &NbtCompound) -> bool {
+    nbt.get_list("Pos").is_some_and(|pos| pos.len() >= 3)
 }
 
 /// TPS from a rolling tick-time ring. Paper's `TickData.getTPSAverage` returns the

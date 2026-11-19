@@ -7343,7 +7343,8 @@ fn interact_with_shears(
         .shear_off_all_leash_connections(target, Some(player))
     {
         if sheared {
-            let _ = player.damage_held_stack(stack, 1, hand);
+            // The interact handler writes `stack` back to `hand` and counts the break.
+            let _ = player.damage_item_stack(stack, 1);
         }
         return Some(sheared);
     }
