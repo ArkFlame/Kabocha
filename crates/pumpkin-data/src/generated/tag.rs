@@ -20894,10 +20894,11 @@ pub mod EntityType {
             "dark_oak_chest_boat",
             "mangrove_chest_boat",
             "bamboo_chest_raft",
+            "poplar_chest_boat",
         ],
         &[
             90u16, 128u16, 12u16, 75u16, 0u16, 23u16, 34u16, 95u16, 82u16, 9u16, 106u16, 91u16,
-            129u16, 13u16, 76u16, 1u16, 24u16, 96u16, 35u16, 83u16, 8u16,
+            129u16, 13u16, 76u16, 1u16, 24u16, 96u16, 35u16, 83u16, 8u16, 107u16,
         ],
         "c:boats",
     );
