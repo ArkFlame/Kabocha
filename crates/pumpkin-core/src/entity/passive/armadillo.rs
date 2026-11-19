@@ -471,10 +471,17 @@ impl Mob for ArmadilloEntity {
                     // Vanilla `spawnAtLocation`: the shed scute is saved with the chunk, like the brush drop.
                     world.spawn_entity(item_entity);
                 }) {
-                    world.play_sound(
+                    // Vanilla `Armadillo.java:145-146`: volume 1.0, pitch `(nextFloat - nextFloat) * 0.2 + 1.0`.
+                    world.play_sound_fine(
                         Sound::EntityArmadilloScuteDrop,
                         SoundCategory::Neutral,
                         &pos,
+                        1.0,
+                        (rand::random::<f32>() - rand::random::<f32>()).mul_add(0.2, 1.0),
+                    );
+                    world.emit_game_event(
+                        pumpkin_data::game_event::GameEvent::EntityPlace.name(),
+                        pos,
                     );
                 }
                 self.scute_time

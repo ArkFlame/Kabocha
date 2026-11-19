@@ -14,6 +14,7 @@ use crate::{
 use pumpkin_data::{
     BlockStateId,
     block_properties::ChiseledBookshelfLikeProperties,
+    game_event::GameEvent,
     item::Item,
     item_stack::ItemStack,
     sound::{Sound, SoundCategory},
@@ -196,6 +197,13 @@ impl ChiseledBookshelfBlock {
             player.drop_item(stack);
         }
         entity.update_state(properties, world, slot);
+
+        // Vanilla `removeBook` emits BLOCK_CHANGE with the player as the source.
+        world.emit_game_event_with_source(
+            GameEvent::BlockChange.name(),
+            position.to_centered_f64(),
+            Some(player.clone() as Arc<dyn EntityBase>),
+        );
 
         world.play_sound(sound, SoundCategory::Blocks, &position.to_centered_f64());
         true

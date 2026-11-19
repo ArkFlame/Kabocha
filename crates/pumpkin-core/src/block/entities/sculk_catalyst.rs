@@ -105,11 +105,15 @@ impl BlockEntity for SculkCatalystBlockEntity {
         if !spreader.has_cursors() {
             return;
         }
-        // Vanilla `SculkCatalystBlockEntity.serverTick` passes `level.getRandom()`.
-        // Seed from the level's world-seeded random (the source loot also uses)
-        // so sculk spreading is reproducible from the world seed.
-        let mut random =
-            RandomGenerator::Xoroshiro(Xoroshiro::from_seed(world.next_loot_seed() as u64));
+        // Vanilla `SculkCatalystBlockEntity.serverTick` passes `level.getRandom()`, the shared
+        // level random. Derive this tick's generator from the shared block random, and drop the
+        // lock before spreading so the spreader can use world state freely.
+        let seed = world
+            .block_random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .next_i64();
+        let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(seed as u64));
         let mut level = WorldSculkLevel(world.clone());
         spreader.update_cursors(&mut level, self.position, &mut random, true);
     }

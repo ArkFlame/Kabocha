@@ -97,6 +97,17 @@ impl EntityBase for LeashKnotEntity {
             self.entity.remove();
         }
     }
+    fn interact_with_hand(
+        &self,
+        player: &Arc<Player>,
+        item_stack: &mut ItemStack,
+        hand: pumpkin_util::Hand,
+    ) -> Option<bool> {
+        // Vanilla falls through to the leash logic when shears cut nothing, so only a cut is final.
+        crate::entity::interact_with_shears(self, player, item_stack, hand)
+            .filter(|sheared| *sheared)
+    }
+
     fn interact(&self, player: &Arc<Player>, _item_stack: &mut ItemStack) -> bool {
         let world = player.world();
         let knot_id = self.entity.entity_id;
@@ -124,6 +135,14 @@ impl EntityBase for LeashKnotEntity {
         }
 
         if attached_mob || any_dropped {
+            // Vanilla `gameEvent(BLOCK_ATTACH, player)`: at the knot, sourced from the player.
+            world.emit_game_event_with_context(
+                pumpkin_data::game_event::GameEvent::BlockAttach.name(),
+                self.entity.pos.load(),
+                &crate::world::game_event::GameEventContext {
+                    source_entity: Some(player.as_ref() as &dyn EntityBase),
+                },
+            );
             self.play_placement_sound(&world);
             true
         } else {

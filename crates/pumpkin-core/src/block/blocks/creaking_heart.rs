@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
+use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::{
     Axis, CreakingHeartLikeProperties, CreakingHeartState, PaleOakWoodLikeProperties,
 };
 use pumpkin_data::environment_attribute::EnvironmentAttribute;
 use pumpkin_data::tag::{self, Taggable};
-use pumpkin_data::{BlockStateId, Enchantment};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::GameMode;
 use pumpkin_util::random::{RandomGenerator, RandomImpl, get_seed, xoroshiro128::Xoroshiro};
@@ -158,22 +158,20 @@ impl BlockBehaviour for CreakingHeartBlock {
     }
 
     fn broken(&self, args: BrokenArgs<'_>) {
-        // Vanilla CreakingHeartBlock#onStacksDropped: only world-gen (natural) hearts drop
-        // 20-24 experience, and never with Silk Touch (vanilla dropExperienceWhenMined).
+        // Vanilla CreakingHeartBlock#tryAwardExperience: only natural (world-gen) hearts drop
+        // 20-24 experience, skipped for creative and spectator players. Silk Touch does not
+        // block it, since the heart is not `dropExperienceWhenMined`.
         let props = CreakingHeartLikeProperties::from_state_id(args.state.id);
-        if !props.natural || args.player.gamemode.load() == GameMode::Creative {
-            return;
-        }
-        if args
-            .player
-            .inventory()
-            .held_item()
-            .get_enchantment_level(&Enchantment::SILK_TOUCH)
-            > 0
+        if !props.natural
+            || matches!(
+                args.player.gamemode.load(),
+                GameMode::Creative | GameMode::Spectator
+            )
         {
             return;
         }
         let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(get_seed()));
+        // Vanilla `nextIntBetweenInclusive(20, 24)`.
         let amount = 20 + random.next_bounded_i32(5) as u32;
         ExperienceOrbEntity::spawn(args.world, args.position.to_f64(), amount);
     }

@@ -9,6 +9,7 @@ use crate::block::{
     registry::BlockActionResult,
     {BlockBehaviour, NormalUseArgs},
 };
+use crate::entity::mob::piglin_ai::PiglinAi;
 
 use crate::block::entities::shulker_box::ShulkerBoxBlockEntity;
 use pumpkin_data::BlockStateId;
@@ -152,7 +153,7 @@ impl BlockBehaviour for ShulkerBoxBlock {
             return BlockActionResult::Success;
         }
 
-        // Vanilla returns CONSUME when the menu opens and PASS when the block entity is missing.
+        // Vanilla `useWithoutItem` returns SUCCESS whether or not the menu opens.
         if let Some(factory) = self.get_screen_handler_factory(GetScreenHandlerFactoryArgs {
             server: args.server,
             world: args.world,
@@ -167,10 +168,10 @@ impl BlockBehaviour for ShulkerBoxBlock {
             );
             args.player
                 .open_handled_screen(factory.as_ref(), Some(*args.position));
-            return BlockActionResult::Consume;
+            PiglinAi::on_guarded_block_interacted(args.world, args.player);
         }
 
-        BlockActionResult::Pass
+        BlockActionResult::Success
     }
 
     fn get_screen_handler_factory(
