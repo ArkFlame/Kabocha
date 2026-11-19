@@ -1,0 +1,62 @@
+name: Commit Release
+
+# Kabocha publishes a prerelease for every commit pushed to master: a linux x86_64
+# release binary, SHA256SUMS and COMMIT. Tags are created through the API with the
+# job token, which does not trigger the tag-based Release workflow.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: commit-release-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  KEEP_RELEASES: 30
+
+jobs:
+  release:
+    name: Build and publish commit release
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - run: rustup update stable && rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: commit-release
+      - name: Build release binary
+        run: cargo build --release --locked -p pumpkin
+      - name: Package
+        run: |
+          SHORT=$(git rev-parse --short=9 HEAD)
+          mkdir -p dist
+          cp target/release/pumpkin dist/pumpkin-X64-Linux
+          echo "$GITHUB_SHA" > dist/COMMIT
+          (cd dist && sha256sum pumpkin-X64-Linux COMMIT > SHA256SUMS)
+          {
+            echo "Commit: $GITHUB_SHA"
+            echo "Subject: $(git log -1 --format=%s)"
+            echo "Built: $(date -u +'%Y-%m-%d %H:%M') UTC"
+          } > dist/RELEASE.md
+          echo "SHORT=$SHORT" >> "$GITHUB_ENV"
+      - name: Publish prerelease build-${{ env.SHORT }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-$SHORT" dist/pumpkin-X64-Linux dist/SHA256SUMS dist/COMMIT \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Build $SHORT" --notes-file dist/RELEASE.md
+      - name: Prune old commit releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 200 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("build-"))] | sort_by(.createdAt) | reverse | .[(env.KEEP_RELEASES | tonumber):] | .[].tagName' \
+            | while read -r tag; do gh release delete "$tag" --cleanup-tag --yes; done

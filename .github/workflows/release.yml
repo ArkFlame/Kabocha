@@ -8,6 +8,7 @@ on:
       - "!nightly*"
       - "!canary"
       - "!canary*"
+      - "!build-*"
   workflow_dispatch:
     inputs:
       tag_name:
