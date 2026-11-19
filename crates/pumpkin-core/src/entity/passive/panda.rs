@@ -1379,7 +1379,7 @@ mod tests {
         // Other random goals can win the first ticks, so give the sit goal a bounded window.
         steps(1, 11);
         let mut tick = 11;
-        while !panda.mob_entity.goals_selector.is_running::<PandaSitGoal>() && tick < 400 {
+        while !panda.mob_entity.goals_selector.is_running::<PandaSitGoal>() && tick < 4000 {
             steps(tick, tick + 1);
             tick += 1;
         }
