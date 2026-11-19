@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use pumpkin_data::BlockState;
 use pumpkin_data::attributes::Attributes;
+use pumpkin_data::damage::DamageType;
 use pumpkin_data::{
     data_component_impl::EquipmentSlot,
     effect::StatusEffect,
@@ -37,9 +38,10 @@ use crate::entity::{
         },
         pathfinder::{Navigator, node::PathType},
     },
+    breath::MAX_AIR,
     custom_sound::CustomSound,
     mob::{Mob, MobEntity, equipment::equip_on_target},
-    passive::{abstract_horse::player_jump_pending_scale, animal::Animal},
+    passive::{abstract_horse::player_jump_pending_scale, animal::Animal, water_animal},
     player::Player,
 };
 
@@ -47,6 +49,8 @@ use crate::entity::{
 const MAX_TURN_X: i32 = 85;
 const MAX_TURN_Y: i32 = 10;
 const IN_WATER_SPEED_MODIFIER: f32 = 0.011;
+/// Vanilla `Nautilus#handleAirSupply` dry-out damage on land.
+const DRY_OUT_DAMAGE: f32 = 2.0;
 
 pub struct NautilusEntity {
     pub mob_entity: MobEntity,
@@ -217,6 +221,20 @@ impl NautilusEntity {
 }
 
 impl Animal for NautilusEntity {
+    /// Vanilla `Nautilus#getBreedOffspring`: a tame parent makes a tame baby with the same owner.
+    fn get_breed_offspring(&self, _partner: &dyn EntityBase) -> Arc<dyn EntityBase> {
+        let entity = self.get_entity();
+        let baby = Self::new(Entity::new(
+            entity.world.load_full(),
+            entity.pos.load(),
+            &EntityType::NAUTILUS,
+        ));
+        if self.is_tame() {
+            baby.set_tame(true, self.owner.load());
+        }
+        baby
+    }
+
     fn play_eating_sound(&self) {
         self.make_sound(if self.mob_entity.living_entity.is_baby() {
             Sound::EntityBabyNautilusEat
@@ -372,6 +390,23 @@ impl Mob for NautilusEntity {
 
     /// Vanilla `AbstractNautilus` steps silently.
     fn mob_play_step_sound(&self, _pos: &BlockPos, _state: &BlockState) {}
+
+    /// Vanilla `Nautilus#baseTick`: the generic air rules run first, then the land dry-out rule.
+    fn base_tick(&self, caller: &dyn EntityBase) {
+        let pre_tick_air_supply = self.get_entity().air_supply.load(Ordering::Relaxed);
+        self.get_mob_entity().living_entity.tick_air_supply(caller);
+        if !self.get_mob_entity().is_no_ai() {
+            water_animal::handle_air_supply(
+                self,
+                pre_tick_air_supply,
+                caller,
+                self.get_entity().is_in_water(),
+                MAX_AIR,
+                DRY_OUT_DAMAGE,
+                DamageType::DRY_OUT,
+            );
+        }
+    }
 
     fn as_custom_sound(&self) -> Option<&dyn crate::entity::custom_sound::CustomSound> {
         Some(self)
@@ -679,6 +714,56 @@ mod tests {
         nautilus.set_tame(true, Some(Uuid::from_u128(1)));
         assert!(nautilus.is_food(&cooked_cod));
 
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn tame_parent_breeds_tame_baby_with_the_same_owner() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let nautilus = NautilusEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &pumpkin_data::entity::EntityType::NAUTILUS,
+        ));
+        let partner = NautilusEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &pumpkin_data::entity::EntityType::NAUTILUS,
+        ));
+        let owner = Uuid::from_u128(11);
+        nautilus.set_tame(true, Some(owner));
+
+        let offspring = nautilus.get_breed_offspring(partner.as_ref());
+        let baby = offspring
+            .cast_any()
+            .downcast_ref::<NautilusEntity>()
+            .ok_or("offspring is not a nautilus")?;
+        assert!(baby.is_tame());
+        assert_eq!(baby.owner.load(), Some(owner));
+
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn land_nautilus_dries_out_once_its_air_runs_out() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let nautilus = NautilusEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &pumpkin_data::entity::EntityType::NAUTILUS,
+        ));
+        nautilus
+            .get_entity()
+            .air_supply
+            .store(-19, Ordering::Relaxed);
+
+        Mob::base_tick(nautilus.as_ref(), nautilus.as_ref());
+
+        assert_eq!(nautilus.get_entity().air_supply.load(Ordering::Relaxed), 0);
         world.level.shutdown().await;
         Ok(())
     }
