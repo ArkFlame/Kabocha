@@ -11,3 +11,6 @@ description: Run the Kabocha loop as orchestrator: queue, brief, launch 20 worke
 6. Fail twice -> rewrite brief or do it yourself. Record any new pitfall in docs/LEARNINGS.md.
 Native workers go in foreground parallel batches in one message; OpenCode run in background.
 - Mandatory: workers read docs/WORKER.md (no cargo, no polling, commit before reporting, stage only own files, report once). Triage first with `scripts/pr-triage.sh <pr>` (EMPTY/CLEAN/CONFLICT/CLOSED); only CONFLICT goes to a worker, CLEAN goes to `scripts/batch-merge.sh`.
+
+## Audit waves and worker briefs
+Read `docs/LEARNINGS.md` sections "Audit-wave orchestration pitfalls" and "Briefing workers for judgment" before launching a wave. In short: durable per-item verdict files, redo pass over every BLOCKED line, outcome-focused briefs that leave workers room for initiative, and no compile until all verdicts are in.
