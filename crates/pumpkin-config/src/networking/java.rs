@@ -50,8 +50,8 @@ pub struct JavaConfig {
     #[toml(default = Self::default().packet_limiter)]
     pub packet_limiter: PacketLimiterConfig,
     /// Minimum milliseconds between connection attempts from the same IP before the
-    /// later one is dropped. Mirrors Spigot's `settings.connection-throttle` (4000 ms);
-    /// `0` disables the throttle.
+    /// later one is dropped. Spigot uses 4000 ms for login attempts only; here it also hits status
+    /// pings, so it is off by default (`0`).
     #[serde(alias = "connection-throttle")]
     #[toml(default = Self::default().connection_throttle, alias = "connection-throttle")]
     pub connection_throttle: u64,
@@ -80,7 +80,7 @@ impl Default for JavaConfig {
             motd: "A blazingly fast Pumpkin server!".to_string(),
             authentication: AuthenticationConfig::default(),
             packet_limiter: PacketLimiterConfig::default(),
-            connection_throttle: 4000,
+            connection_throttle: 0,
             book_size: BookSizeConfig::default(),
         }
     }
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn connection_throttle_default_and_deserialization() {
-        assert_eq!(JavaConfig::default().connection_throttle, 4000);
+        assert_eq!(JavaConfig::default().connection_throttle, 0);
 
         let toml_kebab = r"
             connection-throttle = 2500
