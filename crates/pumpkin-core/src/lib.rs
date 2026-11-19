@@ -41,10 +41,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
-use std::{
-    net::SocketAddr,
-    sync::LazyLock,
-};
+use std::{net::SocketAddr, sync::LazyLock};
 use tokio::net::TcpListener;
 use tokio::select;
 use tokio::sync::Mutex;
@@ -580,11 +577,7 @@ impl PumpkinServer {
 
         while !SHOULD_STOP.load(Ordering::Relaxed) {
             if !self
-                .unified_listener_task(
-                    &mut master_client_id,
-                    &tasks,
-                    &bedrock_clients,
-                )
+                .unified_listener_task(&mut master_client_id, &tasks, &bedrock_clients)
                 .await
             {
                 break;
@@ -1036,5 +1029,4 @@ mod tests {
         assert_eq!(scrub_address("192.168.0.1:25565"), "###.###.#.#:#####");
         assert_eq!(scrub_address("[::1]:25565"), "#::##:#####");
     }
-
 }
