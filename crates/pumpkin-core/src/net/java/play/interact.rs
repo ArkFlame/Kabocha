@@ -148,7 +148,12 @@ impl JavaClient {
                 let before = stack.clone();
                 let mut interacted = match event.target_position {
                     Some(position) if event.action == ActionType::InteractAt => {
+                        // Vanilla runs interactAt first and falls through to interact(hand) on PASS.
                         event.target.interact_at(player, &mut stack, position)
+                            || event
+                                .target
+                                .interact_with_hand(player, &mut stack, used_hand)
+                                .unwrap_or_else(|| event.target.interact(player, &mut stack))
                     }
                     _ => event
                         .target
@@ -195,9 +200,15 @@ impl JavaClient {
                     // Vanilla swings the used hand whenever the entity interaction consumes the action.
                     player.swing_hand(used_hand, true);
                 }
-                if !stack.are_equal(&before) {
+                // An emptied stack only counts as use when the tool wore out, not when it was handed over.
+                let broke = before.is_damageable()
+                    && stack.is_empty()
+                    && before
+                        .get_max_damage()
+                        .is_some_and(|max| before.get_damage() >= max - 1);
+                if !stack.are_equal(&before) && (!stack.is_empty() || broke) {
                     player.increment_stat(StatisticCategory::Used, item_id as i32, 1);
-                    if before.is_damageable() && stack.is_empty() {
+                    if broke {
                         player.increment_stat(StatisticCategory::Broken, item_id as i32, 1);
                         player.world().send_entity_status(
                             player.get_entity(),

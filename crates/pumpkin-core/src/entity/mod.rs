@@ -1092,15 +1092,15 @@ pub trait EntityBase: Send + Sync + std::any::Any {
     }
 
     /// Called when a player right-clicks a specific position on this entity.
-    /// Entities that do not use the hit position get the regular interaction
-    /// behavior by default.
+    /// Entities that do not use the hit position return `false`, so the handler
+    /// falls through to the hand-aware interaction (vanilla `interactAt` then `interact`).
     fn interact_at(
         &self,
-        player: &Arc<Player>,
-        item_stack: &mut ItemStack,
+        _player: &Arc<Player>,
+        _item_stack: &mut ItemStack,
         _position: Vector3<f64>,
     ) -> bool {
-        self.interact(player, item_stack)
+        false
     }
 
     fn set_on_fire_for(&self, seconds: f32) {
