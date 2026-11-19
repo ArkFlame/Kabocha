@@ -410,6 +410,12 @@ impl CommandSource {
                 }
             }
         }
+        // Vanilla `broadcastToAdmins` also echoes to the server console under `logAdminCommands`.
+        if !matches!(self.output, CommandSender::Console)
+            && server.level_info.load().game_rules.log_admin_commands
+        {
+            tracing::info!("{}", text.get_text());
+        }
     }
 
     /// Sends feedback to this source.
