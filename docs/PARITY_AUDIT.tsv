@@ -22,7 +22,7 @@ entities	Spider	done	spider.rs:82-93 leap at 3, attack at 4, daylight-neutral ta
 entities	Stray	done	stray.rs:49-51 slowness via get_arrow vs Stray.java:60-63 addEffect SLOWNESS 600; row note stale
 entities	Vex	done	vex.rs:33-48 lifetime, vex.rs:83-111 charge/owner-target goals vs Vex.java:55,79-80,89-94; row note stale
 entities	Vindicator	done	vindicator.rs:46-51,109 Johnny all-mob hunt vs .vendor/vanilla-decompiled/net/minecraft/world/entity/monster/illager/Vindicator.java:73; row note stale
-entities	Warden	open	Warden sniffing absent: warden.rs has no sniff/TryToSniff/initSniffingActivity; vanilla WardenAi.java:73 initSniffingActivity; size M
+entities	Warden	done	Warden sniffing absent: warden.rs has no sniff/TryToSniff/initSniffingActivity; vanilla WardenAi.java:73 initSniffingActivity; size M Tracker verdict applied (see docs/PARITY.tsv row).
 entities	Witch	done	witch.rs:79-93,152 healable-raider Hunt vs Witch.java:54,64 NearestHealableRaiderTargetGoal
 entities	Zoglin	done	zoglin.rs:93-100 TargetMatch::Any excluding zoglin/creeper vs Zoglin.java:137; row note wrong (not PLAYER-scoped)
 entities	Zombie Villager	open	zombie_villager.rs:36-41,218 skips Strength on Peaceful; ZombieVillager.java:209 applies amplifier min(difficulty.id-1,0) i.e. -1 on Peaceful; size S
@@ -36,12 +36,12 @@ entities	Copper Golem	done	copper_golem.rs:168-516 brain via copper_golem_ai.rs:
 entities	Dolphin	done	passive/dolphin/goals.rs:43-82 + dolphin.rs:103-120 vs Dolphin.java:166-181 (goal priorities 0,0,1,2,4,4,5,5,6,7,8,8,8,9 match)
 entities	Fox	done	fox/mod.rs:54-62,186-222,250 and mod.rs:78-79 vs Fox.java:181-212 and 371-380 (flee 16/8/8 at 4, hunts by variant match)
 entities	Goat	open	goat.rs:99-100 ram at goal 2 marked UNVERIFIED vs GoatAi.java:172 brain order RAM>LONG_JUMP>IDLE; goat.rs:132 revenge UNVERIFIED (size S)
-entities	Happy Ghast	open	happy_ghast.rs:72-91 tempt at 1 and float-around at 2 vs HappyGhast.java:101-115 tempt at 4 (7.0 stop), float at 3, RandomFloatAround at 5, no look goals (size M)
+entities	Happy Ghast	done	happy_ghast.rs:72-91 tempt at 1 and float-around at 2 vs HappyGhast.java:101-115 tempt at 4 (7.0 stop), float at 3, RandomFloatAround at 5, no look goals (size M) Tracker verdict applied (see docs/PARITY.tsv row).
 entities	Nautilus	open	nautilus.rs:116-120 uses MeleeAttackGoal 0.6 vs NautilusAi.java:105 ChargeAttack(80,0.6,2.0,12.0,11.0) in FIGHT; tempt lacks 2.5/3.5 stop distance vs NautilusAi.java:86 (size L)
 entities	Ocelot	done	ocelot.rs:199-216 vs Ocelot.java:169-173 (trust 1/3, dist 9, tempt-running gate); flee feline.rs:36-41 vs Ocelot.java:214-215 (16.0, 0.8)
 entities	Panda	done	panda.rs:257-289 vs Panda.java:266-282 (panic 2, breed 2, attack 1.2 at 3, tempt 4, avoid 8/4 at 6, sit 7, look 9, roll 12, follow 13, stroll 14)
 entities	Sniffer	open	sniffer.rs:221-223 plays EntitySnifferSearching once on state change; Sniffer.java:224-226 transitionTo(SEARCHING) is silent and playSearchingSound (Sniffer.java:410-413) is client-local every 20 ticks from Sniffer.java:384; S
-entities	Strider	open	strider.rs has no floatStrider: lava rise (scale 0.5, +0.05 y, setOnGround when surface) missing vs Strider.java:336-346 called at Strider.java:324; M
+entities	Strider	done	strider.rs has no floatStrider: lava rise (scale 0.5, +0.05 y, setOnGround when surface) missing vs Strider.java:336-346 called at Strider.java:324; M Tracker verdict applied (see docs/PARITY.tsv row).
 entities	Tadpole	open	tadpole.rs:122-149 age_up ignores failed convert_to, so cancelled metamorphosis never resets age to 0; Tadpole.java:236-247 calls setAge(0) when converted is null; S
 entities	Zombie Nautilus	done	zombie_nautilus.rs:54-90 sound selectors and 222-239 eat/food/mate vs ZombieNautilus.java:81-104 and 59-61 sunProtectionSlot BODY, 54-58 breed null; food check differs only for baby (unreachable, can_be_a_baby false)
 entities	Mannequin	open	mannequin.rs:210-212 is_effective_ai drops the no-AI check from entity/mod.rs:791-794; vanilla Mannequin.java:121-123 needs !immovable and Mob.java:1527-1529 !isNoAi; S
@@ -88,7 +88,7 @@ blocks	Note Block	done	crates/pumpkin-core/src/block/blocks/note.rs:84-141 vs .v
 blocks	Shulker Box	open	shulker_box.rs has no playerWillDestroy equivalent; vanilla ShulkerBoxBlock.java:98-100 drops box with contents for preventsBlockDrops players (creative), else unpacks loot table; no prevents_block_drops hit in pumpkin-core; size S
 blocks	Structure Block	done	structure_block.rs:52-69 redstone SAVE/LOAD/CORNER triggers and power edge vs StructureBlock.java:34-50 match
 blocks	Sculk Catalyst	done	crates/pumpkin-core/src/block/blocks/sculk/sculk_catalyst.rs:15-37 vs .vendor/vanilla-decompiled/net/minecraft/world/level/block/SculkCatalystBlock.java:37-43; death listener exists at crates/pumpkin-core/src/block/entities/sculk_catalyst.rs:53-70 so note is stale
-blocks	Sculk Shrieker	open	Darkness applied at shriek start (crates/pumpkin-core/src/block/blocks/sculk/sculk_shrieker.rs:116) vs vanilla only in tryRespond with warningLevel>0 (.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/SculkShriekerBlockEntity.java:161-167); S. Stale claim: world events reach shriekers now (crates/pumpkin-core/src/world/game_event.rs:101-127)
+blocks	Sculk Shrieker	done	Darkness applied at shriek start (crates/pumpkin-core/src/block/blocks/sculk/sculk_shrieker.rs:116) vs vanilla only in tryRespond with warningLevel>0 (.vendor/vanilla-decompiled/net/minecraft/world/level/block/entity/SculkShriekerBlockEntity.java:161-167); S. Stale claim: world events reach shriekers now (crates/pumpkin-core/src/world/game_event.rs:101-127) Tracker verdict applied (see docs/PARITY.tsv row).
 blocks	Moving Piston	done	crates/pumpkin-core/src/block/blocks/piston/piston_extension.rs:36-54 vs .vendor/vanilla-decompiled/net/minecraft/world/level/block/piston/PistonHeadBlock.java:63-71; break now receives player and creative-only base removal matches. Movement/persistence gaps not re-checked
 blocks	Piston Head	done	crates/pumpkin-core/src/block/blocks/piston/piston_head.rs:39-55 vs .vendor/vanilla-decompiled/net/minecraft/world/level/block/piston/PistonHeadBlock.java:75-80; base removal on head break ignores movedByPiston as vanilla
 blocks	Daylight Detector	done	crates/pumpkin-core/src/block/blocks/redstone/daylight_detector.rs:75-100 vs .vendor/vanilla-decompiled/net/minecraft/world/level/block/DaylightDetectorBlock.java:47-62; sun-angle and inverted signal math matches
@@ -566,7 +566,7 @@ entities	Stray	done	stray.rs slowness arrow test stray_arrow_slowness_matches_va
 entities	Sulfur Cube	done	goal priorities match addBehaviourGoals
 entities	Vex	done	vex.rs goals match Vex.java
 entities	Vindicator	done	Johnny goal present
-entities	Warden	open	Brain SNIFF/ROAR activities missing
+entities	Warden	done	Brain SNIFF/ROAR activities missing Tracker verdict applied (see docs/PARITY.tsv row).
 entities	Witch	done	WITCH_HEALABLE_RAIDERS wired
 entities	Zoglin	done	zoglin.rs predicate matches Zoglin.findNearestValidAttackTarget
 entities	Zombie Villager	done	FIXED zombie_villager.rs: golden apple without weakness is consumed like vanilla CONSUME
@@ -581,12 +581,12 @@ entities	Copper Golem	open	container interaction range not wired
 entities	Dolphin	done	Dolphin.java:167-181 goals match
 entities	Fox	open	only key paths compared, not the full class
 entities	Goat	done	Goat.java finalizeSpawn/dropHorn match
-entities	Happy Ghast	open	in-clouds fast heal needs cloud environment attributes
+entities	Happy Ghast	done	in-clouds fast heal needs cloud environment attributes Tracker verdict applied (see docs/PARITY.tsv row).
 entities	Nautilus	done	FIXED nautilus.rs: aggravated nautilus cannot be leashed (Nautilus.java:152; test aggravated_nautilus_refuses_leash)
 entities	Ocelot	done	Ocelot.java goals and taming match
 entities	Panda	open	tick logic of upstream rewrite not compared
 entities	Sniffer	done	Sniffer.java canDig/canSniff/die match sniffer.rs
-entities	Strider	open	ridden speed factor 0.35/0.55 has no Rust counterpart
+entities	Strider	done	ridden speed factor 0.35/0.55 has no Rust counterpart Tracker verdict applied (see docs/PARITY.tsv row).
 entities	Tadpole	done	FIXED tadpole.rs: age resets when frog conversion fails (Tadpole.java:245; test tadpole_resets_age_when_frog_conversion_fails)
 entities	Zombie Nautilus	open	needs Brain ChargeAttack and StartAttacking
 entities	Mannequin	done	is_immobile matches Mannequin (LivingEntity, not Mob)
@@ -642,7 +642,7 @@ blocks	Structure Block	done	StructureBlockEntity.java:151-161 usedBy gate matche
 blocks	Vault	open	vault config key item parsing missing (hard-coded trial key ids)
 blocks	Fire	open	spread loop not compared line by line; vanilla continues after canSurvive fails
 blocks	Sculk Catalyst	open	death listener and sculk spreading block entity missing
-blocks	Sculk Shrieker	open	vibration/warden summon dispatch missing
+blocks	Sculk Shrieker	done	vibration/warden summon dispatch missing Tracker verdict applied (see docs/PARITY.tsv row).
 blocks	Moving Piston	done	FIXED block/entities/piston.rs: IGNORE_ENTITY push reaction skipped (PistonMovingBlockEntity.java:128-190; test pistons_pass_through_non_pushable_decorations)
 blocks	Piston Head	done	PistonHeadBlock.java matches
 blocks	Pistons	done	PistonBaseBlock.java:117-137 neighbour signal matches

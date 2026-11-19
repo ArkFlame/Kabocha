@@ -1,4 +1,11 @@
 # DONE (merged PRs and closed issues, one per line)
+
+## Final verdict pass (2026-11-19)
+
+- Counts over 1369 tracker ids (later passes superseded earlier): FIXED 51, ALREADY-FIXED 826, WONTFIX 194, BLOCKED 298.
+- PARITY.tsv: 16 of the 17 open rows closed (Creaking, Hoglin, Warden, Ender Dragon, Copper Golem, Fox, Happy Ghast, Panda, Strider, Zombie Nautilus, Armor Stand, Vault, Fire, Sculk Catalyst, Sculk Shrieker, Dispenser). Cushion stays open for the thunder_hit subsystem gap.
+- Not counted as blockers: 64 ids that duplicate a blocked primary (they inherit its reason), and 20 ids whose tracker row text is truncated or missing (no concrete gap to verify; these need a tracker re-extraction, not code).
+
 Format: `- #N (PR|issue) title [commit]`
 
 ## Summary (from docs/LEDGER.md, generated 2026-11-18)

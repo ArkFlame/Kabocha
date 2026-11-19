@@ -1,5 +1,18 @@
 # TODO (deferred items only)
 
+## Final verdict blockers (2026-11-19 final pass)
+
+Final verdicts over 1369 tracker ids: FIXED 51, ALREADY-FIXED 826, WONTFIX 194, BLOCKED 298. Blocked ids are grouped below by named reason. Duplicates of a blocked primary and tracker-text defects are not listed here (see `docs/DONE.md`).
+
+- **BedRule fields (6 ids)**: generated `BedRule` (`crates/pumpkin-data/src/generated/dimension.rs:14-18`) lacks `destroy_on_use` and `error_message`. Needs the `assets` dimension_type `gameplay/bed_rule` extraction, then `pumpkin-codegen`.
+- **StructureKeys::from_name (1 id)**: no `from_name` in the generated `StructureKeys`. Needs codegen of the lookup.
+- **WIT bucket event fields (11 ids)**: the bucket event payload needs additive WIT fields, host/SDK/runtime updates and `cargo run --locked -p pumpkin-codegen -- wit`.
+- **Bedrock climate_variant and runtime checks (24 ids)**: Bedrock is separate and incomplete (`AGENTS.md`); needs Bedrock protocol data and runtime checks.
+- **Generic inside-block sweep for all entities, en-f12c04-0#3 (1 id)**: needs an Entity-level movement ring (`Entity.java` `addMovementThisTick` / `applyEffectsFromBlocks`, 1521-1580) hooked into every move path, plus about 15 `tick_block_collisions` callers.
+- **Cushion thunder_hit lightning drop (1 row, PARITY `entities/Cushion`)**: no entity `thunder_hit` dispatch exists in `crates/pumpkin-core/src/entity` (`docs/tracker/tentities-cushion.md` BLOCKED-DATA).
+- **Missing subsystems (about 130 ids)**: engine-level block moveability for piston push, advancement and entity predicate subsystems, dimension and level registration for command suggestions, zip pack reader crate, registry element codec normalization (`da-4f0dec`), signed chat chain (`ne-61496d-0#1`), live-server gametests for suggestions. Each needs its own pass.
+
+
 Every upstream PR and issue is DONE or SKIPPED (`docs/LEDGER.md`), so nothing upstream is pending. What remains is the audit gaps in `docs/tracker/` that could not be closed in this pass. Each row says why it is deferred.
 
 Kinds:
