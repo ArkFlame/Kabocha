@@ -43,7 +43,7 @@ use crate::entity::{
     custom_sound::CustomSound,
     mob::{Mob, MobEntity},
     player::Player,
-    shearable::{Shearable, shear_by_player},
+    shearable::{Shearable, shear_by_player_in_hand},
 };
 
 pub const EQUIPMENT_SLOT_ANTENNA: EquipmentSlot = EquipmentSlot::SADDLE;
@@ -690,7 +690,7 @@ impl Mob for CopperGolemEntity {
         }
 
         if item_stack.item.id == Item::SHEARS.id && self.ready_for_shearing() {
-            return shear_by_player(self, player, item_stack, Hand::Right);
+            return shear_by_player_in_hand(self, player, item_stack, Hand::Right);
         }
 
         // Honeycomb waxing

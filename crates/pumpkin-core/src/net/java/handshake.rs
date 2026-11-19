@@ -6,10 +6,33 @@ use pumpkin_protocol::{ConnectionState, java::server::handshake::SHandShake};
 use pumpkin_util::{text::TextComponent, version::JavaMinecraftVersion};
 use tracing::debug;
 
-use crate::{net::java::pending::PendingConnection, server::Server};
+use crate::{
+    net::{
+        java::pending::PendingConnection,
+        rate_limit::{Kind, Verdict, check_shared},
+    },
+    server::Server,
+};
 use std::sync::Arc;
+use std::time::Instant;
 
 impl PendingConnection {
+    /// Applies the status or login rate limit for the handshake intent. `true` means drop.
+    #[must_use]
+    pub fn handshake_rate_limited(&self, server: &Server, next_state: ConnectionState) -> bool {
+        let kind = match next_state {
+            ConnectionState::Status => Kind::Status,
+            ConnectionState::Login | ConnectionState::Transfer => Kind::Login,
+            _ => return false,
+        };
+        check_shared(
+            &server.rate_limiter,
+            self.address.ip(),
+            kind,
+            Instant::now(),
+        ) == Verdict::Drop
+    }
+
     pub async fn handle_handshake(&mut self, server: &Arc<Server>, handshake: SHandShake) {
         let version = handshake.protocol_version.0 as u32;
         self.server_address = handshake.server_address.to_string();

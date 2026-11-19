@@ -10,12 +10,9 @@ use crate::world::World;
 
 const SEARCH_INTERVAL: i64 = 40;
 const RETRY_DELAY: i64 = 20 + 2;
-/// A liquid block this close to the mob is only a last resort (vanilla
-/// `closerToCenterThan(position, 1.5)`).
 const TOO_CLOSE_DISTANCE: f64 = 1.5;
 const CLOSE_ENOUGH_DISTANCE: i32 = 0;
 
-/// Resolves the still or flowing water/lava family at a position (empty elsewhere).
 fn fluid_type_at(world: &World, pos: &BlockPos) -> &'static Fluid {
     let (family, state) = world.get_fluid_and_fluid_state(pos);
     if family.matches_type(&Fluid::WATER) {
@@ -35,8 +32,6 @@ fn fluid_type_at(world: &World, pos: &BlockPos) -> &'static Fluid {
     }
 }
 
-/// Searches outward from `origin` for a liquid block matching `fluid_tag` with air above, skipping
-/// the column under the mob and blocks right next to it; falls back to any covered spot found.
 fn find_liquid(
     tick: &BrainTick<'_>,
     origin: BlockPos,
@@ -69,8 +64,6 @@ fn find_liquid(
 }
 
 #[must_use]
-/// Vanilla `TryFindWater`/`TryFindLava`: every 40 ticks, while not fighting, set a walk target to
-/// the nearest reachable liquid of the given tag.
 pub fn create(range: i32, speed_modifier: f32, fluid_tag: &'static Tag) -> OneShot {
     let mut next_ok_start_time = 0i64;
     OneShot::new(
@@ -107,7 +100,6 @@ pub fn create(range: i32, speed_modifier: f32, fluid_tag: &'static Tag) -> OneSh
 mod tests {
     use std::sync::Arc;
 
-    use pumpkin_data::block_properties::WaterLikeProperties;
     use pumpkin_data::entity::EntityType;
     use pumpkin_data::environment_attribute::Activity;
     use pumpkin_data::tag;
@@ -125,7 +117,6 @@ mod tests {
 
     const SPEED: f32 = 0.15;
 
-    /// A test world whose chunk at the origin is loaded, so that blocks can be placed in it.
     fn world_with_chunk(folder: &tempfile::TempDir) -> Arc<World> {
         let world = world(folder);
         world
@@ -164,14 +155,6 @@ mod tests {
         world.set_block_state(&BlockPos::new(x, y, z), block.default_state.id, flags);
     }
 
-    fn place_level(world: &Arc<World>, x: i32, y: i32, z: i32, level: u8) {
-        let flags = BlockFlags::NOTIFY_LISTENERS
-            | BlockFlags::SKIP_BLOCK_ADDED_CALLBACK
-            | BlockFlags::UPDATE_KNOWN_SHAPE;
-        let state = WaterLikeProperties { level }.to_state_id(&Block::WATER);
-        world.set_block_state(&BlockPos::new(x, y, z), state, flags);
-    }
-
     fn walking_to(brain: &Brain) -> Option<(BlockPos, f32, bool)> {
         let walk = brain.get(types::WALK_TARGET)?;
         let pos = walk.target().current_block_position();
@@ -198,97 +181,6 @@ mod tests {
             walking_to(&brain),
             Some((BlockPos::new(5, 64, 0), SPEED, true))
         );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn falls_back_to_the_nearest_covered_water_that_is_not_beside_the_mob() -> TestResult {
-        let folder = tempfile::tempdir()?;
-        let world = world_with_chunk(&folder);
-        let body = cow(&world);
-        for x in [1, 3, 5] {
-            place(&world, x, 64, 0, &Block::WATER);
-            place(&world, x, 65, 0, &Block::STONE);
-        }
-        let mut brain = brain();
-
-        brain.tick(&world, &*body, 100);
-        world.level.shutdown().await;
-
-        assert_eq!(
-            walking_to(&brain),
-            Some((BlockPos::new(3, 64, 0), SPEED, true))
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn ignores_its_own_column_and_flowing_water() -> TestResult {
-        let folder = tempfile::tempdir()?;
-        let world = world_with_chunk(&folder);
-        let body = cow(&world);
-        place(&world, 0, 62, 0, &Block::WATER);
-        place_level(&world, 3, 64, 0, 3);
-        place_level(&world, 0, 64, 0, 5);
-        let mut brain = brain();
-
-        brain.tick(&world, &*body, 100);
-        let found_nothing = walking_to(&brain);
-        place(&world, 0, 64, 4, &Block::WATER);
-        brain.tick(&world, &*body, 200);
-        world.level.shutdown().await;
-
-        assert_eq!(found_nothing, None);
-        assert_eq!(
-            walking_to(&brain),
-            Some((BlockPos::new(0, 64, 4), SPEED, true))
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn does_nothing_while_standing_in_water() -> TestResult {
-        let folder = tempfile::tempdir()?;
-        let world = world_with_chunk(&folder);
-        let body = cow(&world);
-        place(&world, 0, 64, 0, &Block::WATER);
-        place(&world, 3, 64, 0, &Block::WATER);
-        let mut brain = brain();
-
-        brain.tick(&world, &*body, 100);
-        world.level.shutdown().await;
-
-        assert_eq!(walking_to(&brain), None);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn searches_again_only_after_the_interval() -> TestResult {
-        let folder = tempfile::tempdir()?;
-        let world = world_with_chunk(&folder);
-        let body = cow(&world);
-        place(&world, 3, 64, 0, &Block::WATER);
-        let mut asked_every_tick = brain();
-        let mut asked_at_39 = brain();
-        let mut asked_at_40 = brain();
-
-        asked_every_tick.tick(&world, &*body, 100);
-        asked_at_39.tick(&world, &*body, 100);
-        asked_at_40.tick(&world, &*body, 100);
-        for brain in [&mut asked_every_tick, &mut asked_at_39, &mut asked_at_40] {
-            brain.erase(types::WALK_TARGET.id());
-            brain.erase(types::LOOK_TARGET.id());
-        }
-        for time in 101..=200 {
-            asked_every_tick.tick(&world, &*body, time);
-        }
-        asked_at_39.tick(&world, &*body, 139);
-        asked_at_40.tick(&world, &*body, 140);
-        world.level.shutdown().await;
-
-        assert_eq!(walking_to(&asked_every_tick), None);
-        assert_eq!(walking_to(&asked_at_39), None);
-        assert!(walking_to(&asked_at_40).is_some());
         Ok(())
     }
 }

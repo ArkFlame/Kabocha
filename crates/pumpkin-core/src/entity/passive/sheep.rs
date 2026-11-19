@@ -23,7 +23,7 @@ use crate::entity::{
     mob::{Mob, MobEntity, spawn::SpawnGroupData},
     passive::animal::{Animal, get_mixed_color},
     player::Player,
-    shearable::{Shearable, shear_by_player},
+    shearable::{Shearable, shear_by_player_in_hand},
 };
 use crate::world::World;
 use crate::world::loot::{LootContextParameters, generate_loot_from_handle};
@@ -368,7 +368,7 @@ impl Mob for SheepEntity {
             if !self.ready_for_shearing() {
                 return true;
             }
-            return shear_by_player(self, player, item_stack, Hand::Right);
+            return shear_by_player_in_hand(self, player, item_stack, Hand::Right);
         }
 
         self.animal_interact(player, item_stack)

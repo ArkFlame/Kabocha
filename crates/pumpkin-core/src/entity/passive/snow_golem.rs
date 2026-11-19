@@ -18,7 +18,6 @@ use rand::RngExt;
 
 use crate::world::environment::EnvironmentAttributes;
 use crate::world::game_event::GameEventContext;
-use crate::world::loot::{LootContextParameters, generate_loot_from_handle};
 
 use crate::entity::ai::behavior::hunting::{self, Hunt};
 use crate::entity::ai::target_match::TargetMatch;
@@ -31,7 +30,7 @@ use crate::entity::{
     mob::{Mob, MobEntity, RangedAttackMob},
     player::Player,
     projectile::snowball::SnowballEntity,
-    shearable::{Shearable, shear_by_player},
+    shearable::{Shearable, shear_by_player_in_hand, shearing_loot},
 };
 
 const SNOW_GOLEM_HUNTS: &[Hunt] = &[Hunt::new(1, TargetMatch::Enemy, true)];
@@ -152,7 +151,6 @@ impl SnowGolemEntity {
 
 impl Shearable for SnowGolemEntity {
     fn shear(&self, sound_category: SoundCategory, tool: &ItemStack) -> bool {
-        // Claim the pumpkin first so two shears landing at once drop it only once.
         if !self.has_pumpkin.swap(false, Ordering::Relaxed) {
             return false;
         }
@@ -162,20 +160,12 @@ impl Shearable for SnowGolemEntity {
         let pos = entity.pos.load();
         world.play_sound(Sound::EntitySnowGolemShear, sound_category, &pos);
         self.set_has_pumpkin(false);
-        if let Some(table) = world.get_loot_table(SHEAR_SNOW_GOLEM_LOOT_TABLE) {
-            let params = LootContextParameters {
-                world: Some(&world),
-                position: Some(pos),
-                this_entity: Some(self),
-                tool: Some(tool.clone()),
-                ..Default::default()
-            };
-            for stack in generate_loot_from_handle(&table, self.get_random().random(), &params) {
-                entity.spawn_at_location_with_offset(
-                    stack,
-                    Vector3::new(0.0, entity.get_eye_height(), 0.0),
-                );
-            }
+
+        for stack in shearing_loot(self, SHEAR_SNOW_GOLEM_LOOT_TABLE, tool) {
+            entity.spawn_at_location_with_offset(
+                stack,
+                Vector3::new(0.0, entity.get_eye_height(), 0.0),
+            );
         }
         true
     }
@@ -266,6 +256,9 @@ impl Mob for SnowGolemEntity {
                     }
                     new_state = event.new_state_id;
                 }
+                if pumpkin_data::BlockState::from_id(new_state).is_air() {
+                    continue;
+                }
                 world.set_block_state(&snow_pos, new_state, BlockFlags::NOTIFY_ALL);
                 world.emit_game_event_with_context(
                     GameEvent::BlockPlace.name(),
@@ -294,7 +287,7 @@ impl Mob for SnowGolemEntity {
         hand: Hand,
     ) -> Option<bool> {
         if item_stack.get_item() == &Item::SHEARS && self.ready_for_shearing() {
-            return Some(shear_by_player(self, player, item_stack, hand));
+            return Some(shear_by_player_in_hand(self, player, item_stack, hand));
         }
         None
     }

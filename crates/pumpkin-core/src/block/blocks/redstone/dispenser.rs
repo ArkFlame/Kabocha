@@ -1592,6 +1592,14 @@ mod tests {
         assert!((ceiling_clearance_offset(&bounds, &[overhead(10.5, 0.0)]) - 1.0).abs() < 1e-9);
     }
 
+    use crate::entity::passive::abstract_horse::AbstractHorse;
+    use crate::entity::passive::copper_golem::CopperGolemEntity;
+    use crate::entity::passive::copper_golem::EQUIPMENT_SLOT_ANTENNA;
+    use crate::entity::passive::donkey::DonkeyEntity;
+    use crate::entity::passive::snow_golem::SnowGolemEntity;
+    use crate::entity::shearable::Shearable;
+    use pumpkin_data::data_component_impl::SulfurCubeContentImpl;
+
     #[tokio::test]
     async fn dispenser_cuts_leash_connections_before_shearing_the_pumpkin()
     -> Result<(), Box<dyn std::error::Error>> {
@@ -1661,13 +1669,6 @@ mod tests {
         world.level.shutdown().await;
         Ok(())
     }
-    use crate::entity::passive::abstract_horse::AbstractHorse;
-    use crate::entity::passive::copper_golem::CopperGolemEntity;
-    use crate::entity::passive::copper_golem::EQUIPMENT_SLOT_ANTENNA;
-    use crate::entity::passive::donkey::DonkeyEntity;
-    use crate::entity::passive::snow_golem::SnowGolemEntity;
-    use crate::entity::shearable::Shearable;
-    use pumpkin_data::data_component_impl::SulfurCubeContentImpl;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 

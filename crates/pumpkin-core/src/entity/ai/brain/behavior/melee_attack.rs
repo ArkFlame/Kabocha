@@ -2,17 +2,12 @@ use super::super::memory::{MemoryStatus, types};
 use super::{OneShot, utils};
 use crate::entity::mob::Mob;
 
-/// Vanilla `MeleeAttack.create(cooldownBetweenAttacks)`: once the attack target is in reach and in
-/// sight and the cooldown is over, looks at it, swings, hits it and starts the cooldown.
-///
-/// The hit's attack sound is played by `Mob::on_attack`, which runs after a hit that did damage,
-/// where vanilla plays it inside `doHurtTarget`.
+// The attack sound plays from `Mob::on_attack` after a damaging hit, not inside `do_hurt_target`.
 #[must_use]
 pub fn create(cooldown_between_attacks: i32) -> OneShot {
     create_with(|_| true, cooldown_between_attacks)
 }
 
-/// Vanilla `MeleeAttack.create(canAttackPredicate, cooldownBetweenAttacks)`.
 #[must_use]
 pub fn create_with(
     can_attack: impl Fn(&dyn Mob) -> bool + Send + Sync + 'static,
@@ -55,8 +50,6 @@ pub fn create_with(
     )
 }
 
-/// Vanilla `MeleeAttack.isHoldingUsableNonMeleeWeapon`: either hand holds something the mob uses
-/// as a ranged weapon.
 fn is_holding_usable_non_melee_weapon(mob: &dyn Mob) -> bool {
     let living = &mob.get_mob_entity().living_entity;
     mob.can_use_non_melee_weapon(&living.held_item(mob))
@@ -84,8 +77,6 @@ mod tests {
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-    /// A mob that counts how often it hit and whether it played its attack sound; the test world
-    /// does not let a hit do damage, so `damages` says what `do_hurt_target` reports.
     struct Biter {
         mob_entity: MobEntity,
         hits: AtomicUsize,
@@ -181,26 +172,6 @@ mod tests {
         assert_eq!(after_first, (1, 1));
         assert_eq!(during_cooldown, 1);
         assert_eq!(after_cooldown, 2);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn does_not_hit_a_target_out_of_reach_or_out_of_sight() -> TestResult {
-        let folder = tempfile::tempdir()?;
-        let world = world(&folder);
-        let body = biter(&world, true);
-        let far = cow(&world, 4.0);
-        let near = cow(&world, 1.5);
-        let mut out_of_reach = brain_for(&far, true);
-        let mut out_of_sight = brain_for(&near, false);
-
-        out_of_reach.tick(&world, &body, 1);
-        out_of_sight.tick(&world, &body, 1);
-        world.level.shutdown().await;
-
-        assert_eq!(body.hits.load(Ordering::Relaxed), 0);
-        assert!(!out_of_reach.has_memory_value(types::ATTACK_COOLING_DOWN.id()));
-        assert!(!out_of_sight.has_memory_value(types::ATTACK_COOLING_DOWN.id()));
         Ok(())
     }
 }

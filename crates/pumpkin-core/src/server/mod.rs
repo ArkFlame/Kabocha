@@ -121,6 +121,8 @@ pub struct Server {
     listing: std::sync::Mutex<CachedStatus>,
     /// Makes the join checks and the insertion into a world atomic.
     player_join_lock: std::sync::Mutex<()>,
+    /// Per-IP connection, status and login rate limiter with its ban list.
+    pub rate_limiter: std::sync::Mutex<crate::net::rate_limit::RateLimiter>,
     /// Saves server branding information.
     branding: CachedBranding,
     /// Saves and dispatches commands to appropriate handlers.
@@ -386,6 +388,10 @@ impl Server {
                 .map_err(|e| WorldInfoError::IoError(std::io::Error::other(e)))?,
         );
 
+        let rate_limiter = std::sync::Mutex::new(crate::net::rate_limit::RateLimiter::from_config(
+            &advanced_config.networking.java.rate_limit,
+        ));
+
         let server = Self {
             basic_config,
             resource_pack: pumpkin_config::resource_pack::ResourcePackSettings::new(
@@ -411,6 +417,7 @@ impl Server {
             bedrock_oidc_keys: Arc::new(OnceCell::new()),
             listing,
             player_join_lock: std::sync::Mutex::new(()),
+            rate_limiter,
             branding: CachedBranding::new(),
             bossbars: std::sync::Mutex::new(CustomBossbars::new()),
             map_manager: MapManager::new(),

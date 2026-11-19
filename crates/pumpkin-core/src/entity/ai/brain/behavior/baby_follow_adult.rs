@@ -11,8 +11,6 @@ pub fn create(min_range: i32, max_range: i32, speed_modifier: f32) -> OneShot {
     create_with(min_range, max_range, move |_| speed_modifier)
 }
 
-/// Vanilla `BabyFollowAdult.create(followRange, speedModifier, ...)` with a speed that depends on
-/// the mob, as the function overload has it.
 #[must_use]
 pub fn create_with(
     min_range: i32,

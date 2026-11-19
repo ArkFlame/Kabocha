@@ -5,11 +5,7 @@ use super::super::memory::{MemoryStatus, types};
 use super::OneShot;
 use crate::entity::EntityBase;
 
-/// Vanilla `StartAttacking.create(canAttack, targetFinder)`.
-///
-/// With no attack target, takes the one `target_finder` offers while `can_attack` holds and the
-/// mob may attack it, and forgets that it could not reach its walk target. Vanilla's overload
-/// without a condition is `|_| true`.
+/// Sets the attack target from `target_finder` while `can_attack` holds.
 #[must_use]
 pub fn create(
     can_attack: impl Fn(&BrainTick<'_>) -> bool + Send + Sync + 'static,

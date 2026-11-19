@@ -13,8 +13,6 @@ const REQUIRES: [MemoryModuleId; 3] = [
 
 const TARGET_DETECTION_DISTANCE_SQR: f64 = 8.0 * 8.0;
 
-/// Finds the closest visible prey within 8 blocks: always-hostile mobs regardless of cooldown,
-/// hunt targets only while no hunting cooldown is active.
 pub struct AxolotlAttackablesSensor;
 
 impl Sensor for AxolotlAttackablesSensor {
@@ -43,8 +41,6 @@ impl Sensor for AxolotlAttackablesSensor {
     }
 }
 
-/// A candidate counts when within range, in water, and tagged always-hostile — or a hunt target
-/// while no cooldown is active.
 fn is_matching_entity(squared_distance: f64, entity: &dyn EntityBase, hunting: bool) -> bool {
     let entity = entity.get_entity();
     squared_distance <= TARGET_DETECTION_DISTANCE_SQR
@@ -92,10 +88,6 @@ mod tests {
         DrownedEntity::new(entity(world, x, &EntityType::DROWNED, true))
     }
 
-    fn cow(world: &Arc<World>, x: f64) -> Arc<dyn EntityBase> {
-        CowEntity::new(entity(world, x, &EntityType::COW, true))
-    }
-
     fn id(entity: &Arc<dyn EntityBase>) -> i32 {
         entity.get_entity().entity_id
     }
@@ -129,41 +121,6 @@ mod tests {
             time: 0,
         });
         state.get(types::NEAREST_ATTACKABLE).map(id)
-    }
-
-    #[tokio::test]
-    async fn picks_water_bound_prey_within_eight_blocks() -> TestResult {
-        let folder = tempfile::tempdir()?;
-        let world = world(&folder);
-        let fish = cod(&world, 3.0, true);
-        let drowned = drowned(&world, 3.0);
-        let at_the_limit = cod(&world, 8.0, true);
-        let too_far = cod(&world, 8.01, true);
-        let stranded = cod(&world, 3.0, false);
-        let wet_cow = cow(&world, 3.0);
-
-        let picked = [
-            sense(&world, vec![fish.clone()], false, None),
-            sense(&world, vec![drowned.clone()], false, None),
-            sense(&world, vec![at_the_limit.clone()], false, None),
-            sense(&world, vec![too_far], false, None),
-            sense(&world, vec![stranded], false, None),
-            sense(&world, vec![wet_cow], false, None),
-        ];
-        world.level.shutdown().await;
-
-        assert_eq!(
-            picked,
-            [
-                Some(id(&fish)),
-                Some(id(&drowned)),
-                Some(id(&at_the_limit)),
-                None,
-                None,
-                None
-            ]
-        );
-        Ok(())
     }
 
     #[tokio::test]

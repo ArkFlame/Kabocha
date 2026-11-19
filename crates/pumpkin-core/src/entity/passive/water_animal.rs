@@ -1,13 +1,15 @@
 use pumpkin_data::damage::DamageType;
 
 use crate::entity::{
-    EntityBase, breath::DROWNING_DAMAGE, mob::Mob, passive::animal::experience_reward,
+    EntityBase,
+    breath::{DROWNING_DAMAGE, MAX_AIR},
+    mob::Mob,
+    passive::animal::experience_reward,
 };
 
 pub const AMBIENT_SOUND_INTERVAL: i32 = 120;
-/// Vanilla `WaterAnimal.handleAirSupply` refills to the default `Entity.TOTAL_AIR_SUPPLY` (300);
-/// only dolphins override `getMaxAirSupply` to 4800.
-pub const WATER_ANIMAL_MAX_AIR_SUPPLY: i32 = 300;
+/// Vanilla `WaterAnimal` refills air to `Entity.TOTAL_AIR_SUPPLY` (300 ticks).
+pub const WATER_ANIMAL_MAX_AIR_SUPPLY: i32 = MAX_AIR;
 
 pub trait WaterAnimal: Mob {
     fn water_animal_spawn_obstruction(&self, world: &crate::world::World) -> bool {
@@ -20,7 +22,7 @@ pub trait WaterAnimal: Mob {
             pre_tick_air_supply,
             caller,
             self.get_entity().is_in_water(),
-            WATER_ANIMAL_MAX_AIR_SUPPLY,
+            MAX_AIR,
             DROWNING_DAMAGE,
             DamageType::DROWN,
         );
@@ -85,7 +87,6 @@ mod tests {
         let entity = cod.get_entity();
         let living = &cod.mob_entity.living_entity;
 
-        assert_eq!(cod.get_max_air_supply(), WATER_ANIMAL_MAX_AIR_SUPPLY);
         cod.fish_base_tick(cod.as_ref());
         let on_land = entity.air_supply.load(Relaxed);
         entity.air_supply.store(-19, Relaxed);
@@ -99,9 +100,9 @@ mod tests {
         let in_water = entity.air_supply.load(Relaxed);
         world.level.shutdown().await;
 
-        assert_eq!(on_land, crate::entity::breath::MAX_AIR - 1);
+        assert_eq!(on_land, MAX_AIR - 1);
         assert_eq!(dried_out, (0, Some((DamageType::DROWN, 0))));
-        assert_eq!(in_water, WATER_ANIMAL_MAX_AIR_SUPPLY);
+        assert_eq!(in_water, MAX_AIR);
         assert!((living.last_damage_taken.load() - DROWNING_DAMAGE).abs() < 1e-6);
         Ok(())
     }

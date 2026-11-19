@@ -18,6 +18,7 @@ use crate::net::bedrock::{
 };
 use crate::net::java::JavaClient;
 use crate::net::java::pending::PendingConnection;
+use crate::net::rate_limit::{Kind, Verdict, check_shared};
 use crate::net::{ClientPlatform, DisconnectReason, PacketHandlerResult, PacketRateLimiter};
 use crate::net::{lan_broadcast::LANBroadcast, management::ManagementServer, query};
 use crate::plugin::loader::PluginLoader;
@@ -41,7 +42,7 @@ use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 use std::{
-    net::{IpAddr, SocketAddr},
+    net::SocketAddr,
     sync::LazyLock,
 };
 use tokio::net::TcpListener;
@@ -563,8 +564,6 @@ impl PumpkinServer {
         let tasks = Arc::new(TaskTracker::new());
         let mut master_client_id: u64 = 0;
         let bedrock_clients = Arc::new(Mutex::new(HashMap::new()));
-        // Spigot-style per-IP connection throttle: last accepted connection time per IP.
-        let mut connection_throttle: HashMap<IpAddr, Instant> = HashMap::new();
 
         self.server
             .plugin_manager
@@ -585,7 +584,6 @@ impl PumpkinServer {
                     &mut master_client_id,
                     &tasks,
                     &bedrock_clients,
-                    &mut connection_throttle,
                 )
                 .await
             {
@@ -683,7 +681,6 @@ impl PumpkinServer {
         master_client_id_counter: &mut u64,
         tasks: &Arc<TaskTracker>,
         bedrock_clients: &Arc<Mutex<HashMap<u64, Arc<BedrockClient>>>>,
-        connection_throttle: &mut HashMap<IpAddr, Instant>,
     ) -> bool {
         select! {
             // Branch for TCP connections (Java Edition)
@@ -696,18 +693,15 @@ impl PumpkinServer {
                             format!("{client_addr}")
                         };
 
-                        // Spigot connection-throttle drops a second connection from the
-                        // same IP before any login work happens.
-                        let throttle = Duration::from_millis(
-                            self.server.advanced_config.networking.java.connection_throttle,
-                        );
-                        if connection_throttled(
-                            connection_throttle,
-                            throttle,
+                        // Rate limit before any other work, so a flooding IP costs one accept.
+                        if check_shared(
+                            &self.server.rate_limiter,
                             client_addr.ip(),
+                            Kind::Connection,
                             Instant::now(),
-                        ) {
-                            debug!("Throttled connection from Java Edition: {formatted_address}");
+                        ) == Verdict::Drop
+                        {
+                            debug!("Rate limited connection from Java Edition: {formatted_address}");
                             drop(connection);
                             return true;
                         }
@@ -970,28 +964,6 @@ fn setup_console(mut rl: Editor<PumpkinCommandCompleter, FileHistory>, server: A
     });
 }
 
-/// Spigot connection-throttle drops a second connection from the same IP within
-/// the throttle window. The current time is passed in for deterministic testing.
-fn connection_throttled(
-    connections: &mut HashMap<IpAddr, Instant>,
-    throttle: Duration,
-    ip: IpAddr,
-    now: Instant,
-) -> bool {
-    if throttle.is_zero() {
-        return false;
-    }
-    // Prune stale entries so a busy listener cannot grow the map without bound.
-    connections.retain(|_, last| now.saturating_duration_since(*last) < throttle);
-    match connections.get(&ip) {
-        Some(last) if now.saturating_duration_since(*last) < throttle => true,
-        _ => {
-            connections.insert(ip, now);
-            false
-        }
-    }
-}
-
 fn scrub_address(ip: &str) -> String {
     // Paper's scrub-ips keeps the separators and masks the rest, so the shape of an
     // address (IPv4 vs IPv6, port) stays readable.
@@ -1057,10 +1029,7 @@ fn adjust_file_descriptor_limit() {
 
 #[cfg(test)]
 mod tests {
-    use super::{connection_throttled, scrub_address};
-    use std::collections::HashMap;
-    use std::net::IpAddr;
-    use std::time::{Duration, Instant};
+    use super::scrub_address;
 
     #[test]
     fn scrub_address_keeps_separators() {
@@ -1068,35 +1037,4 @@ mod tests {
         assert_eq!(scrub_address("[::1]:25565"), "#::##:#####");
     }
 
-    #[test]
-    fn connection_throttle_drops_repeat_ip_within_window() {
-        let ip = IpAddr::from([1, 2, 3, 4]);
-        let other = IpAddr::from([5, 6, 7, 8]);
-        let start = Instant::now();
-        let mut map = HashMap::new();
-        let window = Duration::from_millis(4000);
-
-        assert!(!connection_throttled(&mut map, window, ip, start));
-        assert!(connection_throttled(
-            &mut map,
-            window,
-            ip,
-            start + Duration::from_millis(1000)
-        ));
-        assert!(!connection_throttled(
-            &mut map,
-            window,
-            other,
-            start + Duration::from_millis(1000)
-        ));
-        // Once the window elapses the same IP is accepted again.
-        assert!(!connection_throttled(
-            &mut map,
-            window,
-            ip,
-            start + Duration::from_millis(4000)
-        ));
-        // A zero window disables the throttle entirely.
-        assert!(!connection_throttled(&mut map, Duration::ZERO, ip, start));
-    }
 }

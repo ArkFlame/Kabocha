@@ -14,12 +14,10 @@ const IN_WATER_SPEED_MODIFIER: f32 = 0.1;
 const OUTSIDE_WATER_SPEED_MODIFIER: f32 = 0.5;
 const MAX_Y_ROT_FROM_CENTER: i32 = 20;
 
-/// Reads the play-dead flag off the concrete axolotl behind a generic mob reference.
 fn is_playing_dead(mob: &dyn Mob) -> bool {
     as_axolotl(mob).is_some_and(super::AxolotlEntity::is_playing_dead)
 }
 
-/// Smooth-swimming movement that freezes entirely while the axolotl plays dead.
 pub struct AxolotlMoveControl {
     inner: SmoothSwimmingMoveControl,
 }
@@ -68,7 +66,6 @@ impl MoveControlTrait for AxolotlMoveControl {
     }
 }
 
-/// Smooth-swimming look control that also stops turning while playing dead.
 pub struct AxolotlLookControl {
     inner: SmoothSwimmingLookControl,
 }

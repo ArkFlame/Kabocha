@@ -31,6 +31,7 @@ use crate::{
 };
 
 pub mod cookie_response;
+mod duplicate_login;
 pub mod encryption_response;
 pub mod known_packs;
 pub mod login_acknowledged;

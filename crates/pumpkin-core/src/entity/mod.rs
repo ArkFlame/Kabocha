@@ -5559,7 +5559,7 @@ impl Entity {
 
     /// Fires `PlayerLeashEntityEvent` when a player becomes the holder. Returns false if a plugin
     /// cancelled it.
-    fn fire_leash_event(&self, holder: &Arc<dyn EntityBase>) -> bool {
+    pub(crate) fn fire_leash_event(&self, holder: &Arc<dyn EntityBase>) -> bool {
         let world = self.world.load();
         if let Some(server) = world.server.upgrade()
             && let Some(player) = holder.get_player()
@@ -5683,9 +5683,11 @@ impl Entity {
         if self.get_leash_holder().is_none() && connections.is_empty() {
             return None;
         }
-        let mut dropped = self.drop_leash_from_shearing(player);
+        let mut dropped = self.drop_leash_from_shearing(player, None);
         for entity in connections {
-            dropped |= entity.get_entity().drop_leash_from_shearing(player);
+            dropped |= entity
+                .get_entity()
+                .drop_leash_from_shearing(player, Some(self.entity_id));
         }
         if dropped {
             world.emit_game_event_with_context(
@@ -5704,7 +5706,7 @@ impl Entity {
         Some(dropped)
     }
 
-    fn drop_leash_from_shearing(&self, player: Option<&Arc<Player>>) -> bool {
+    fn drop_leash_from_shearing(&self, player: Option<&Arc<Player>>, held_by: Option<i32>) -> bool {
         if self.get_leash_holder().is_none() {
             return false;
         }
@@ -5730,29 +5732,40 @@ impl Entity {
                 }
             }
         }
-        if !self.remove_leash() {
+        if !self.take_leash(held_by) {
             return false;
         }
         self.spawn_at_location(ItemStack::new(1, &pumpkin_data::item::Item::LEAD));
         true
     }
 
-    /// Removes the leash, returning whether this call took the connection. The packet is sent
-    /// after `leashed_to` is released, because plugin handlers may lock it again.
+    /// Removes the leash, returning whether this call took the connection.
     pub fn remove_leash(&self) -> bool {
-        let old_holder = self
+        self.take_leash(None)
+    }
+
+    fn take_leash(&self, held_by: Option<i32>) -> bool {
+        let mut leashed_to = self
             .leashed_to
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .take();
-        let Some(old_holder) = old_holder else {
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(holder_id) = held_by
+            && leashed_to
+                .as_ref()
+                .and_then(Weak::upgrade)
+                .is_none_or(|holder| holder.get_entity().entity_id != holder_id)
+        {
             return false;
-        };
-        self.send_leash_removed();
-        if let Some(holder) = old_holder.upgrade() {
-            holder.notify_leashee_removed();
         }
-        true
+        let old_holder = leashed_to.take();
+        drop(leashed_to);
+        if let Some(old_holder) = &old_holder {
+            self.send_leash_removed();
+            if let Some(holder) = old_holder.upgrade() {
+                holder.notify_leashee_removed();
+            }
+        }
+        old_holder.is_some()
     }
 
     pub fn drop_leash(&self) -> bool {
@@ -7451,7 +7464,7 @@ mod tests {
                 for _ in 0..8 {
                     scope.spawn(|| {
                         barrier.wait();
-                        if golem.get_entity().drop_leash_from_shearing(None) {
+                        if golem.get_entity().drop_leash_from_shearing(None, None) {
                             removals.fetch_add(1, Ordering::Relaxed);
                         }
                     });

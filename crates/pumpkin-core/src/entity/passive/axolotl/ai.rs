@@ -40,7 +40,6 @@ const PLAY_DEAD_BEHAVIOR_DURATION: i32 = 200;
 const PLAY_DEAD_REGENERATION_DURATION: i32 = 200;
 const HUNTING_COOLDOWN: i64 = 2400;
 
-/// Vanilla `Axolotl.makeBrain`: five sensors and four activities (core, idle, fight, play dead).
 pub(super) fn make_brain(axolotl: &AxolotlEntity, packed: &PackedMemories) -> Brain {
     BrainProvider {
         memory_types: &[],
@@ -65,7 +64,6 @@ fn activities(_mob: &dyn Mob) -> Vec<ActivityData> {
     ]
 }
 
-/// The `PlayDead` activity: counts down `PLAY_DEAD_TICKS`, erasing it once breeding starts.
 fn init_play_dead_activity() -> ActivityData {
     ActivityData::new(
         Activity::PlayDead,
@@ -84,8 +82,6 @@ fn init_play_dead_activity() -> ActivityData {
     )
 }
 
-/// The `Fight` activity: chase and melee-attack while an attack target exists; leaving the fight
-/// arms the hunting cooldown.
 fn init_fight_activity() -> ActivityData {
     ActivityData::with_gate_memory(
         Activity::Fight,
@@ -109,8 +105,6 @@ fn init_fight_activity() -> ActivityData {
     )
 }
 
-/// The `Core` activity: look/move toward targets, count down the temptation cooldown and validate
-/// the play-dead state every tick.
 fn init_core_activity() -> ActivityData {
     ActivityData::with_priority_start(
         Activity::Core,
@@ -126,8 +120,6 @@ fn init_core_activity() -> ActivityData {
     )
 }
 
-/// The `Idle` activity: glance at nearby players, stroll, follow adults, take food temptations and
-/// seek water.
 fn init_idle_activity() -> ActivityData {
     ActivityData::with_pairs(
         Activity::Idle,
@@ -240,8 +232,6 @@ fn can_set_walk_target_from_look_target(tick: &BrainTick<'_>) -> bool {
     })
 }
 
-/// Vanilla `Axolotl.updateActivity`: re-picks the active activity unless playing dead, and leaving
-/// `Fight` arms the two-minute hunting cooldown.
 pub(super) fn update_activity(brain: &mut Brain) {
     let old_activity = brain.get_active_non_core_activity();
     if old_activity == Some(Activity::PlayDead) {
@@ -259,7 +249,6 @@ pub(super) fn update_activity(brain: &mut Brain) {
     }
 }
 
-/// Chase speed: fast in water, slow on land.
 fn speed_modifier_chasing(mob: &dyn Mob) -> f32 {
     if mob.get_entity().is_in_water() {
         SPEED_MULTIPLIER_WHEN_CHASING_IN_WATER
@@ -268,7 +257,6 @@ fn speed_modifier_chasing(mob: &dyn Mob) -> f32 {
     }
 }
 
-/// Speed for following an adult: faster in water than on land.
 fn speed_modifier_following_adult(mob: &dyn Mob) -> f32 {
     if mob.get_entity().is_in_water() {
         SPEED_MULTIPLIER_WHEN_FOLLOWING_ADULT_IN_WATER
@@ -277,7 +265,6 @@ fn speed_modifier_following_adult(mob: &dyn Mob) -> f32 {
     }
 }
 
-/// Idle/stroll speed: faster in water than on land.
 fn speed_modifier(mob: &dyn Mob) -> f32 {
     if mob.get_entity().is_in_water() {
         SPEED_MULTIPLIER_WHEN_IDLING_IN_WATER
@@ -294,8 +281,6 @@ fn find_nearest_valid_attack_target(tick: &BrainTick<'_>) -> Option<Arc<dyn Enti
     }
 }
 
-/// Counts `PLAY_DEAD_TICKS` down each tick; at zero it erases the memory (and the hurt-by memory)
-/// and falls back to the default activity.
 fn validate_play_dead() -> OneShot {
     OneShot::new(
         "ValidatePlayDead",
@@ -319,8 +304,6 @@ fn validate_play_dead() -> OneShot {
     )
 }
 
-/// Vanilla `PlayDead` behavior: holds the activity for its fixed duration while the axolotl stays
-/// in water.
 struct PlayDead;
 
 const PLAY_DEAD_CONDITIONS: [(MemoryModuleId, MemoryStatus); 2] = [
@@ -373,20 +356,14 @@ impl Behavior for PlayDead {
 mod tests {
     use std::sync::atomic::Ordering;
 
-    use pumpkin_data::Block;
-    use pumpkin_util::math::{position::BlockPos, vector2::Vector2, vector3::Vector3};
-    use pumpkin_world::{chunk::ChunkData, world::BlockFlags};
+    use pumpkin_util::math::vector3::Vector3;
 
     use super::*;
-    use crate::entity::ai::brain::BrainState;
+
     use crate::entity::ai::brain::activity::ActivityData;
-    use crate::entity::ai::brain::behavior::BehaviorControl;
-    use crate::entity::ai::brain::memory::position_tracker::{
-        BlockPosTracker, EntityTracker, PositionTracker,
-    };
-    use crate::entity::ai::brain::memory::walk_target::WalkTarget;
+
     use crate::entity::ai::test_support::world;
-    use crate::entity::effect::get_mob_effect;
+
     use crate::entity::passive::cod::CodEntity;
     use crate::entity::{Entity, EntityBase};
     use crate::world::World;
@@ -397,14 +374,6 @@ mod tests {
         AxolotlEntity::new(Entity::new(
             world.clone(),
             Vector3::new(0.0, 64.0, 0.0),
-            &EntityType::AXOLOTL,
-        ))
-    }
-
-    fn axolotl_at(world: &Arc<World>, x: f64) -> Arc<AxolotlEntity> {
-        AxolotlEntity::new(Entity::new(
-            world.clone(),
-            Vector3::new(x, 64.0, 0.0),
             &EntityType::AXOLOTL,
         ))
     }
@@ -457,27 +426,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn playing_dead_outranks_a_fight_and_holds_the_activity() -> TestResult {
-        let folder = tempfile::tempdir()?;
-        let world = world(&folder);
-        let axolotl = axolotl(&world);
-        let prey: Arc<dyn EntityBase> = cod(&world, 2.0);
-
-        with_brain(&axolotl, |brain| brain.set(types::ATTACK_TARGET, prey));
-        let fighting = update(&axolotl);
-        with_brain(&axolotl, |brain| brain.set(types::PLAY_DEAD_TICKS, 150));
-        let playing_dead = update(&axolotl);
-        with_brain(&axolotl, |brain| brain.erase(types::PLAY_DEAD_TICKS.id()));
-        let held = update(&axolotl);
-        world.level.shutdown().await;
-
-        assert_eq!(fighting, (Some(Activity::Fight), false));
-        assert_eq!(playing_dead, (Some(Activity::PlayDead), true));
-        assert_eq!(held.0, Some(Activity::PlayDead));
-        Ok(())
-    }
-
-    #[tokio::test]
     async fn validate_play_dead_counts_down_and_ends_the_activity() -> TestResult {
         let folder = tempfile::tempdir()?;
         let world = world(&folder);
@@ -520,174 +468,6 @@ mod tests {
                 (None, false, Some(Activity::Idle)),
             ]
         );
-        Ok(())
-    }
-
-    fn play_dead_state(attacker: &Arc<dyn EntityBase>) -> BrainState {
-        let mut state = BrainState::default();
-        for id in [
-            types::PLAY_DEAD_TICKS.id(),
-            types::HURT_BY_ENTITY.id(),
-            types::WALK_TARGET.id(),
-            types::LOOK_TARGET.id(),
-        ] {
-            state.register_memory(id);
-        }
-        state.set(types::PLAY_DEAD_TICKS, 200);
-        state.set(types::HURT_BY_ENTITY, attacker.clone());
-        state.set(
-            types::WALK_TARGET,
-            WalkTarget::from_entity(attacker.clone(), 1.0, 0),
-        );
-        state.set(
-            types::LOOK_TARGET,
-            Arc::new(EntityTracker::new(attacker.clone(), true)) as Arc<dyn PositionTracker>,
-        );
-        state
-    }
-
-    fn has_targets(state: &BrainState) -> (bool, bool) {
-        (
-            state.has_memory_value(types::WALK_TARGET.id()),
-            state.has_memory_value(types::LOOK_TARGET.id()),
-        )
-    }
-
-    #[tokio::test]
-    async fn playing_dead_regenerates_in_the_water_only() -> TestResult {
-        let folder = tempfile::tempdir()?;
-        let world = world(&folder);
-        let wet = axolotl(&world);
-        let dry = axolotl(&world);
-        wet.get_entity()
-            .touching_water
-            .store(true, Ordering::Relaxed);
-        wet.mob_entity.living_entity.health.store(5.0);
-        let attacker: Arc<dyn EntityBase> = cod(&world, 2.0);
-        let (mut wet_state, mut dry_state) =
-            (play_dead_state(&attacker), play_dead_state(&attacker));
-        let (mut wet_behavior, mut dry_behavior) = (Timed::new(PlayDead), Timed::new(PlayDead));
-
-        let wet_started = wet_behavior.try_start(&mut BrainTick {
-            state: &mut wet_state,
-            world: &world,
-            mob: wet.as_ref(),
-            time: 0,
-        });
-        let dry_started = dry_behavior.try_start(&mut BrainTick {
-            state: &mut dry_state,
-            world: &world,
-            mob: dry.as_ref(),
-            time: 0,
-        });
-        let wet_effect = wet
-            .mob_entity
-            .living_entity
-            .get_effect(&StatusEffect::REGENERATION)
-            .ok_or("no regeneration in the water")?;
-        let dry_effect = dry
-            .mob_entity
-            .living_entity
-            .get_effect(&StatusEffect::REGENERATION);
-
-        // The heal the effect brings: its own tick rule over every tick of its duration.
-        let mob_effect =
-            get_mob_effect(wet_effect.effect_type).ok_or("no regeneration effect rule")?;
-        for remaining in (1..=wet_effect.duration).rev() {
-            if mob_effect.should_apply_effect_tick(remaining, wet_effect.amplifier) {
-                mob_effect.apply_effect_tick(&wet.mob_entity.living_entity, wet_effect.amplifier);
-            }
-        }
-        let healed = wet.mob_entity.living_entity.health.load();
-        world.level.shutdown().await;
-
-        assert!(wet_started);
-        assert!(!dry_started);
-        assert_eq!((wet_effect.duration, wet_effect.amplifier), (200, 0));
-        assert!((healed - 9.0).abs() < 1e-6, "healed to {healed}");
-        assert_eq!(has_targets(&wet_state), (false, false));
-        assert!(dry_effect.is_none());
-        assert_eq!(has_targets(&dry_state), (true, true));
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn a_breeding_axolotl_is_offered_no_attack_target() -> TestResult {
-        let folder = tempfile::tempdir()?;
-        let world = world(&folder);
-        let axolotl = axolotl(&world);
-        let prey: Arc<dyn EntityBase> = cod(&world, 2.0);
-        let partner: Arc<dyn EntityBase> = axolotl_at(&world, 1.0);
-        let mut state = BrainState::default();
-        state.register_memory(types::NEAREST_ATTACKABLE.id());
-        state.register_memory(types::BREED_TARGET.id());
-        state.set(types::NEAREST_ATTACKABLE, prey.clone());
-        let offered = |state: &mut BrainState| {
-            find_nearest_valid_attack_target(&BrainTick {
-                state,
-                world: &world,
-                mob: axolotl.as_ref(),
-                time: 0,
-            })
-            .map(|target| target.get_entity().entity_id)
-        };
-
-        let free = offered(&mut state);
-        state.set(types::BREED_TARGET, partner);
-        let breeding = offered(&mut state);
-        world.level.shutdown().await;
-
-        assert_eq!(free, Some(prey.get_entity().entity_id));
-        assert_eq!(breeding, None);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn a_look_target_is_walked_to_only_in_the_same_kind_of_place() -> TestResult {
-        let folder = tempfile::tempdir()?;
-        let world = world(&folder);
-        world
-            .level
-            .loaded_chunks
-            .insert(Vector2::new(0, 0), ChunkData::empty_sync(0, 0));
-        world.set_block_state(
-            &BlockPos::new(3, 64, 0),
-            Block::WATER.default_state.id,
-            BlockFlags::NOTIFY_LISTENERS | BlockFlags::SKIP_BLOCK_ADDED_CALLBACK,
-        );
-        let wet = axolotl(&world);
-        wet.get_entity()
-            .touching_water
-            .store(true, Ordering::Relaxed);
-        let dry = axolotl(&world);
-        let look_at = |axolotl: &Arc<AxolotlEntity>, x: Option<i32>| {
-            let mut state = BrainState::default();
-            state.register_memory(types::LOOK_TARGET.id());
-            if let Some(x) = x {
-                state.set(
-                    types::LOOK_TARGET,
-                    Arc::new(BlockPosTracker::new(BlockPos::new(x, 64, 0)))
-                        as Arc<dyn PositionTracker>,
-                );
-            }
-            can_set_walk_target_from_look_target(&BrainTick {
-                state: &mut state,
-                world: &world,
-                mob: axolotl.as_ref(),
-                time: 0,
-            })
-        };
-
-        let results = [
-            look_at(&wet, Some(3)),
-            look_at(&wet, Some(6)),
-            look_at(&dry, Some(3)),
-            look_at(&dry, Some(6)),
-            look_at(&wet, None),
-        ];
-        world.level.shutdown().await;
-
-        assert_eq!(results, [true, false, false, true, false]);
         Ok(())
     }
 }

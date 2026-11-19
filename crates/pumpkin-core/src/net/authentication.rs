@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::IpAddr, sync::Arc};
+use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
 
 use base64::{Engine, engine::general_purpose};
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
@@ -93,6 +93,61 @@ fn format_auth_url(url_template: &str, username: &str, server_hash: &str, ip: &I
         .replace("{ip}", &ip.to_string())
 }
 
+/// Extra attempts after the first one for a retryable `hasJoined` request.
+const AUTH_RETRIES: usize = 2;
+/// Waits before each retry when the server gives no usable `Retry-After` header.
+const AUTH_RETRY_BACKOFF: [Duration; AUTH_RETRIES] =
+    [Duration::from_millis(250), Duration::from_millis(750)];
+/// Upper bound for a `Retry-After` wait, so one request cannot stall a login for long.
+const AUTH_RETRY_AFTER_CAP: Duration = Duration::from_secs(2);
+
+/// Whether a `hasJoined` response is worth retrying: rate limits and server errors.
+#[must_use]
+pub fn should_retry_status(status: StatusCode) -> bool {
+    status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
+}
+
+/// Reads a `Retry-After` value given as a number of seconds.
+#[must_use]
+pub fn parse_retry_after(value: &str) -> Option<Duration> {
+    value.trim().parse::<u64>().ok().map(Duration::from_secs)
+}
+
+/// Picks the wait before retry number `attempt`, where `0` is the first retry.
+#[must_use]
+pub fn retry_delay(attempt: usize, retry_after: Option<&str>) -> Duration {
+    retry_after.and_then(parse_retry_after).map_or_else(
+        || AUTH_RETRY_BACKOFF[attempt.min(AUTH_RETRIES - 1)],
+        |delay| delay.min(AUTH_RETRY_AFTER_CAP),
+    )
+}
+
+/// Sends a GET request, retrying rate limits, server errors and transport errors a bounded number of times.
+async fn get_with_retries(
+    client: &reqwest::Client,
+    address: &str,
+) -> reqwest::Result<reqwest::Response> {
+    let mut attempt = 0;
+    loop {
+        let result = client.get(address).send().await;
+        let (retryable, retry_after) = result.as_ref().map_or((true, None), |response| {
+            (
+                should_retry_status(response.status()),
+                response
+                    .headers()
+                    .get(reqwest::header::RETRY_AFTER)
+                    .and_then(|value| value.to_str().ok())
+                    .map(str::to_owned),
+            )
+        });
+        if !retryable || attempt >= AUTH_RETRIES {
+            return result;
+        }
+        tokio::time::sleep(retry_delay(attempt, retry_after.as_deref())).await;
+        attempt += 1;
+    }
+}
+
 /// Sends a GET request to Mojang's (or custom/fallback) authentication servers to verify a client's Minecraft account.
 ///
 /// **Purpose:**
@@ -135,11 +190,12 @@ pub async fn authenticate(
 
     let mut unverified_count = 0;
     let mut last_unknown_status = None;
+    let mut last_rate_limited = false;
 
     for url_template in candidate_urls {
         let address = format_auth_url(url_template, username, server_hash, ip);
 
-        let response = match client.get(&address).send().await {
+        let response = match get_with_retries(&client, &address).await {
             Ok(resp) => resp,
             Err(err) => {
                 tracing::warn!(
@@ -150,6 +206,11 @@ pub async fn authenticate(
         };
 
         let status = response.status();
+        if status == StatusCode::TOO_MANY_REQUESTS {
+            tracing::warn!("Authentication server at '{address}' is rate limiting: {status}");
+            last_rate_limited = true;
+            continue;
+        }
         if status.is_server_error() {
             tracing::warn!("Authentication server at '{address}' returned server error: {status}");
             continue;
@@ -173,6 +234,8 @@ pub async fn authenticate(
 
     if unverified_count > 0 {
         Err(AuthError::UnverifiedUsername)
+    } else if last_rate_limited {
+        Err(AuthError::RateLimited)
     } else if let Some(status) = last_unknown_status {
         Err(AuthError::UnknownStatusCode(status))
     } else {
@@ -455,6 +518,8 @@ pub enum AuthError {
     FailedResponse,
     #[error("Failed to verify username")]
     UnverifiedUsername,
+    #[error("Authentication servers are rate limiting requests")]
+    RateLimited,
     #[error("You are banned from Authentication servers")]
     Banned,
     #[error("You have disallowed actions from Authentication servers")]
@@ -488,9 +553,44 @@ mod tests {
     use std::sync::Arc;
 
     use super::{
-        Engine, ProfileTextures, Property, TextureConfig, general_purpose, retain_valid_textures,
+        Engine, ProfileTextures, Property, StatusCode, TextureConfig, general_purpose,
+        parse_retry_after, retain_valid_textures, retry_delay, should_retry_status,
     };
     use crate::net::GameProfile;
+    use std::time::Duration;
+
+    #[test]
+    fn retries_rate_limits_and_server_errors_only() {
+        assert!(should_retry_status(StatusCode::TOO_MANY_REQUESTS));
+        assert!(should_retry_status(StatusCode::BAD_GATEWAY));
+        assert!(should_retry_status(StatusCode::SERVICE_UNAVAILABLE));
+        assert!(!should_retry_status(StatusCode::NO_CONTENT));
+        assert!(!should_retry_status(StatusCode::NOT_FOUND));
+        assert!(!should_retry_status(StatusCode::FORBIDDEN));
+        assert!(!should_retry_status(StatusCode::OK));
+    }
+
+    #[test]
+    fn parses_numeric_retry_after_only() {
+        assert_eq!(parse_retry_after(" 3 "), Some(Duration::from_secs(3)));
+        assert_eq!(parse_retry_after("Wed, 21 Oct 2026 07:28:00 GMT"), None);
+        assert_eq!(parse_retry_after("-1"), None);
+    }
+
+    #[test]
+    fn retry_delay_uses_backoff_without_a_usable_header() {
+        assert_eq!(retry_delay(0, None), Duration::from_millis(250));
+        assert_eq!(retry_delay(1, None), Duration::from_millis(750));
+        assert_eq!(retry_delay(0, Some("soon")), Duration::from_millis(250));
+        assert_eq!(retry_delay(5, None), Duration::from_millis(750));
+    }
+
+    #[test]
+    fn retry_delay_honours_and_caps_retry_after() {
+        assert_eq!(retry_delay(0, Some("1")), Duration::from_secs(1));
+        assert_eq!(retry_delay(0, Some("0")), Duration::ZERO);
+        assert_eq!(retry_delay(1, Some("120")), Duration::from_secs(2));
+    }
 
     const TEXTURES: &str = r#"{"timestamp":0,"profileId":"069a79f444e94726a5befca90e38aaf5","profileName":"Notch","textures":{"SKIN":{"url":"https://textures.minecraft.net/texture/abc"}}}"#;
 

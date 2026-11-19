@@ -7,16 +7,13 @@ use crate::entity::EntityBase;
 
 const TIMEOUT_TO_GET_WITHIN_ATTACK_RANGE: i64 = 200;
 
+/// Drops the attack target once it can no longer be attacked, died, left the world or
+/// stayed out of reach for too long.
 #[must_use]
 pub fn create() -> OneShot {
     create_with_callback(|_, _| {})
 }
 
-/// Vanilla `StopAttackingIfTargetInvalid.create(onTargetErased)`.
-///
-/// Like [`create`], and tells `on_target_erased` about the target first (the target is still in
-/// the memory then). Vanilla's other overloads (an extra stop condition, and giving up that can
-/// be turned off) are left out because nothing here needs them.
 #[must_use]
 pub fn create_with_callback(
     on_target_erased: impl Fn(&BrainTick<'_>, &Arc<dyn EntityBase>) + Send + Sync + 'static,
@@ -89,7 +86,6 @@ mod tests {
             Activity::Core,
             0,
             vec![Box::new(create_with_callback(move |tick, target| {
-                // The target is still in the memory while the callback runs.
                 let in_memory = tick
                     .state
                     .get(types::ATTACK_TARGET)

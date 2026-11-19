@@ -36,7 +36,7 @@ pub use networking::auth::AuthenticationConfig;
 pub use networking::bedrock::BedrockConfig;
 pub use networking::book_size::BookSizeConfig;
 pub use networking::compression::CompressionConfig;
-pub use networking::java::JavaConfig;
+pub use networking::java::{IpSetConfig, JavaConfig, RateLimitConfig};
 pub use networking::lan_broadcast::LANBroadcastConfig;
 pub use networking::management::ManagementServerConfig;
 pub use networking::packet_limiter::PacketLimiterConfig;

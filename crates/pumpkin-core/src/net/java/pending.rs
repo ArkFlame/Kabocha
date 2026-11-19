@@ -475,14 +475,19 @@ impl PendingConnection {
         let mut payload = &packet.payload[..];
         match packet.id {
             0 => {
-                self.handle_handshake(
-                    server,
-                    pumpkin_protocol::java::server::handshake::SHandShake::read(
-                        &mut payload,
-                        &CURRENT_MC_VERSION,
-                    )?,
-                )
-                .await;
+                let handshake = pumpkin_protocol::java::server::handshake::SHandShake::read(
+                    &mut payload,
+                    &CURRENT_MC_VERSION,
+                )?;
+                // A rate-limited intent is closed silently, before any response is written.
+                if self.handshake_rate_limited(server, handshake.next_state) {
+                    debug!(
+                        "Rate limited {:?} handshake from {}",
+                        handshake.next_state, self.id
+                    );
+                    return Ok(Some(PacketHandlerResult::Stop));
+                }
+                self.handle_handshake(server, handshake).await;
                 Ok(None)
             }
             _ => Err(ReadingError::Message(format!(

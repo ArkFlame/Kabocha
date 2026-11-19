@@ -1319,11 +1319,25 @@ impl MobEntity {
                 .is_none_or(|holder| holder.get_player().is_none())
         {
             let diff = entity.pos.load() - player.get_entity().pos.load();
-            let dist_sq = diff.length_squared();
-            if dist_sq <= Entity::LEASH_SNAP_DISTANCE * Entity::LEASH_SNAP_DISTANCE {
-                if entity.leash_to(player.clone() as Arc<dyn EntityBase>)
-                    && player.gamemode.load() != pumpkin_util::GameMode::Creative
+            if diff.length_squared() <= Entity::LEASH_SNAP_DISTANCE * Entity::LEASH_SNAP_DISTANCE {
+                let new_holder: Arc<dyn EntityBase> = player.clone();
+                if !entity.fire_leash_event(&new_holder) {
+                    return Some(false);
+                }
+                if holder.is_some() {
+                    if !entity.unleash() {
+                        return Some(false);
+                    }
+                    entity.spawn_at_location(ItemStack::new(1, &Item::LEAD));
+                }
+                entity.attach_leash(&new_holder);
+                if entity
+                    .get_leash_holder()
+                    .is_none_or(|holder| holder.get_entity().entity_id != player.entity_id())
                 {
+                    return Some(false);
+                }
+                if player.gamemode.load() != pumpkin_util::GameMode::Creative {
                     item_stack.decrement(1);
                 }
                 entity.world.load().play_sound(

@@ -49,15 +49,64 @@ pub struct JavaConfig {
     /// Packet rate limiting settings.
     #[toml(default = Self::default().packet_limiter)]
     pub packet_limiter: PacketLimiterConfig,
-    /// Minimum milliseconds between connection attempts from the same IP before the
-    /// later one is dropped. Spigot uses 4000 ms for login attempts only; here it also hits status
-    /// pings, so it is off by default (`0`).
-    #[serde(alias = "connection-throttle")]
-    #[toml(default = Self::default().connection_throttle, alias = "connection-throttle")]
-    pub connection_throttle: u64,
+    /// Per-IP connection, status and login hit-rate limiting, with an in-process ban list.
+    #[toml(default = Self::default().rate_limit)]
+    pub rate_limit: RateLimitConfig,
     /// Byte limits for books edited by clients.
     #[toml(default = Self::default().book_size)]
     pub book_size: BookSizeConfig,
+}
+
+/// Per-IP hit-rate limiting for Java Edition connections (iptables `hashlimit` style).
+///
+/// Each rule is `"hits/seconds"`. Every rule in a list must pass for a hit to be allowed.
+/// Rejected hits are dropped silently and do not extend the window.
+#[derive(Deserialize, Serialize, Clone, Debug, toml_spanner::Toml)]
+#[serde(default)]
+#[toml(ignore_unknown_fields, recoverable)]
+pub struct RateLimitConfig {
+    /// Whether the per-IP rate limiter is enabled. When `false`, every hit is allowed.
+    #[toml(default = Self::default().enabled)]
+    pub enabled: bool,
+    /// Rules applied to every new TCP connection, whatever it is for.
+    #[toml(default = Self::default().connections)]
+    pub connections: Vec<String>,
+    /// Rules applied to server-list status pings.
+    #[toml(default = Self::default().status)]
+    pub status: Vec<String>,
+    /// Rules applied to join attempts (login and transfer intents).
+    #[toml(default = Self::default().logins)]
+    pub logins: Vec<String>,
+    /// IP addresses or `ip/prefix` CIDR ranges that are never limited or banned.
+    #[toml(default = Self::default().exempt)]
+    pub exempt: Vec<String>,
+    /// Ban list applied after repeated rate-limit violations.
+    #[toml(default = Self::default().ipset)]
+    pub ipset: IpSetConfig,
+}
+
+/// In-process ban list (ipset-style) fed by rate-limit violations.
+///
+/// This does not touch the system `iptables` or `ipset`. Banned IPs are dropped at accept.
+#[derive(Deserialize, Serialize, Clone, Debug, toml_spanner::Toml)]
+#[serde(default)]
+#[toml(ignore_unknown_fields, recoverable)]
+pub struct IpSetConfig {
+    /// Whether repeated violations ban the IP.
+    #[toml(default = Self::default().enabled)]
+    pub enabled: bool,
+    /// Number of rejected hits within `ban_window_seconds` that triggers a ban.
+    #[toml(default = Self::default().ban_after)]
+    pub ban_after: u32,
+    /// Sliding window in seconds over which rejected hits are counted.
+    #[toml(default = Self::default().ban_window_seconds)]
+    pub ban_window_seconds: u64,
+    /// How long a banned IP is dropped at accept, in seconds.
+    #[toml(default = Self::default().ban_seconds)]
+    pub ban_seconds: u64,
+    /// Upper bound on tracked IPs and on active bans. Oldest entries are evicted beyond it.
+    #[toml(default = Self::default().max_entries)]
+    pub max_entries: u64,
 }
 
 impl Default for JavaConfig {
@@ -80,8 +129,33 @@ impl Default for JavaConfig {
             motd: "A blazingly fast Pumpkin server!".to_string(),
             authentication: AuthenticationConfig::default(),
             packet_limiter: PacketLimiterConfig::default(),
-            connection_throttle: 0,
+            rate_limit: RateLimitConfig::default(),
             book_size: BookSizeConfig::default(),
+        }
+    }
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            connections: vec!["20/1".to_string(), "60/10".to_string()],
+            status: vec!["10/1".to_string()],
+            logins: vec!["2/1".to_string(), "6/10".to_string()],
+            exempt: vec!["127.0.0.1".to_string(), "::1".to_string()],
+            ipset: IpSetConfig::default(),
+        }
+    }
+}
+
+impl Default for IpSetConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            ban_after: 10,
+            ban_window_seconds: 10,
+            ban_seconds: 60,
+            max_entries: 65_536,
         }
     }
 }
@@ -124,19 +198,39 @@ mod tests {
     }
 
     #[test]
-    fn connection_throttle_default_and_deserialization() {
-        assert_eq!(JavaConfig::default().connection_throttle, 0);
+    fn rate_limit_defaults_match_spec() {
+        let rl = RateLimitConfig::default();
+        assert!(rl.enabled);
+        assert_eq!(rl.connections, ["20/1", "60/10"]);
+        assert_eq!(rl.status, ["10/1"]);
+        assert_eq!(rl.logins, ["2/1", "6/10"]);
+        assert_eq!(rl.exempt, ["127.0.0.1", "::1"]);
+        assert!(rl.ipset.enabled);
+        assert_eq!(rl.ipset.ban_after, 10);
+        assert_eq!(rl.ipset.ban_window_seconds, 10);
+        assert_eq!(rl.ipset.ban_seconds, 60);
+        assert_eq!(rl.ipset.max_entries, 65_536);
+    }
 
-        let toml_kebab = r"
-            connection-throttle = 2500
-        ";
-        let config: JavaConfig = toml::from_str(toml_kebab).unwrap();
-        assert_eq!(config.connection_throttle, 2500);
+    #[test]
+    fn rate_limit_toml_override_parses() {
+        let toml_str = r#"
+            [rate_limit]
+            enabled = false
+            logins = ["5/1"]
+            exempt = ["10.0.0.0/8"]
 
-        let toml_snake = r"
-            connection_throttle = 0
-        ";
-        let config: JavaConfig = toml::from_str(toml_snake).unwrap();
-        assert_eq!(config.connection_throttle, 0);
+            [rate_limit.ipset]
+            ban_after = 3
+            ban_seconds = 120
+        "#;
+        let config: JavaConfig = toml::from_str(toml_str).unwrap();
+        assert!(!config.rate_limit.enabled);
+        assert_eq!(config.rate_limit.logins, ["5/1"]);
+        assert_eq!(config.rate_limit.exempt, ["10.0.0.0/8"]);
+        assert_eq!(config.rate_limit.connections, ["20/1", "60/10"]);
+        assert_eq!(config.rate_limit.ipset.ban_after, 3);
+        assert_eq!(config.rate_limit.ipset.ban_seconds, 120);
+        assert_eq!(config.rate_limit.ipset.max_entries, 65_536);
     }
 }

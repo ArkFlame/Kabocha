@@ -1,3 +1,4 @@
+use super::duplicate_login::{duplicate_login_message, evict_duplicate_players};
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::net::PlayerConfig;
@@ -86,6 +87,9 @@ impl PendingConnection {
                             translation::bedrock::DISCONNECT_LOGINFAILEDINFO_INVALIDSESSION,
                             [],
                         ),
+                        AuthError::RateLimited => TextComponent::text(
+                            "Authentication servers are busy, try again in a few seconds",
+                        ),
                         e => TextComponent::text(e.to_string()),
                     })
                     .await;
@@ -97,34 +101,6 @@ impl PendingConnection {
         let Some(profile) = self.gameprofile.clone() else {
             return Some(PacketHandlerResult::Stop);
         };
-
-        if let Some(online_player) = &server.get_player_by_uuid(profile.id) {
-            debug!(
-                "Player (IP '{}', username '{}') tried to log in with the same UUID ('{}') as an online player (username '{}')",
-                &self.address, &profile.name, &profile.id, &online_player.gameprofile.name
-            );
-            self.kick(TextComponent::translate_cross(
-                translation::java::MULTIPLAYER_DISCONNECT_DUPLICATE_LOGIN,
-                translation::bedrock::DISCONNECTIONSCREEN_LOGGEDINOTHERLOCATION,
-                [],
-            ))
-            .await;
-            return Some(PacketHandlerResult::Stop);
-        }
-
-        if let Some(online_player) = &server.get_player_by_name(&profile.name) {
-            debug!(
-                "A player (IP '{}', attempted username '{}') tried to log in with the same username as an online player (UUID '{}', username '{}')",
-                &self.address, &profile.name, &profile.id, &online_player.gameprofile.name
-            );
-            self.kick(TextComponent::translate_cross(
-                translation::java::MULTIPLAYER_DISCONNECT_DUPLICATE_LOGIN,
-                translation::bedrock::DISCONNECTIONSCREEN_LOGGEDINOTHERLOCATION,
-                [],
-            ))
-            .await;
-            return Some(PacketHandlerResult::Stop);
-        }
 
         self.finish_login(server, &profile).await
     }
@@ -168,6 +144,12 @@ impl PendingConnection {
             .await;
         if pre_login_event.cancelled {
             self.kick(pre_login_event.kick_message).await;
+            return Some(PacketHandlerResult::Stop);
+        }
+
+        // Vanilla placeNewPlayer: the online duplicate is kicked and this login is admitted.
+        if !evict_duplicate_players(server, profile).await {
+            self.kick(duplicate_login_message()).await;
             return Some(PacketHandlerResult::Stop);
         }
 

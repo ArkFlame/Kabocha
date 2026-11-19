@@ -42,7 +42,7 @@ use crate::entity::{
     mob::{Mob, MobEntity},
     passive::animal::Animal,
     player::Player,
-    shearable::{Shearable, shear_by_player},
+    shearable::{Shearable, shear_by_player_in_hand},
 };
 use crate::item::items::bucket::{create_filled_result, fill_bucket_stack};
 use crate::world::loot::{LootContextParameters, generate_loot_from_handle};
@@ -454,7 +454,7 @@ impl Mob for MooshroomEntity {
         }
 
         if item == &Item::SHEARS && self.ready_for_shearing() {
-            return shear_by_player(self, player, item_stack, Hand::Right);
+            return shear_by_player_in_hand(self, player, item_stack, Hand::Right);
         }
 
         if self.get_variant() == MooshroomVariant::Brown
