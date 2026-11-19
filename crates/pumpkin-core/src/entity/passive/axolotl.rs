@@ -340,11 +340,15 @@ impl Bucketable for AxolotlEntity {
             "AgeLocked",
             self.ageable_data.age_locked.load(Ordering::Relaxed),
         );
-        if let Some(ticks) = self.mob_entity.with_brain(self, |brain| {
-            brain.time_until_expiry(types::HAS_HUNTING_COOLDOWN.id())
-        }) {
-            nbt.put_long("HuntingCooldown", ticks);
-        }
+        // Vanilla gates on hasMemoryValue(HAS_HUNTING_COOLDOWN): the slot can be registered
+        // without an expiry, so the expiry alone is not the presence check.
+        self.mob_entity.with_brain(self, |brain| {
+            if brain.has_memory_value(types::HAS_HUNTING_COOLDOWN.id())
+                && let Some(ticks) = brain.time_until_expiry(types::HAS_HUNTING_COOLDOWN.id())
+            {
+                nbt.put_long("HuntingCooldown", ticks);
+            }
+        });
         bucket.set_data_component(BucketEntityDataImpl { nbt: Some(nbt) });
     }
 
@@ -547,7 +551,8 @@ impl Mob for AxolotlEntity {
         })
     }
 
-    fn on_attack(&self, _target: &dyn EntityBase) {
+    // Vanilla `Axolotl.playAttackSound`, called by `doHurtTarget` only after a landed hit.
+    fn play_attack_sound(&self) {
         self.play_entity_sound(Sound::EntityAxolotlAttack, 1.0, 1.0);
     }
 
@@ -962,6 +967,62 @@ mod tests {
         assert!(!has_cooldown);
 
         world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn the_playing_dead_flag_follows_the_memory_unless_there_is_no_ai() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let axolotl = axolotl(&world);
+        let flag_after = |ticks: Option<i32>| {
+            axolotl.mob_entity.with_brain(axolotl.as_ref(), |brain| {
+                brain.set_optional(types::PLAY_DEAD_TICKS, ticks);
+            });
+            axolotl.custom_server_ai_step(axolotl.as_ref());
+            axolotl.is_playing_dead()
+        };
+        let results = [
+            flag_after(None),
+            flag_after(Some(200)),
+            flag_after(Some(2)),
+            flag_after(Some(1)),
+            flag_after(Some(0)),
+            flag_after(Some(5)),
+            flag_after(None),
+        ];
+        axolotl.mob_entity.set_no_ai(true);
+        axolotl.set_playing_dead(true);
+        let no_ai_stays_on = flag_after(None);
+        axolotl.set_playing_dead(false);
+        let no_ai_stays_off = flag_after(Some(100));
+        world.level.shutdown().await;
+
+        assert_eq!(results, [false, true, true, false, false, true, false]);
+        assert!(no_ai_stays_on);
+        assert!(!no_ai_stays_off);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn playing_dead_hides_it_from_enemies_and_silences_it() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let axolotl = axolotl(&world);
+        let awake = (
+            axolotl.mob_can_be_seen_as_enemy(),
+            axolotl.audible_ambient_sound(),
+        );
+        axolotl.set_playing_dead(true);
+        let asleep = (
+            axolotl.mob_can_be_seen_as_enemy(),
+            axolotl.audible_ambient_sound(),
+        );
+        axolotl.set_playing_dead(false);
+        world.level.shutdown().await;
+
+        assert_eq!(awake, (true, Some(Sound::EntityAxolotlIdleAir)));
+        assert_eq!(asleep, (false, None));
         Ok(())
     }
 }

@@ -470,4 +470,24 @@ mod tests {
         );
         Ok(())
     }
+
+    #[tokio::test]
+    async fn playing_dead_outranks_a_fight_and_holds_the_activity() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let axolotl = axolotl(&world);
+        let prey: Arc<dyn EntityBase> = cod(&world, 2.0);
+        with_brain(&axolotl, |brain| brain.set(types::ATTACK_TARGET, prey));
+        let fighting = update(&axolotl);
+        with_brain(&axolotl, |brain| brain.set(types::PLAY_DEAD_TICKS, 150));
+        let playing_dead = update(&axolotl);
+        with_brain(&axolotl, |brain| brain.erase(types::PLAY_DEAD_TICKS.id()));
+        let held = update(&axolotl);
+        world.level.shutdown().await;
+
+        assert_eq!(fighting, (Some(Activity::Fight), false));
+        assert_eq!(playing_dead, (Some(Activity::PlayDead), true));
+        assert_eq!(held.0, Some(Activity::PlayDead));
+        Ok(())
+    }
 }
