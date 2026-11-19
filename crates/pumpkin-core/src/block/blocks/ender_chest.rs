@@ -157,7 +157,7 @@ fn is_chest_blocked(world: &World, block_pos: &BlockPos) -> bool {
 fn has_block_on_top(world: &World, block_pos: &BlockPos) -> bool {
     let above_pos = block_pos.up();
     let above_state = world.get_block_state(&above_pos);
-    above_state.is_solid_block()
+    above_state.is_redstone_conductor()
 }
 impl EnderChestBlock {
     pub const LID_ANIMATION_EVENT_TYPE: u8 = 1;

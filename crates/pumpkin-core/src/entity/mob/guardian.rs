@@ -19,7 +19,7 @@ use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
         Controls, Goal, look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        move_towards_restriction::MoveTowardsRestrictionGoal, random_swimming::RandomSwimmingGoal,
+        move_towards_restriction::MoveTowardsRestrictionGoal, wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
 };
@@ -31,6 +31,10 @@ const GUARDIAN_PREY: TargetMatch = TargetMatch::AnyOf(&[
     &EntityType::GLOW_SQUID,
     &EntityType::AXOLOTL,
 ]);
+
+/// Vanilla `Guardian.class`: guardians and elder guardians, for the look-at goal.
+pub const GUARDIAN_KIND: TargetMatch =
+    TargetMatch::AnyOf(&[&EntityType::GUARDIAN, &EntityType::ELDER_GUARDIAN]);
 
 /// Vanilla `GuardianAttackSelector`: nothing within 3 blocks.
 fn outside_melee_range(hunter: &dyn Mob, target: &LivingEntity, _world: &World) -> bool {
@@ -363,20 +367,31 @@ impl GuardianEntity {
 
             // Vanilla `Guardian.registerGoals`: the beam attack outranks movement.
             goal_selector.add_goal(
-                3,
+                4,
                 Box::new(GuardianAttackGoal::new(
                     false,
                     pumpkin_data::tracked_data::guardian::DATA_ID_ATTACK_TARGET,
                 )),
             );
-            goal_selector.add_goal(4, Box::new(RandomSwimmingGoal::new(1.0, 10)));
             // Vanilla `Guardian.registerGoals`: restriction at 5 keeps the guardian near home.
             goal_selector.add_goal(5, Box::new(MoveTowardsRestrictionGoal::new(1.0)));
+            // Vanilla `RandomStrollGoal(this, 1.0, 80)`.
+            goal_selector.add_goal(7, Box::new(WanderAroundGoal::with_interval(1.0, 80)));
             goal_selector.add_goal(
-                5,
+                8,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
             );
-            goal_selector.add_goal(6, Box::new(RandomLookAroundGoal::default()));
+            goal_selector.add_goal(
+                8,
+                Box::new(LookAtEntityGoal::matching(
+                    mob_weak.clone(),
+                    GUARDIAN_KIND,
+                    12.0,
+                    0.01,
+                    false,
+                )),
+            );
+            goal_selector.add_goal(9, Box::new(RandomLookAroundGoal::default()));
 
             let target_selector = &mob_arc.mob_entity.target_selector;
             hunting::apply(target_selector, &mob_arc.mob_entity, GUARDIAN_HUNTS);

@@ -12,14 +12,14 @@ use pumpkin_util::GameMode;
 use crate::entity::ai::behavior::hunting;
 use crate::entity::custom_sound::CustomSound;
 use crate::entity::mob::guardian::{
-    GUARDIAN_HUNTS, GUARDIAN_IDLE_SINK, GUARDIAN_WATER_DRAG, GUARDIAN_WATER_SPEED,
+    GUARDIAN_HUNTS, GUARDIAN_IDLE_SINK, GUARDIAN_KIND, GUARDIAN_WATER_DRAG, GUARDIAN_WATER_SPEED,
     GuardianAttackGoal, GuardianMoveControl,
 };
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        move_towards_restriction::MoveTowardsRestrictionGoal, random_swimming::RandomSwimmingGoal,
+        move_towards_restriction::MoveTowardsRestrictionGoal, wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
 };
@@ -79,20 +79,31 @@ impl ElderGuardianEntity {
 
             // Vanilla `Guardian.registerGoals`: the elder's beam outranks movement.
             goal_selector.add_goal(
-                3,
+                4,
                 Box::new(GuardianAttackGoal::new(
                     true,
                     pumpkin_data::tracked_data::elder_guardian::DATA_ID_ATTACK_TARGET,
                 )),
             );
-            goal_selector.add_goal(4, Box::new(RandomSwimmingGoal::new(1.0, 10)));
             // Vanilla `Guardian.registerGoals`: restriction at 5 keeps the elder near home.
             goal_selector.add_goal(5, Box::new(MoveTowardsRestrictionGoal::new(1.0)));
+            // Vanilla `RandomStrollGoal(this, 1.0, 80)`.
+            goal_selector.add_goal(7, Box::new(WanderAroundGoal::with_interval(1.0, 80)));
             goal_selector.add_goal(
-                5,
+                8,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
             );
-            goal_selector.add_goal(6, Box::new(RandomLookAroundGoal::default()));
+            goal_selector.add_goal(
+                8,
+                Box::new(LookAtEntityGoal::matching(
+                    mob_weak.clone(),
+                    GUARDIAN_KIND,
+                    12.0,
+                    0.01,
+                    false,
+                )),
+            );
+            goal_selector.add_goal(9, Box::new(RandomLookAroundGoal::default()));
 
             let target_selector = &mob_arc.mob_entity.target_selector;
             hunting::apply(target_selector, &mob_arc.mob_entity, GUARDIAN_HUNTS);

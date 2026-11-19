@@ -21,24 +21,28 @@ impl ItemBehaviour for NameTagItem {
     fn use_on_entity(
         &self,
         item: &mut ItemStack,
-        player: &Player,
+        _player: &Player,
         entity: Arc<dyn EntityBase>,
     ) -> BlockActionResult {
         let raw_entity = entity.get_entity();
         if let Some(living) = entity.get_living_entity()
             && raw_entity.entity_type.saveable
-            && living.entity.is_alive()
             && let Some(name) = item.get_data_component::<CustomNameImpl>()
         {
-            raw_entity.set_custom_name(name.name.clone());
-            // Vanilla names any serializable LivingEntity (including ArmorStand), but only mobs
-            // can be made persistent.
-            if let Some(mob) = entity.get_mob() {
-                mob.get_mob_entity()
-                    .persistence_required
-                    .store(true, Ordering::Relaxed);
+            // Vanilla returns SUCCESS for any named, serializable target, but only names and
+            // consumes the tag while the target is alive.
+            if living.entity.is_alive() {
+                raw_entity.set_custom_name(name.name.clone());
+                // Vanilla names any serializable LivingEntity (including ArmorStand), but only mobs
+                // can be made persistent.
+                if let Some(mob) = entity.get_mob() {
+                    mob.get_mob_entity()
+                        .persistence_required
+                        .store(true, Ordering::Relaxed);
+                }
+                // Vanilla `NameTagItem#interactLivingEntity` calls `ItemStack#shrink` without a creative check.
+                item.decrement(1);
             }
-            item.decrement_unless_creative(player.gamemode.load(), 1);
             return BlockActionResult::SuccessServer;
         }
         BlockActionResult::Pass
