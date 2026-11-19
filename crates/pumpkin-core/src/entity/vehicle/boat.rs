@@ -287,6 +287,14 @@ impl BoatEntity {
         world.scatter_inventory_at(position, &inventory);
     }
 
+    /// Vanilla `BoatItem.getBoat` applies the item's `minecraft:container` component to the new
+    /// chest boat before it spawns.
+    pub fn apply_item_container(&self, items: &[(u8, ItemStack)]) {
+        if let Some(inventory) = &self.inventory {
+            apply_container_items(inventory, items);
+        }
+    }
+
     pub fn open_custom_inventory_screen(&self, player: &Arc<Player>) -> bool {
         // Vanilla AbstractChestBoat.openCustomInventoryScreen has no rider, spectator or
         // alive check: player.openMenu(this) succeeds even when another player rides the
@@ -625,6 +633,9 @@ impl EntityBase for BoatEntity {
             let surface_offset = self.float_boat(old_status, status);
             self.move_boat(caller, surface_offset);
         }
+        // Vanilla `AbstractBoat.tick` calls `applyEffectsFromBlocks` twice. The second pass has
+        // no recorded movement left, so it sweeps the whole-tick segment again.
+        self.apply_effects_from_blocks();
         self.apply_effects_from_blocks();
         self.tick_bubble_column();
         self.play_paddle_sounds();
@@ -1028,13 +1039,21 @@ pub fn rider_clamp_adjustment(rider_yaw: f32, boat_yaw: f32) -> f32 {
     clamp_rider_yaw(rider_yaw, boat_yaw) - rider_yaw
 }
 
+/// Copies the stored container slots of an item into a chest boat inventory. `set_stack`
+/// ignores slots past the inventory size.
+pub fn apply_container_items(inventory: &MinecartInventory, items: &[(u8, ItemStack)]) {
+    for (slot, stack) in items {
+        inventory.set_stack(usize::from(*slot), stack.clone());
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        CHEST_BOAT_CONTAINER_SIZE, MinecartInventory, PADDLE_CUE, PADDLE_STEP, boat_container_size,
-        boat_drop_item, clamp_head_to_body, clamp_rider_yaw, drops_item_when_destroyed,
-        is_chest_boat, max_passengers, paddle_sound_cue, paddle_sound_for_status, rider_body_yaw,
-        rider_clamp_adjustment,
+        CHEST_BOAT_CONTAINER_SIZE, MinecartInventory, PADDLE_CUE, PADDLE_STEP,
+        apply_container_items, boat_container_size, boat_drop_item, clamp_head_to_body,
+        clamp_rider_yaw, drops_item_when_destroyed, is_chest_boat, max_passengers,
+        paddle_sound_cue, paddle_sound_for_status, rider_body_yaw, rider_clamp_adjustment,
     };
     use pumpkin_data::entity::EntityType;
     use pumpkin_data::item::Item;
@@ -1042,6 +1061,22 @@ mod tests {
     use pumpkin_data::sound::Sound;
     use pumpkin_inventory::Inventory;
     use pumpkin_nbt::compound::NbtCompound;
+
+    #[test]
+    fn item_container_slots_copy_into_chest_boat() {
+        // Vanilla `BoatItem.getBoat` applies the item's container component. Slot 27 is past the
+        // 27-slot chest boat and is dropped without panicking.
+        let inventory = MinecartInventory::new(CHEST_BOAT_CONTAINER_SIZE);
+        let items = [
+            (0, ItemStack::new(1, &Item::POWERED_RAIL)),
+            (27, ItemStack::new(2, &Item::POWERED_RAIL)),
+        ];
+        apply_container_items(&inventory, &items);
+        let first = inventory.get_stack(0);
+        assert_eq!(first.item_count, 1);
+        assert!(first.get_item().id == Item::POWERED_RAIL.id);
+        assert!(inventory.get_stack(26).is_empty());
+    }
 
     #[test]
     fn rider_yaw_clamps_to_boat_heading_window() {

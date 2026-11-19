@@ -104,6 +104,12 @@ pub(crate) fn entity_type_from_spawn_egg_stack(stack: &ItemStack) -> Option<&'st
         .or_else(|| entity_from_egg(stack.item.id))
 }
 
+/// Vanilla `useOn` same-type gate: the egg's resolved type must be the clicked entity's type.
+#[must_use]
+fn egg_type_for_clicked(item: &ItemStack, clicked: &EntityType) -> Option<&'static EntityType> {
+    entity_type_from_spawn_egg_stack(item).filter(|egg_type| egg_type.id == clicked.id)
+}
+
 /// Loads the stack's `entity_data` NBT into the mob. Identity and placement stay as spawned.
 ///
 /// `user` is the player who caused the spawn, matching vanilla's `updateCustomEntityTag` user
@@ -458,9 +464,7 @@ impl ItemBehaviour for SpawnEggItem {
         player: &Player,
         entity: Arc<dyn EntityBase>,
     ) -> BlockActionResult {
-        if let Some(entity_type) = entity_type_from_spawn_egg_stack(item)
-            && entity.get_entity().entity_type.id == entity_type.id
-        {
+        if let Some(entity_type) = egg_type_for_clicked(item, entity.get_entity().entity_type) {
             let world = player.world();
             if is_disallowed_in_peaceful(entity_type, &world) {
                 return BlockActionResult::Pass;
@@ -574,5 +578,27 @@ mod tests {
         assert!(!is_monster_blocked_in_peaceful(&EntityType::PIGLIN));
         assert!(!is_monster_blocked_in_peaceful(&EntityType::SHULKER));
         assert!(!is_monster_blocked_in_peaceful(&EntityType::COW));
+    }
+
+    #[test]
+    fn use_on_entity_gate_requires_clicked_entity_type() {
+        let cow_egg = ItemStack::new(1, &Item::COW_SPAWN_EGG);
+        assert_eq!(
+            egg_type_for_clicked(&cow_egg, &EntityType::COW).map(|entity| entity.id),
+            Some(EntityType::COW.id)
+        );
+        assert!(egg_type_for_clicked(&cow_egg, &EntityType::PIG).is_none());
+    }
+
+    #[test]
+    fn use_on_entity_gate_uses_entity_data_type_over_egg_type() {
+        // The clicked mob must match the component type (WOLF), not the egg's base mapping (PIG).
+        let mut pig_egg = ItemStack::new(1, &Item::PIG_SPAWN_EGG);
+        pig_egg.set_data_component(EntityDataImpl {
+            entity_type: Some(&EntityType::WOLF),
+            nbt: None,
+        });
+        assert!(egg_type_for_clicked(&pig_egg, &EntityType::WOLF).is_some());
+        assert!(egg_type_for_clicked(&pig_egg, &EntityType::PIG).is_none());
     }
 }

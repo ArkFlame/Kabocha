@@ -139,6 +139,23 @@ impl BlockState {
         self.state_flags & IS_FULL_CUBE != 0
     }
 
+    /// Vanilla `BlockState.isCollisionShapeFullBlock`: one collision box spans the whole block.
+    ///
+    /// Unlike [`Self::is_full_cube`] this follows the collision shape, so glass is full while
+    /// occlusion-only shapes are not.
+    #[must_use]
+    pub fn is_collision_shape_full(&self) -> bool {
+        self.collision_shapes.iter().any(|&id| {
+            let shape = collision_shape(id);
+            shape.min.x <= 0.0
+                && shape.min.y <= 0.0
+                && shape.min.z <= 0.0
+                && shape.max.x >= 1.0
+                && shape.max.y >= 1.0
+                && shape.max.z >= 1.0
+        })
+    }
+
     /// Returns whether the block is solid.
     /// Solid blocks conduct redstone and block redstone wire.
     /// Non-solid blocks don't allow redstone wire on top to propagate their signal downwards in java.

@@ -1,6 +1,6 @@
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crossbeam::atomic::AtomicCell;
 use pumpkin_data::block_properties::{
@@ -42,10 +42,14 @@ const CREAKING_TOO_FAR_DISTANCE: f64 = 34.0;
 /// Vanilla `BlockPos.breadthFirstTraversal(origin, 2, 64, ...)` limits for resin spread.
 const RESIN_SPREAD_MAX_DEPTH: u32 = 2;
 const RESIN_SPREAD_MAX_NODES: u32 = 64;
+/// Vanilla `CreakingHeartBlockEntity#getCreakingProtector` keeps an unresolved binding for
+/// 30 ticks (`ticksExisted`) so a creaking loaded later in the same chunk is still found.
+const CREAKING_BINDING_GRACE_TICKS: u64 = 30;
 
 pub struct CreakingHeartBlockEntity {
     pub position: BlockPos,
     pub creaking_uuid: AtomicCell<Option<Uuid>>,
+    ticks_existed: AtomicU64,
 }
 
 impl BlockEntity for CreakingHeartBlockEntity {
@@ -74,6 +78,7 @@ impl BlockEntity for CreakingHeartBlockEntity {
         Self {
             position,
             creaking_uuid: AtomicCell::new(creaking_uuid),
+            ticks_existed: AtomicU64::new(0),
         }
     }
 
@@ -92,6 +97,8 @@ impl BlockEntity for CreakingHeartBlockEntity {
     }
 
     fn tick(&self, world: &Arc<World>) {
+        // Vanilla increments `ticksExisted` on every server tick, before its timer gate.
+        self.ticks_existed.fetch_add(1, Ordering::Relaxed);
         // Vanilla `CreakingHeartBlockEntity#serverTick` runs its state/spawn logic on a
         // 20-24 tick timer, spawning only when unbound and despawning only when bound.
         if world.get_world_age() % 20 != 0 {
@@ -124,6 +131,15 @@ impl CreakingHeartBlockEntity {
         Self {
             position,
             creaking_uuid: AtomicCell::new(None),
+            ticks_existed: AtomicU64::new(0),
+        }
+    }
+
+    /// Clears a binding whose creaking is not loaded, but only once the grace period has
+    /// passed, as vanilla `getCreakingProtector` does.
+    fn clear_missing_creaking(&self) {
+        if self.ticks_existed.load(Ordering::Relaxed) >= CREAKING_BINDING_GRACE_TICKS {
+            self.set_creaking_uuid(None);
         }
     }
 
@@ -229,11 +245,11 @@ impl CreakingHeartBlockEntity {
             return;
         };
         let Some(entity) = world.get_entity_by_uuid(uuid) else {
-            self.set_creaking_uuid(None);
+            self.clear_missing_creaking();
             return;
         };
         let Some(creaking) = entity.cast_any().downcast_ref::<CreakingEntity>() else {
-            self.set_creaking_uuid(None);
+            self.clear_missing_creaking();
             return;
         };
         let creaking_pos = creaking.mob_entity.living_entity.entity.pos.load();
@@ -409,7 +425,22 @@ mod tests {
     use pumpkin_util::math::vector3::Vector3;
     use uuid::Uuid;
 
-    use super::CreakingHeartBlockEntity;
+    use std::sync::atomic::Ordering;
+
+    use super::{CREAKING_BINDING_GRACE_TICKS, CreakingHeartBlockEntity};
+
+    #[test]
+    fn missing_creaking_binding_survives_grace_period() {
+        let be = CreakingHeartBlockEntity::new(BlockPos::new(0, 64, 0));
+        let bound = Uuid::new_v4();
+        be.set_creaking_uuid(Some(bound));
+        be.clear_missing_creaking();
+        assert!(be.is_protector(bound));
+        be.ticks_existed
+            .store(CREAKING_BINDING_GRACE_TICKS, Ordering::Relaxed);
+        be.clear_missing_creaking();
+        assert!(!be.is_protector(bound));
+    }
 
     #[test]
     fn unbound_heart_protects_no_creaking() {

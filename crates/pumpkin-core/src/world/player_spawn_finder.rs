@@ -62,6 +62,11 @@ fn spawn_candidate_offsets(radius: i32, offset: i32) -> impl Iterator<Item = (i3
 }
 
 // EntityGetter's null-source query uses canBeCollidedWith, not movement collision.
+/// Vanilla `FlatLevelSource.getSpawnHeight`: one block per layer above the bottom, capped at the dimension height.
+fn flat_spawn_top(bottom_y: i32, layer_count: usize, dimension_height: usize) -> i32 {
+    bottom_y + layer_count.min(dimension_height) as i32
+}
+
 fn can_be_collided_with(entity: &dyn EntityBase) -> bool {
     let base = entity.get_entity();
     if entity.is_spectator() || base.is_removed() {
@@ -201,10 +206,11 @@ impl World {
             match self.level.world_gen.load().as_ref() {
                 // FlatLevelSource.getSpawnHeight uses the layer count, not the summed
                 // layer thickness.
-                WorldGenerator::Flat(generator) => {
-                    self.get_bottom_y()
-                        + generator.layers.len().min(self.dimension.height as usize) as i32
-                }
+                WorldGenerator::Flat(generator) => flat_spawn_top(
+                    self.get_bottom_y(),
+                    generator.layers.len(),
+                    self.dimension.height as usize,
+                ),
                 // NoiseBasedChunkGenerator does not override getSpawnHeight, so the
                 // base ChunkGenerator constant is used even for non-overworld sea levels.
                 WorldGenerator::Noise(_) | WorldGenerator::Custom(_) => DEFAULT_SPAWN_HEIGHT,
@@ -250,7 +256,15 @@ impl World {
 
 #[cfg(test)]
 mod tests {
-    use super::{spawn_candidate_count, spawn_candidate_offsets, spawn_search_radius};
+    use super::{
+        flat_spawn_top, spawn_candidate_count, spawn_candidate_offsets, spawn_search_radius,
+    };
+
+    #[test]
+    fn flat_cave_spawn_top_counts_layers_and_caps_at_height() {
+        assert!(flat_spawn_top(-64, 3, 256) == -61);
+        assert!(flat_spawn_top(0, 300, 256) == 256);
+    }
 
     #[test]
     fn candidate_order_matches_vanilla_with_a_fixed_offset() {

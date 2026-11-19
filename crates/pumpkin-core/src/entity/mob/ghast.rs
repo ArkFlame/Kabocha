@@ -15,6 +15,7 @@ use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::projectile::fireball::FireballEntity;
 use crate::entity::{
     Entity, EntityBase,
+    ai::control::ghast_move_control::GhastMoveControl,
     ai::goal::{Controls, Goal},
     mob::{Mob, MobEntity},
 };
@@ -36,7 +37,13 @@ impl GhastEntity {
     pub const FLYING_SPEED: f64 = 0.06;
 
     pub fn new(entity: Entity) -> Arc<Self> {
-        let mob_entity = MobEntity::new(entity);
+        let mut mob_entity = MobEntity::new(entity);
+        // Vanilla `Ghast` constructor: `new GhastMoveControl(this, false, () -> false)`.
+        *mob_entity
+            .move_control
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Box::new(GhastMoveControl::new(false, None));
         let ghast = Self {
             mob_entity,
             is_charging: AtomicBool::new(false),

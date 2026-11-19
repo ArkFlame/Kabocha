@@ -103,13 +103,7 @@ impl BoatEntity {
             if !visited.insert(pos) {
                 return;
             }
-            if pos.0.x >= standing_min.0.x
-                && pos.0.x <= standing_max.0.x
-                && pos.0.y >= standing_min.0.y
-                && pos.0.y <= standing_max.0.y
-                && pos.0.z >= standing_min.0.z
-                && pos.0.z <= standing_max.0.z
-            {
+            if in_standing_blocks(pos, standing_min, standing_max) {
                 return;
             }
             world
@@ -155,6 +149,17 @@ fn collided_along_vector(
     let half = (bounds.max - bounds.min) * 0.5;
     let inflated = shape.expand(half.x - 1.0e-7, half.y - 1.0e-7, half.z - 1.0e-7);
     inflated.contains(from) || inflated.contains(to) || inflated.clip(from, to).is_some()
+}
+
+/// Whether `pos` lies in the block range of the standing box, which `tick_block_collisions`
+/// already dispatches, so the sweep skips it to avoid a second `entityInside`.
+const fn in_standing_blocks(pos: BlockPos, min: BlockPos, max: BlockPos) -> bool {
+    pos.0.x >= min.0.x
+        && pos.0.x <= max.0.x
+        && pos.0.y >= min.0.y
+        && pos.0.y <= max.0.y
+        && pos.0.z >= min.0.z
+        && pos.0.z <= max.0.z
 }
 
 fn for_each_block_along_movement(
@@ -594,5 +599,38 @@ mod tests {
         assert_eq!(movements[0].from, Vector3::new(0.0, 0.0, 0.0));
         assert_eq!(movements[0].to, Vector3::new(2.0, 0.0, 0.0));
         assert!(movements[0].requested.is_none());
+    }
+
+    #[test]
+    fn sweep_skips_only_blocks_the_standing_box_already_dispatches() {
+        let min = BlockPos(Vector3::new(0, 64, 0));
+        let max = BlockPos(Vector3::new(1, 65, 1));
+        // A block the boat ends inside is dispatched once, by `tick_block_collisions`.
+        assert!(in_standing_blocks(
+            BlockPos(Vector3::new(1, 65, 1)),
+            min,
+            max
+        ));
+        assert!(in_standing_blocks(
+            BlockPos(Vector3::new(0, 64, 0)),
+            min,
+            max
+        ));
+        // A block the sweep crossed beyond the standing box is still dispatched by the sweep.
+        assert!(!in_standing_blocks(
+            BlockPos(Vector3::new(2, 64, 0)),
+            min,
+            max
+        ));
+        assert!(!in_standing_blocks(
+            BlockPos(Vector3::new(0, 66, 0)),
+            min,
+            max
+        ));
+        assert!(!in_standing_blocks(
+            BlockPos(Vector3::new(0, 63, 0)),
+            min,
+            max
+        ));
     }
 }

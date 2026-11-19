@@ -18,8 +18,8 @@ use rand::RngExt;
 
 // Values checked against decompiled vanilla 1.21.4 GoatAi.java.
 /// Vanilla `GoatAi.TIME_BETWEEN_RAMS` / `TIME_BETWEEN_RAMS_SCREAMER`.
-const RAM_COOLDOWN_MIN_TICKS: i64 = 600;
-const RAM_COOLDOWN_MAX_TICKS: i64 = 6000;
+pub const RAM_COOLDOWN_MIN_TICKS: i64 = 600;
+pub const RAM_COOLDOWN_MAX_TICKS: i64 = 6000;
 const SCREAMER_RAM_COOLDOWN_MIN_TICKS: i64 = 100;
 const SCREAMER_RAM_COOLDOWN_MAX_TICKS: i64 = 300;
 /// Vanilla `GoatAi.RAM_MAX_DISTANCE`: `PrepareRamNearestTarget` picks a target 4..7 blocks away.
@@ -86,6 +86,13 @@ fn is_screaming(mob: &dyn Mob) -> bool {
     mob.cast_any()
         .downcast_ref::<GoatEntity>()
         .is_some_and(GoatEntity::is_screaming)
+}
+
+/// Absolute world age seeded at spawn for goats (vanilla `initMemories`), if any.
+fn seeded_ram_ready_at(mob: &dyn Mob) -> Option<i64> {
+    mob.cast_any()
+        .downcast_ref::<GoatEntity>()
+        .and_then(GoatEntity::ram_seed)
 }
 
 fn knockback_force(mob: &dyn Mob) -> f64 {
@@ -362,7 +369,10 @@ impl Goal for RamTargetGoal {
             return false;
         }
         let now = mob.get_entity().world.load().get_world_age();
-        if !self.timer.can_ram(now, initial_ram_cooldown) {
+        let seeded = seeded_ram_ready_at(mob);
+        if !self.timer.can_ram(now, || {
+            seeded.map_or_else(initial_ram_cooldown, |at| at - now)
+        }) {
             return false;
         }
         let distance_sq = mob

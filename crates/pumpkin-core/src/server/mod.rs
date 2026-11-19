@@ -1086,7 +1086,7 @@ impl Server {
             .write_world_info(&level_data, &self.basic_config.get_world_path())
     }
 
-    pub fn reload_datapacks(&self) -> Result<(), String> {
+    pub fn reload_datapacks(self: &Arc<Self>) -> Result<(), String> {
         let enabled_packs = self.level_info.load().data_packs.enabled.clone();
         let world_path = self.basic_config.get_world_path();
         let result =
@@ -1096,9 +1096,15 @@ impl Server {
             error!("Failed to reload datapacks: {err}");
         }
 
-        // Do not run here: `/reload` and `/datapack` do not tick, and the load tag must see the
-        // enabled pack set at execution time, so it is consumed by `tick_worlds`.
-        self.datapack_manager.mark_load_pending();
+        // Vanilla runs `#minecraft:load` inside the reload itself. `/reload` and `/datapack`
+        // do not tick, so run it now, when the enabled pack set is already in effect.
+        if let Some(source) = crate::command::CommandSender::Console.into_source(self) {
+            let _ = self.datapack_manager.execute_function(
+                self,
+                &source.with_silent(),
+                "#minecraft:load",
+            );
+        }
 
         let dynamic_recipes = self.recipe_manager.get_dynamic_recipes_internal();
         // The stonecutter list only depends on the client version, so build it once per version.

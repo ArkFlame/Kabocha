@@ -461,6 +461,14 @@ const fn fall_flying_start_allowed(is_fall_flying: bool, can_glide: bool, in_liq
     !is_fall_flying && can_glide && !in_liquid
 }
 
+/// Whether the vanilla `updateFallFlying` stop branch ends an active glide this tick.
+///
+/// A glide with no usable glider ends unless a plugin cancels the toggle. `stop_allowed` is only
+/// called on that branch, so a glide that can continue never fires `EntityToggleGlideEvent`.
+fn glide_stop_applies(can_glide: bool, stop_allowed: impl FnOnce() -> bool) -> bool {
+    !can_glide && stop_allowed()
+}
+
 /// Decides the vanilla `LodestoneTracker.tick` outcome for a compass in its target dimension.
 ///
 /// A tracker stays linked while the target is in world bounds and its chunk is either unloaded
@@ -4093,11 +4101,12 @@ impl Player {
         if entity.movement.load().y > -0.5 && self.living_entity.fall_distance.load() > 1.0 {
             self.living_entity.fall_distance.store(1.0);
         }
-        if !self.can_glide() {
-            if self.glide_stop_allowed() {
-                entity.set_fall_flying(false);
-                self.fall_fly_ticks.store(0, Ordering::Relaxed);
-            }
+        let can_glide = self.can_glide();
+        if glide_stop_applies(can_glide, || self.glide_stop_allowed()) {
+            entity.set_fall_flying(false);
+            self.fall_fly_ticks.store(0, Ordering::Relaxed);
+        }
+        if !can_glide {
             return;
         }
         let ticks = self.fall_fly_ticks.fetch_add(1, Ordering::Relaxed) + 1;
@@ -10907,6 +10916,23 @@ mod tests {
         assert!(!super::fall_flying_start_allowed(false, false, false));
         // Vanilla `isInLiquid` blocks the start in water or lava.
         assert!(!super::fall_flying_start_allowed(false, true, true));
+    }
+
+    #[test]
+    fn glide_stop_checks_the_plugin_veto_only_without_a_glider() {
+        use std::cell::Cell;
+
+        // A glide that can continue is never stopped, and no toggle event is fired for it.
+        let fired = Cell::new(false);
+        assert!(!super::glide_stop_applies(true, || {
+            fired.set(true);
+            true
+        }));
+        assert!(!fired.get());
+        // Without a glider the stop goes ahead when no plugin cancels the toggle.
+        assert!(super::glide_stop_applies(false, || true));
+        // A plugin veto keeps the glide alive even though the glider is gone.
+        assert!(!super::glide_stop_applies(false, || false));
     }
 
     #[test]

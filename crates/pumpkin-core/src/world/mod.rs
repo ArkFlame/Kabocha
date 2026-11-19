@@ -1158,6 +1158,17 @@ impl World {
         }
     }
 
+    /// Marks the chunk holding the block entity at `block_pos` dirty, so its NBT is
+    /// written on the next save. Vanilla `BlockEntity.setChanged` reaches the chunk
+    /// the same way.
+    pub fn mark_block_entity_dirty(&self, block_pos: &BlockPos) {
+        let _ = self
+            .level
+            .read_chunk_sync(&block_pos.chunk_position(), |chunk| {
+                chunk.mark_dirty(true);
+            });
+    }
+
     /// Serializes the live block entities of a chunk back into that chunk's block
     /// entity data. The live map is the source of truth while a chunk is loaded -
     /// `get_block_entity` takes the saved NBT out of the chunk when it wakes an

@@ -1227,14 +1227,24 @@ impl StructureTemplate {
     ) {
         if info.nbt.is_some() {
             block_entities_list.push(info);
-        } else if Self::is_full_cube_block(&info.state.name) {
+        } else if Self::is_full_cube_block(&info.state) {
             full_block_list.push(info);
         } else {
             other_blocks_list.push(info);
         }
     }
 
-    fn is_full_cube_block(name: &str) -> bool {
+    /// Vanilla `StructureTemplate` sorts by `isCollisionShapeFullBlock`. Resolved palette
+    /// entries use the generated collision shape; the name heuristic is only the fallback
+    /// for entries whose state id was not resolved.
+    fn is_full_cube_block(entry: &PaletteEntry) -> bool {
+        if let Some(state_id) = entry.state_id {
+            return state_id.to_state().is_collision_shape_full();
+        }
+        Self::is_full_cube_name(&entry.name)
+    }
+
+    fn is_full_cube_name(name: &str) -> bool {
         let stripped = name.strip_prefix("minecraft:").unwrap_or(name);
         !(stripped.contains("air")
             || stripped.contains("stair")

@@ -70,17 +70,8 @@ fn parse_ingredient(value: &Value) -> Option<OwnedRecipeIngredient> {
             || Some(OwnedRecipeIngredient::Simple(normalize_id(s))),
             |tag| Some(OwnedRecipeIngredient::Tagged(normalize_id(tag))),
         ),
-        // Vanilla Ingredient codec rejects an object that sets both `item` and `tag`.
-        Value::Object(map) if map.contains_key("item") && map.contains_key("tag") => None,
-        Value::Object(map) => map
-            .get("tag")
-            .and_then(Value::as_str)
-            .map(|tag| OwnedRecipeIngredient::Tagged(normalize_id(tag)))
-            .or_else(|| {
-                map.get("item")
-                    .and_then(Value::as_str)
-                    .map(|item| OwnedRecipeIngredient::Simple(normalize_id(item)))
-            }),
+        // Vanilla `Ingredient.CODEC` is a `HolderSetCodec` over `Item.CODEC`, which is a plain id
+        // string. Objects such as `{"item": ..}` or `{"tag": ..}` are not valid ingredients.
         Value::Array(arr) => {
             // Vanilla HolderSetCodec list entries are Item ids only (`#tag` belongs at the top level).
             // A tag or any other shape fails the whole ingredient instead of silently narrowing it.
@@ -88,7 +79,6 @@ fn parse_ingredient(value: &Value) -> Option<OwnedRecipeIngredient> {
                 .iter()
                 .map(|item| match item {
                     Value::String(s) if !s.starts_with('#') => Some(normalize_id(s)),
-                    Value::Object(obj) => obj.get("item").and_then(Value::as_str).map(normalize_id),
                     _ => None,
                 })
                 .collect::<Option<Vec<_>>>()?;
@@ -109,10 +99,8 @@ fn parse_result(value: &Value) -> Option<OwnedRecipeResult> {
             count: 1,
         }),
         Value::Object(map) => {
-            let id = map
-                .get("id")
-                .or_else(|| map.get("item"))
-                .and_then(Value::as_str)?;
+            // Vanilla `ItemStackTemplate.MAP_CODEC` reads only `id`; `item` is not an alias.
+            let id = map.get("id").and_then(Value::as_str)?;
             // Vanilla `ItemStackTemplate` uses `intRange(1, 99).optionalFieldOf("count", 1)`:
             // an absent count defaults to 1, but a present non-integer or out-of-range count
             // rejects the recipe rather than being silently defaulted.
@@ -893,22 +881,29 @@ mod ingredient_codec_tests {
     use serde_json::json;
 
     #[test]
-    fn ingredient_object_with_item_and_tag_is_rejected() {
+    fn ingredient_objects_are_rejected() {
+        assert!(parse_ingredient(&json!({"item": "minecraft:stick"})).is_none());
         assert!(
             parse_ingredient(&json!({"item": "minecraft:stick", "tag": "minecraft:planks"}))
                 .is_none()
         );
-        assert!(parse_ingredient(&json!({"item": "minecraft:stick"})).is_some());
+        assert!(parse_ingredient(&json!({"tag": "minecraft:planks"})).is_none());
     }
 
     #[test]
     fn ingredient_list_with_tag_entry_is_rejected() {
         // Vanilla HolderSetCodec list elements are Item ids only, so a mixed tag list fails as a whole.
         assert!(
-            parse_ingredient(&json!(["minecraft:stick", {"tag": "minecraft:planks"}])).is_none()
+            parse_ingredient(&json!(["minecraft:stick", {"item": "minecraft:planks"}])).is_none()
         );
         assert!(parse_ingredient(&json!(["minecraft:stick", "#minecraft:planks"])).is_none());
         assert!(parse_ingredient(&json!(["minecraft:stick", "minecraft:bowl"])).is_some());
+    }
+
+    #[test]
+    fn result_requires_id_field() {
+        assert!(parse_result(&json!({"item": "minecraft:stick"})).is_none());
+        assert!(parse_result(&json!({"id": "minecraft:stick"})).is_some());
     }
 
     #[test]

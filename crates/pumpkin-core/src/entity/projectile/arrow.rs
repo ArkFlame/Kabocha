@@ -1,4 +1,5 @@
 use crate::block::blocks::bubble_column;
+use crate::enchantment::EnchantmentHelper;
 use crate::entity::projectile::owner::ProjectileOwner;
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -743,7 +744,13 @@ impl ArrowEntity {
         let entity = self.get_entity();
         let world = entity.world.load();
         let velocity = entity.velocity.load();
-        let mut damage = (velocity.length() * self.get_base_damage())
+        // Vanilla `AbstractArrow#onHitEntity` applies the weapon's damage enchantments to the
+        // base damage before the velocity scale and the `ceil`.
+        let base_damage = self.get_base_damage();
+        let base_damage = self.get_weapon_item().map_or(base_damage, |weapon| {
+            EnchantmentHelper::modify_damage(&weapon, base_damage)
+        });
+        let mut damage = (velocity.length() * base_damage)
             .clamp(0.0, f64::from(i32::MAX))
             .ceil() as i32;
 

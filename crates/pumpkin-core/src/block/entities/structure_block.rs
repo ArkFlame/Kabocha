@@ -284,7 +284,7 @@ pub fn capture_structure_template_from_world(
                 let info = StructureBlockInfo::new(rel_pos, Arc::new(entry), nbt);
                 if info.nbt.is_some() {
                     block_entity_blocks.push(info);
-                } else if state.is_full_cube() && !has_dynamic_shape(block.name) {
+                } else if state.is_collision_shape_full() && !has_dynamic_shape(block.name) {
                     // Vanilla: !hasDynamicShape() && isCollisionShapeFullBlock(...),
                     // not render occlusion (glass is full-collision).
                     full_blocks.push(info);
@@ -1754,6 +1754,9 @@ mod tests {
         assert!(glass.is_full_cube());
         assert!(!glass.is_solid_render());
         assert!(!Block::WATER.default_state.is_full_cube());
+        assert!(glass.is_collision_shape_full());
+        assert!(!Block::WATER.default_state.is_collision_shape_full());
+        assert!(!Block::OAK_SLAB.default_state.is_collision_shape_full());
     }
 
     #[test]

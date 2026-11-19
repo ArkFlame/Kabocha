@@ -3,9 +3,11 @@ use std::sync::Arc;
 
 use pumpkin_data::Enchantment;
 use pumpkin_data::data_component::DataComponent;
+use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::data_component_impl::{
-    CustomModelDataImpl, EnchantmentsImpl, PotionContentsImpl, StoredEnchantmentsImpl, read_data,
+    CustomModelDataImpl, EnchantmentsImpl, LoreImpl, PotionContentsImpl, StoredEnchantmentsImpl,
+    read_data,
 };
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
@@ -25,6 +27,7 @@ use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::hover::HoverEvent;
 use rand::RngExt;
 
+use crate::block::entities::BlockEntity;
 use crate::command::argument_builder::{
     ArgumentBuilder, RequiredArgumentBuilder, argument, command, literal,
 };
@@ -154,6 +157,7 @@ impl CommandExecutor for BlockReplaceExecutor {
         }
         // Mirrors vanilla Container.setChanged() so the container's NBT is saved.
         inventory.mark_dirty();
+        world.mark_block_entity_dirty(&pos);
 
         let item_name = item.registry_key;
         let item_component = TextComponent::text("[")
@@ -816,9 +820,8 @@ fn set_block_slot(
     slot: usize,
     update: impl FnOnce(ItemStack) -> ItemStack,
 ) -> CommandExecutorResult {
-    let inventory = context
-        .source
-        .world()
+    let world = context.source.world();
+    let inventory = world
         .get_block_entity(pos)
         .and_then(<dyn crate::block::entities::BlockEntity>::get_inventory)
         .ok_or_else(|| {
@@ -836,6 +839,7 @@ fn set_block_slot(
     inventory.set_stack(slot, update(inventory.get_stack(slot)));
     // Mirrors vanilla Container.setChanged() so the container's NBT is saved.
     inventory.mark_dirty();
+    world.mark_block_entity_dirty(pos);
     Ok(1)
 }
 
@@ -874,11 +878,8 @@ fn apply_item_modifier(stack: &mut ItemStack, modifier: &NbtTag, ctx: &ProviderC
                     };
                     set_component(stack, target, name);
                 }
-                "set_lore" => {
-                    if let Some(lore) = function.get("lore") {
-                        set_component(stack, DataComponent::Lore, lore);
-                    }
-                }
+                "set_lore" => apply_set_lore(stack, function),
+                "copy_name" => apply_copy_name(stack, function, ctx),
                 "set_enchantments" => {
                     let add = function.get_bool("add").unwrap_or(false);
                     if let Some(NbtTag::Compound(enchantments)) = function.get("enchantments") {
@@ -950,9 +951,54 @@ fn apply_set_damage(stack: &mut ItemStack, function: &NbtCompound, ctx: &Provide
     } else {
         0.0
     };
+    // Vanilla SetItemDamageFunction: damage = floor((1 - durability) * maxDamage).
     let durability = (base + amount).clamp(0.0, 1.0);
-    let damage = max - (durability * max as f32).floor() as i32;
+    let damage = ((1.0 - durability) * max as f32).floor() as i32;
     stack.set_damage(damage.clamp(0, max));
+}
+
+/// Applies the vanilla `SetLoreFunction`. Its `mode` is a `ListOperation`, appending by default.
+fn apply_set_lore(stack: &mut ItemStack, function: &NbtCompound) {
+    // Vanilla caps lore at 256 lines (`SetLoreFunction` passes maxSize 256).
+    const MAX_LORE_LINES: usize = 256;
+    let Some(NbtTag::List(lines)) = function.get("lore") else {
+        return;
+    };
+    let replacement: Vec<TextComponent> = lines.iter().map(TextComponent::from_nbt).collect();
+    let original = stack
+        .get_data_component::<LoreImpl>()
+        .map(|lore| lore.lines.clone())
+        .unwrap_or_default();
+    let offset = function
+        .get_int("offset")
+        .and_then(|offset| usize::try_from(offset).ok())
+        .unwrap_or(0);
+    let size = function
+        .get_int("size")
+        .and_then(|size| usize::try_from(size).ok());
+    let result = match function.get_string("mode").unwrap_or("append") {
+        "replace_all" => Some(replacement),
+        "replace_section" => (offset <= original.len()).then(|| {
+            let resume = offset + size.unwrap_or(replacement.len());
+            let mut out = original[..offset].to_vec();
+            out.extend(replacement);
+            if resume < original.len() {
+                out.extend_from_slice(&original[resume..]);
+            }
+            out
+        }),
+        "insert" => (offset <= original.len()).then(|| {
+            let mut out = original[..offset].to_vec();
+            out.extend(replacement);
+            out.extend_from_slice(&original[offset..]);
+            out
+        }),
+        _ => Some(original.iter().cloned().chain(replacement).collect()),
+    };
+    // Vanilla keeps the original lore when the result would overflow or the offset is invalid.
+    if let Some(lines) = result.filter(|lines| lines.len() <= MAX_LORE_LINES) {
+        stack.set_data_component(LoreImpl { lines });
+    }
 }
 
 /// Applies the vanilla `LimitCount` function, clamping the count to optional min and max providers.
@@ -1019,6 +1065,19 @@ fn set_component(stack: &mut ItemStack, id: DataComponent, data: &NbtTag) {
     if let Some(component) = read_data(id, data) {
         stack.patch.retain(|(existing, _)| *existing != id);
         stack.patch.push((id, Some(component)));
+    }
+}
+
+/// Copies the custom name of the `source` like vanilla `CopyNameFunction`.
+/// A `Nameable` source without a name clears the stack's custom name.
+fn apply_copy_name(stack: &mut ItemStack, function: &NbtCompound, ctx: &ProviderContext) {
+    let Some(source) = function.get_string("source") else {
+        return;
+    };
+    match ctx.name_source(source) {
+        Some(Some(name)) => stack.set_data_component(CustomNameImpl { name }),
+        Some(None) => stack.remove_data_component(DataComponent::CustomName),
+        None => {}
     }
 }
 
@@ -1179,13 +1238,28 @@ fn set_stored_enchantment_level(
 
 /// Scoreboard and command-storage access that vanilla exposes through a
 /// `LootContext`. Item modifiers supply these; tests use the empty default.
+/// `block_entity` backs the `block_entity` source of `copy_name`; vanilla
+/// item commands do not set `BLOCK_ENTITY`, so the executors leave it unset.
 #[derive(Default)]
 struct ProviderContext<'a> {
     server: Option<&'a Arc<Server>>,
     entity: Option<&'a Arc<dyn EntityBase>>,
+    block_entity: Option<&'a dyn BlockEntity>,
 }
 
 impl ProviderContext<'_> {
+    /// Reads the custom name of a `copy_name` source. `None` means the source
+    /// is absent from the context, so the stack keeps its name.
+    fn name_source(&self, source: &str) -> Option<Option<TextComponent>> {
+        match source.strip_prefix("minecraft:").unwrap_or(source) {
+            "this" => self
+                .entity
+                .map(|e| e.get_entity().custom_name.load().as_ref().clone()),
+            "block_entity" => self.block_entity.map(BlockEntity::get_custom_name),
+            _ => None,
+        }
+    }
+
     /// Resolves a vanilla `score` provider, or its fallback when no score exists.
     fn resolve_score(&self, c: &NbtCompound) -> f32 {
         let fallback = number_provider(c.get("fallback")).unwrap_or(0.0);
@@ -1353,6 +1427,7 @@ impl CommandExecutor for BlockModifyExecutor {
         let provider_ctx = ProviderContext {
             server: Some(context.source.server()),
             entity: context.source.entity.as_ref(),
+            block_entity: None,
         };
         let modified = set_block_slot(context, &pos, slot, |mut stack| {
             apply_item_modifier(&mut stack, &modifier, &provider_ctx);
@@ -1384,6 +1459,7 @@ impl CommandExecutor for EntityModifyExecutor {
         let provider_ctx = ProviderContext {
             server: Some(context.source.server()),
             entity: context.source.entity.as_ref(),
+            block_entity: None,
         };
         let mut count = 0;
         for target in &targets {
@@ -1593,6 +1669,56 @@ mod tests {
                 .iter()
                 .any(|(id, _)| *id == DataComponent::ItemName)
         );
+    }
+
+    // Vanilla floors the remaining durability: floor(0.75 * 250) = 187, not 188.
+    #[test]
+    fn set_damage_floors_remaining_durability_like_vanilla() {
+        let mut function = NbtCompound::new();
+        function.put_string("function", "minecraft:set_damage".to_string());
+        function.put("damage", NbtTag::Float(0.25));
+        let mut stack = ItemStack::new(1, &pumpkin_data::item::Item::IRON_SWORD);
+        apply_item_modifier(
+            &mut stack,
+            &NbtTag::Compound(function),
+            &ProviderContext::default(),
+        );
+        assert_eq!(stack.get_damage(), 187);
+    }
+
+    #[test]
+    fn set_lore_appends_by_default_and_replaces_on_request() {
+        let line = || NbtTag::String("{\"text\":\"b\"}".to_string().into());
+        let lore_len = |stack: &ItemStack| {
+            stack
+                .get_data_component::<LoreImpl>()
+                .map_or(0, |lore| lore.lines.len())
+        };
+        let mut stack = ItemStack::new(1, &pumpkin_data::item::Item::STONE);
+        stack.set_data_component(LoreImpl {
+            lines: vec![TextComponent::text("a")],
+        });
+
+        let mut append = NbtCompound::new();
+        append.put_string("function", "minecraft:set_lore".to_string());
+        append.put("lore", NbtTag::List(vec![line()]));
+        apply_item_modifier(
+            &mut stack,
+            &NbtTag::Compound(append),
+            &ProviderContext::default(),
+        );
+        assert_eq!(lore_len(&stack), 2);
+
+        let mut replace = NbtCompound::new();
+        replace.put_string("function", "minecraft:set_lore".to_string());
+        replace.put("lore", NbtTag::List(vec![line()]));
+        replace.put_string("mode", "replace_all".to_string());
+        apply_item_modifier(
+            &mut stack,
+            &NbtTag::Compound(replace),
+            &ProviderContext::default(),
+        );
+        assert_eq!(lore_len(&stack), 1);
     }
 
     #[test]
@@ -1822,5 +1948,31 @@ mod tests {
         storage.put_string("path", "value".into());
         storage.put("fallback", NbtTag::Int(3));
         assert_eq!(number_provider(Some(&NbtTag::Compound(storage))), Some(3.0));
+    }
+
+    #[test]
+    fn copy_name_from_unnamed_block_entity_clears_custom_name() {
+        use crate::block::entities::barrel::BarrelBlockEntity;
+
+        let mut stack = ItemStack::new(1, &Item::DIAMOND);
+        stack.set_data_component(CustomNameImpl {
+            name: TextComponent::text("Old"),
+        });
+        let barrel = BarrelBlockEntity::new(BlockPos::ZERO);
+        let ctx = ProviderContext {
+            block_entity: Some(&barrel),
+            ..ProviderContext::default()
+        };
+        let mut function = NbtCompound::new();
+        function.put_string("source", "block_entity".to_string());
+        apply_copy_name(&mut stack, &function, &ctx);
+        assert!(stack.get_data_component::<CustomNameImpl>().is_none());
+
+        function.put_string("source", "attacker".to_string());
+        stack.set_data_component(CustomNameImpl {
+            name: TextComponent::text("Kept"),
+        });
+        apply_copy_name(&mut stack, &function, &ctx);
+        assert!(stack.get_data_component::<CustomNameImpl>().is_some());
     }
 }

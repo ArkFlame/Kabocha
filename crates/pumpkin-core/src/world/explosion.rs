@@ -17,7 +17,6 @@ use pumpkin_util::math::{
 };
 use pumpkin_util::random::RandomImpl;
 use pumpkin_world::chunk::ChunkData;
-use rand::seq::SliceRandom;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -603,8 +602,13 @@ impl<'a> Explosion<'a> {
             }
         }
         let mut positions: Vec<BlockPos> = positions.into_iter().collect();
-        // TODO: vanilla shuffles with `level.random`, same odds, not seed-reproducible.
-        positions.shuffle(&mut rand::rng());
+        {
+            let mut random = world
+                .explosion_random
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            shuffle_with_random(&mut positions, &mut *random);
+        }
         (
             positions,
             affected_positions,
@@ -1017,6 +1021,15 @@ impl<'a> Explosion<'a> {
 /// Destroyed positions in shuffled order, the fire positions, and the `toBlow` count.
 type DestroyedBlocks = (Vec<BlockPos>, FxHashSet<BlockPos>, u32);
 
+/// Vanilla `Util.shuffle`: Fisher-Yates from the end, drawing from the level random.
+fn shuffle_with_random<T>(items: &mut [T], random: &mut impl RandomImpl) {
+    for i in (2..=items.len()).rev() {
+        let bound = i32::try_from(i).unwrap_or(i32::MAX);
+        let swap_to = usize::try_from(random.next_bounded_i32(bound)).unwrap_or(0);
+        items.swap(i - 1, swap_to);
+    }
+}
+
 fn explosion_radius_from_yield(yield_rate: f32) -> Option<f32> {
     (yield_rate < 1.0).then_some(1.0 / yield_rate)
 }
@@ -1063,6 +1076,7 @@ mod tests {
     };
     use pumpkin_util::{
         math::{position::BlockPos, vector2::Vector2, vector3::Vector3},
+        random::xoroshiro128::Xoroshiro,
         world_seed::Seed,
     };
     use pumpkin_world::{chunk::ChunkData, level::Level};
@@ -1077,7 +1091,7 @@ mod tests {
     use super::{
         BlockFlags, BlockInteraction, Explosion, ExplosionDamageCalculator,
         SimpleExplosionDamageCalculator, add_or_append_stack, explosion_radius_from_yield,
-        filter_destroyed_blocks, should_create_fire,
+        filter_destroyed_blocks, should_create_fire, shuffle_with_random,
     };
 
     type TestWorld = (Arc<World>, Arc<Level>, tempfile::TempDir);
@@ -1406,5 +1420,18 @@ mod tests {
         level.shutdown().await;
         assert!(loaded.is_some());
         Ok(())
+    }
+
+    #[test]
+    fn shuffle_with_random_is_seed_reproducible_permutation() {
+        let original: Vec<u32> = (0..64).collect();
+        let mut first = original.clone();
+        let mut second = original.clone();
+        shuffle_with_random(&mut first, &mut Xoroshiro::from_seed(7));
+        shuffle_with_random(&mut second, &mut Xoroshiro::from_seed(7));
+        assert!(first == second);
+        assert!(first != original);
+        first.sort_unstable();
+        assert!(first == original);
     }
 }

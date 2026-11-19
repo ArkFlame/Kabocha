@@ -1,7 +1,11 @@
+use pumpkin_command::snbt::SnbtParser;
+use pumpkin_command::string_reader::StringReader;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::potion::Effect;
 use pumpkin_data::tag::{RegistryKey, Taggable, get_tag_values};
+use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_nbt::tag::NbtTag;
 use serde_json::Value;
 
 pub type ItemEnchantment<'a> = (&'a str, u32);
@@ -928,6 +932,9 @@ impl MobEffectsPredicate {
 pub struct EntityDistance {
     pub horizontal: f64,
     pub absolute: f64,
+    /// Absolute per-axis deltas (`|x|`, `|y|`, `|z|`) for the `x`/`y`/`z` bounds.
+    /// `None` when the caller only knows the scalar distances.
+    pub axes: Option<(f64, f64, f64)>,
 }
 
 impl EntityDistance {
@@ -937,6 +944,7 @@ impl EntityDistance {
         Self {
             horizontal: dx.hypot(dz),
             absolute: (dx * dx + dy * dy + dz * dz).sqrt(),
+            axes: Some((dx.abs(), dy.abs(), dz.abs())),
         }
     }
 
@@ -976,6 +984,8 @@ pub struct EntityState {
     pub passenger_types: Vec<String>,
     /// Entity type the player is looking at, used by vanilla `type_specific/player.looking_at`.
     pub looking_at_type: Option<String>,
+    /// Entity NBT as vanilla `NbtPredicate.getEntityTagToCompare` reads it; `None` when not supplied.
+    pub nbt: Option<NbtCompound>,
 }
 
 impl EntityState {
@@ -1031,6 +1041,9 @@ impl EntityState {
             .iter()
             .map(|p| format!("minecraft:{}", p.get_entity().entity_type.resource_name))
             .collect::<Vec<String>>();
+        let mut nbt = NbtCompound::new();
+        living.entity.write_nbt(&mut nbt);
+        living.write_living_nbt(&mut nbt);
         Self {
             distance,
             is_baby: Some(living.is_baby()),
@@ -1040,6 +1053,7 @@ impl EntityState {
             vehicle_type,
             passenger_types,
             looking_at_type: None,
+            nbt: Some(nbt),
         }
     }
 }
@@ -1054,6 +1068,7 @@ impl std::fmt::Debug for EntityState {
             .field("stepping_block", &self.stepping_block)
             .field("vehicle_type", &self.vehicle_type)
             .field("passenger_types", &self.passenger_types)
+            .field("nbt", &self.nbt)
             .finish_non_exhaustive()
     }
 }
@@ -1064,6 +1079,10 @@ pub struct EntityPredicate {
     pub entity_type: Option<TagOrIdMatcher>,
     pub distance_horizontal: Option<FloatBounds>,
     pub distance_absolute: Option<FloatBounds>,
+    /// Vanilla `DistancePredicate` per-axis bounds, checked against `|delta|` on each axis.
+    pub distance_x: Option<FloatBounds>,
+    pub distance_y: Option<FloatBounds>,
+    pub distance_z: Option<FloatBounds>,
     pub is_baby: Option<bool>,
     pub vehicle_type: Option<TagOrIdMatcher>,
     pub passenger_type: Option<TagOrIdMatcher>,
@@ -1075,6 +1094,54 @@ pub struct EntityPredicate {
     pub effects: Option<MobEffectsPredicate>,
     /// Vanilla `EntityEquipmentPredicate`, one entry per checked slot.
     pub equipment: Vec<(String, ItemPredicate)>,
+    /// Vanilla `EntityNbtPredicate`: raw SNBT that must partially match the entity NBT.
+    pub nbt: Option<String>,
+    /// Vanilla `EntitySlotsPredicate`: one entry per slot range, keyed by its raw name.
+    pub slots: Vec<(String, ItemPredicate)>,
+}
+
+/// Parses an SNBT compound from an advancement `nbt` predicate; `None` when it is not one.
+fn parse_nbt_predicate(snbt: &str) -> Option<NbtCompound> {
+    let mut reader = StringReader::new(snbt);
+    let NbtTag::Compound(compound) = SnbtParser::parse_for_commands(&mut reader).ok()? else {
+        return None;
+    };
+    (reader.remaining_length() == 0).then_some(compound)
+}
+
+/// Vanilla `NbtUtils.compareNbt` with `partial`: each expected key must match, and each expected
+/// list element must match some actual element.
+fn nbt_partially_matches(expected: &NbtCompound, actual: &NbtCompound) -> bool {
+    expected.child_tags.iter().all(|(key, want)| {
+        actual
+            .get(key)
+            .is_some_and(|got| nbt_tag_matches(want, got))
+    })
+}
+
+fn nbt_tag_matches(expected: &NbtTag, actual: &NbtTag) -> bool {
+    match (expected, actual) {
+        (NbtTag::Compound(want), NbtTag::Compound(got)) => nbt_partially_matches(want, got),
+        (NbtTag::List(want), NbtTag::List(got)) => want
+            .iter()
+            .all(|w| got.iter().any(|g| nbt_tag_matches(w, g))),
+        (want, got) => want == got,
+    }
+}
+
+/// Maps a `SlotRanges` name such as `armor.feet` or `weapon.mainhand` to the equipment slot name.
+fn equipment_slot_name(range: &str) -> Option<&str> {
+    range
+        .strip_prefix("armor.")
+        .or_else(|| range.strip_prefix("weapon."))
+}
+
+/// True when the item in equipment `slot` matches `predicate`.
+fn equipped_slot_matches(state: &EntityState, slot: &str, predicate: &ItemPredicate) -> bool {
+    state
+        .equipment
+        .iter()
+        .any(|(equipped_slot, item)| equipped_slot == slot && predicate.matches(item, 1, &[]))
 }
 
 /// True when a sub-tree of loot conditions requires an item from the `piglin_safe_armor` tag.
@@ -1165,12 +1232,31 @@ impl EntityPredicate {
                 return false;
             }
         }
+        if !self.axis_bounds_match(distance) {
+            return false;
+        }
         if let Some(expected_baby) = self.is_baby
             && is_baby != Some(expected_baby)
         {
             return false;
         }
         true
+    }
+
+    /// Checks the `x`/`y`/`z` distance bounds; a bound fails when the per-axis delta is unknown.
+    #[must_use]
+    fn axis_bounds_match(&self, distance: Option<EntityDistance>) -> bool {
+        let bounds = [&self.distance_x, &self.distance_y, &self.distance_z];
+        if bounds.iter().all(|b| b.is_none()) {
+            return true;
+        }
+        let Some((ax, ay, az)) = distance.and_then(|d| d.axes) else {
+            return false;
+        };
+        bounds
+            .iter()
+            .zip([ax, ay, az])
+            .all(|(bound, value)| bound.as_ref().is_none_or(|b| b.matches(value)))
     }
 
     /// Evaluates the entity parts needing a target snapshot:
@@ -1235,10 +1321,32 @@ impl EntityPredicate {
                 return false;
             }
         }
-        self.equipment.iter().all(|(slot, predicate)| {
-            state.equipment.iter().any(|(equipped_slot, item)| {
-                equipped_slot == slot && predicate.matches(item, 1, &[])
-            })
+        if !self
+            .equipment
+            .iter()
+            .all(|(slot, predicate)| equipped_slot_matches(state, slot, predicate))
+        {
+            return false;
+        }
+        self.nbt_and_slots_match(state)
+    }
+
+    /// Vanilla `EntityNbtPredicate` and `EntitySlotsPredicate`. Slot ranges that are not
+    /// equipment (containers, inventory) cannot be resolved from the snapshot and fail.
+    #[must_use]
+    fn nbt_and_slots_match(&self, state: &EntityState) -> bool {
+        if let Some(snbt) = &self.nbt {
+            let matched = parse_nbt_predicate(snbt)
+                .zip(state.nbt.as_ref())
+                .is_some_and(|(expected, actual)| nbt_partially_matches(&expected, actual));
+            if !matched {
+                return false;
+            }
+        }
+        // Vanilla SlotsPredicate: every range needs one slot whose item matches.
+        self.slots.iter().all(|(range, predicate)| {
+            equipment_slot_name(range)
+                .is_some_and(|slot| equipped_slot_matches(state, slot, predicate))
         })
     }
 
@@ -1283,15 +1391,23 @@ impl EntityPredicate {
             })
             .and_then(TagOrIdMatcher::from_value);
 
-        let (distance_horizontal, distance_absolute) = map
+        let distance_val = map
             .get("minecraft:distance")
-            .or_else(|| map.get("distance"))
-            .map_or((None, None), |dist_val| {
+            .or_else(|| map.get("distance"));
+        let (distance_horizontal, distance_absolute) =
+            distance_val.map_or((None, None), |dist_val| {
                 (
                     dist_val.get("horizontal").and_then(FloatBounds::from_value),
                     dist_val.get("absolute").and_then(FloatBounds::from_value),
                 )
             });
+        let axis_bound = |axis: &str| {
+            distance_val
+                .and_then(|d| d.get(axis))
+                .and_then(FloatBounds::from_value)
+        };
+        let (distance_x, distance_y, distance_z) =
+            (axis_bound("x"), axis_bound("y"), axis_bound("z"));
 
         let is_baby = map
             .get("minecraft:flags")
@@ -1345,6 +1461,24 @@ impl EntityPredicate {
 
         let equipment = Self::equipment_from_value(pred_val);
 
+        let nbt = map
+            .get("minecraft:nbt")
+            .or_else(|| map.get("nbt"))
+            .and_then(Value::as_str)
+            .map(str::to_string);
+
+        let slots = pred_val
+            .get("minecraft:slots")
+            .or_else(|| pred_val.get("slots"))
+            .and_then(Value::as_object)
+            .map(|ranges| {
+                ranges
+                    .iter()
+                    .map(|(range, pred)| (range.clone(), ItemPredicate::from_value(pred)))
+                    .collect()
+            })
+            .unwrap_or_default();
+
         // Vanilla expresses "not wearing piglin safe armor" as an inverted loot condition
         // over an equipment predicate; detect that shape instead of scanning the whole JSON.
         let safe_armor_disallowed = (safe_armor_predicate_is_inverted(val)
@@ -1355,6 +1489,9 @@ impl EntityPredicate {
             entity_type,
             distance_horizontal,
             distance_absolute,
+            distance_x,
+            distance_y,
+            distance_z,
             is_baby,
             vehicle_type,
             passenger_type,
@@ -1364,6 +1501,8 @@ impl EntityPredicate {
             safe_armor_disallowed,
             effects,
             equipment,
+            nbt,
+            slots,
         }
     }
 }
@@ -2450,6 +2589,9 @@ fn from_entity_condition(e: &pumpkin_data::advancement_data::EntityCondition) ->
             min: Some(min),
             max: None,
         }),
+        distance_x: None,
+        distance_y: None,
+        distance_z: None,
         is_baby: e.is_baby,
         vehicle_type: (!vpatterns.is_empty()).then_some(TagOrIdMatcher {
             patterns: vpatterns,
@@ -2463,6 +2605,9 @@ fn from_entity_condition(e: &pumpkin_data::advancement_data::EntityCondition) ->
         safe_armor_disallowed: e.safe_armor_disallowed,
         effects: None,
         equipment: Vec::new(),
+        // Generated `EntityCondition` data carries no NBT or slot predicates.
+        nbt: None,
+        slots: Vec::new(),
     }
 }
 
@@ -2877,6 +3022,7 @@ pub fn matches_entity_condition(
     let distance = distance.map(|d| EntityDistance {
         horizontal: d,
         absolute: d,
+        axes: None,
     });
     EntityPredicate::from_value(pred_val).matches(target_type, distance, is_baby)
 }
@@ -4005,6 +4151,27 @@ mod tests {
     }
 
     #[test]
+    fn entity_distance_checks_each_axis_separately() {
+        let y_max = EntityPredicate::from_value(&serde_json::json!({
+            "distance": {"y": {"max": 5.0}}
+        }));
+        let x_max = EntityPredicate::from_value(&serde_json::json!({
+            "distance": {"x": {"max": 5.0}}
+        }));
+        // 3 blocks west and 10 blocks up: x 3 (matches), y 10 (fails).
+        let delta = EntityDistance::from_delta(-3.0, 10.0, 0.0);
+        assert!(x_max.matches("minecraft:zombie", Some(delta), None));
+        assert!(!y_max.matches("minecraft:zombie", Some(delta), None));
+        // A scalar distance carries no per-axis delta, so an axis bound cannot pass.
+        let scalar = EntityDistance {
+            horizontal: 3.0,
+            absolute: 3.0,
+            axes: None,
+        };
+        assert!(!x_max.matches("minecraft:zombie", Some(scalar), None));
+    }
+
+    #[test]
     fn sniper_duel_absolute_min_50_boundary() {
         let pred = EntityPredicate::from_value(&serde_json::json!({
             "distance": {"absolute": {"min": 50.0}}
@@ -4119,6 +4286,7 @@ mod tests {
             vehicle_type: None,
             passenger_types: Vec::new(),
             looking_at_type: None,
+            nbt: None,
         };
         assert!(!pred.matches_entity("minecraft:cow", &state));
         let mut amplified = state;
@@ -4175,7 +4343,45 @@ mod tests {
             vehicle_type: None,
             passenger_types: Vec::new(),
             looking_at_type: None,
+            nbt: None,
         };
         assert!(pred.matches_entity("minecraft:player", &state));
+    }
+
+    #[test]
+    fn entity_nbt_predicate_partially_matches_entity_nbt() {
+        let pred = EntityPredicate::from_value(&json!({
+            "minecraft:nbt": "{Tags:[\"boss\"], Health:20.0f}"
+        }));
+        let mut nbt = NbtCompound::new();
+        nbt.put_string("id", "minecraft:zombie".to_string());
+        nbt.put_list(
+            "Tags",
+            vec![
+                NbtTag::String("boss".into()),
+                NbtTag::String("extra".into()),
+            ],
+        );
+        nbt.put("Health", 20.0f32);
+        let mut state = EntityState::default();
+        assert!(!pred.matches_entity("minecraft:zombie", &state));
+        state.nbt = Some(nbt.clone());
+        assert!(pred.matches_entity("minecraft:zombie", &state));
+        nbt.put("Health", 19.0f32);
+        state.nbt = Some(nbt);
+        assert!(!pred.matches_entity("minecraft:zombie", &state));
+    }
+
+    #[test]
+    fn entity_slots_predicate_checks_equipment_ranges() {
+        let pred = EntityPredicate::from_value(&json!({
+            "minecraft:slots": {"armor.feet": {"items": "minecraft:diamond_boots"}}
+        }));
+        let mut state = EntityState::default();
+        assert!(!pred.matches_entity("minecraft:zombie", &state));
+        state.equipment = vec![("feet".to_string(), "minecraft:diamond_boots".to_string())];
+        assert!(pred.matches_entity("minecraft:zombie", &state));
+        state.equipment = vec![("head".to_string(), "minecraft:diamond_boots".to_string())];
+        assert!(!pred.matches_entity("minecraft:zombie", &state));
     }
 }

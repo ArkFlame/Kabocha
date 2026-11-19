@@ -324,6 +324,21 @@ impl MinecartEntity {
 
 const LOWERED_PASSENGER_ATTACHMENT: Vector3<f64> = Vector3::new(0.0, 0.0, 0.0);
 
+/// Vanilla `AbstractMinecart.useExperimentalMovement`: the `minecart_improvements` feature flag.
+fn minecart_improvements_enabled(world: &crate::world::World) -> bool {
+    let level_info = world.level_info.load();
+    world.server.upgrade().map_or_else(
+        || {
+            level_info
+                .data_packs
+                .enabled
+                .iter()
+                .any(|p| p == "minecart_improvements" || p == "file/minecart_improvements")
+        },
+        |s| s.is_feature_enabled("minecraft:minecart_improvements"),
+    )
+}
+
 /// Vanilla `OldMinecartBehavior`: a powered rail adds 0.06 to the horizontal
 /// speed along the current horizontal direction and leaves Y untouched.
 fn powered_rail_boost(velocity: Vector3<f64>, max_speed: f64) -> Vector3<f64> {
@@ -400,16 +415,7 @@ impl EntityBase for MinecartEntity {
         // The gamerule counts blocks per second (default 8), so divide by 20 ticks.
         let max_speed = {
             let level_info = world.level_info.load();
-            let improvements =
-                world.server.upgrade().map_or_else(
-                    || {
-                        level_info.data_packs.enabled.iter().any(|p| {
-                            p == "minecart_improvements" || p == "file/minecart_improvements"
-                        })
-                    },
-                    |s| s.is_feature_enabled("minecraft:minecart_improvements"),
-                );
-            if improvements {
+            if minecart_improvements_enabled(&world) {
                 level_info.game_rules.max_minecart_speed as f64 / 20.0
             } else {
                 0.4
@@ -1086,12 +1092,18 @@ impl EntityBase for MinecartEntity {
     }
 
     fn move_entity(&self, caller: &dyn EntityBase, motion: Vector3<f64>) {
+        let world = self.vehicle.entity.world.load().clone();
+        // Vanilla `AbstractMinecart.move` without `minecart_improvements`: one plain move, with
+        // no push/pickup pass and no residual replay.
+        if !minecart_improvements_enabled(&world) {
+            self.vehicle.entity.move_entity(caller, motion);
+            return;
+        }
         // Vanilla AbstractMinecart.move: capture the intended target before the first move,
         // then replay any leftover distance after pushAndPickupEntities.
         let to_position = self.vehicle.entity.pos.load().add(&motion);
         self.vehicle.entity.move_entity(caller, motion);
         let entity_id = self.vehicle.entity.entity_id;
-        let world = self.vehicle.entity.world.load().clone();
         if let Some(dyn_self) = world.get_entity_by_id(entity_id) {
             let should_continue = dyn_self.push_entities(caller);
             if should_continue {
@@ -1127,6 +1139,24 @@ mod tests {
 
         let still = powered_rail_boost(Vector3::new(0.0, 5.0, 0.0), 10.0);
         assert_eq!(still, Vector3::new(0.0, 5.0, 0.0));
+    }
+
+    #[tokio::test]
+    async fn minecart_move_without_improvements_is_one_plain_move() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let cart = MinecartEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::MINECART,
+        ));
+        // The test world has no datapacks, so vanilla `useExperimentalMovement` is false.
+        assert!(!minecart_improvements_enabled(&world));
+
+        cart.move_entity(&cart, Vector3::new(0.25, 0.0, 0.0));
+        assert!((cart.vehicle.entity.pos.load().x - 0.75).abs() < 1.0e-9);
+        world.level.shutdown().await;
+        Ok(())
     }
 
     #[test]

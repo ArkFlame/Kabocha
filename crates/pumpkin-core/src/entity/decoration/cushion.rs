@@ -3,6 +3,7 @@ use std::sync::{
     atomic::{AtomicU8, AtomicU32, Ordering},
 };
 
+use pumpkin_data::Block;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::item::Item;
@@ -189,6 +190,26 @@ impl CushionEntity {
         }
     }
 
+    /// Vanilla `Cushion.showBreakingParticles`: wool-coloured block particles.
+    fn show_breaking_particles(&self) {
+        let entity = &self.entity;
+        let world = entity.world.load();
+        let pos = entity.pos.load();
+        let width = entity.width();
+        let height = entity.height();
+        world.spawn_block_particle(
+            Vector3::new(
+                pos.x,
+                pos.y + f64::from(height) * BREAK_PARTICLE_HEIGHT_RATIO,
+                pos.z,
+            ),
+            Vector3::new(width / 4.0, height / 4.0, width / 4.0),
+            0.05,
+            10,
+            wool_block_for_color(self.color()).default_state.id.as_u16(),
+        );
+    }
+
     fn drop_and_remove(&self, caused_by: Option<&dyn EntityBase>) {
         let entity = &self.entity;
         let passengers = entity
@@ -212,6 +233,7 @@ impl CushionEntity {
             SoundCategory::Blocks,
             &entity.pos.load(),
         );
+        self.show_breaking_particles();
         if world.level_info.load().game_rules.entity_drops {
             let is_creative = caused_by.is_some_and(|c| {
                 c.cast_any()
@@ -235,6 +257,31 @@ impl CushionEntity {
 
 /// Vanilla `ServerLevel.mayInteract`: usable when inside the world border and
 /// outside spawn protection.
+/// Vanilla `Cushion.showBreakingParticles` centres the burst at this fraction of the height.
+const BREAK_PARTICLE_HEIGHT_RATIO: f64 = 2.0 / 3.0;
+
+/// Wool block of a cushion colour, as `Blocks.WOOL.pick(color)`.
+const fn wool_block_for_color(color: u8) -> &'static Block {
+    match color {
+        0 => &Block::WHITE_WOOL,
+        1 => &Block::ORANGE_WOOL,
+        2 => &Block::MAGENTA_WOOL,
+        3 => &Block::LIGHT_BLUE_WOOL,
+        4 => &Block::YELLOW_WOOL,
+        5 => &Block::LIME_WOOL,
+        6 => &Block::PINK_WOOL,
+        7 => &Block::GRAY_WOOL,
+        8 => &Block::LIGHT_GRAY_WOOL,
+        9 => &Block::CYAN_WOOL,
+        10 => &Block::PURPLE_WOOL,
+        11 => &Block::BLUE_WOOL,
+        12 => &Block::BROWN_WOOL,
+        13 => &Block::GREEN_WOOL,
+        14 => &Block::RED_WOOL,
+        _ => &Block::BLACK_WOOL,
+    }
+}
+
 fn may_interact_with(world: &World, player: &Player, position: &BlockPos) -> bool {
     let x = f64::from(position.0.x);
     let z = f64::from(position.0.z);
@@ -508,6 +555,12 @@ mod tests {
     use pumpkin_world::level::Level;
     use pumpkin_world::world_info::LevelData;
     use std::sync::Weak;
+
+    #[test]
+    fn break_particles_use_the_matching_wool() {
+        assert!(wool_block_for_color(14).name == "red_wool");
+        assert!(wool_block_for_color(15).name == "black_wool");
+    }
 
     #[test]
     fn subtract_box_underpins_anchor_buried_detection() {

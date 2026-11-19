@@ -269,7 +269,18 @@ pub trait AgeableMob: Mob {
         true
     }
 
+    fn tick_forced_age_timer(&self) {
+        // Vanilla `AgeableMob.aiStep` counts `forcedAgeTimer` down before the age tick; the
+        // happy-villager particle every 4 ticks is client-facing and not sent here.
+        let timer = &self.get_ageable_data().forced_age_timer;
+        let ticks = timer.load(Relaxed);
+        if ticks > 0 {
+            timer.store(ticks - 1, Relaxed);
+        }
+    }
+
     fn ageable_ai_step(&self) {
+        self.tick_forced_age_timer();
         self.tick_age_lock_particle_timer();
         if self.can_age_up() {
             let age = self.get_age() + 1;

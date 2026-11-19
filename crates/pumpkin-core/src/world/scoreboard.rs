@@ -2,6 +2,7 @@ use rustc_hash::FxHashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::atomic::Ordering;
 
+use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_data::scoreboard::ScoreboardDisplaySlot;
 use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
 use pumpkin_protocol::{
@@ -17,10 +18,7 @@ use pumpkin_protocol::{
         RenderType, TeamMethod, TeamParameters,
     },
 };
-use pumpkin_util::{
-    text::{TextComponent, color::NamedColor},
-    version::JavaMinecraftVersion,
-};
+use pumpkin_util::text::{TextComponent, color::NamedColor};
 use tracing::warn;
 
 use super::World;
@@ -845,10 +843,7 @@ fn number_format_to_nbt(format: &NumberFormat) -> Option<NbtTag> {
         NumberFormat::Blank => nbt.put_string("type", "blank".to_string()),
         NumberFormat::Fixed(text) => {
             nbt.put_string("type", "fixed".to_string());
-            nbt.put(
-                "value",
-                text.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
-            );
+            nbt.put("value", text.to_nbt_tag_for_version(&CURRENT_MC_VERSION));
         }
         NumberFormat::Styled(_) => return None,
     }
@@ -894,7 +889,7 @@ fn objective_to_nbt(objective: &ScoreboardObjective) -> NbtTag {
         "DisplayName",
         objective
             .display_name
-            .to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+            .to_nbt_tag_for_version(&CURRENT_MC_VERSION),
     );
     let render_type = match objective.render_type {
         RenderType::Integer => "integer",
@@ -918,7 +913,7 @@ fn score_to_nbt(score: &ScoreboardScore) -> NbtTag {
     if let Some(display_name) = &score.display_name {
         nbt.put(
             "display",
-            display_name.to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+            display_name.to_nbt_tag_for_version(&CURRENT_MC_VERSION),
         );
     }
     if let Some(format) = &score.number_format
@@ -935,7 +930,7 @@ fn team_to_nbt(team: &Team) -> NbtTag {
     nbt.put(
         "DisplayName",
         team.display_name
-            .to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+            .to_nbt_tag_for_version(&CURRENT_MC_VERSION),
     );
     if let Some(color) = team.color {
         nbt.put_string("TeamColor", color.name().to_string());
@@ -945,12 +940,12 @@ fn team_to_nbt(team: &Team) -> NbtTag {
     nbt.put(
         "MemberNamePrefix",
         team.player_prefix
-            .to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+            .to_nbt_tag_for_version(&CURRENT_MC_VERSION),
     );
     nbt.put(
         "MemberNameSuffix",
         team.player_suffix
-            .to_nbt_tag_for_version(&JavaMinecraftVersion::V_26_3),
+            .to_nbt_tag_for_version(&CURRENT_MC_VERSION),
     );
     nbt.put_string(
         "NameTagVisibility",

@@ -11,6 +11,11 @@ use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
 use rand::RngExt;
 
+use crate::entity::ai::control::flying_move_control::FlyingMoveControl;
+use crate::entity::ai::control::ghast_move_control::GhastMoveControl;
+use crate::entity::ai::control::happy_ghast_look_control::HappyGhastLookControl;
+use crate::entity::ai::control::look_control::LookControl;
+use crate::entity::ai::control::{LookControlTrait, MoveControlTrait};
 use crate::entity::ai::goal::{Controls, Goal, GoalReach};
 use crate::entity::{
     Entity, EntityBase,
@@ -78,6 +83,8 @@ impl HappyGhastEntity {
             observed_passenger_count: AtomicUsize::new(0),
             self_weak: self_weak.clone(),
         });
+        // Vanilla `HappyGhast` constructor installs the adult controls before any age change.
+        mob_arc.install_controls(false);
         Self::register_goals(
             &mob_arc.mob_entity.goals_selector,
             mob_arc.self_weak.clone(),
@@ -110,6 +117,37 @@ impl HappyGhastEntity {
     pub fn is_on_still_timeout(&self) -> bool {
         self.stays_still.load(Ordering::Relaxed)
             || self.server_still_timeout.load(Ordering::Relaxed) > 0
+    }
+
+    /// `StillCheck` for the ghast controls: downcasts the mob back to a happy ghast.
+    fn is_still_check(mob: &dyn Mob) -> bool {
+        mob.cast_any()
+            .downcast_ref::<Self>()
+            .is_some_and(Self::is_on_still_timeout)
+    }
+
+    /// Vanilla `HappyGhast.adultGhastSetup` and `babyGhastSetup` control swap.
+    fn install_controls(&self, baby: bool) {
+        let move_control: Box<dyn MoveControlTrait> = if baby {
+            Box::new(FlyingMoveControl::new(180, true))
+        } else {
+            Box::new(GhastMoveControl::new(true, Some(Self::is_still_check)))
+        };
+        let look_control: Box<dyn LookControlTrait> = if baby {
+            Box::new(LookControl::default())
+        } else {
+            Box::new(HappyGhastLookControl::new(Self::is_still_check))
+        };
+        *self
+            .mob_entity
+            .move_control
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = move_control;
+        *self
+            .mob_entity
+            .look_control
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = look_control;
     }
 
     /// Vanilla HappyGhast.isWearingBodyArmor: a non-empty body slot is a harness.
@@ -214,9 +252,11 @@ impl AgeableMob for HappyGhastEntity {
     fn age_boundary_reached(&self) {
         let goal_selector = &self.mob_entity.goals_selector;
         if self.is_baby() {
+            self.install_controls(true);
             self.set_server_still_timeout(0);
             goal_selector.clear(self);
         } else {
+            self.install_controls(false);
             goal_selector.clear(self);
             Self::register_goals(goal_selector, self.self_weak.clone());
         }

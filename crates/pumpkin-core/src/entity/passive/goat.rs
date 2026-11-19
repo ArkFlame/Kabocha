@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::sync::{
-    Arc, Weak,
+    Arc, OnceLock, Weak,
     atomic::{AtomicBool, Ordering},
 };
 
@@ -20,9 +20,11 @@ use pumpkin_util::random::RandomImpl;
 use pumpkin_util::random::xoroshiro128::Xoroshiro;
 use rand::RngExt;
 
+use crate::entity::ai::goal::long_jump::TIME_BETWEEN_LONG_JUMPS;
+use crate::entity::ai::goal::ram_target::{RAM_COOLDOWN_MAX_TICKS, RAM_COOLDOWN_MIN_TICKS};
 use crate::entity::item::ItemEntity;
 use crate::entity::{
-    Entity, EntityBase,
+    Entity, EntityBase, EntityRng,
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
         breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
@@ -64,6 +66,10 @@ pub struct GoatEntity {
     pub is_screaming: AtomicBool,
     pub has_left_horn: AtomicBool,
     pub has_right_horn: AtomicBool,
+    /// World age the long-jump cooldown ends at, seeded once at spawn or birth.
+    long_jump_seed: OnceLock<i64>,
+    /// World age the ram cooldown ends at, seeded once at spawn or birth.
+    ram_seed: OnceLock<i64>,
 }
 
 impl GoatEntity {
@@ -84,6 +90,8 @@ impl GoatEntity {
             is_screaming: AtomicBool::new(false),
             has_left_horn: AtomicBool::new(true),
             has_right_horn: AtomicBool::new(true),
+            long_jump_seed: OnceLock::new(),
+            ram_seed: OnceLock::new(),
         };
         let mob_arc = Arc::new(goat);
         let mob_weak: Weak<dyn Mob> = {
@@ -256,6 +264,26 @@ impl GoatEntity {
             regular
         }
     }
+
+    /// Vanilla `GoatAi.initMemories`: seeds both cooldowns from the world age at spawn or birth.
+    fn seed_cooldowns(&self, now: i64, random: &mut EntityRng) {
+        let long_jump = random.random_range(TIME_BETWEEN_LONG_JUMPS.0..=TIME_BETWEEN_LONG_JUMPS.1);
+        let ram = random.random_range(RAM_COOLDOWN_MIN_TICKS..=RAM_COOLDOWN_MAX_TICKS);
+        let _ = self.long_jump_seed.set(now + long_jump);
+        let _ = self.ram_seed.set(now + ram);
+    }
+
+    /// World age the long-jump cooldown ends at, if seeded.
+    #[must_use]
+    pub fn long_jump_seed(&self) -> Option<i64> {
+        self.long_jump_seed.get().copied()
+    }
+
+    /// World age the ram cooldown ends at, if seeded.
+    #[must_use]
+    pub fn ram_seed(&self) -> Option<i64> {
+        self.ram_seed.get().copied()
+    }
 }
 
 impl CustomSound for GoatEntity {
@@ -295,6 +323,7 @@ impl Animal for GoatEntity {
             &EntityType::GOAT,
         ));
         let mut random = self.get_random();
+        baby.seed_cooldowns(entity.world.load().get_world_age(), &mut random);
         // Vanilla `Goat.createChild`: the parent that donates the screaming trait is picked at random.
         let selected_parent_screaming = if random.random::<bool>() {
             self.is_screaming()
@@ -328,11 +357,12 @@ impl Animal for GoatEntity {
 impl Mob for GoatEntity {
     fn finalize_spawn(
         &self,
-        _world: &Arc<World>,
+        world: &Arc<World>,
         _reason: crate::entity::mob::spawn::EntitySpawnReason,
         group_data: Option<crate::entity::mob::spawn::SpawnGroupData>,
     ) -> Option<crate::entity::mob::spawn::SpawnGroupData> {
         let mut random = self.get_random();
+        self.seed_cooldowns(world.get_world_age(), &mut random);
         self.set_screaming(random.random::<f64>() < GOAT_SCREAMING_CHANCE);
         self.age_boundary_reached();
         if !self.is_baby() && random.random::<f32>() < UNIHORN_CHANCE {
@@ -440,6 +470,26 @@ mod tests {
 
     use super::*;
     use crate::entity::ai::test_support::world;
+
+    #[tokio::test]
+    async fn spawn_seeds_vanilla_cooldown_ranges() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let goat = GoatEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::GOAT,
+        ));
+        let mut random = goat.get_random();
+        goat.seed_cooldowns(1000, &mut random);
+        let long_jump = goat
+            .long_jump_seed()
+            .ok_or("long jump cooldown not seeded")?;
+        let ram = goat.ram_seed().ok_or("ram cooldown not seeded")?;
+        assert!((1600..=2200).contains(&long_jump));
+        assert!((1600..=7000).contains(&ram));
+        Ok(())
+    }
 
     #[tokio::test]
     async fn attack_damage_follows_the_age_boundary() -> Result<(), Box<dyn std::error::Error>> {

@@ -1691,9 +1691,10 @@ impl BlockRegistry {
                 PathComputationType::Water => {
                     World::get_fluid_from_state_id(state.id).has_tag(&tag::Fluid::MINECRAFT_WATER)
                 }
-                // Vanilla BlockBehaviour.isPathfindable defaults to !state.isSolid(): fences,
-                // chests and other motion-blocking non-full cubes are not pathfindable.
-                PathComputationType::Land | PathComputationType::Air => !state.is_solid(),
+                // Vanilla BlockBehaviour.isPathfindable (LAND and AIR) defaults to
+                // !state.isCollisionShapeFullBlock(), see .vendor/vanilla-decompiled
+                // net/minecraft/world/level/block/state/BlockBehaviour.java:130-137.
+                PathComputationType::Land | PathComputationType::Air => !state.is_full_cube(),
             },
             |pumpkin_block| pumpkin_block.is_pathfindable(state, computation_type),
         )
@@ -1710,14 +1711,12 @@ mod replacement_tests {
     };
 
     #[test]
-    fn default_pathfinding_uses_motion_blocking() {
+    fn default_pathfinding_blocks_full_cubes_only() {
         let registry = super::BlockRegistry::default();
-        // A fence is not a full cube but it blocks movement, so vanilla default
-        // pathfinding (!state.isSolid()) keeps mobs from moving through it.
-        let fence = &Block::OAK_FENCE;
-        assert!(!fence.default_state.is_full_cube());
-        assert!(fence.default_state.is_solid());
-        assert!(!registry.is_pathfindable(fence, fence.default_state, PathComputationType::Land));
+        // Vanilla default LAND/AIR pathfinding is !isCollisionShapeFullBlock().
+        let stone = &Block::STONE;
+        assert!(stone.default_state.is_full_cube());
+        assert!(!registry.is_pathfindable(stone, stone.default_state, PathComputationType::Land));
         assert!(registry.is_pathfindable(
             &Block::AIR,
             Block::AIR.default_state,
@@ -1727,8 +1726,8 @@ mod replacement_tests {
 
     #[test]
     fn registered_motion_blocking_block_is_not_pathfindable() {
-        // A fence is a registered behaviour that relies on the `BlockBehaviour` default, which
-        // vanilla sets to `!state.isSolid()` and not `!state.isFullCube()`.
+        // A fence is a registered behaviour whose `is_pathfindable` override returns false,
+        // matching vanilla `FenceBlock.isPathfindable`.
         let registry = super::default_registry();
         let fence = &Block::OAK_FENCE;
         assert!(registry.get_pumpkin_block(fence.id).is_some());

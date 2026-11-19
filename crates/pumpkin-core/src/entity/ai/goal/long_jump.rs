@@ -13,9 +13,10 @@ use crate::entity::ai::brain::behavior::long_jump::{
     calculate_jump_vector_for_angle, default_acceptable_landing_spot,
 };
 use crate::entity::mob::Mob;
+use crate::entity::passive::goat::GoatEntity;
 
 /// Vanilla `GoatAi.TIME_BETWEEN_LONG_JUMPS` (`UniformInt.of(600, 1200)`).
-const TIME_BETWEEN_LONG_JUMPS: (i64, i64) = (600, 1200);
+pub const TIME_BETWEEN_LONG_JUMPS: (i64, i64) = (600, 1200);
 /// Vanilla `GoatAi.MAX_LONG_JUMP_HEIGHT` / `MAX_LONG_JUMP_WIDTH`.
 const MAX_LONG_JUMP_HEIGHT: i32 = 5;
 const MAX_LONG_JUMP_WIDTH: i32 = 5;
@@ -75,6 +76,13 @@ fn take_random_candidate(candidates: &mut Vec<PossibleJump>) -> Option<PossibleJ
         selection < 0
     })?;
     Some(candidates.remove(index))
+}
+
+/// Absolute world age seeded at spawn for goats (vanilla `initMemories`), if any.
+fn seeded_long_jump_ready_at(mob: &dyn Mob) -> Option<i64> {
+    mob.cast_any()
+        .downcast_ref::<GoatEntity>()
+        .and_then(GoatEntity::long_jump_seed)
 }
 
 /// The goat long jump: `LongJumpToRandomPos` plus `LongJumpMidJump`, folded into one goal.
@@ -172,9 +180,10 @@ impl Goal for LongJumpGoal {
         }
         let entity = mob.get_entity();
         let now = entity.world.load().get_world_age();
+        let seeded = seeded_long_jump_ready_at(mob);
         let ready_at = *self
             .cooldown_until
-            .get_or_insert_with(|| now + Self::roll_cooldown());
+            .get_or_insert_with(|| seeded.unwrap_or_else(|| now + Self::roll_cooldown()));
         if now < ready_at {
             return false;
         }

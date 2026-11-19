@@ -3382,8 +3382,11 @@ impl Entity {
             {
                 self.is_in_powder_snow.store(true, Relaxed);
             }
-            // Vanilla `Entity.checkInsideBlocks` calls `entityInside` for every non-air block
-            // the (deflated) box touches, regardless of collision shape.
+            // Vanilla `Entity.checkInsideBlocks` calls `entityInside` only when the entity
+            // actually intersects the block's inside collision shape.
+            if !aabb.intersects(&collision_shape.at_pos(pos)) {
+                continue;
+            }
             if let Some(server_arc) = world.server.upgrade() {
                 world.block_registry.on_entity_collision(
                     block,

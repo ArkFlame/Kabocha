@@ -176,6 +176,11 @@ impl ItemBehaviour for BoatItem {
         entity.set_rotation(yaw, 0.0);
 
         let boat_entity = Arc::new(BoatEntity::new(entity));
+        if let Some(container) =
+            stack.get_data_component::<pumpkin_data::data_component_impl::ContainerImpl>()
+        {
+            boat_entity.apply_item_container(&container.items);
+        }
         crate::item::items::spawn_egg::apply_entity_variant(
             &stack,
             boat_entity.as_ref(),

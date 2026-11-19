@@ -306,7 +306,7 @@ impl EntityBase for FireworkRocketEntity {
                 1.0,
             );
         }
-        if current_life > self.life_time.load(Ordering::Relaxed) {
+        if lifetime_expired(current_life, self.life_time.load(Ordering::Relaxed)) {
             self.explode_and_remove(&world);
         }
     }
@@ -326,5 +326,21 @@ impl EntityBase for FireworkRocketEntity {
     fn on_hit(&self, _hit: crate::entity::projectile::ProjectileHit) {
         let world = self.get_entity().world.load();
         self.explode_and_remove(&world);
+    }
+}
+
+/// Vanilla increments `life` before testing `life > lifetime`, so the check uses the pre-tick value here.
+const fn lifetime_expired(life_before_tick: u32, life_time: u32) -> bool {
+    life_before_tick >= life_time
+}
+
+#[cfg(test)]
+mod tests {
+    use super::lifetime_expired;
+
+    #[test]
+    fn explodes_on_the_tick_life_passes_lifetime() {
+        assert!(!lifetime_expired(9, 10));
+        assert!(lifetime_expired(10, 10));
     }
 }
