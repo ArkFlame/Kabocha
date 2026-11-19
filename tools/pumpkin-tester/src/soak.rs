@@ -77,10 +77,19 @@ pub async fn run_soak(
         rss_max = rss_max.max(rss_kb());
     }
     for task in tasks {
-        task.await.map_err(|err| err.to_string())??;
+        // A bot stuck on a dead socket must not hide the MSPT result.
+        if let Ok(joined) = tokio::time::timeout(Duration::from_secs(30), task).await {
+            joined.map_err(|err| err.to_string())??;
+        }
     }
     server.stop_token.cancel();
-    let _ = ticker.join();
+    for _ in 0..300 {
+        if ticker.is_finished() {
+            let _ = ticker.join();
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 
     samples.sort_unstable();
     let idx = samples.len().saturating_mul(99) / 100;

@@ -52,7 +52,14 @@ async fn main() -> ExitCode {
         }
     };
 
+    std::panic::set_hook(Box::new(|info| eprintln!("PANIC: {info}")));
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_writer(std::io::stderr)
+        .try_init();
+    eprintln!("tester: preparing spawn chunk");
     harness::prepare_spawn_chunk(&server).await;
+    eprintln!("tester: spawn chunk ready");
 
     let listener = match TcpListener::bind("127.0.0.1:0").await {
         Ok(l) => l,
@@ -85,14 +92,18 @@ async fn main() -> ExitCode {
         run_all_suites(&server, local_addr).await
     };
 
+    eprintln!("tester: suites done, shutting down");
     cancel.cancel();
     for player in server.get_all_players() {
         player.remove().await;
         server.remove_player(&player);
     }
+    eprintln!("tester: players removed");
     tasks.close();
     tasks.wait().await;
+    eprintln!("tester: listener tasks ended");
     server.shutdown().await;
+    eprintln!("tester: server shut down");
 
     match result {
         Ok(lines) => {

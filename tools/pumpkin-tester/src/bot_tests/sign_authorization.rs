@@ -17,7 +17,9 @@ use pumpkin_util::{
     GameMode, Hand, PermissionLvl, math::position::BlockPos, math::vector3::Vector3,
 };
 
-use crate::bot::{HeadlessBot, MAX_POLL_TICKS};
+use crate::bot::HeadlessBot;
+
+const MAX_POLL_STEPS: usize = 100;
 
 const BOT_NAME: &str = "SignAuthBot";
 
@@ -135,21 +137,35 @@ fn crafted_click_line(marker: BlockPos) -> String {
     )
 }
 
+/// Largest horizontal distance per movement packet, below vanilla's "moved too quickly" limit.
+const MOVE_STEP: f64 = 8.0;
+
+/// Walks the bot to `target` in short steps, draining the socket so the server never stalls.
 async fn move_to_and_wait(
     server: &Arc<Server>,
     bot: &mut HeadlessBot,
     player: &pumpkin_core::entity::player::Player,
     target: Vector3<f64>,
 ) -> Result<(), String> {
-    bot.move_to(target, true).await?;
-    for _ in 0..MAX_POLL_TICKS {
-        tick(server, 1).await;
+    for _ in 0..MAX_POLL_STEPS {
         let pos = player.get_entity().pos.load();
-        if (pos.x - target.x).abs() < 0.5 && (pos.z - target.z).abs() < 0.5 {
+        let (dx, dz) = (target.x - pos.x, target.z - pos.z);
+        if dx.abs() < 0.5 && dz.abs() < 0.5 {
             return Ok(());
         }
+        let step = Vector3::new(
+            pos.x + dx.clamp(-MOVE_STEP, MOVE_STEP),
+            target.y,
+            pos.z + dz.clamp(-MOVE_STEP, MOVE_STEP),
+        );
+        bot.move_to(step, true).await?;
+        bot.drain(std::time::Duration::from_millis(20)).await;
+        tick(server, 1).await;
     }
-    Err("bot did not reach the requested position".to_string())
+    let pos = player.get_entity().pos.load();
+    Err(format!(
+        "bot did not reach the requested position: target {target:?}, at {pos:?}"
+    ))
 }
 
 async fn place_sign(server: &Arc<Server>, world: &pumpkin_core::world::World, pos: BlockPos) {
@@ -208,11 +224,18 @@ async fn run_out_of_range_case(
         return Err(format!("sign was not empty after placement: {before:?}"));
     }
     let pos = player.get_entity().pos.load();
-    let far = Vector3::new(pos.x + 100.0, pos.y, pos.z);
+    let far = Vector3::new(pos.x + 16.0, pos.y, pos.z);
     move_to_and_wait(server, bot, player, far).await?;
     set_editor(world, out_of_range, Some(player.gameprofile.id));
     send_update(bot, out_of_range, "OUT_OF_RANGE").await?;
-    tick(server, 20).await;
+    // The packet crosses a real socket; manual ticks alone can finish before it arrives.
+    for _ in 0..50 {
+        bot.drain(std::time::Duration::from_millis(20)).await;
+        tick(server, 1).await;
+        if sign_editor(world, out_of_range).is_none() {
+            break;
+        }
+    }
     if !stored_text(world, out_of_range).is_empty() {
         return Err(format!(
             "SIGN_UPDATE changed a sign from out of edit range (player at {:?}, stored {:?})",
@@ -220,7 +243,10 @@ async fn run_out_of_range_case(
             stored_text(world, out_of_range)
         ));
     }
-    if sign_editor(world, out_of_range).is_some() {
+    // An unloaded chunk ignores the packet like vanilla, so only a loaded sign can clear its editor.
+    if world.level.is_chunk_loaded(&out_of_range.chunk_position())
+        && sign_editor(world, out_of_range).is_some()
+    {
         return Err("out-of-range sign editor was not cleared".to_string());
     }
     let home = Vector3::new(

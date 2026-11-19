@@ -55,6 +55,16 @@ impl HeadlessBot {
         send_framed_packet(&mut self.writer, packet).await
     }
 
+    /// Discards server packets for `window` so a send-only bot never stalls the server's socket.
+    ///
+    /// The cut-off can land mid-packet, so the bot must not parse packets after calling this.
+    pub async fn drain(&mut self, window: Duration) {
+        let _ = timeout(window, async {
+            while self.reader.get_raw_packet().await.is_ok() {}
+        })
+        .await;
+    }
+
     pub async fn next_packet(&mut self) -> Result<RawPacket, String> {
         match timeout(PACKET_TIMEOUT, self.reader.get_raw_packet()).await {
             Ok(Ok(packet)) => Ok(packet),
