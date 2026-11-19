@@ -74,3 +74,9 @@ No STILL OPEN rows remain. No `.rs` source was touched, so rustfmt is not
 applicable. Verified by reading only (worker cannot compile), so no compile was
 run. No pure unit-test seam exists: `is_fitting_base` needs generated state IDs
 and a test would only mirror the formula.
+
+## Result (clone-item hook, 2026-11-18)
+- **getCloneItemStack (PistonHeadBlock.java:117-120): DONE.** Added a default `BlockBehaviour::get_clone_item(state_id) -> Option<&'static Item>` (block/mod.rs, default `None`), dispatched by `BlockRegistry::get_clone_item` (block/registry.rs). `handle_pick_item_from_block` (net/java/play/pick_item.rs) asks the hook first; `None` keeps the old `item_id` path, so the invalid-id early return still applies to blocks without a hook. `PistonHeadBlock` returns `STICKY_PISTON` for `PistonType::Sticky`, else `PISTON`, as vanilla does. Only implementor overriding it is piston_head.rs; no other implementor changed (default method).
+- Regression test: `clone_item_follows_head_type` in piston_head.rs (fails without the hook: `None`).
+- **getShape (PistonHeadBlock.java:53-55): no new hook added.** Per-state collision and outline shapes already come from generated `BlockState` shape data (the extractor dumps vanilla `getShape` per state, read by `get_block_collision_shapes_at`), so a server-side `get_shape` hook would duplicate generated data. The client-only SHORT model variant is not server behaviour. Not verified by running; the earlier BLOCKED-DATA note is superseded for collision, not for the visual model.
+- Verification: rustfmt --edition 2024 on the four touched files, exit 0. cargo not run (worker rule).

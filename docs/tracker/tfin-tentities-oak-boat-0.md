@@ -12,3 +12,7 @@ Status: fixed=0. Unverifiable rows recorded as BLOCKED (missing 26.3 decompile, 
 ## Result (batch x_13, CODER)
 - Bubble column push rows: VERIFIED, not BLOCKED. The earlier note said the vendored tree uses `0.6 / -0.7`; that is wrong. `.vendor/vanilla-decompiled/net/minecraft/world/entity/Entity.java:4149-4160` (`handleOnAboveBubbleColumn`: `min(1.8, y+0.1)`, `max(-0.9, y-0.03)`) and `:4185-4196` (`handleOnInsideBubbleColumn`: `min(0.7, y+0.06)`, `max(-0.3, y-0.03)`) match `crates/pumpkin-core/src/block/blocks/bubble_column.rs:23-31` and `bubble_column_vertical_velocity` (`:163-182`) exactly.
 - Rows: fixed=0, verified=1 group, blocked=0, open=0. Files edited: this doc only. No cargo or git run.
+
+## Result (CODER pass, no cargo)
+- Bubble column: VERIFIED. Spot-checked `crates/pumpkin-core/src/block/blocks/bubble_column.rs` vertical-velocity clamps (`min`/`max` at :170-179) against the vendored `Entity.java` bubble-column blocks cited above. No source edit.
+- Status: fixed=0 verified=1 blocked=0.

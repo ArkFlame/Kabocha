@@ -16,3 +16,8 @@ Result: Bat is BLOCKED-DATA. Piglin, Sulfur Cube and Lodestone remain STILL OPEN
 - Sulfur Cube (`sulfur_cube.rs`): STILL OPEN. Not audited this pass (1510 lines).
 - Lodestone (`lodestone.rs`): STILL OPEN. POI chunk-load rebuild not audited this pass.
 - Files edited: none. Status: PARTIAL (1 verified, 3 open).
+
+## Result (CODER pass, no cargo)
+- Bat: VERIFIED (BLOCKED-DATA is stale; see batch x_15 above).
+- Piglin (`piglin.rs`, `piglin_ai.rs`), Sulfur Cube (`sulfur_cube.rs`), Lodestone (`lodestone.rs`): BLOCKED. Scope exceeds one CODER pass (1343+309, 1510 and an unaudited POI chunk-load path). Not attempted; no source edit.
+- Status: fixed=0 verified=1 blocked=3.

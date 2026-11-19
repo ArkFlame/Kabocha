@@ -56,14 +56,20 @@ impl JavaClient {
 
         let world = player.world();
         let block = world.get_block(&pick_item.pos);
+        let state_id = world.get_block_state_id(&pick_item.pos);
 
-        if block.item_id == 0 {
-            // Invalid block id (blocks such as tall seagrass)
-            return;
-        }
-
-        let Some(item) = Item::from_id(block.item_id) else {
-            return;
+        let item = match world.block_registry.get_clone_item(block, state_id) {
+            Some(item) => item,
+            None if block.item_id == 0 => {
+                // Invalid block id (blocks such as tall seagrass)
+                return;
+            }
+            None => {
+                let Some(item) = Item::from_id(block.item_id) else {
+                    return;
+                };
+                item
+            }
         };
         let mut stack = ItemStack::new(1, item);
         if player.gamemode.load() == GameMode::Creative

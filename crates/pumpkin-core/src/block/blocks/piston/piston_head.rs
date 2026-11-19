@@ -1,4 +1,5 @@
 use pumpkin_data::block_properties::{MovingPistonLikeProperties, PistonType};
+use pumpkin_data::item::Item;
 use pumpkin_data::{Block, BlockState, BlockStateId, FacingExt};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_world::world::BlockFlags;
@@ -113,7 +114,38 @@ impl BlockBehaviour for PistonHeadBlock {
         }
     }
 
+    fn get_clone_item(&self, state_id: BlockStateId) -> Option<&'static Item> {
+        let props = PistonHeadProperties::from_state_id(state_id);
+        Some(if props.r#type == PistonType::Sticky {
+            &Item::STICKY_PISTON
+        } else {
+            &Item::PISTON
+        })
+    }
+
     fn is_pathfindable(&self, _state: &BlockState, _computation_type: PathComputationType) -> bool {
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::block_properties::Facing;
+
+    #[test]
+    fn clone_item_follows_head_type() {
+        let state_of = |r#type| {
+            PistonHeadProperties {
+                facing: Facing::North,
+                short: false,
+                r#type,
+            }
+            .to_state_id(&Block::PISTON_HEAD)
+        };
+        let sticky = PistonHeadBlock.get_clone_item(state_of(PistonType::Sticky));
+        let normal = PistonHeadBlock.get_clone_item(state_of(PistonType::Normal));
+        assert!(sticky.is_some_and(|item| item.id == Item::STICKY_PISTON.id));
+        assert!(normal.is_some_and(|item| item.id == Item::PISTON.id));
     }
 }

@@ -55,3 +55,7 @@ No build run (task rules); compile verification left to the orchestrator.
 
 ## Result
 - Wither rows 1, 2, 3, 5, 7, 8, 9: VERIFIED per `docs/tracker/tentities-wither.md` "Result (x_14 re-verification)" with vanilla and Rust citations. No source edits.
+
+## Result (CODER pass, no cargo)
+- Wither rows 2, 3, 5, 7, 8, 9: VERIFIED, no source edit. Re-checked against the vendored `WitherBoss.java` / `FlyingMoveControl.java` citations above.
+- Status: fixed=0 verified=6 blocked=0.

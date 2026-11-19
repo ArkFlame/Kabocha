@@ -328,6 +328,12 @@ pub trait BlockBehaviour: Send + Sync {
         block.rotate(state_id, rotation)
     }
 
+    /// Vanilla `getCloneItemStack`: the item a pick-block request yields for this state.
+    /// `None` keeps the block's own item.
+    fn get_clone_item(&self, _state_id: BlockStateId) -> Option<&'static Item> {
+        None
+    }
+
     fn is_pathfindable(&self, state: &BlockState, computation_type: PathComputationType) -> bool {
         match computation_type {
             PathComputationType::Water => {

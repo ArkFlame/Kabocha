@@ -8,4 +8,4 @@ Re-checked the sole STILL OPEN row (3) on 2026-11-18. The decompiled vanilla
 unit doc. All four rows are closed; none remain STILL OPEN.
 
 ## Result
-STILL OPEN until closed. Per item record FIXED, VERIFIED (vanilla path) or BLOCKED-DATA (exact missing generated field).
+- Row 3 (lid event viewer count truncated to u8): VERIFIED (vanilla path). `ClientboundBlockEventPacket.java` lines 30-38 read and write `b1` with `readUnsignedByte`/`writeByte`, so the `new as u8` cast in `crates/pumpkin-core/src/block/entities/chest_like_block_entity.rs` (about line 369) matches the wire format. No code change.

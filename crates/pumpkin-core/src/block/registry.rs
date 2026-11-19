@@ -1674,6 +1674,12 @@ impl BlockRegistry {
     }
 
     #[must_use]
+    pub fn get_clone_item(&self, block: &Block, state_id: BlockStateId) -> Option<&'static Item> {
+        self.get_pumpkin_block(block.id)
+            .and_then(|pumpkin_block| pumpkin_block.get_clone_item(state_id))
+    }
+
+    #[must_use]
     pub fn is_pathfindable(
         &self,
         block: &Block,
