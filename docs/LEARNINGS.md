@@ -38,3 +38,25 @@
 - `cargo deny check` is not part of upstream CI and `deny.toml` has an empty `[licenses] allow`, so it rejects every crate. Treat `cargo audit` plus `typos` as the supply-chain gates; fill the allow list before enabling deny.
 - A CI job with null step conclusion and a 404 log blob is a lost runner, not a code failure: confirm locally (release clippy exit 0) and rerun.
 - Linux ARM64 CI exposes float drift: tests that assert an entity "moved" after a tick must pin the move explicitly.
+
+## Audit-wave orchestration pitfalls (2026-11-19)
+Seen while closing the `docs/tracker` STILL OPEN list with 10 no-compile workers.
+| Mistake | Rule |
+|---|---|
+| Workers stopped after 8-60 items and reported "NOT-REACHED" | Make progress durable: each worker appends one verdict line per item to `/tmp/kabocha-runs/verdicts/sN.tsv` as it goes; the orchestrator counts lines against items and relaunches on the leftovers. Never trust a worker's own "done". |
+| First pass marked 40-60% of items BLOCKED for "outside shard scope", "cross-file", "needs a gametest", "M-size", "per tracker" | None of those is a blocker. Workers may edit any Rust file (re-read it right before editing), a unit test replaces a gametest, size is not a reason. BLOCKED means a NAMED missing pumpkin-data field or a subsystem over ~300 lines with the file you would create. Always run a redo pass over BLOCKED lines. |
+| Zero FIXED from a first audit wave | Stale tracker rows are mostly ALREADY-FIXED, but a wave with 0 fixes means the workers audited instead of closing. Brief for outcomes ("leave the code closer to vanilla"), not for classification. |
+| Shards built by shared basename (`mod.rs`) collapsed into one 584-item shard | Group by full relative path, skip generic basenames (`mod.rs`, `lib.rs`), and spread any giant component across shards; workers re-read before editing so overlap is safe. |
+| `rustfmt --check` over `git ls-files` flags generated and tooling files | CI formats only what cargo fmt reaches; fix your own files, leave `generated/` alone. |
+| CI job exit 143 after a push | SIGTERM from a newer push cancelling the run, not a code failure. Read the next run. |
+| Tracker row line numbers are stale | Grep the cited function name, never trust the line number. |
+| Worker test dropped the only strong `Arc` while the mob holds a `Weak` target | In tests keep the strong reference alive until after the assertion. |
+
+## Briefing workers for judgment, not checklists
+- State the outcome and why it matters (the observable vanilla behaviour a player would notice), then the evidence and constraints. Lists of verdict labels invite box-ticking.
+- Tell workers to read the neighbouring code first, copy its idiom, and prefer the smallest change that makes behaviour match vanilla.
+- Allow initiative: if an item exposes a sibling bug in the same function or a missing test for the fixed path, fix it in the same edit and note it. Record unrelated finds in `docs/QUEUE.md` instead of ignoring them.
+- When two readings of vanilla conflict, pick the one the decompiled source and Paper/Spigot agree on, cite the path, and move on (reference-first rule), no questions.
+- Ask for a one-line "why this is right" per fix, not a template of fields.
+- Do not cap effort with item counts or stop conditions; give a finish line ("every item has a verdict line") and let the worker choose the order, easiest and highest-value first.
+- Review a sample of ALREADY-FIXED and WONTFIX verdicts yourself: they are the cheapest place for a lazy worker to hide.
