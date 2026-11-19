@@ -147,8 +147,8 @@ impl BeehiveBlock {
             return false;
         }
 
-        args.item_stack
-            .decrement_unless_creative(args.player.gamemode.load(), 1);
+        // Vanilla `BeehiveBlock.useItemOn` calls `itemStack.shrink(1)` with no creative check.
+        args.item_stack.decrement(1);
         args.world.play_sound(
             Sound::ItemBottleFill,
             SoundCategory::Blocks,

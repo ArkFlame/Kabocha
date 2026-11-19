@@ -307,6 +307,12 @@ impl Mob for NautilusEntity {
         world.is_unobstructed(self.get_entity())
     }
 
+    /// Vanilla `Nautilus#canBeLeashed` is `!isAggravated()`, and `isAggravated` is true while the
+    /// brain holds an attack target. The attack target here is the mob's target.
+    fn can_be_leashed(&self) -> bool {
+        self.mob_entity.get_target().is_none()
+    }
+
     fn can_dispenser_equip_into_slot(&self, slot: &EquipmentSlot) -> bool {
         *slot == EquipmentSlot::BODY
             || *slot == EquipmentSlot::SADDLE
@@ -691,6 +697,34 @@ mod tests {
         ));
         restored.mob_read_nbt(&nbt);
         assert!(restored.is_tame());
+
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn aggravated_nautilus_refuses_leash() -> TestResult {
+        use crate::entity::passive::cow::CowEntity;
+
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let nautilus = NautilusEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &pumpkin_data::entity::EntityType::NAUTILUS,
+        ));
+        let cow = CowEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &pumpkin_data::entity::EntityType::COW,
+        ));
+        assert!(nautilus.can_be_leashed());
+
+        let target: Arc<dyn EntityBase> = cow;
+        // The mob keeps only a weak reference, so the test holds the strong one.
+        nautilus.mob_entity.set_target(Some(target.clone()));
+        assert!(!nautilus.can_be_leashed());
+        drop(target);
 
         world.level.shutdown().await;
         Ok(())

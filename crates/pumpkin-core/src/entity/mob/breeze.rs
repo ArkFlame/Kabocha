@@ -8,6 +8,7 @@ use std::sync::{Arc, Weak};
 
 use pumpkin_data::entity::EntityType;
 
+use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::{
     Entity,
     ai::goal::{
@@ -17,6 +18,10 @@ use crate::entity::{
     },
     mob::{Mob, MobEntity},
 };
+
+/// Vanilla `Breeze` `NearestAttackableSensor` filter: `canAttack` accepts players and iron golems.
+const BREEZE_TARGET_TYPES: TargetMatch =
+    TargetMatch::AnyOf(&[&EntityType::PLAYER, &EntityType::IRON_GOLEM]);
 
 /// Vanilla `Breeze.WHIRL_SOUND_FREQUENCY_MIN` / `_MAX`: ticks between idle whirls.
 const WHIRL_SOUND_FREQUENCY_MIN: i32 = 1;
@@ -62,7 +67,7 @@ impl BreezeEntity {
             let target_selector = &mob_arc.mob_entity.target_selector;
             target_selector.add_goal(
                 1,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
+                ActiveTargetGoal::with_default(&mob_arc.mob_entity, BREEZE_TARGET_TYPES, true),
             );
             // Vanilla `Breeze.registerGoals`: `new HurtByTargetGoal(this)`, no alerting.
             target_selector.add_goal(2, Box::new(RevengeGoal::new(true)));
@@ -218,6 +223,13 @@ mod tests {
         );
         // Randomness is drawn only when a new interval starts (ticks 1 and 5 of 8).
         assert_eq!(rolls.get(), 2);
+    }
+
+    #[test]
+    fn breeze_targets_players_and_iron_golems_only() {
+        assert!(BREEZE_TARGET_TYPES.matches(&EntityType::PLAYER));
+        assert!(BREEZE_TARGET_TYPES.matches(&EntityType::IRON_GOLEM));
+        assert!(!BREEZE_TARGET_TYPES.matches(&EntityType::ZOMBIE));
     }
 
     #[tokio::test]

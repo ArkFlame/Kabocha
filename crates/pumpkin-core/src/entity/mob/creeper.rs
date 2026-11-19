@@ -126,16 +126,34 @@ impl CreeperEntity {
         } else {
             1.0
         };
+        let world = entity.world.load();
+        let pos = entity.pos.load();
+        // Vanilla `Creeper.explodeCreeper` lets plugins cancel or resize the prime event.
+        let mut prime_event =
+            crate::plugin::api::events::entity::explosion_prime::ExplosionPrimeEvent::new(
+                entity.entity_id,
+                radius * multiplier,
+                false,
+            );
+        if let Some(server) = world.server.upgrade() {
+            server
+                .plugin_manager
+                .fire_blocking(&server, &mut prime_event);
+        }
+        if prime_event.cancelled {
+            // Vanilla resets the swell and clears the ignited flag, keeping the creeper alive.
+            self.current_fuse_time.store(0, Ordering::Relaxed);
+            self.set_ignited(false);
+            return;
+        }
         self.mob_entity
             .living_entity
             .dead
             .store(true, Ordering::Relaxed);
-        let world = entity.world.load();
-        let pos = entity.pos.load();
         world.explode_from(
             self,
             pos,
-            radius * multiplier,
+            prime_event.radius,
             crate::world::ExplosionInteraction::Mob,
         );
 

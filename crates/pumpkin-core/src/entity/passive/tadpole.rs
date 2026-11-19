@@ -127,10 +127,11 @@ impl TadpoleEntity {
             .get_entity_by_id(entity.entity_id)
             .is_none()
         {
+            self.set_age(0);
             return;
         }
         let dimensions = entity.get_dimensions(entity.pose.load());
-        convert_to(
+        let converted = convert_to(
             self,
             &EntityType::FROG,
             ConversionParams::single(false, false),
@@ -145,6 +146,10 @@ impl TadpoleEntity {
                 self.play_entity_sound(Sound::EntityTadpoleGrowUp, SOUND_VOLUME, 1.0);
             },
         );
+        if converted.is_none() {
+            // Vanilla resets the age after a failed or canceled conversion so it does not retry every tick.
+            self.set_age(0);
+        }
     }
 
     fn is_food(item_stack: &ItemStack) -> bool {
@@ -316,6 +321,23 @@ mod tests {
         nbt.put_bool("FromBucket", false);
         tadpole.fish_read_nbt(&nbt);
         assert!(bucketable.is_from_bucket());
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn tadpole_resets_age_when_frog_conversion_fails()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        // Not added to the world, so the conversion cannot run and must reset the age.
+        let tadpole = TadpoleEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::TADPOLE,
+        ));
+        tadpole.set_age(TICKS_TO_BE_FROG);
+        assert_eq!(tadpole.age.load(Relaxed), 0);
         world.level.shutdown().await;
         Ok(())
     }

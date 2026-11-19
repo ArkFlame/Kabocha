@@ -542,3 +542,116 @@ own	tsmall-batch2	open	furnace_like_block_entity.rs:46 rescale_cooking_after_rel
 own	tverify-items2	open	Piglin (piglin.rs, piglin_ai.rs), Sulfur Cube (sulfur_cube.rs) and Bat rows unaudited this pass; Lodestone verified: lodestone.rs:7-9 vs PoiTypes.java:118 via world/mod.rs:6939 update_poi. Size L
 own	tverify-mobs7	open	Creaking hurt sound verified (creaking.rs:64-66 vs Creaking.java:434-435). Open: Breeze and Creaking goals not audited vs BreezeAi/CreakingAi Brain, breeze.rs:54-68 uses generic goals. Size L
 own	tverify-mobs9	open	breeze.rs:54-68 uses generic goals, not BreezeAi.java Brain: Shoot/LongJump/Slide/ShootWhenStuck behaviours missing (BREEZE_* memory types exist in memory/types.rs:150-155). Size L
+entities	Blaze	done	MoveTowardsRestrictionGoal prio 5 present
+entities	Bogged	done	bogged.rs matches Bogged.java
+entities	Breeze	done	FIXED breeze.rs: also targets iron golems (Breeze.java:239; test breeze_targets_players_and_iron_golems_only)
+entities	Cave Spider	done	LeapAtTargetGoal present
+entities	Creaking	open	spot-checked only
+entities	Creeper	done	FIXED creeper.rs: ExplosionPrimeEvent with charged radius (Creeper.java:240-262)
+entities	Drowned	done	trident goal matches Drowned.java
+entities	Elder Guardian	done	elder_guardian.rs goals and fatigue match Guardian/ElderGuardian
+entities	Enderman	done	constants and teleport match Enderman.java
+entities	Endermite	done	lifetime matches Endermite.aiStep
+entities	Guardian	done	FIXED guardian.rs: hit and attack stop trigger the stroll goal (Guardian.java:317-330,384-386; test external_trigger_forces_one_stroll)
+entities	Hoglin	open	retreat activity needs brain wiring
+entities	Illusioner	done	bow and spell goals present
+entities	Parched	done	FIXED parched.rs: weakness only on plain ARROW (test parched_weakness_skips_spectral_arrows)
+entities	Piglin	done	Piglin.java xp and PiglinAi constants match (brain mapping partly audited)
+entities	Piglin Brute	done	home handling present
+entities	Ravager	done	stun and roar present in ravager.rs
+entities	Silverfish	done	wake-up-friends and merge goals present
+entities	Skeleton	done	attack interval matches AbstractSkeleton.reassessWeaponGoal
+entities	Spider	done	LeapAtTargetGoal 0.4 prio 3 present
+entities	Stray	done	stray.rs slowness arrow test stray_arrow_slowness_matches_vanilla
+entities	Sulfur Cube	done	goal priorities match addBehaviourGoals
+entities	Vex	done	vex.rs goals match Vex.java
+entities	Vindicator	done	Johnny goal present
+entities	Warden	open	Brain SNIFF/ROAR activities missing
+entities	Witch	done	WITCH_HEALABLE_RAIDERS wired
+entities	Zoglin	done	zoglin.rs predicate matches Zoglin.findNearestValidAttackTarget
+entities	Zombie Villager	done	FIXED zombie_villager.rs: golden apple without weakness is consumed like vanilla CONSUME
+entities	Ender Dragon	open	dragon parts not registered, no multi-part entity
+entities	Wither	done	WitherBoss.java:164-524 matches wither.rs
+entities	Armadillo	done	FIXED armadillo.rs: lava prevents staying rolled up (Armadillo.canStayRolledUp; test lava_contact_prevents_staying_rolled_up)
+entities	Axolotl	done	AxolotlAi.java:51-175 matches axolotl/ai.rs
+entities	Bat	done	Bat.java:117-300 matches bat.rs
+entities	Bee	done	bee/goals.rs registers hive, pollination, crop goals matching Bee.java:194-209
+entities	Camel Husk	done	matches CamelHusk.java
+entities	Copper Golem	open	container interaction range not wired
+entities	Dolphin	done	Dolphin.java:167-181 goals match
+entities	Fox	open	only key paths compared, not the full class
+entities	Goat	done	Goat.java finalizeSpawn/dropHorn match
+entities	Happy Ghast	open	in-clouds fast heal needs cloud environment attributes
+entities	Nautilus	done	FIXED nautilus.rs: aggravated nautilus cannot be leashed (Nautilus.java:152; test aggravated_nautilus_refuses_leash)
+entities	Ocelot	done	Ocelot.java goals and taming match
+entities	Panda	open	tick logic of upstream rewrite not compared
+entities	Sniffer	done	Sniffer.java canDig/canSniff/die match sniffer.rs
+entities	Strider	open	ridden speed factor 0.35/0.55 has no Rust counterpart
+entities	Tadpole	done	FIXED tadpole.rs: age resets when frog conversion fails (Tadpole.java:245; test tadpole_resets_age_when_frog_conversion_fails)
+entities	Zombie Nautilus	open	needs Brain ChargeAttack and StartAttacking
+entities	Mannequin	done	is_immobile matches Mannequin (LivingEntity, not Mob)
+entities	Dragon Fireball	done	dragon_fireball.rs matches DragonFireball.onHit
+entities	Experience Bottle	done	xp orb count and direction match ThrownExperienceBottle
+entities	Fishing Bobber	done	FIXED fishing_bobber.rs: caught item has pickup delay 0 (FishingHook.retrieve)
+entities	Acacia Boat	done	boat.rs ride height and item mapping match
+entities	Acacia Chest Boat	done	AbstractChestBoat.java:33,48 matches boat.rs
+entities	Bamboo Chest Raft	done	ChestRaft rules covered in boat.rs
+entities	Bamboo Raft	done	Raft.java rideHeight matches generated data
+entities	Birch Boat	done	AbstractBoat.java matches boat.rs
+entities	Birch Chest Boat	done	boat.rs chest boat rules match
+entities	Cherry Boat	done	Items.java:1558 mapping matches
+entities	Cherry Chest Boat	done	boat.rs chest-boat rules cover it (AbstractChestBoat.java:33,48)
+entities	Command Block Minecart	done	FIXED minecart.rs: drops a plain minecart (MinecartCommandBlock.getDropItem)
+entities	Dark Oak Boat	done	boat mapping and drop present with tests
+entities	Dark Oak Chest Boat	done	chest boat tests in boat.rs
+entities	Jungle Boat	done	boat.rs ride height and item mapping match
+entities	Jungle Chest Boat	done	AbstractChestBoat.java:33,48 matches boat.rs
+entities	Mangrove Boat	done	drop mapping and dimension test in boat.rs
+entities	Mangrove Chest Boat	done	AbstractChestBoat rules match
+entities	Oak Boat	done	AbstractBoat.java matches boat.rs
+entities	Oak Chest Boat	done	boat.rs chest boat rules match
+entities	Pale Oak Boat	done	Items.java:1578 mapping matches
+entities	Pale Oak Chest Boat	done	boat.rs chest-boat rules cover it
+entities	Poplar Boat	done	boat mapping and chest container present with tests
+entities	Poplar Chest Boat	done	chest boat tests in boat.rs
+entities	Spawner Minecart	done	MinecartSpawner.java matches
+entities	Spruce Boat	done	boat.rs ride height and item mapping match
+entities	Spruce Chest Boat	done	AbstractChestBoat.java:33,48 matches boat.rs
+entities	Armor Stand	open	spot-checked only
+entities	Cushion	open	lightning thunder_hit not overridden
+entities	Leash Knot	done	leash_knot.rs matches LeashFenceKnotEntity/BlockAttachedEntity
+entities	Painting	done	FIXED painting.rs: periodic check uses survives() like BlockAttachedEntity.tick
+entities	Item	done	ItemEntity merge/lifetime logic matches
+entities	Ominous Item Spawner	done	OminousItemSpawner.java:25-89 matches ominous_item_spawner.rs
+blocks	Beacon	done	beacon.rs normal_use matches BeaconBlock.useWithoutItem
+blocks	Beds	done	bed explosion and BedRule match
+blocks	Beehive & Bee Nest	done	FIXED beehive.rs: honey bottle fill always consumes one bottle (BeehiveBlock.useItemOn)
+blocks	Campfire	done	FIXED campfire.rs: no Frost Walker exemption, lit gate (test contact_damage_needs_lit_campfire) vs CampfireBlock.java:112-126
+blocks	Chests	done	ChestBlock.java:302-389 matches chests.rs
+blocks	Chiseled Bookshelf	done	ChiseledBookShelfBlock.java matches
+blocks	Creaking Heart	done	CreakingHeartBlock.java matches
+blocks	Dirt Path	done	push_entities_up present
+blocks	Ender Chest	done	normal_use calls PiglinAi::on_guarded_block_interacted (EnderChestBlock.java:90)
+blocks	Farmland	done	push_entities_up present
+blocks	Infested Blocks	done	spawn_infestation spawns SilverfishEntity
+blocks	Jukebox	done	drop_record offset matches JukeboxBlockEntity.popOutTheItem
+blocks	Lodestone	done	compass.rs use_on_block matches CompassItem.useOn
+blocks	Note Block	done	play_note matches NoteBlock.java
+blocks	Shulker Box	done	FIXED shulker_box.rs: lid animation triggers neighbour updates (test lid_updates_neighbours_on_open_start_and_end_only)
+blocks	Structure Block	done	StructureBlockEntity.java:151-161 usedBy gate matches
+blocks	Vault	open	vault config key item parsing missing (hard-coded trial key ids)
+blocks	Fire	open	spread loop not compared line by line; vanilla continues after canSurvive fails
+blocks	Sculk Catalyst	open	death listener and sculk spreading block entity missing
+blocks	Sculk Shrieker	open	vibration/warden summon dispatch missing
+blocks	Moving Piston	done	FIXED block/entities/piston.rs: IGNORE_ENTITY push reaction skipped (PistonMovingBlockEntity.java:128-190; test pistons_pass_through_non_pushable_decorations)
+blocks	Piston Head	done	PistonHeadBlock.java matches
+blocks	Pistons	done	PistonBaseBlock.java:117-137 neighbour signal matches
+blocks	Daylight Detector	done	matches DaylightDetectorBlock.java
+blocks	Dispenser	open	1903-line file only spot-checked
+blocks	Sculk Sensor	done	World::post_game_event notifies block-entity listeners
+items	Fishing Rod	done	FishingRodItem.java:17-69 matches
+items	Mace	done	smash curve and eligibility match MaceItem
+items	Compass & Recovery Compass	done	FIXED compass.rs: recovery compass binds to lodestone (CompassItem.useOn)
+items	Elytra	done	LivingEntity.updateFallFlying matches player.rs:4018-4116
+items	Goat Horn	done	goat_horn.rs matches InstrumentItem.use
+items	Name Tag	done	name_tag.rs matches NameTagItem

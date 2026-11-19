@@ -1,9 +1,7 @@
 use pumpkin_data::{
-    Block, BlockDirection, BlockState, BlockStateId, Enchantment,
+    Block, BlockDirection, BlockState, BlockStateId,
     block_properties::CampfireLikeProperties,
     damage::DamageType,
-    data_component_impl::EquipmentSlot,
-    effect::StatusEffect,
     fluid::Fluid,
     game_event::GameEvent,
     recipes::{CookingRecipeKind, get_cooking_recipe_with_ingredient},
@@ -176,36 +174,18 @@ impl BlockBehaviour for CampfireBlock {
     }
 
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
-        if CampfireLikeProperties::from_state_id(args.state.id).lit
-            && let Some(living_entity) = args.entity.get_living_entity()
-        {
-            let has_frost_walker_enchantment = {
-                let equipment = living_entity
-                    .entity_equipment
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                equipment
-                    .equipment
-                    .get(&EquipmentSlot::FEET)
-                    .is_some_and(|boots| {
-                        boots.get_enchantment_level(&Enchantment::FROST_WALKER) != 0
-                    })
-            };
-            let has_fire_res = living_entity
-                .get_effect(&StatusEffect::FIRE_RESISTANCE)
-                .is_some();
-            if has_frost_walker_enchantment || has_fire_res {
-                // Campfire damage is prevented by Frost Walker boots or fire resistance.
-                return;
-            }
-            let damage_amount = if args.block == &Block::SOUL_CAMPFIRE {
-                2.0
-            } else {
-                1.0
-            };
-            args.entity
-                .damage(args.entity, damage_amount, DamageType::CAMPFIRE);
+        if args.entity.get_living_entity().is_none() {
+            return;
         }
+        // Vanilla `CampfireBlock.entityInside` ignores Frost Walker; fire resistance is
+        // applied by the `is_fire` damage tag in `hurt`.
+        let lit = CampfireLikeProperties::from_state_id(args.state.id).lit;
+        let Some(damage_amount) = campfire_contact_damage(lit, args.block == &Block::SOUL_CAMPFIRE)
+        else {
+            return;
+        };
+        args.entity
+            .damage(args.entity, damage_amount, DamageType::CAMPFIRE);
     }
 
     fn on_projectile_hit(&self, args: OnProjectileHitArgs<'_>) {
@@ -265,13 +245,22 @@ impl BlockBehaviour for CampfireBlock {
     }
 }
 
+/// Vanilla `CampfireBlock.entityInside`: a lit campfire hurts a living entity by its `fireDamage`,
+/// 1 for a campfire and 2 for a soul campfire (`soul`). An unlit campfire deals nothing.
+const fn campfire_contact_damage(lit: bool, soul: bool) -> Option<f32> {
+    if !lit {
+        return None;
+    }
+    Some(if soul { 2.0 } else { 1.0 })
+}
+
 fn is_signal_fire_base_block(block: &Block) -> bool {
     block == &Block::HAY_BLOCK
 }
 
 #[cfg(test)]
 mod tests {
-    use super::CampfireBlock;
+    use super::{CampfireBlock, campfire_contact_damage};
 
     #[test]
     fn smoke_scans_five_cells_and_stops_at_a_blocker() {
@@ -285,5 +274,14 @@ mod tests {
         assert!(!CampfireBlock::is_smokey_pos_from(|dy| (false, dy == 1)));
         // A lit campfire beyond the scan distance is ignored.
         assert!(!CampfireBlock::is_smokey_pos_from(|dy| (dy == 6, false)));
+    }
+
+    #[test]
+    fn contact_damage_needs_lit_campfire() {
+        // Unlit campfires never hurt; the helper takes no equipment, so no exemption is possible.
+        assert_eq!(campfire_contact_damage(false, false), None);
+        assert_eq!(campfire_contact_damage(false, true), None);
+        assert_eq!(campfire_contact_damage(true, false), Some(1.0));
+        assert_eq!(campfire_contact_damage(true, true), Some(2.0));
     }
 }

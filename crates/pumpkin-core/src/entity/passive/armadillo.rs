@@ -236,8 +236,9 @@ impl ArmadilloEntity {
 
     pub fn can_stay_rolled_up(&self) -> bool {
         let entity = self.get_entity();
+        // Vanilla `Armadillo.canStayRolledUp` uses `isInLiquid()`, which includes lava.
         !self.is_panicking()
-            && !self.mob_entity.living_entity.is_in_water()
+            && !entity.is_in_liquid()
             && !entity.is_leashed()
             && !entity.is_passenger()
             && !entity.is_vehicle()
@@ -638,6 +639,30 @@ const _: () = assert!(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entity::ai::test_support::world;
+    use pumpkin_util::math::vector3::Vector3;
+
+    #[tokio::test]
+    async fn lava_contact_prevents_staying_rolled_up() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let armadillo = ArmadilloEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::ARMADILLO,
+        ));
+        assert!(armadillo.can_stay_rolled_up());
+        armadillo
+            .mob_entity
+            .living_entity
+            .entity
+            .touching_lava
+            .store(true, Ordering::SeqCst);
+        let rolled_up_in_lava = armadillo.can_stay_rolled_up();
+        world.level.shutdown().await;
+        assert!(!rolled_up_in_lava);
+        Ok(())
+    }
 
     #[test]
     fn ball_up_unroll_gates_match_vanilla_threshold() {

@@ -26,6 +26,8 @@ use crate::entity::{
 const MAX_STILL_TIMEOUT: i32 = 10;
 /// Vanilla `HappyGhast.STILL_TIMEOUT_ON_LOAD_GRACE_PERIOD`: no decrement before this age.
 const STILL_TIMEOUT_GRACE: i32 = 60;
+/// Vanilla `HappyGhast.continuousHeal` interval while precipitating on the ghast.
+const FAST_HEAL_TICKS: i32 = 20;
 /// Per-nudge velocity toward a random float target (matches `Ghast`'s float goal).
 const FLOAT_ACCELERATION: f64 = 0.1;
 
@@ -407,11 +409,19 @@ impl Mob for HappyGhastEntity {
             }
         }
 
-        // Vanilla heals one health every 600 ticks, keyed on the entity's own age.
+        // Vanilla `HappyGhast.continuousHeal`: one health every 20 ticks while it rains
+        // on the ghast, otherwise every 600, keyed on the entity's own age. The
+        // in-clouds fast heal needs the cloud environment attribute, which is not modelled.
         let entity = self.get_entity();
         let living = &self.mob_entity.living_entity;
+        let world = entity.world.load();
+        let interval = if world.is_raining_at(&entity.block_pos.load()) {
+            FAST_HEAL_TICKS
+        } else {
+            TICKS_PER_HEAL
+        };
         if entity.is_alive()
-            && entity.tick_count.load(Ordering::Relaxed) % TICKS_PER_HEAL == 0
+            && entity.tick_count.load(Ordering::Relaxed) % interval == 0
             && living.health.load() < living.get_max_health()
         {
             living.heal(1.0);

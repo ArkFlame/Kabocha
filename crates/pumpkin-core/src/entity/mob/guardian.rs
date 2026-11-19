@@ -130,15 +130,21 @@ pub struct GuardianAttackGoal {
     attack_time: i32,
     elder: bool,
     attack_target: TrackedData,
+    stroll_trigger: Arc<AtomicBool>,
 }
 
 impl GuardianAttackGoal {
     #[must_use]
-    pub const fn new(elder: bool, attack_target: TrackedData) -> Self {
+    pub const fn new(
+        elder: bool,
+        attack_target: TrackedData,
+        stroll_trigger: Arc<AtomicBool>,
+    ) -> Self {
         Self {
             attack_time: -10,
             elder,
             attack_target,
+            stroll_trigger,
         }
     }
 
@@ -187,6 +193,8 @@ impl Goal for GuardianAttackGoal {
     fn stop(&mut self, mob: &dyn Mob) {
         mob.get_entity().set_synced_data(self.attack_target, 0i32);
         mob.get_mob_entity().set_target(None);
+        // Vanilla `GuardianAttackGoal.stop` calls `randomStrollGoal.trigger()`.
+        self.stroll_trigger.store(true, Ordering::Relaxed);
     }
 
     fn should_run_every_tick(&self) -> bool {
@@ -336,6 +344,7 @@ impl MoveControlTrait for GuardianMoveControl {
 pub struct GuardianEntity {
     pub mob_entity: MobEntity,
     moving: Arc<AtomicBool>,
+    stroll_trigger: Arc<AtomicBool>,
 }
 
 impl GuardianEntity {
@@ -349,13 +358,18 @@ impl GuardianEntity {
             0i32,
         );
         let moving = Arc::new(AtomicBool::new(false));
+        let stroll_trigger = Arc::new(AtomicBool::new(false));
         let mut mob_entity = MobEntity::new(entity);
         *mob_entity
             .move_control
             .get_mut()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             Box::new(GuardianMoveControl::new(moving.clone()));
-        let guardian = Self { mob_entity, moving };
+        let guardian = Self {
+            mob_entity,
+            moving,
+            stroll_trigger: stroll_trigger.clone(),
+        };
         let mob_arc = Arc::new(guardian);
         let mob_weak: Weak<dyn Mob> = {
             let mob_arc: Arc<dyn Mob> = mob_arc.clone();
@@ -371,12 +385,18 @@ impl GuardianEntity {
                 Box::new(GuardianAttackGoal::new(
                     false,
                     pumpkin_data::tracked_data::guardian::DATA_ID_ATTACK_TARGET,
+                    stroll_trigger.clone(),
                 )),
             );
             // Vanilla `Guardian.registerGoals`: restriction at 5 keeps the guardian near home.
             goal_selector.add_goal(5, Box::new(MoveTowardsRestrictionGoal::new(1.0)));
             // Vanilla `RandomStrollGoal(this, 1.0, 80)`.
-            goal_selector.add_goal(7, Box::new(WanderAroundGoal::with_interval(1.0, 80)));
+            goal_selector.add_goal(
+                7,
+                Box::new(
+                    WanderAroundGoal::with_interval(1.0, 80).with_external_trigger(stroll_trigger),
+                ),
+            );
             goal_selector.add_goal(
                 8,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
@@ -452,6 +472,8 @@ impl Mob for GuardianEntity {
             source,
             self.moving.load(Ordering::Relaxed),
         );
+        // Vanilla `Guardian.hurtServer` calls `randomStrollGoal.trigger()` on every hit.
+        self.stroll_trigger.store(true, Ordering::Relaxed);
         true
     }
 
@@ -489,12 +511,13 @@ mod tests {
     #[test]
     fn beam_charge_duration_matches_vanilla_elder_override() {
         use pumpkin_data::tracked_data::guardian::DATA_ID_ATTACK_TARGET;
+        let stroll = Arc::new(AtomicBool::new(false));
         assert_eq!(
-            GuardianAttackGoal::new(false, DATA_ID_ATTACK_TARGET).attack_duration(),
+            GuardianAttackGoal::new(false, DATA_ID_ATTACK_TARGET, stroll.clone()).attack_duration(),
             80
         );
         assert_eq!(
-            GuardianAttackGoal::new(true, DATA_ID_ATTACK_TARGET).attack_duration(),
+            GuardianAttackGoal::new(true, DATA_ID_ATTACK_TARGET, stroll).attack_duration(),
             60
         );
     }

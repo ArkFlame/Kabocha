@@ -3,6 +3,8 @@ use crate::entity::ai::util::{default_random_pos, land_random_pos};
 use crate::entity::{ai::pathfinder::NavigatorGoal, mob::Mob};
 use pumpkin_util::math::vector3::Vector3;
 use rand::RngExt;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 type PositionProvider = fn(&dyn Mob) -> Option<Vector3<f64>>;
 
@@ -17,6 +19,7 @@ pub struct WanderAroundGoal {
     interval: i32,
     check_no_action_time: bool,
     force_trigger: bool,
+    external_trigger: Option<Arc<AtomicBool>>,
     water_avoiding_probability: Option<f32>,
     position: Option<PositionProvider>,
     start_condition: Option<fn(&dyn Mob) -> bool>,
@@ -38,6 +41,7 @@ impl WanderAroundGoal {
             interval,
             check_no_action_time: true,
             force_trigger: false,
+            external_trigger: None,
             water_avoiding_probability: None,
             position: None,
             start_condition: None,
@@ -67,6 +71,14 @@ impl WanderAroundGoal {
     #[must_use]
     pub const fn with_start_condition(mut self, start_condition: fn(&dyn Mob) -> bool) -> Self {
         self.start_condition = Some(start_condition);
+        self
+    }
+
+    /// Shares a flag set by other goals or hooks (vanilla `RandomStrollGoal.trigger()` from
+    /// outside the goal). A set flag forces the next `can_start` and is cleared by it.
+    #[must_use]
+    pub fn with_external_trigger(mut self, flag: Arc<AtomicBool>) -> Self {
+        self.external_trigger = Some(flag);
         self
     }
 
@@ -121,6 +133,14 @@ impl Goal for WanderAroundGoal {
         // Every mob that carries a passenger is controlled by it.
         if mob.get_entity().has_passengers() {
             return false;
+        }
+
+        if self
+            .external_trigger
+            .as_ref()
+            .is_some_and(|flag| flag.swap(false, Ordering::Relaxed))
+        {
+            self.force_trigger = true;
         }
 
         if !self.force_trigger {
@@ -190,6 +210,32 @@ mod tests {
     use crate::entity::{Entity, ai::test_support::world, passive::cow::CowEntity};
     use pumpkin_data::entity::EntityType;
     use std::sync::atomic::Ordering::Relaxed;
+
+    #[tokio::test]
+    async fn external_trigger_forces_one_stroll() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let cow = CowEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::COW,
+        ));
+        let flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut goal = WanderAroundGoal::with_interval(1.0, 1)
+            .with_position(|_| Some(Vector3::new(1.0, 64.0, 0.0)), 0.0)
+            .with_external_trigger(flag.clone());
+        cow.get_mob_entity()
+            .living_entity
+            .no_action_time
+            .store(100, Relaxed);
+        assert!(!goal.can_start(cow.as_ref()));
+        flag.store(true, Relaxed);
+        assert!(goal.can_start(cow.as_ref()));
+        assert!(!flag.load(Relaxed));
+        assert!(!goal.can_start(cow.as_ref()));
+        world.level.shutdown().await;
+        Ok(())
+    }
 
     #[tokio::test]
     async fn idle_mobs_only_stroll_when_forced() -> Result<(), Box<dyn std::error::Error>> {

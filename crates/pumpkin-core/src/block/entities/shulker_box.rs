@@ -68,8 +68,12 @@ impl BlockEntity for ShulkerBoxBlockEntity {
     }
 
     fn tick(&self, world: &Arc<World>) {
-        if let Ok(mut animation) = self.animation.lock() {
-            animation.step();
+        let neighbour_update_due = self
+            .animation
+            .lock()
+            .is_ok_and(|mut animation| animation.step());
+        if neighbour_update_due {
+            world.update_neighbors(&self.position, None);
         }
         self.viewers
             .update_viewer_count::<Self>(self, world, &self.position);
@@ -236,21 +240,30 @@ impl AnimationState {
     }
 
     /// Advances the lid by one tick.
-    pub fn step(&mut self) {
+    ///
+    /// Returns true when vanilla `updateAnimation` calls `doNeighborUpdates`: the first
+    /// tick of an opening or closing lid, and the tick it reaches fully open or closed.
+    pub fn step(&mut self) -> bool {
         match self.status {
             AnimationStatus::Opening => {
+                let started = self.progress == 0.0;
                 self.progress = (self.progress + Self::STEP).min(1.0);
                 if self.progress >= 1.0 {
                     self.status = AnimationStatus::Opened;
+                    return true;
                 }
+                started
             }
             AnimationStatus::Closing => {
+                let started = self.progress == 1.0;
                 self.progress = (self.progress - Self::STEP).max(0.0);
                 if self.progress <= 0.0 {
                     self.status = AnimationStatus::Closed;
+                    return true;
                 }
+                started
             }
-            AnimationStatus::Opened | AnimationStatus::Closed => {}
+            AnimationStatus::Opened | AnimationStatus::Closed => false,
         }
     }
 
@@ -443,6 +456,16 @@ mod tests {
         assert_eq!(state.status, AnimationStatus::Opening);
         state.on_open_count(2);
         assert_eq!(state.status, AnimationStatus::Opening);
+    }
+
+    #[test]
+    fn lid_updates_neighbours_on_open_start_and_end_only() {
+        let mut state = AnimationState::default();
+        state.on_open_count(1);
+        let updates: Vec<bool> = (0..10).map(|_| state.step()).collect();
+        assert_eq!(updates.first(), Some(&true));
+        assert_eq!(updates.last(), Some(&true));
+        assert!(updates[1..9].iter().all(|due| !due));
     }
 
     #[test]

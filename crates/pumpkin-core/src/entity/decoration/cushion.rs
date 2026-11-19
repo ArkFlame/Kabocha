@@ -8,6 +8,7 @@ use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::tag::{Block as BlockTag, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::java::client::play::Metadata;
@@ -174,6 +175,20 @@ impl CushionEntity {
             .map_or_else(|| Self::color_from_item(stack.get_item()), |c| c.color.id())
     }
 
+    /// Vanilla `Cushion.destroyIfInFire`: a fire block overlapping the box hurts it once.
+    fn destroy_if_in_fire(&self) {
+        if !self.entity.is_alive() {
+            return;
+        }
+        let world = self.entity.world.load();
+        let inner = self.entity.bounding_box.load().contract_all(1.0e-7);
+        let in_fire = BlockPos::iterate(inner.min_block_pos(), inner.max_block_pos())
+            .any(|pos| world.get_block(&pos).has_tag(&BlockTag::MINECRAFT_FIRE));
+        if in_fire {
+            self.damage_with_context(self, 1.0, DamageType::IN_FIRE, None, None, None);
+        }
+    }
+
     fn drop_and_remove(&self, caused_by: Option<&dyn EntityBase>) {
         let entity = &self.entity;
         let passengers = entity
@@ -315,6 +330,7 @@ impl EntityBase for CushionEntity {
             return;
         }
         self.ticks_since_last_check.store(0, Ordering::Relaxed);
+        self.destroy_if_in_fire();
         let world = self.entity.world.load();
         if self.entity.is_alive()
             && !Self::would_survive_at(&world, &self.entity.bounding_box.load())
@@ -693,6 +709,28 @@ mod tests {
         );
         assert!(cushion_empty, "removed cushion still owns its passenger");
         assert!(cushion_removed);
+    }
+
+    #[tokio::test]
+    async fn fire_inside_the_cushion_box_destroys_it() {
+        let fixture = PlacementWorld::new();
+        fixture.set_block(BlockPos::new(0, 65, 0), Block::FIRE.default_state.id);
+        let cushion = Arc::new(CushionEntity::new(
+            Entity::new(
+                fixture.world.clone(),
+                Vector3::new(0.5, 65.0, 0.5),
+                &EntityType::CUSHION,
+            ),
+            0,
+        ));
+        fixture.world.spawn_entity(cushion.clone());
+        cushion.destroy_if_in_fire();
+        let destroyed = !cushion.entity.is_alive();
+        fixture.shutdown().await;
+        assert!(
+            destroyed,
+            "a cushion standing in fire must break, as vanilla destroyIfInFire does"
+        );
     }
 
     #[tokio::test]

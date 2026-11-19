@@ -5,6 +5,7 @@ use rand::RngExt;
 
 use pumpkin_data::Block;
 use pumpkin_data::BlockState;
+use pumpkin_data::attributes::Attributes;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::fluid::Fluid;
@@ -19,6 +20,9 @@ use pumpkin_util::math::position::BlockPos;
 use uuid::Uuid;
 
 use crate::entity::ai::pathfinder::node::PathType;
+use crate::entity::attributes::{
+    AttributeInstance, Modifier, ModifierOperation, send_attribute_updates_for_living,
+};
 use crate::entity::{
     Entity, EntityBase,
     ageable::{AgeableData, AgeableMob, STRIDER_BABY_SPAWN_CHANCE},
@@ -172,6 +176,28 @@ impl StriderEntity {
             pumpkin_data::tracked_data::strider::DATA_SUFFOCATING,
             suffocating,
         );
+        let living = &self.mob_entity.living_entity;
+        living.update_attribute(&Attributes::MOVEMENT_SPEED, |inst| {
+            apply_suffocation_speed(inst, suffocating);
+        });
+        send_attribute_updates_for_living(living, vec![Attributes::MOVEMENT_SPEED]);
+    }
+}
+
+/// Vanilla `Strider.SUFFOCATING_MODIFIER_ID`.
+const SUFFOCATING_SPEED_ID: &str = "minecraft:suffocating";
+/// Vanilla `Strider.SUFFOCATING_MODIFIER`: -0.34 applied to the base speed.
+const SUFFOCATING_SPEED_AMOUNT: f64 = -0.34;
+
+fn apply_suffocation_speed(inst: &mut AttributeInstance, suffocating: bool) {
+    if suffocating {
+        inst.add_or_replace_modifier(Modifier {
+            id: SUFFOCATING_SPEED_ID.to_string(),
+            amount: SUFFOCATING_SPEED_AMOUNT,
+            operation: ModifierOperation::MultiplyBase,
+        });
+    } else {
+        inst.remove_modifier(SUFFOCATING_SPEED_ID);
     }
 }
 
@@ -484,5 +510,21 @@ impl ItemSteerable for StriderEntity {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::entity::attributes::AttributeInstance;
+
+    use super::apply_suffocation_speed;
+
+    #[test]
+    fn suffocating_strider_walks_at_vanilla_reduced_speed() {
+        let mut inst = AttributeInstance::new(0.175);
+        apply_suffocation_speed(&mut inst, true);
+        assert!((inst.value() - 0.175 * 0.66).abs() < 1e-9);
+        apply_suffocation_speed(&mut inst, false);
+        assert!((inst.value() - 0.175).abs() < 1e-9);
     }
 }

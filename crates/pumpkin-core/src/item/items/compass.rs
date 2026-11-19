@@ -32,7 +32,8 @@ impl ItemBehaviour for CompassItem {
         block: &Block,
         _server: &Server,
     ) -> BlockActionResult {
-        if block.id == Block::LODESTONE.id && item.item.id == Item::COMPASS.id {
+        // Vanilla `CompassItem.useOn` binds any compass item, including the recovery compass.
+        if block.id == Block::LODESTONE.id {
             let world = player.world();
             world.play_sound_fine(
                 Sound::ItemLodestoneCompassLock,

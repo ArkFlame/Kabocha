@@ -2,11 +2,14 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use crossbeam::atomic::AtomicCell;
+use pumpkin_data::entity::EntityType;
 use pumpkin_data::{Block, BlockDirection, BlockState};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
 use pumpkin_world::block::BlockStateCodec;
 
+use crate::entity::EntityBase;
+use crate::entity::decoration::armor_stand::ArmorStandEntity;
 use crate::world::{BlockFlags, World};
 
 use super::BlockEntity;
@@ -147,7 +150,7 @@ impl PistonBlockEntity {
 
         for entity in world.get_entities_at_box(&swept_bounds) {
             let e = entity.get_entity();
-            if e.no_physics.load(Ordering::Relaxed) {
+            if e.no_physics.load(Ordering::Relaxed) || ignores_piston_push(entity.as_ref()) {
                 continue;
             }
             // Player movement is client-authoritative; vanilla still nudges them
@@ -297,6 +300,29 @@ impl PistonBlockEntity {
     }
 }
 
+/// Vanilla `getPistonPushReaction` is `IGNORE_ENTITY` for markers, displays, area effect
+/// clouds, interactions, ominous item spawners and marker armor stands: pistons pass through them.
+fn ignores_piston_push(entity: &dyn EntityBase) -> bool {
+    piston_ignores_entity_type(entity.get_entity().entity_type)
+        || entity
+            .cast_any()
+            .downcast_ref::<ArmorStandEntity>()
+            .is_some_and(ArmorStandEntity::is_marker)
+}
+
+fn piston_ignores_entity_type(entity_type: &EntityType) -> bool {
+    [
+        EntityType::MARKER.id,
+        EntityType::BLOCK_DISPLAY.id,
+        EntityType::ITEM_DISPLAY.id,
+        EntityType::TEXT_DISPLAY.id,
+        EntityType::AREA_EFFECT_CLOUD.id,
+        EntityType::INTERACTION.id,
+        EntityType::OMINOUS_ITEM_SPAWNER.id,
+    ]
+    .contains(&entity_type.id)
+}
+
 const FACING: &str = "facing";
 const BLOCK_STATE: &str = "blockState";
 const LAST_PROGRESS: &str = "progress";
@@ -412,6 +438,19 @@ mod test {
 
     use super::PistonBlockEntity;
     use crate::block::entities::BlockEntity;
+
+    #[test]
+    fn pistons_pass_through_non_pushable_decorations() {
+        use pumpkin_data::entity::EntityType;
+
+        use super::piston_ignores_entity_type;
+
+        assert!(piston_ignores_entity_type(&EntityType::MARKER));
+        assert!(piston_ignores_entity_type(&EntityType::ITEM_DISPLAY));
+        assert!(piston_ignores_entity_type(&EntityType::INTERACTION));
+        assert!(!piston_ignores_entity_type(&EntityType::ZOMBIE));
+        assert!(!piston_ignores_entity_type(&EntityType::ARMOR_STAND));
+    }
 
     #[test]
     fn pushed_block_state_survives_nbt_round_trip() {

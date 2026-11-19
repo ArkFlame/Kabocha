@@ -475,13 +475,17 @@ impl Mob for ZombieVillagerEntity {
     }
 
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
-        if item_stack.get_item() == &Item::GOLDEN_APPLE
-            && self
+        if item_stack.get_item() == &Item::GOLDEN_APPLE {
+            // Vanilla returns CONSUME for a golden apple without Weakness, so the apple is
+            // never eaten and the base interaction does not run.
+            if !self
                 .mob_entity
                 .mob_entity
                 .living_entity
                 .has_effect(&StatusEffect::WEAKNESS)
-        {
+            {
+                return true;
+            }
             item_stack.decrement_unless_creative(player.gamemode.load(), 1);
             self.start_converting(
                 Some(player.get_entity().entity_uuid),

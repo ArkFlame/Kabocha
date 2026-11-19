@@ -383,13 +383,12 @@ impl EntityBase for PaintingEntity {
         }
         self.ticks_since_last_check.store(0, Ordering::Relaxed);
 
-        let Some(location) = self.attached_pos.load() else {
+        if self.attached_pos.load().is_none() {
             return;
-        };
-        let facing = BlockDirection::from_index(self.entity.data.load(Ordering::Relaxed) as u8)
-            .unwrap_or(BlockDirection::South);
-        let world = self.entity.world.load();
-        if !Self::painting_fits(&world, location, facing, self.variant()) {
+        }
+        // Vanilla `BlockAttachedEntity.tick` breaks the hanging entity on any failed
+        // `survives()`: block and border collision, support, and hanging overlap.
+        if !self.survives() {
             self.drop_and_remove(None);
         }
     }

@@ -45,6 +45,7 @@ const fn should_apply_fatigue(effect: Option<(u8, i32)>) -> bool {
 pub struct ElderGuardianEntity {
     pub mob_entity: MobEntity,
     moving: Arc<AtomicBool>,
+    stroll_trigger: Arc<AtomicBool>,
 }
 
 impl ElderGuardianEntity {
@@ -59,6 +60,7 @@ impl ElderGuardianEntity {
             0i32,
         );
         let moving = Arc::new(AtomicBool::new(false));
+        let stroll_trigger = Arc::new(AtomicBool::new(false));
         let mut mob_entity = MobEntity::new(entity);
         // Vanilla `ElderGuardian` constructor calls `setPersistenceRequired()`; elders never despawn.
         mob_entity.set_persistence_required();
@@ -67,7 +69,11 @@ impl ElderGuardianEntity {
             .get_mut()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             Box::new(GuardianMoveControl::new(moving.clone()));
-        let guardian = Self { mob_entity, moving };
+        let guardian = Self {
+            mob_entity,
+            moving,
+            stroll_trigger: stroll_trigger.clone(),
+        };
         let mob_arc = Arc::new(guardian);
         let mob_weak: Weak<dyn Mob> = {
             let mob_arc: Arc<dyn Mob> = mob_arc.clone();
@@ -83,12 +89,18 @@ impl ElderGuardianEntity {
                 Box::new(GuardianAttackGoal::new(
                     true,
                     pumpkin_data::tracked_data::elder_guardian::DATA_ID_ATTACK_TARGET,
+                    stroll_trigger.clone(),
                 )),
             );
             // Vanilla `Guardian.registerGoals`: restriction at 5 keeps the elder near home.
             goal_selector.add_goal(5, Box::new(MoveTowardsRestrictionGoal::new(1.0)));
             // Vanilla `ElderGuardian` sets `RandomStrollGoal(this, 1.0, 400)`.
-            goal_selector.add_goal(7, Box::new(WanderAroundGoal::with_interval(1.0, 400)));
+            goal_selector.add_goal(
+                7,
+                Box::new(
+                    WanderAroundGoal::with_interval(1.0, 400).with_external_trigger(stroll_trigger),
+                ),
+            );
             goal_selector.add_goal(
                 8,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
@@ -231,6 +243,8 @@ impl Mob for ElderGuardianEntity {
             source,
             self.moving.load(Ordering::Relaxed),
         );
+        // Vanilla `Guardian.hurtServer` (inherited) calls `randomStrollGoal.trigger()` on every hit.
+        self.stroll_trigger.store(true, Ordering::Relaxed);
         true
     }
 }
