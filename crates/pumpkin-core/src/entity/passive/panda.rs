@@ -1376,7 +1376,13 @@ mod tests {
             }
         };
 
+        // Other random goals can win the first ticks, so give the sit goal a bounded window.
         steps(1, 11);
+        let mut tick = 11;
+        while !panda.mob_entity.goals_selector.is_running::<PandaSitGoal>() && tick < 400 {
+            steps(tick, tick + 1);
+            tick += 1;
+        }
         assert!(panda.mob_entity.goals_selector.is_running::<PandaSitGoal>());
         assert!(panda.is_sitting(), "the panda did not sit down");
 
@@ -1388,7 +1394,7 @@ mod tests {
         // down again with its item.
         panda.damage(panda.as_ref(), 1.0, DamageType::MOB_ATTACK);
         assert!(!panda.is_sitting(), "the panda kept sitting when hurt");
-        steps(11, 15);
+        steps(tick, tick + 4);
         assert!(panda.is_sitting());
         world.level.shutdown().await;
         Ok(())
