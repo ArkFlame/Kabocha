@@ -11230,7 +11230,7 @@ mod tests {
         // Java transfer payload: UTF-8 host preceded by its length, followed by VarInt port.
         assert_eq!(packet.payload.as_ref(), b"\x09localhost\xde\xc7\x01");
         client.close();
-        client.await_tasks().await;
+        tokio::time::timeout(Duration::from_secs(30), client.await_tasks()).await?;
         Ok(())
     }
 
