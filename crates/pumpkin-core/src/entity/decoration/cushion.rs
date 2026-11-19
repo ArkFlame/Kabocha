@@ -558,8 +558,8 @@ mod tests {
 
     #[test]
     fn break_particles_use_the_matching_wool() {
-        assert!(wool_block_for_color(14).name == "red_wool");
-        assert!(wool_block_for_color(15).name == "black_wool");
+        assert_eq!(wool_block_for_color(14).name, "red_wool");
+        assert_eq!(wool_block_for_color(15).name, "black_wool");
     }
 
     #[test]

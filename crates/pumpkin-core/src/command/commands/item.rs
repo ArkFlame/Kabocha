@@ -83,6 +83,19 @@ struct BlockReplaceExecutor {
     feedback: SuccessFeedback,
 }
 
+/// Builds the `[item]` chat component with a show-item hover, as vanilla item feedback does.
+fn item_hover_component(item: &Item, count: i32) -> TextComponent {
+    let item_name = item.registry_key;
+    TextComponent::text("[")
+        .add_child(item.translated_name())
+        .add_child(TextComponent::text("]"))
+        .hover_event(HoverEvent::ShowItem {
+            id: item_name.to_string().into(),
+            count: Some(count),
+            components: None,
+        })
+}
+
 impl CommandExecutor for BlockReplaceExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let world = context.source.world();
@@ -138,19 +151,10 @@ impl CommandExecutor for BlockReplaceExecutor {
                 );
             }
             // No slot accepted the item: vanilla reports commands.item.target.failed*.
-            let item_name = item.registry_key;
-            let item_component = TextComponent::text("[")
-                .add_child(item.translated_name())
-                .add_child(TextComponent::text("]"))
-                .hover_event(HoverEvent::ShowItem {
-                    id: item_name.to_string().into(),
-                    count: Some(count),
-                    components: None,
-                });
             let msg = TextComponent::translate_cross(
                 translation::java::COMMANDS_ITEM_TARGET_FAILED_KNOWN_ITEM,
                 translation::java::COMMANDS_ITEM_TARGET_FAILED_KNOWN_ITEM,
-                [item_component],
+                [item_hover_component(item, count)],
             );
             context.source.send_feedback(msg, true);
             return Ok(0);
@@ -159,15 +163,7 @@ impl CommandExecutor for BlockReplaceExecutor {
         inventory.mark_dirty();
         world.mark_block_entity_dirty(&pos);
 
-        let item_name = item.registry_key;
-        let item_component = TextComponent::text("[")
-            .add_child(item.translated_name())
-            .add_child(TextComponent::text("]"))
-            .hover_event(HoverEvent::ShowItem {
-                id: item_name.to_string().into(),
-                count: Some(count),
-                components: None,
-            });
+        let item_component = item_hover_component(item, count);
         let msg = match self.feedback {
             SuccessFeedback::Replace => TextComponent::translate_cross(
                 translation::java::COMMANDS_ITEM_BLOCK_REPLACE_SUCCESS_KNOWN_ITEM,
@@ -1075,9 +1071,9 @@ fn apply_copy_name(stack: &mut ItemStack, function: &NbtCompound, ctx: &Provider
         return;
     };
     match ctx.name_source(source) {
-        Some(Some(name)) => stack.set_data_component(CustomNameImpl { name }),
-        Some(None) => stack.remove_data_component(DataComponent::CustomName),
-        None => {}
+        NameSource::Named(name) => stack.set_data_component(CustomNameImpl { name }),
+        NameSource::Unnamed => stack.remove_data_component(DataComponent::CustomName),
+        NameSource::Absent => {}
     }
 }
 
@@ -1247,17 +1243,30 @@ struct ProviderContext<'a> {
     block_entity: Option<&'a dyn BlockEntity>,
 }
 
+/// Outcome of reading a `copy_name` source.
+enum NameSource {
+    /// The source is absent from the context, so the stack keeps its name.
+    Absent,
+    /// The source exists without a custom name, so the stack's name is cleared.
+    Unnamed,
+    Named(TextComponent),
+}
+
 impl ProviderContext<'_> {
-    /// Reads the custom name of a `copy_name` source. `None` means the source
-    /// is absent from the context, so the stack keeps its name.
-    fn name_source(&self, source: &str) -> Option<Option<TextComponent>> {
-        match source.strip_prefix("minecraft:").unwrap_or(source) {
-            "this" => self
-                .entity
-                .map(|e| e.get_entity().custom_name.load().as_ref().clone()),
-            "block_entity" => self.block_entity.map(BlockEntity::get_custom_name),
-            _ => None,
-        }
+    /// Reads the custom name of a `copy_name` source.
+    fn name_source(&self, source: &str) -> NameSource {
+        let name = match source.strip_prefix("minecraft:").unwrap_or(source) {
+            "this" => match self.entity {
+                Some(e) => e.get_entity().custom_name.load().as_ref().clone(),
+                None => return NameSource::Absent,
+            },
+            "block_entity" => match self.block_entity {
+                Some(be) => BlockEntity::get_custom_name(be),
+                None => return NameSource::Absent,
+            },
+            _ => return NameSource::Absent,
+        };
+        name.map_or(NameSource::Unnamed, NameSource::Named)
     }
 
     /// Resolves a vanilla `score` provider, or its fallback when no score exists.

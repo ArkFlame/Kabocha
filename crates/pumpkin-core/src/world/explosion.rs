@@ -602,13 +602,12 @@ impl<'a> Explosion<'a> {
             }
         }
         let mut positions: Vec<BlockPos> = positions.into_iter().collect();
-        {
-            let mut random = world
-                .explosion_random
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            shuffle_with_random(&mut positions, &mut *random);
-        }
+        let mut random = world
+            .explosion_random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        shuffle_with_random(&mut positions, &mut *random);
+        drop(random);
         (
             positions,
             affected_positions,
@@ -1429,9 +1428,9 @@ mod tests {
         let mut second = original.clone();
         shuffle_with_random(&mut first, &mut Xoroshiro::from_seed(7));
         shuffle_with_random(&mut second, &mut Xoroshiro::from_seed(7));
-        assert!(first == second);
-        assert!(first != original);
+        assert_eq!(first, second);
+        assert_ne!(first, original);
         first.sort_unstable();
-        assert!(first == original);
+        assert_eq!(first, original);
     }
 }

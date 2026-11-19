@@ -262,8 +262,8 @@ mod tests {
 
     #[test]
     fn flat_cave_spawn_top_counts_layers_and_caps_at_height() {
-        assert!(flat_spawn_top(-64, 3, 256) == -61);
-        assert!(flat_spawn_top(0, 300, 256) == 256);
+        assert_eq!(flat_spawn_top(-64, 3, 256), -61);
+        assert_eq!(flat_spawn_top(0, 300, 256), 256);
     }
 
     #[test]

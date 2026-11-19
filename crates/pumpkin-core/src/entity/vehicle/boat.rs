@@ -1074,7 +1074,7 @@ mod tests {
         apply_container_items(&inventory, &items);
         let first = inventory.get_stack(0);
         assert_eq!(first.item_count, 1);
-        assert!(first.get_item().id == Item::POWERED_RAIL.id);
+        assert_eq!(first.get_item().id, Item::POWERED_RAIL.id);
         assert!(inventory.get_stack(26).is_empty());
     }
 

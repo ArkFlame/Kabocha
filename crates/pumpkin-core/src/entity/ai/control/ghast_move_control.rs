@@ -233,18 +233,18 @@ impl MoveControlTrait for GhastMoveControl {
 pub fn face_movement_direction(mob: &dyn Mob) {
     let entity = mob.get_entity();
     let target = mob.get_mob_entity().get_target();
-    let yaw = match target {
-        None => {
+    let yaw = target.map_or_else(
+        || {
             let velocity = entity.velocity.load();
             Some(yaw_facing(velocity.x, velocity.z))
-        }
-        Some(target) => {
+        },
+        |target| {
             let pos = entity.pos.load();
             let target_pos = target.get_entity().pos.load();
             (pos.squared_distance_to_vec(&target_pos) < 4096.0)
                 .then(|| yaw_facing(target_pos.x - pos.x, target_pos.z - pos.z))
-        }
-    };
+        },
+    );
     if let Some(yaw) = yaw {
         entity.yaw.store(yaw);
         entity.body_yaw.store(yaw);

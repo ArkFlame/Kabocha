@@ -844,22 +844,28 @@ impl ArrowEntity {
                 false,
                 Vector3::new(0.2, 0.2, 0.2),
             );
-            if entity.velocity.load().length_squared() < 1.0e-7 {
-                let pickup = ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed));
-                if pickup == ArrowPickup::Allowed {
-                    let item_stack = self
-                        .item_stack
-                        .read()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    // Vanilla `spawnAtLocation(level, stack, 0.1F)`.
-                    entity.spawn_at_location_with_offset(
-                        Self::pickup_item_stack(&item_stack),
-                        Vector3::new(0.0, 0.1, 0.0),
-                    );
-                }
-                entity.remove();
-            }
+            self.remove_if_stopped_after_deflect(entity);
         }
+    }
+
+    /// Vanilla `AbstractArrow#onHitEntity`: a deflected arrow that lost its speed drops its pickup.
+    fn remove_if_stopped_after_deflect(&self, entity: &Entity) {
+        if entity.velocity.load().length_squared() >= 1.0e-7 {
+            return;
+        }
+        let pickup = ArrowPickup::from_byte(self.pickup.load(Ordering::Relaxed));
+        if pickup == ArrowPickup::Allowed {
+            let item_stack = self
+                .item_stack
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            // Vanilla `spawnAtLocation(level, stack, 0.1F)`.
+            entity.spawn_at_location_with_offset(
+                Self::pickup_item_stack(&item_stack),
+                Vector3::new(0.0, 0.1, 0.0),
+            );
+        }
+        entity.remove();
     }
 
     /// Effects for a target the arrow hurt: the tipped potion, or glowing from a spectral arrow.

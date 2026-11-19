@@ -476,7 +476,7 @@ mod tests {
         let folder = tempfile::tempdir()?;
         let world = world(&folder);
         let goat = GoatEntity::new(Entity::new(
-            world.clone(),
+            world,
             Vector3::new(0.5, 64.0, 0.5),
             &EntityType::GOAT,
         ));

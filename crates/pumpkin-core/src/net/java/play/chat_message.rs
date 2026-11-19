@@ -474,6 +474,6 @@ mod tests {
             0, 0, 0, 1, // last seen count
         ];
         expected.extend_from_slice(&signature);
-        assert!(payload == expected);
+        assert_eq!(payload, expected);
     }
 }

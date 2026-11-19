@@ -1255,7 +1255,7 @@ impl EntityPredicate {
         };
         bounds
             .iter()
-            .zip([ax, ay, az])
+            .zip(<[_; 3]>::from((ax, ay, az)))
             .all(|(bound, value)| bound.as_ref().is_none_or(|b| b.matches(value)))
     }
 
@@ -1364,15 +1364,10 @@ impl EntityPredicate {
             .unwrap_or_default()
     }
 
-    #[must_use]
-    pub fn from_value(val: &Value) -> Self {
-        let pred_val = val.get("predicate").unwrap_or(val);
-        let Value::Object(map) = pred_val else {
-            return Self::default();
-        };
-
-        let entity_type = map
-            .get("minecraft:entity_type")
+    /// Reads the entity type matcher, ignoring a legacy `type` key that names a
+    /// compound or non-entity predicate.
+    fn entity_type_from_value(map: &serde_json::Map<String, Value>) -> Option<TagOrIdMatcher> {
+        map.get("minecraft:entity_type")
             .or_else(|| {
                 map.get("type").filter(|t| {
                     t.as_str().is_none_or(|s| {
@@ -1389,7 +1384,37 @@ impl EntityPredicate {
                     })
                 })
             })
-            .and_then(TagOrIdMatcher::from_value);
+            .and_then(TagOrIdMatcher::from_value)
+    }
+
+    /// Reads the vehicle and passenger entity type matchers.
+    fn vehicle_from_value(
+        map: &serde_json::Map<String, Value>,
+    ) -> (Option<TagOrIdMatcher>, Option<TagOrIdMatcher>) {
+        map.get("minecraft:vehicle")
+            .or_else(|| map.get("vehicle"))
+            .map_or((None, None), |v| {
+                let vt = v
+                    .get("minecraft:entity_type")
+                    .or_else(|| v.get("type"))
+                    .and_then(TagOrIdMatcher::from_value);
+                let pt = v
+                    .get("minecraft:passenger")
+                    .or_else(|| v.get("passenger"))
+                    .and_then(|p| p.get("minecraft:entity_type").or_else(|| p.get("type")))
+                    .and_then(TagOrIdMatcher::from_value);
+                (vt, pt)
+            })
+    }
+
+    #[must_use]
+    pub fn from_value(val: &Value) -> Self {
+        let pred_val = val.get("predicate").unwrap_or(val);
+        let Value::Object(map) = pred_val else {
+            return Self::default();
+        };
+
+        let entity_type = Self::entity_type_from_value(map);
 
         let distance_val = map
             .get("minecraft:distance")
@@ -1415,21 +1440,7 @@ impl EntityPredicate {
             .and_then(|f| f.get("is_baby"))
             .and_then(Value::as_bool);
 
-        let (vehicle_type, passenger_type) = map
-            .get("minecraft:vehicle")
-            .or_else(|| map.get("vehicle"))
-            .map_or((None, None), |v| {
-                let vt = v
-                    .get("minecraft:entity_type")
-                    .or_else(|| v.get("type"))
-                    .and_then(TagOrIdMatcher::from_value);
-                let pt = v
-                    .get("minecraft:passenger")
-                    .or_else(|| v.get("passenger"))
-                    .and_then(|p| p.get("minecraft:entity_type").or_else(|| p.get("type")))
-                    .and_then(TagOrIdMatcher::from_value);
-                (vt, pt)
-            });
+        let (vehicle_type, passenger_type) = Self::vehicle_from_value(map);
 
         let stepping_on = map
             .get("minecraft:stepping_on")
@@ -2062,7 +2073,7 @@ pub enum CriterionConditions {
     EntityHurtPlayer(DamagePredicate),
     EntityKilledPlayer,
     PlayerHurtEntity(DamagePredicate),
-    BredAnimals(BredAnimalsPredicate),
+    BredAnimals(Box<BredAnimalsPredicate>),
     UsedEnderEye,
     ItemUsedOnBlock(ItemUsedOnBlockPredicate),
     TargetHit(TargetHitPredicate),
@@ -2246,11 +2257,11 @@ impl From<pumpkin_data::advancement_data::AdvancementCondition> for CriterionCon
                 patterns: vec![b.to_string()],
             }),
             AC::PlayerKilledEntity(e) => Self::PlayerKilledEntity(from_entity_condition(&e)),
-            AC::BredAnimals(b) => Self::BredAnimals(BredAnimalsPredicate {
+            AC::BredAnimals(b) => Self::BredAnimals(Box::new(BredAnimalsPredicate {
                 parent: b.parent.as_ref().map(from_entity_condition),
                 partner: b.partner.as_ref().map(from_entity_condition),
                 child: b.child.as_ref().map(from_entity_condition),
-            }),
+            })),
             AC::TameAnimal(e) => Self::TameAnimal(from_entity_condition(&e)),
             AC::FilledBucket(item) => Self::FilledBucket(ItemPredicate {
                 items: Some(TagOrIdMatcher {
@@ -2766,7 +2777,9 @@ impl CriterionConditions {
             "minecraft:player_hurt_entity" => {
                 Self::PlayerHurtEntity(DamagePredicate::from_value(&val))
             }
-            "minecraft:bred_animals" => Self::BredAnimals(BredAnimalsPredicate::from_value(&val)),
+            "minecraft:bred_animals" => {
+                Self::BredAnimals(Box::new(BredAnimalsPredicate::from_value(&val)))
+            }
             "minecraft:used_ender_eye" => Self::UsedEnderEye,
             "minecraft:item_used_on_block" => {
                 Self::ItemUsedOnBlock(ItemUsedOnBlockPredicate::from_value(&val))
