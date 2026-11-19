@@ -1,0 +1,7 @@
+{
+  "crate": "pumpkin-core",
+  "unit": "ns",
+  "benchmarks": {
+    "pathfinder_open_set/insert_then_pop_1024": 448337.2114399251
+  }
+}

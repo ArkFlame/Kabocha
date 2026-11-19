@@ -2,8 +2,8 @@
   "crate": "pumpkin-protocol",
   "unit": "ns",
   "benchmarks": {
-    "java_packet_encode/entity_position_sync": 305.8835885438025,
-    "java_packet_encode/head_rot": 63.006399034810244,
-    "java_packet_encode/keep_alive": 70.61942789044608
+    "java_packet_encode/entity_position_sync": 145.67795396478277,
+    "java_packet_encode/head_rot": 25.459199840571927,
+    "java_packet_encode/keep_alive": 53.095473032319376
   }
 }

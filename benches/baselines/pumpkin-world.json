@@ -1,0 +1,17 @@
+{
+  "crate": "pumpkin-world",
+  "unit": "ns",
+  "benchmarks": {
+    "biomes_generation": 634621.8040015661,
+    "carvers_generation": 1970924.2333333334,
+    "features_generation": 2617788.5933333333,
+    "full_chunk_generation": 21595604.1,
+    "level_chunk_conversion": 504181.35,
+    "lighting_generation": 14795796.65,
+    "lighting/initialize_light_3x3": 12007355.453346562,
+    "noise_generation": 9660416.682,
+    "structure_references_generation": 32999.62519849346,
+    "structure_starts_generation": 918.728380180083,
+    "surface_generation": 3802934.487999999
+  }
+}
