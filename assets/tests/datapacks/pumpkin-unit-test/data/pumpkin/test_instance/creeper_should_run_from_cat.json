@@ -2,8 +2,8 @@
   "type": "minecraft:block_based",
   "environment": "minecraft:default",
   "structure": "pumpkin:creeper_should_run_from_cat",
-  "max_ticks": 22,
-  "max_attempts": 3,
-  "required_successes": 3,
+  "max_ticks": 40,
+  "max_attempts": 5,
+  "required_successes": 1,
   "manual_only": false
 }

@@ -645,7 +645,8 @@ pub fn ensure_builtin_game_tests_registered() {
         register_flaky_function_test(
             "pumpkin:sniffer_sniffs_walks_and_digs",
             "pumpkin:empty_40x4x40",
-            800,
+            // Idling picks scent or sniff at random, so a dig needs a long window.
+            2400,
             0,
             3,
             1,

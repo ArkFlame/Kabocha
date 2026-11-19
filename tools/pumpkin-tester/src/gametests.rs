@@ -27,6 +27,9 @@ const TEST_BASE_Y: i32 = 80;
 const TEST_BASE_Z: i32 = 66;
 const CREEPER_TEST_X: i32 = -64;
 const CREEPER_TEST_Z: i32 = -64;
+const SNIFFER_TEST_X: i32 = 1024;
+const SNIFFER_TEST_Z: i32 = 1024;
+const WIDE_ARENA_SIZE: i32 = 48;
 const MAX_GAMETEST_TICKS: usize = 8000;
 
 #[derive(Default)]
@@ -73,21 +76,54 @@ async fn preload_test_arena(world: &World) {
     }
 }
 
+/// Tests that need a wide, quiet arena: their footprint or randomness is disturbed when
+/// 200 other tests share the world, so they run as their own batch after the main one.
+const ISOLATED_TESTS: &[&str] = &[
+    "pumpkin:creeper_should_run_from_cat",
+    "pumpkin:sniffer_sniffs_walks_and_digs",
+];
+
 pub async fn run_gametests(
     server: &Arc<Server>,
     runner: &mut GameTestRunner,
     summary_lines: &mut Vec<String>,
 ) -> Result<(), String> {
+    let mut all_tests = vec!["minecraft:always_pass", "pumpkin:summon_command_regression"];
+    all_tests.extend_from_slice(builtin_game_test_ids());
+    // `KAB_GAMETEST_FILTER=creeper,sniffer` runs only ids containing one of the substrings.
+    let filter = std::env::var("KAB_GAMETEST_FILTER").ok();
+    let wanted = |id: &str| {
+        filter
+            .as_ref()
+            .is_none_or(|f| f.split(',').any(|part| id.contains(part)))
+    };
+    let main: Vec<&str> = all_tests
+        .into_iter()
+        .filter(|id| !ISOLATED_TESTS.contains(id) && wanted(id))
+        .collect();
+    let isolated: Vec<&str> = ISOLATED_TESTS
+        .iter()
+        .copied()
+        .filter(|id| wanted(id))
+        .collect();
+    if !main.is_empty() {
+        run_gametest_batch(server, runner, summary_lines, main).await?;
+    }
+    if !isolated.is_empty() {
+        run_gametest_batch(server, runner, summary_lines, isolated).await?;
+    }
+    Ok(())
+}
+
+async fn run_gametest_batch(
+    server: &Arc<Server>,
+    runner: &mut GameTestRunner,
+    summary_lines: &mut Vec<String>,
+    all_tests: Vec<&'static str>,
+) -> Result<(), String> {
     let Some(world) = server.get_world_from_dimension(&Dimension::OVERWORLD) else {
         return Err("Overworld is not loaded".to_string());
     };
-
-    let mut all_tests = vec![
-        "minecraft:always_pass",
-        "pumpkin:summon_command_regression",
-        "pumpkin:creeper_should_run_from_cat",
-    ];
-    all_tests.extend_from_slice(builtin_game_test_ids());
 
     let reporter = Arc::new(CaptureReporter::default());
     let report_sink: Arc<dyn GameTestReporter> = reporter.clone();
@@ -111,6 +147,19 @@ pub async fn run_gametests(
                 GameTestRetryOptions::no_retries(),
                 report.clone(),
             )
+        } else if test_id == "pumpkin:sniffer_sniffs_walks_and_digs" {
+            // Far from the shared grid so leftover mobs and blocks of other tests cannot reach it.
+            prepare_wide_arena(&world, SNIFFER_TEST_X, SNIFFER_TEST_Z).await;
+            GameTestQueueEntry::new(
+                test_id,
+                world.clone(),
+                SNIFFER_TEST_X,
+                SNIFFER_TEST_Z,
+                0,
+                GameTestRetryOptions::no_retries(),
+                report.clone(),
+            )
+            .with_y(TEST_BASE_Y)
         } else {
             let slots_per_layer = TESTS_PER_ROW * TEST_ROWS_PER_LAYER;
             let layer = grid_slot / slots_per_layer;
@@ -199,6 +248,20 @@ fn force_load_surroundings_chunks(
         }
     }
     chunk_loading.send_change();
+}
+
+async fn prepare_wide_arena(world: &Arc<World>, test_x: i32, test_z: i32) {
+    let (min_cx, max_cx) = (test_x >> 4, (test_x + WIDE_ARENA_SIZE) >> 4);
+    let (min_cz, max_cz) = (test_z >> 4, (test_z + WIDE_ARENA_SIZE) >> 4);
+    force_load_surroundings_chunks(world, min_cx, max_cx, min_cz, max_cz);
+    for cx in min_cx..=max_cx {
+        for cz in min_cz..=max_cz {
+            world
+                .level
+                .get_or_fetch_chunk(Vector2::new(cx, cz), |_| ())
+                .await;
+        }
+    }
 }
 
 async fn prepare_flat_test_surroundings(world: &Arc<World>, test_x: i32, test_z: i32) {
