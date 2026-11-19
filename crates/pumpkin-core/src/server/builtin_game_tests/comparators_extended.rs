@@ -9,6 +9,7 @@ use pumpkin_data::{
     },
 };
 use pumpkin_gametest::{GameTestHelper, GameTestResult};
+use pumpkin_nbt::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 
 use super::build_stone_floor;
@@ -525,6 +526,59 @@ pub(super) async fn test_comparator_subtract_mode_clamps_to_zero(
             helper.assert_true(
                 p == 0,
                 format!("Expected subtract comparator with side>=rear to clamp to 0, got {p}"),
+            )
+        })
+        .then_succeed();
+    Ok(())
+}
+
+/// Vanilla `ChiseledBookShelfBlock.getAnalogOutputSignal` returns `lastInteractedSlot + 1`.
+pub(super) async fn test_chiseled_bookshelf_comparator_reads_last_slot(
+    helper: GameTestHelper,
+) -> GameTestResult<()> {
+    build_stone_floor(&helper, 5, 5).await?;
+    let shelf_pos = BlockPos::new(1, 1, 1);
+    let comp_pos = BlockPos::new(1, 1, 2);
+    let wire_pos = BlockPos::new(1, 1, 3);
+
+    let mut wire_props = RedstoneWireLikeProperties::default(&Block::REDSTONE_WIRE);
+    wire_props.north = NorthRedstone::Side;
+    wire_props.south = SouthRedstone::Side;
+    wire_props.east = EastRedstone::None;
+    wire_props.west = WestRedstone::None;
+    helper
+        .set_block(&wire_pos, wire_props.to_state_id(&Block::REDSTONE_WIRE))
+        .await?;
+
+    let mut comp_props = ComparatorLikeProperties::default(&Block::COMPARATOR);
+    comp_props.facing = HorizontalFacing::North;
+    comp_props.mode = ModeComparator::Compare;
+    helper
+        .set_block(&comp_pos, comp_props.to_state_id(&Block::COMPARATOR))
+        .await?;
+
+    // Slot index 2 was interacted with last, so the comparator should read 3.
+    let mut shelf_nbt = NbtCompound::new();
+    shelf_nbt.put_string("id", "minecraft:chiseled_bookshelf".to_string());
+    shelf_nbt.put_int("last_interacted_slot", 2);
+    helper
+        .set_block_with_nbt(
+            &shelf_pos,
+            Block::CHISELED_BOOKSHELF.default_state.id,
+            &shelf_nbt,
+        )
+        .await?;
+
+    helper
+        .start_sequence()
+        .then_idle(3)
+        .then_execute(move |helper| async move {
+            let power =
+                RedstoneWireLikeProperties::from_state_id(helper.block_state_id(&wire_pos).await)
+                    .power;
+            helper.assert_true(
+                power == 3,
+                format!("Expected chiseled bookshelf comparator power 3, got {power}"),
             )
         })
         .then_succeed();

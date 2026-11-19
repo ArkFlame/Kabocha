@@ -67,6 +67,7 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:doors_trapdoors_fence_gates_redstone",
     "pumpkin:water_lava_interactions",
     "pumpkin:sponge_absorbs_water",
+    "pumpkin:water_source_spreads_seven_blocks_flat",
     "pumpkin:bubble_column_upward_and_downward",
     "pumpkin:falling_sand_lands",
     "pumpkin:scaffolding_distance_and_collapse",
@@ -122,9 +123,10 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:redstone_repeater_delay_4_ticks",
     "pumpkin:redstone_repeater_locking_holds_off",
     "pumpkin:redstone_repeater_locking_holds_on",
-    // comparators_extended (14)
+    // comparators_extended (15)
     "pumpkin:comparator_composter_levels_1_to_4",
     "pumpkin:comparator_composter_levels_5_to_8",
+    "pumpkin:chiseled_bookshelf_comparator_reads_last_slot",
     "pumpkin:comparator_water_cauldron_levels_1_to_3",
     "pumpkin:comparator_powder_snow_cauldron_levels_1_to_3",
     "pumpkin:comparator_respawn_anchor_charges_0_to_4",
@@ -176,10 +178,11 @@ const BUILTIN_TEST_IDS: &[&str] = &[
     "pumpkin:sticky_piston_leaves_obsidian_behind",
     "pumpkin:sticky_piston_redstone_block_powers_lamp",
     "pumpkin:piston_one_stone_leaves_pushed_block",
-    // dispensers_and_droppers_extended (12)
+    // dispensers_and_droppers_extended (13)
     "pumpkin:dispenser_lava_bucket_places_and_picks_up",
     "pumpkin:dispenser_powder_snow_bucket_places_and_picks_up",
     "pumpkin:dispenser_shears_harvest_full_beehive",
+    "pumpkin:dispenser_shears_sheep_drops_wool",
     "pumpkin:dispenser_glass_bottle_fills_from_water",
     "pumpkin:dispenser_flint_and_steel_primes_tnt",
     "pumpkin:dispenser_flint_and_steel_lights_campfire",
@@ -459,6 +462,13 @@ pub fn ensure_builtin_game_tests_registered() {
             20,
             0,
             fluids_and_sponge::test_sponge_absorbs_water,
+        );
+        register_function_test(
+            "pumpkin:water_source_spreads_seven_blocks_flat",
+            "pumpkin:empty_10x4x4",
+            80,
+            0,
+            fluids_and_sponge::test_water_source_spreads_seven_blocks_flat,
         );
         register_function_test(
             "pumpkin:bubble_column_upward_and_downward",
@@ -859,6 +869,13 @@ pub fn ensure_builtin_game_tests_registered() {
             comparators_extended::test_comparator_composter_levels_5_to_8,
         );
         register_function_test(
+            "pumpkin:chiseled_bookshelf_comparator_reads_last_slot",
+            "pumpkin:empty_5x4x5",
+            20,
+            0,
+            comparators_extended::test_chiseled_bookshelf_comparator_reads_last_slot,
+        );
+        register_function_test(
             "pumpkin:comparator_water_cauldron_levels_1_to_3",
             "pumpkin:empty_8x4x5",
             20,
@@ -1222,6 +1239,13 @@ pub fn ensure_builtin_game_tests_registered() {
             20,
             0,
             dispensers_and_droppers_extended::test_dispenser_shears_full_beehive_drops_honeycomb,
+        );
+        register_function_test(
+            "pumpkin:dispenser_shears_sheep_drops_wool",
+            "pumpkin:empty_5x4x5",
+            20,
+            0,
+            dispensers_and_droppers_extended::test_dispenser_shears_sheep_drops_wool,
         );
         register_function_test(
             "pumpkin:dispenser_glass_bottle_fills_from_water",

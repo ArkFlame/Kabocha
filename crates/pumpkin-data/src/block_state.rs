@@ -604,6 +604,62 @@ mod tests {
         assert!(std::ptr::eq(state, &stone.states[0]));
     }
 
+    /// Differential test against the vanilla extract: every state id of every block in
+    /// `assets/blocks.json` maps back to that block, in the extract's order, with the extract's
+    /// default state, and the states cover every id exactly once.
+    #[test]
+    fn block_states_match_vanilla_extract() -> Result<(), String> {
+        let extract: serde_json::Value =
+            serde_json::from_str(include_str!("../../../assets/blocks.json"))
+                .map_err(|err| err.to_string())?;
+        let blocks = extract["blocks"].as_array().ok_or("missing blocks")?;
+        let mut extracted_total = 0usize;
+        for entry in blocks {
+            let name = entry["name"].as_str().ok_or("block without name")?;
+            let block = Block::from_name(&format!("minecraft:{name}"))
+                .ok_or_else(|| format!("unknown block {name}"))?;
+            let extracted_ids: Vec<u64> = entry["states"]
+                .as_array()
+                .ok_or_else(|| format!("{name}: missing states"))?
+                .iter()
+                .filter_map(|state| state["id"].as_u64())
+                .collect();
+            extracted_total += extracted_ids.len();
+
+            let pumpkin_ids: Vec<u64> = block
+                .states
+                .iter()
+                .map(|state| u64::from(state.id.as_u16()))
+                .collect();
+            assert_eq!(pumpkin_ids, extracted_ids, "{name}: state ids");
+
+            let extracted_default = entry["default_state_id"]
+                .as_u64()
+                .ok_or_else(|| format!("{name}: missing default_state_id"))?;
+            assert_eq!(
+                u64::from(block.default_state.id.as_u16()),
+                extracted_default,
+                "{name}: default state"
+            );
+
+            for id in extracted_ids {
+                let raw = u16::try_from(id).map_err(|err| err.to_string())?;
+                let state_id =
+                    BlockStateId::new(raw).ok_or_else(|| format!("state {raw} out of range"))?;
+                let owner = Block::from_state_id(state_id);
+                if owner.name != block.name {
+                    return Err(format!("state {raw} maps to {} not {name}", owner.name));
+                }
+            }
+        }
+        assert_eq!(
+            extracted_total,
+            usize::from(BlockStateId::STATE_COUNT),
+            "total state count"
+        );
+        Ok(())
+    }
+
     #[test]
     fn bamboo_collision_shape_uses_its_world_position() {
         let state = Block::BAMBOO.default_state;

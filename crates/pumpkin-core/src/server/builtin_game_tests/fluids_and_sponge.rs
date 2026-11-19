@@ -106,3 +106,39 @@ pub(super) async fn test_sponge_absorbs_water(helper: GameTestHelper) -> GameTes
     helper.succeed();
     Ok(())
 }
+
+/// A source spreads flat for 7 blocks (flowing level 7 at distance 7) and stops at distance 8.
+pub(super) async fn test_water_source_spreads_seven_blocks_flat(
+    helper: GameTestHelper,
+) -> GameTestResult<()> {
+    build_stone_floor(&helper, 10, 4).await?;
+    // One-wide channel along x at z=1, with walls on z=0 and z=2 and a dam at x=0.
+    for x in 0..10 {
+        helper
+            .set_block_default(&BlockPos::new(x, 1, 0), &Block::STONE)
+            .await?;
+        helper
+            .set_block_default(&BlockPos::new(x, 1, 2), &Block::STONE)
+            .await?;
+    }
+    helper
+        .set_block_default(&BlockPos::new(0, 1, 1), &Block::STONE)
+        .await?;
+    helper
+        .set_block_default(&BlockPos::new(1, 1, 1), &Block::WATER)
+        .await?;
+
+    helper
+        .start_sequence()
+        .then_idle(60)
+        .then_execute(move |helper| async move {
+            helper
+                .assert_block_present(&BlockPos::new(8, 1, 1), &Block::WATER)
+                .await?;
+            helper
+                .assert_block_present(&BlockPos::new(9, 1, 1), &Block::AIR)
+                .await
+        })
+        .then_succeed();
+    Ok(())
+}

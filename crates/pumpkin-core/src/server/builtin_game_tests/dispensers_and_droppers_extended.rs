@@ -441,3 +441,33 @@ pub(super) async fn test_dropper_transfers_into_hopper_and_barrel(
         .then_succeed();
     Ok(())
 }
+
+/// Vanilla `ShearsDispenseItemBehavior` shears a shearable mob in front of the dispenser, which drops its wool.
+pub(super) async fn test_dispenser_shears_sheep_drops_wool(
+    helper: GameTestHelper,
+) -> GameTestResult<()> {
+    build_stone_floor(&helper, 5, 4).await?;
+    let disp = BlockPos::new(1, 1, 1);
+    let sheep = BlockPos::new(2, 1, 1);
+    helper
+        .set_block(&disp, east_dispenser_id(&Block::DISPENSER))
+        .await?;
+    helper.spawn_entity("minecraft:sheep", &sheep).await?;
+    helper
+        .set_container_item(&disp, 0, "minecraft:shears", 1)
+        .await?;
+    helper
+        .set_block_default(&BlockPos::new(1, 2, 1), &Block::REDSTONE_BLOCK)
+        .await?;
+
+    helper
+        .start_sequence()
+        .then_idle(5)
+        .then_execute(move |helper| async move {
+            helper
+                .assert_item_entity_present("minecraft:white_wool", &sheep, 2.0)
+                .await
+        })
+        .then_succeed();
+    Ok(())
+}
