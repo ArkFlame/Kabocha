@@ -114,6 +114,11 @@ libc = { workspace = true }
 [dev-dependencies]
 tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
+criterion = { workspace = true, features = ["html_reports"] }
+
+[[bench]]
+name = "pathfinder_open_set"
+harness = false
 
 [target.'cfg(all(any(target_os = "windows", target_os = "macos", all(target_os = "linux", target_env = "gnu")), any(target_arch = "x86_64", target_arch = "aarch64")))'.dependencies]
 pumpkin-profiler = { workspace = true, optional = true }

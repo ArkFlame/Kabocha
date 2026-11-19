@@ -12,15 +12,23 @@ Criterion benchmarks guard hot paths against slowdowns. Each bench is a
 | `pumpkin-protocol` | `packet_encode` | `serialize_packet` for KeepAlive, EntityPositionSync and HeadRot (1.21.4) |
 | `pumpkin-data` | `recipe_matching`, `has_random_ticks` | Generated lookup tables |
 | `pumpkin-world` | `chunk_gen`, `chunk_gen_concurrent`, `chunk_io`, `noise_router`, ... | Generation stages, including `lighting_generation` |
+| `pumpkin-world` | `lighting` | `LightEngine::initialize_light` on a 3x3 proto-chunk cache advanced to `Features` (sky + block light pass) |
+| `pumpkin-core` | `pathfinder_open_set` | `BinaryHeap` open set used by A*: insert 1024 nodes, then pop all |
 
-Pathfinding has no bench yet. `WalkNodeEvaluator` needs a live world and mob,
-and its only pure entry (`is_outside_home`) is a single comparison.
+The pathfinder bench covers the open set only. `WalkNodeEvaluator` and the
+search loop need a live world and mob, so they have no pure seam yet.
+Entity tick has no bench: goal selector ticks need a `World` and mob.
+
+Bench targets per crate live in the `BENCHES` map in `scripts/bench.sh`.
+Add a line there when a crate gets a new `[[bench]]`.
 
 ## Run
 
-    scripts/bench.sh compare                 # protocol and data benches vs main baseline
-    scripts/bench.sh compare pumpkin-world   # any crate with benches
-    scripts/bench.sh record                  # re-record baselines for the default crates
+    scripts/bench.sh record pumpkin-protocol   # packet_encode
+    scripts/bench.sh record pumpkin-world      # chunk_gen, lighting
+    scripts/bench.sh record pumpkin-core       # pathfinder_open_set
+    scripts/bench.sh compare pumpkin-world     # any crate in the BENCHES map
+    scripts/bench.sh record                    # re-record baselines for the default crates
 
 `compare` fails when any benchmark's mean change exceeds 5 percent. It reads
 `target/criterion/**/change/estimates.json` (`mean.point_estimate`, a fraction)

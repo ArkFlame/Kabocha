@@ -13,6 +13,26 @@ CRATES=("$@")
 THRESHOLD="0.05"
 CRIT="/tmp/kab-target-nightly/criterion"
 
+# Bench targets per crate. Add a line here when a crate gets a new [[bench]].
+declare -A BENCHES=(
+    [pumpkin-protocol]="packet_encode"
+    [pumpkin-world]="chunk_gen lighting"
+    [pumpkin-core]="pathfinder_open_set"
+)
+
+# Run every mapped bench target of one crate with the given criterion args.
+run_benches() {
+    local crate="$1"; shift
+    if [[ -z "${BENCHES[$crate]:-}" ]]; then
+        echo "no bench targets mapped for $crate in scripts/bench.sh" >&2
+        exit 2
+    fi
+    local bench
+    for bench in ${BENCHES[$crate]}; do
+        scripts/cargo.sh bench -p "$crate" --bench "$bench" -- "$@"
+    done
+}
+
 # Print the mean point_estimate from a criterion estimates.json (first "point_estimate" after "mean").
 mean_of() {
     tr -d '\n' < "$1" | grep -o '"mean":.*' | grep -o '"point_estimate":[^,}]*' | head -1 | cut -d: -f2
@@ -25,7 +45,7 @@ record)
     trap 'rm -f "$stamp"' EXIT
     for crate in "${CRATES[@]}"; do
         touch "$stamp"
-        scripts/cargo.sh bench -p "$crate" --bench packet_encode -- --save-baseline main
+        run_benches "$crate" --save-baseline main
         out="$ROOT/benches/baselines/$crate.json"
         {
             printf '{\n  "crate": "%s",\n  "unit": "ns",\n  "benchmarks": {\n' "$crate"
@@ -48,7 +68,7 @@ compare)
     trap 'rm -f "$stamp"' EXIT
     for crate in "${CRATES[@]}"; do
         touch "$stamp"
-        scripts/cargo.sh bench -p "$crate" --bench packet_encode -- --baseline main
+        run_benches "$crate" --baseline main
         # Only change files written by this run, so stale results never count.
         regressions=0
         while IFS= read -r ch; do
