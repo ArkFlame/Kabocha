@@ -108,19 +108,6 @@ impl BlockBehaviour for VaultBlock {
             return BlockActionResult::SuccessServer;
         }
 
-        vault_entity.mark_rewarded(player_uuid);
-
-        args.item_stack
-            .decrement_unless_creative(args.player.gamemode.load(), 1);
-
-        // Vanilla `VaultState.UNLOCKING#onEnter` plays the insert sound when `unlock`
-        // enters UNLOCKING; the shutter and eject sounds follow on later ticks.
-        args.world.play_sound(
-            Sound::BlockVaultInsertItem,
-            SoundCategory::Blocks,
-            &args.position.to_f64(),
-        );
-
         let custom_loot_table = vault_entity
             .config
             .lock()
@@ -147,6 +134,15 @@ impl BlockBehaviour for VaultBlock {
             })
             .unwrap_or_default();
 
+        // Vanilla `VaultBlockEntity.Server.tryInsertKey`: nothing resolved means no key
+        // consumption and no reward mark.
+        if loot_stacks.is_empty() {
+            return BlockActionResult::SuccessServer;
+        }
+
+        args.item_stack
+            .decrement_unless_creative(args.player.gamemode.load(), 1);
+
         let mut dispense_event =
             crate::plugin::block::block_dispense_loot::BlockDispenseLootEvent::new(
                 *args.position,
@@ -158,6 +154,19 @@ impl BlockBehaviour for VaultBlock {
                 .plugin_manager
                 .fire_blocking(&server, &mut dispense_event);
         }
+        // A cancelled dispense keeps the consumed key but leaves the player unrewarded.
+        if dispense_event.cancelled {
+            return BlockActionResult::SuccessServer;
+        }
+        vault_entity.mark_rewarded(player_uuid);
+
+        // Vanilla `VaultState.UNLOCKING#onEnter` plays the insert sound when `unlock`
+        // enters UNLOCKING; the shutter and eject sounds follow on later ticks.
+        args.world.play_sound(
+            Sound::BlockVaultInsertItem,
+            SoundCategory::Blocks,
+            &args.position.to_f64(),
+        );
         // Vanilla `VaultBlockEntity.Server.unlock` shows the next item to eject, and the
         // VaultDisplayItemEvent lets plugins replace that displayed item.
         let display_item = dispense_event
