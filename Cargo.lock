@@ -3544,6 +3544,7 @@ dependencies = [
  "bitflags 2.13.2",
  "bytes",
  "cfb8",
+ "criterion",
  "flate2",
  "pumpkin-data",
  "pumpkin-macros",

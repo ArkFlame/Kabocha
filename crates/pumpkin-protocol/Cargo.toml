@@ -36,7 +36,12 @@ base64.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+criterion.workspace = true
 # Validate correctness
+
+[[bench]]
+name = "packet_encode"
+harness = false
 
 [lints]
 workspace = true
