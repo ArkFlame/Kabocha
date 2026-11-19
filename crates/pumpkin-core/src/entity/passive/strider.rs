@@ -23,8 +23,9 @@ use crate::entity::{
     Entity, EntityBase,
     ageable::{AgeableData, AgeableMob, STRIDER_BABY_SPAWN_CHANCE},
     ai::goal::{
-        breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
+        Controls, Goal, breed::BreedGoal, escape_danger::EscapeDangerGoal,
+        follow_parent::FollowParentGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, move_to_block::MoveToBlockGoal, swim::SwimGoal,
         tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
     custom_sound::CustomSound,
@@ -39,6 +40,59 @@ use crate::entity::{
     r#type::from_type,
 };
 use crate::world::World;
+
+/// Vanilla `Strider.StriderGoToLavaGoal`: seeks a lava source with a free block above it,
+/// and only runs while the strider is not already in lava.
+struct StriderGoToLavaGoal {
+    inner: MoveToBlockGoal,
+}
+
+impl StriderGoToLavaGoal {
+    fn new(speed: f64) -> Self {
+        Self {
+            inner: MoveToBlockGoal::new(
+                speed,
+                8,
+                2,
+                Box::new(|world: &World, pos: BlockPos| {
+                    world.get_block(&pos) == &Block::LAVA
+                        && world.get_block(&pos.up()) == &Block::AIR
+                }),
+            )
+            .with_recalculate_interval(20),
+        }
+    }
+}
+
+fn is_in_lava(mob: &dyn Mob) -> bool {
+    mob.get_entity().lava_height.load() > 0.0
+}
+
+impl Goal for StriderGoToLavaGoal {
+    fn can_start(&mut self, mob: &dyn Mob) -> bool {
+        !is_in_lava(mob) && self.inner.can_start(mob)
+    }
+
+    fn should_continue(&mut self, mob: &dyn Mob) -> bool {
+        !is_in_lava(mob) && self.inner.should_continue(mob)
+    }
+
+    fn start(&mut self, mob: &dyn Mob) {
+        self.inner.start(mob);
+    }
+
+    fn stop(&mut self, mob: &dyn Mob) {
+        self.inner.stop(mob);
+    }
+
+    fn tick(&mut self, mob: &dyn Mob) {
+        self.inner.tick(mob);
+    }
+
+    fn controls(&self) -> Controls {
+        self.inner.controls()
+    }
+}
 
 pub struct StriderEntity {
     pub mob_entity: MobEntity,
@@ -88,13 +142,19 @@ impl StriderEntity {
                     false,
                 )),
             );
-            goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.1)));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(4, Box::new(StriderGoToLavaGoal::new(1.0)));
+            goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.0)));
+            // Vanilla `RandomStrollGoal(this, 1.0, 60)`.
+            goal_selector.add_goal(7, Box::new(WanderAroundGoal::with_interval(1.0, 60)));
             goal_selector.add_goal(
-                6,
-                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
+                8,
+                LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
             );
-            goal_selector.add_goal(7, Box::new(RandomLookAroundGoal::default()));
+            goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
+            goal_selector.add_goal(
+                9,
+                LookAtEntityGoal::with_default(mob_weak, &EntityType::STRIDER, 8.0),
+            );
         };
 
         mob_arc
