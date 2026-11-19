@@ -1440,6 +1440,8 @@ mod tests {
         // Tick three was periodic; tick four must be throttled without a new signal.
         let last_pos = entity.last_sent_pos.load();
         living.tick(living.as_ref(), &server);
+        // Pin a real move so the assertion does not depend on per-arch float drift in the tick.
+        entity.pos.store(last_pos + Vector3::new(0.0, 0.05, 0.0));
         tracker.send_changes(&world);
         assert_ne!(entity.pos.load(), last_pos);
         assert_eq!(entity.last_sent_pos.load(), last_pos);

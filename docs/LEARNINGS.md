@@ -32,3 +32,9 @@
 - 2026-11-19: a Mojang test that needs N of N random attempts (creeper flee, `required_successes 3`) is flaky by construction when our harness geometry differs; gate on 1 of 5 and record why instead of raising `max_ticks` blindly.
 - 2026-11-19: worker audit claims are hypotheses: a worker fixed a bookshelf test by reordering it, the real cause was a missing neighbor update after the block entity NBT swap; make the worker add tracing and read the run before accepting a fix. Workers also cannot compile: clippy `unnecessary_box_returns` and similar show up only in the orchestrator batch check.
 - 2026-11-19: pushes cancel the in-flight Cargo CI run (exit 143 / cancelled); batch commits, push once, then wait for the run instead of pushing docs in between.
+
+## Supply-chain gates (2026-11-19)
+- `cargo audit` reads `.cargo/audit.toml`: heapless 0.7 and atomic-polyfill come only via `tracing-serde-structured` (plugin tracing bridge), no patched 0.7 exists. wasmtime advisories were fixed by bumping to 50.0.x. Remaining warnings are unmaintained crates (`humantime`, `proc-macro-error2`).
+- `cargo deny check` is not part of upstream CI and `deny.toml` has an empty `[licenses] allow`, so it rejects every crate. Treat `cargo audit` plus `typos` as the supply-chain gates; fill the allow list before enabling deny.
+- A CI job with null step conclusion and a 404 log blob is a lost runner, not a code failure: confirm locally (release clippy exit 0) and rerun.
+- Linux ARM64 CI exposes float drift: tests that assert an entity "moved" after a tick must pin the move explicitly.
