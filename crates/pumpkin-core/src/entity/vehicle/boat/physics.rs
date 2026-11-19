@@ -186,7 +186,6 @@ impl BoatEntity {
         old_status: Option<BoatStatus>,
         status: BoatStatus,
     ) -> Vector3<f64> {
-        const DEFAULT_FRICTION: f32 = 0.9;
         let entity = &self.vehicle.entity;
         if old_status == Some(BoatStatus::InAir)
             && !matches!(status, BoatStatus::InAir | BoatStatus::OnLand)
@@ -212,18 +211,17 @@ impl BoatEntity {
         }
 
         let mut vertical_speed = -self.get_gravity();
-        let (friction, buoyancy) = match status {
-            BoatStatus::InWater => (
-                DEFAULT_FRICTION,
-                (self.water_level.load() - entity.pos.load().y) / f64::from(entity.height()),
-            ),
+        let friction = status_friction(status, self.land_friction.load());
+        let buoyancy = match status {
+            BoatStatus::InWater => {
+                (self.water_level.load() - entity.pos.load().y) / f64::from(entity.height())
+            }
             BoatStatus::UnderFlowingWater => {
                 vertical_speed = -7.0e-4;
-                (DEFAULT_FRICTION, 0.0)
+                0.0
             }
-            BoatStatus::UnderWater => (0.45, f64::from(0.01f32)),
-            BoatStatus::InAir => (DEFAULT_FRICTION, 0.0),
-            BoatStatus::OnLand => (self.land_friction.load(), 0.0),
+            BoatStatus::UnderWater => f64::from(0.01f32),
+            BoatStatus::InAir | BoatStatus::OnLand => 0.0,
         };
         let velocity = entity.velocity.load();
         let mut velocity = Vector3::new(
@@ -235,6 +233,8 @@ impl BoatEntity {
             velocity.y = (velocity.y + buoyancy * (DEFAULT_GRAVITY / 0.65)) * 0.75;
         }
         entity.velocity.store(velocity);
+        // Vanilla `floatBoat` also decays `deltaRotation` by the same `invFriction`.
+        self.yaw_delta.store(self.yaw_delta.load() * friction);
         Vector3::default()
     }
 
@@ -261,6 +261,15 @@ impl BoatEntity {
     }
 }
 
+/// Vanilla `AbstractBoat.floatBoat` `invFriction` per status, applied to velocity and yaw delta.
+const fn status_friction(status: BoatStatus, land_friction: f32) -> f32 {
+    match status {
+        BoatStatus::InWater | BoatStatus::UnderFlowingWater | BoatStatus::InAir => 0.9,
+        BoatStatus::UnderWater => 0.45,
+        BoatStatus::OnLand => land_friction,
+    }
+}
+
 /// Vanilla `Boat#getGroundFriction` divides by `count`, yielding NaN with no supporting block.
 ///
 /// Pumpkin returns 0.0 instead: both values fail the `friction > 0.0` ground test in `get_status`.
@@ -274,7 +283,15 @@ const fn average_ground_friction(total: f32, count: u32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::average_ground_friction;
+    use super::{BoatStatus, average_ground_friction, status_friction};
+
+    #[test]
+    fn yaw_delta_decays_with_status_inv_friction() {
+        // Vanilla `floatBoat` decays `deltaRotation` by `invFriction`: 0.9 in water, 0.45 underwater.
+        assert!((status_friction(BoatStatus::InWater, 0.6) - 0.9).abs() < f32::EPSILON);
+        assert!((status_friction(BoatStatus::UnderWater, 0.6) - 0.45).abs() < f32::EPSILON);
+        assert!((status_friction(BoatStatus::OnLand, 0.6) - 0.6).abs() < f32::EPSILON);
+    }
 
     #[test]
     fn ground_friction_without_contact_is_zero_not_nan() {
