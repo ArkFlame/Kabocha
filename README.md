@@ -52,6 +52,14 @@ The upstream installer and downloads at pumpkinmc.org install the original Pumpk
 - **Security**: Prioritizes security by preventing known security exploits.
 - **Flexibility**: Highly configurable, with the ability to disable unnecessary features.
 - **Extensibility**: Provides a foundation for plugin development.
+- **Multi-version**: Built-in multi-version support, so Java clients from 1.8 up to the current version can join.
+
+## What Kabocha adds
+
+- **Full vanilla parity**: behaviour is checked against decompiled vanilla and the upstream Pumpkin tracker (see [docs/PARITY.tsv](docs/PARITY.tsv)).
+- **Minecraft 1.8 combat**: optional `legacy_combat` game rule per world (default from `pvp.legacy_combat` in the config): no attack cooldown, no sweeping, sword blocking. See [docs/COMBAT_1_8.md](docs/COMBAT_1_8.md).
+- **Fixed connectivity errors**: join, protocol and disconnect issues from upstream Pumpkin are fixed.
+- **Built-in multi-version support**: older Java clients (down to 1.8) connect without plugins; tracker in [docs/VERSION_SUPPORT.tsv](docs/VERSION_SUPPORT.tsv).
 
 ## Plugin development
 
