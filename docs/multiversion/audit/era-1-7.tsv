@@ -1,0 +1,231 @@
+version	state	direction	packet	kind	ours	reference	severity	file_line	proposed_fix
+1.7.2	handshake	serverbound	set_protocol (0x00)	ok	INTENTION: varint protocol, string host, u16 port, varint nextState	id 0x00	none		
+1.7.2	handshake	serverbound	legacy_server_list_ping (0xFE)	unverifiable	legacy 0xFE ping handled by core server, not this crate	id 0xFE	low	packet/translator.rs:178-215	Legacy server-list ping is outside this crate's translator.
+1.7.2	status	clientbound	server_info (0x00)	ok	STATUS_RESPONSE: id 0	id 0x00	none		
+1.7.2	status	clientbound	ping (0x01)	ok	PONG_RESPONSE: id 1; i64 time	id 0x01	none		
+1.7.2	status	serverbound	ping_start (0x00)	ok	STATUS_REQUEST: id 0	id 0x00	none		
+1.7.2	status	serverbound	ping (0x01)	ok	PING_REQUEST: id 1	id 0x01	none		
+1.7.2	login	clientbound	disconnect (0x00)	ok	LOGIN_DISCONNECT: id 0; string reason	id 0x00	none		
+1.7.2	login	clientbound	encryption_begin (0x01)	ok	HELLO (ENCRYPTION_REQUEST): id 1; string serverId; i16 key; i16 token	id 0x01	none		
+1.7.2	login	clientbound	success (0x02)	ok	LOGIN_SUCCESS: id 2; uuid string; username string	id 0x02	none		
+1.7.2	login	serverbound	login_start (0x00)	ok	HELLO: id 0; string username	id 0x00	none		
+1.7.2	login	serverbound	encryption_begin (0x01)	ok	KEY (ENCRYPTION_RESPONSE): id 1; i16 secret; i16 token	id 0x01	none		
+1.7.2	play	clientbound	keep_alive (0x00)	ok	col0=id 0 | i32 id	id 0x00; keep_alive	none		
+1.7.2	play	clientbound	login (0x01)	layout-mismatch	col0/1=id 1; fields match 1.7 but difficulty byte hardcoded to 2 (Normal) in legacy/packets/login.rs:76-78	id 0x01; login	med	legacy/packets/login.rs:76-78	Write the actual world difficulty (0-3) into the 1.7 login packet instead of constant 2.
+1.7.2	play	clientbound	chat (0x02)	ok	col0=id 2 | JSON string only (no mode byte)	id 0x02; chat	none		
+1.7.2	play	clientbound	update_time (0x03)	ok	col0=id 3 | 2x i64	id 0x03; update_time	none		
+1.7.2	play	clientbound	entity_equipment (0x04)	ok	col0=id 4 | i32 entity; i16 slot; slot item	id 0x04; entity_equipment	none		
+1.7.2	play	clientbound	spawn_position (0x05)	ok	col0=id 5 | x,y,z i32 (position_iii)	id 0x05; spawn_position	none		
+1.7.2	play	clientbound	update_health (0x06)	ok	col0=id 6 | f32 health; i16 food; f32 saturation	id 0x06; update_health	none		
+1.7.2	play	clientbound	respawn (0x07)	layout-mismatch	col0=id 7 | i32 dim; u8 diff; u8 gamemode; string leveltype; difficulty hardcoded 2	id 0x07; respawn	med	legacy/packets/respawn.rs:32-34	Write actual world difficulty instead of hardcoding 2 (Normal).
+1.7.2	play	clientbound	position (0x08)	ok	col0=id 8 | x,y,z f64 (y+1.62); yaw,pitch f32; bool onGround	id 0x08; position	none		
+1.7.2	play	clientbound	held_item_slot (0x09)	ok	col0=id 9 | i8 slot	id 0x09; held_item_slot	none		
+1.7.2	play	clientbound	bed (0x0A)	ok	col0=id 10 | i32 entity; x i32,y u8,z i32	id 0x0A; bed	none		
+1.7.2	play	clientbound	animation (0x0B)	ok	col0=id 11 | varint entity; u8 animation	id 0x0B; animation	none		
+1.7.2	play	clientbound	named_entity_spawn (0x0C)	ok	col0=id 12 | varint entity; uuid string; name string; 1.7.6 varint props count; x/y/z i32; yaw/pitch u8; i16 held; metadata	id 0x0C; named_entity_spawn	none		
+1.7.2	play	clientbound	collect (0x0D)	ok	col0=id 13 | 2x i32 entity ids	id 0x0D; collect	none		
+1.7.2	play	clientbound	spawn_entity (0x0E)	layout-mismatch	col0=id 14 | varint entity; u8 type; x/y/z i32(*32); pitch,yaw u8; i32 data; 3xi16 vel only when data>0	id 0x0E; spawn_entity	low	legacy/packets/spawn_entity.rs:83	Use data != 0 (not data > 0) as the velocity-shorts condition.
+1.7.2	play	clientbound	spawn_entity_living (0x0F)	ok	col0=id 15 | varint entity; u8 type; x/y/z i32; yaw,pitch,headpitch u8; 3xi16 vel; metadata	id 0x0F; spawn_entity_living	none		
+1.7.2	play	clientbound	spawn_entity_painting (0x10)	ok	col0=id 16 | varint entity; title string; x/y/z i32; i32 direction	id 0x10; spawn_entity_painting	none		
+1.7.2	play	clientbound	spawn_entity_experience_orb (0x11)	ok	col0=id 17 | varint entity; x/y/z i32; i16 count	id 0x11; spawn_entity_experience_orb	none		
+1.7.2	play	clientbound	entity_velocity (0x12)	ok	col0=id 18 | i32 entity; 3xi16 vel (*8000)	id 0x12; entity_velocity	none		
+1.7.2	play	clientbound	entity_destroy (0x13)	ok	col0=id 19 | u8 count; i32 ids	id 0x13; entity_destroy	none		
+1.7.2	play	clientbound	entity (0x14)	ok	col0=id 20 | i32 entity id only	id 0x14; entity	none		
+1.7.2	play	clientbound	rel_entity_move (0x15)	ok	col0=id 21 | i32 entity; 3xi8 delta	id 0x15; rel_entity_move	none		
+1.7.2	play	clientbound	entity_look (0x16)	ok	col0=id 22 | i32 entity; yaw,pitch u8	id 0x16; entity_look	none		
+1.7.2	play	clientbound	entity_move_look (0x17)	ok	col0=id 23 | i32 entity; 3xi8 delta; yaw,pitch u8	id 0x17; entity_move_look	none		
+1.7.2	play	clientbound	entity_teleport (0x18)	ok	col0=id 24 | i32 entity; x/y/z i32(*32); yaw,pitch u8	id 0x18; entity_teleport	none		
+1.7.2	play	clientbound	entity_head_rotation (0x19)	ok	col0=id 25 | i32 entity; u8 headYaw	id 0x19; entity_head_rotation	none		
+1.7.2	play	clientbound	entity_status (0x1A)	ok	col0=id 26 | i32 entity; i8 status (raw passthrough; layout matches)	id 0x1A; entity_status	none		
+1.7.2	play	clientbound	attach_entity (0x1B)	ok	col0=id 27 | i32 entity; i32 vehicle; bool leash	id 0x1B; attach_entity	none		
+1.7.2	play	clientbound	entity_metadata (0x1C)	missing	col0=id 28 | DROPPED (Unsupported era; tables_for returns None)	id 0x1C; entity_metadata	high	translate/entity_data.rs:32,51,291	Port 1.7 entity metadata (byte type+field, 0x7f terminator) instead of returning None from tables_for.
+1.7.2	play	clientbound	entity_effect (0x1D)	ok	col0=id 29 | i32 entity; i8 effect,amplifier; i16 duration	id 0x1D; entity_effect	none		
+1.7.2	play	clientbound	remove_entity_effect (0x1E)	ok	col0=id 30 | i32 entity; i8 effect	id 0x1E; remove_entity_effect	none		
+1.7.2	play	clientbound	experience (0x1F)	ok	col0=id 31 | f32 bar; i16 level; i16 total	id 0x1F; experience	none		
+1.7.2	play	clientbound	update_attributes (0x20)	ok	col0=id 32 | i32 entity; properties by NAME string; f64 value; UUID modifiers	id 0x20; update_attributes	none		
+1.7.2	play	clientbound	map_chunk (0x21)	ok	col0=id 33 | zlib split arrays ids/nibbles/light/add/biomes (V1_7 encoder)	id 0x21; map_chunk	none		
+1.7.2	play	clientbound	multi_block_change (0x22)	missing	col0=id 34 | DROPPED (SectionUpdateFormat::V1_7 not translated)	id 0x22; multi_block_change	med	translate/block.rs:115,130-132	Implement 1.7 multi_block_change (i16 count, packed u16 records) instead of returning None.
+1.7.2	play	clientbound	block_change (0x23)	ok	col0=id 35 | x i32,y u8,z i32; varint id<<4; u8 metadata	id 0x23; block_change	none		
+1.7.2	play	clientbound	block_action (0x24)	ok	col0=id 36 | x i32,y i16,z i32; 2xu8; varint blockid	id 0x24; block_action	none		
+1.7.2	play	clientbound	block_break_animation (0x25)	ok	col0=id 37 | varint entity; x/y/z i32; i8 stage	id 0x25; block_break_animation	none		
+1.7.2	play	clientbound	map_chunk_bulk (0x26)	ok	col0=id 38 | n/a-server (26.3 has no bulk chunk packet)	id 0x26; map_chunk_bulk	none		
+1.7.2	play	clientbound	explosion (0x27)	missing	col0=id 39 | DROPPED (write_particle returns None on 1.7)	id 0x27; explosion	high	translate/explosion.rs:41	Emit 1.7 explode layout; skip untranslatable particle options instead of returning None from write_particle.
+1.7.2	play	clientbound	world_event (0x28)	ok	col0=id 40 | i32 event; x i32,y u8,z i32; i32 data; bool global	id 0x28; world_event	none		
+1.7.2	play	clientbound	named_sound_effect (0x29)	ok	col0=id 41 | string name; x/y/z i32; f32 volume; u8 pitch (x63)	id 0x29; named_sound_effect	none		
+1.7.2	play	clientbound	world_particles (0x2A)	missing	col0=id 42 | DROPPED (ParticleFormat::Unsupported on 1.7)	id 0x2A; world_particles	med	translate/particle.rs:18,68-70	Implement 1.7 named-particle layout (name string + fields) instead of dropping.
+1.7.2	play	clientbound	game_state_change (0x2B)	ok	col0=id 43 | u8 reason + f32 value (StartWaitingChunks dropped)	id 0x2B; game_state_change	none		
+1.7.2	play	clientbound	spawn_entity_weather (0x2C)	ok	col0=id 44 | varint entity; i8 type; x/y/z i32	id 0x2C; spawn_entity_weather	none		
+1.7.2	play	clientbound	open_window (0x2D)	layout-mismatch	col0=id 45 | RAW 26.3 OPEN_SCREEN (varint ids, NBT component; no slotCount/title flag)	id 0x2D; open_window	high	packet/translator.rs:353-443	Reencode OPEN_SCREEN into u8 window, u8 invType, string title, u8 slots, bool, optional i32 entityId.
+1.7.2	play	clientbound	close_window (0x2E)	layout-mismatch	col0=id 46 | RAW 26.3 payload (varint sync id vs 1.7 u8; equal for ids<128)	id 0x2E; close_window	low	packet/translator.rs:353-443	Reencode CCloseContainer as u8 window id using the client version.
+1.7.2	play	clientbound	set_slot (0x2F)	ok	col0=id 47 | i8 window; i16 slot; slot item	id 0x2F; set_slot	none		
+1.7.2	play	clientbound	window_items (0x30)	ok	col0=id 48 | u8 window; i16 count; slot items	id 0x30; window_items	none		
+1.7.2	play	clientbound	craft_progress_bar (0x31)	ok	col0=id 49 | u8 window; i16 property; i16 value	id 0x31; craft_progress_bar	none		
+1.7.2	play	clientbound	transaction (0x32)	ok	col0=id 50 | RAW 26.3 payload	id 0x32; transaction	none		
+1.7.2	play	clientbound	update_sign (0x33)	ok	col0=id 51 | x i32,y i16,z i32; 4 strings	id 0x33; update_sign	none		
+1.7.2	play	clientbound	map (0x34)	ok	col0=id 52 | n/a-server (MAP_ITEM_DATA rarely emitted; layout unverified)	id 0x34; map	none		
+1.7.2	play	clientbound	tile_entity_data (0x35)	missing	col0=id 53 | DROPPED (BlockEntityDataFormat::Action)	id 0x35; tile_entity_data	med	translate/block.rs:85,96-98	Implement 1.7 tile_entity_data (i16 x/y, u8 action, gzip NBT) instead of dropping.
+1.7.2	play	clientbound	open_sign_entity (0x36)	ok	col0=id 54 | x/y/z i32	id 0x36; open_sign_entity	none		
+1.7.2	play	clientbound	statistics (0x37)	ok	col0=id 55 | n/a-server (AWARD_STATS raw passthrough; unverified)	id 0x37; statistics	none		
+1.7.2	play	clientbound	player_info (0x38)	missing	col0=id 56 | name string; bool online; i16 ping (only ADD_PLAYER translated)	id 0x38; player_info	med	translate/player_info.rs:227	Translate PLAYER_INFO_REMOVE into 1.7 player_info action=4 (name, online=false).
+1.7.2	play	clientbound	abilities (0x39)	ok	col0=id 57 | i8 flags; f32 fly; f32 walk (layout identical)	id 0x39; abilities	none		
+1.7.2	play	clientbound	tab_complete (0x3A)	layout-mismatch	col0=id 58 | RAW 26.3 COMMAND_SUGGESTIONS (id/start/length + tooltip flags)	id 0x3A; tab_complete	high	packet/translator.rs:353-443	Reencode COMMAND_SUGGESTIONS: drop id/start/length and tooltip flags, write count varint + strings.
+1.7.2	play	clientbound	scoreboard_objective (0x3B)	ok	col0=id 59 | name string; display string; i8 mode	id 0x3B; scoreboard_objective	none		
+1.7.2	play	clientbound	scoreboard_score (0x3C)	ok	col0=id 60 | name string; u8 action; objective string; i32 value	id 0x3C; scoreboard_score	none		
+1.7.2	play	clientbound	scoreboard_display_objective (0x3D)	ok	col0=id 61 | i8 position; string name	id 0x3D; scoreboard_display_objective	none		
+1.7.2	play	clientbound	scoreboard_team (0x3E)	ok	col0=id 62 | string team; i8 mode; conditional fields via legacy_bytes	id 0x3E; scoreboard_team	none		
+1.7.2	play	clientbound	custom_payload (0x3F)	ok	col0=id 63 | MC|Brand channel; u16 length; data	id 0x3F; custom_payload	none		
+1.7.2	play	clientbound	kick_disconnect (0x40)	ok	col0=id 64 | string reason	id 0x40; kick_disconnect	none		
+1.7.2	play	serverbound	keep_alive (0x00)	ok	col0=id 0 | i32 id	id 0x00; keep_alive	none		
+1.7.2	play	serverbound	chat (0x01)	ok	col0=id 1 | string message	id 0x01; chat	none		
+1.7.2	play	serverbound	use_entity (0x02)	ok	col0=id 2 | i32 target; i8 mouse; optional 3xf32	id 0x02; use_entity	none		
+1.7.2	play	serverbound	flying (0x03)	ok	col0=id 3 | bool onGround	id 0x03; flying	none		
+1.7.2	play	serverbound	position (0x04)	ok	col0=id 4 | x f64; stance f64; y f64; z f64; bool	id 0x04; position	none		
+1.7.2	play	serverbound	look (0x05)	ok	col0=id 5 | yaw,pitch f32; bool	id 0x05; look	none		
+1.7.2	play	serverbound	position_look (0x06)	ok	col0=id 6 | x/stance/y/z f64; yaw,pitch f32; bool	id 0x06; position_look	none		
+1.7.2	play	serverbound	block_dig (0x07)	ok	col0=id 7 | u8 status; x i32,y u8,z i32; u8 face	id 0x07; block_dig	none		
+1.7.2	play	serverbound	block_place (0x08)	ok	col0=id 8 | x i32,y u8,z i32; i8 dir; slot held; 3xi8 cursor	id 0x08; block_place	none		
+1.7.2	play	serverbound	held_item_slot (0x09)	ok	col0=id 9 | i16 slot	id 0x09; held_item_slot	none		
+1.7.2	play	serverbound	arm_animation (0x0A)	ok	col0=id 10 | i32 entity; i8 animation	id 0x0A; arm_animation	none		
+1.7.2	play	serverbound	entity_action (0x0B)	ok	col0=id 11 | i32 entity; u8 action; i32 jumpBoost	id 0x0B; entity_action	none		
+1.7.2	play	serverbound	steer_vehicle (0x0C)	ok	col0=id 12 | f32 sideways,forward; bool jump,unmount	id 0x0C; steer_vehicle	none		
+1.7.2	play	serverbound	close_window (0x0D)	layout-mismatch	col0/1=id 13; client sends u8 window; no serverbound translator (play_to_current) -> raw u8 reaches 26.3 core reader (expects varint)	id 0x0D; close_window	low	packet/translator.rs:353-443	In play_to_current, read u8 window id and reencode as 26.3 varint sync id.
+1.7.2	play	serverbound	window_click (0x0E)	ok	col0=id 14 | i8 window; i16 slot; i8 button; i16 action; i8 mode; slot item	id 0x0E; window_click	none		
+1.7.2	play	serverbound	transaction (0x0F)	ok	col0=id 15 | i8 window; i16 action; bool	id 0x0F; transaction	none		
+1.7.2	play	serverbound	set_creative_slot (0x10)	ok	col0=id 16 | i16 slot; slot item	id 0x10; set_creative_slot	none		
+1.7.2	play	serverbound	enchant_item (0x11)	ok	col0=id 17 | i8 window; i8 enchantment	id 0x11; enchant_item	none		
+1.7.2	play	serverbound	update_sign (0x12)	ok	col0=id 18 | x i32,y i16,z i32; 4 strings	id 0x12; update_sign	none		
+1.7.2	play	serverbound	abilities (0x13)	ok	col0=id 19 | i8 flags; f32 fly; f32 walk	id 0x13; abilities	none		
+1.7.2	play	serverbound	tab_complete (0x14)	layout-mismatch	col0/1=id 20; client sends only string text; no serverbound translator -> raw string reaches 26.3 core reader (expects id varint + text)	id 0x14; tab_complete	high	packet/translator.rs:353-443	In play_to_current, prepend a zero varint request id to the 1.7 tab-complete text.
+1.7.2	play	serverbound	settings (0x15)	ok	col0=id 21 | string locale; i8 view; i8 chatFlags; bool colors; u8 difficulty; bool cape	id 0x15; settings	none		
+1.7.2	play	serverbound	client_command (0x16)	ok	col0=id 22 | u8 action	id 0x16; client_command	none		
+1.7.2	play	serverbound	custom_payload (0x17)	ok	col0=id 23 | channel string; u16 length; data	id 0x17; custom_payload	none		
+1.7.2	login	clientbound	set_compression (0x03)	ok	id 3 in table but dropped for version<1.8 (translate_connection_outgoing:285-289)	not in minecraft-data 1.7 login; ViaRewind treats it as unused	low	packet/translator.rs:285-289	Confirm protocol 4/5 expect no Set Compression; document why the id table lists 3.
+1.7.2	play	clientbound	system_chat	extra	SYSTEM_CHAT -> CHAT 0x02	not defined in 1.7 protocol	none		handled by system_chat_from_current; overlay variant dropped for 1.7
+1.7.2	play	clientbound	disconnect_play	extra	DISCONNECT -> 0x40	not defined in 1.7 protocol	none		handled by component_from_current
+1.7.2	play	clientbound	player_info_remove	missing	PLAYER_INFO_REMOVE	not defined in 1.7 protocol	med	translate/player_info.rs:227	Translate PLAYER_INFO_REMOVE into 1.7 player_info action=4 (name, online=false).
+1.7.2	play	clientbound	light_update	extra	LIGHT_UPDATE	not defined in 1.7 protocol	none		id -1; dropped (1.7 light inline in chunk)
+1.7.2	play	clientbound	server_data	extra	SERVER_DATA	not defined in 1.7 protocol	none		id -1; dropped
+1.7.2	play	clientbound	tab_list	extra	TAB_LIST	not defined in 1.7 protocol	none		id -1; dropped
+1.7.2	play	clientbound	resource_pack_push	extra	RESOURCE_PACK_PUSH	not defined in 1.7 protocol	none		id -1; dropped (no 1.7 play resource-pack packet)
+1.7.2	play	clientbound	commands	extra	COMMANDS	not defined in 1.7 protocol	none		id -1; dropped (no 1.7 command-tree packet)
+1.7.2	play	clientbound	recipe_book_add / update_recipes / update_tags / update_advancements	extra	modern-only	not defined in 1.7 protocol	none		id -1; dropped
+1.7.2	play	clientbound	set_action_bar / set_title / set_subtitle	extra	modern-only	not defined in 1.7 protocol	none		id -1; dropped (no 1.7 title packets)
+1.7.2	play	clientbound	stop_sound / sound_entity	extra	modern-only	not defined in 1.7 protocol	none		id -1; dropped
+1.7.2	play	clientbound	entity_position_sync	extra	ENTITY_POSITION_SYNC -> 0x18	not defined in 1.7 protocol	none		handled by position_sync_from_current
+1.7.2	play	clientbound	swing_animation	extra	SWING_ANIMATION -> ANIMATE 0x0B	not defined in 1.7 protocol	none		handled by animation::swing_from_current
+1.7.2	SUMMARY		ok=86 mismatches=8 missing=7 unverifiable=1 extra=12	summary					
+1.7.6	handshake	serverbound	set_protocol (0x00)	ok	INTENTION: varint protocol, string host, u16 port, varint nextState	id 0x00	none		
+1.7.6	handshake	serverbound	legacy_server_list_ping (0xFE)	unverifiable	legacy 0xFE ping handled by core server, not this crate	id 0xFE	low	packet/translator.rs:178-215	Legacy server-list ping is outside this crate's translator.
+1.7.6	status	clientbound	server_info (0x00)	ok	STATUS_RESPONSE: id 0	id 0x00	none		
+1.7.6	status	clientbound	ping (0x01)	ok	PONG_RESPONSE: id 1; i64 time	id 0x01	none		
+1.7.6	status	serverbound	ping_start (0x00)	ok	STATUS_REQUEST: id 0	id 0x00	none		
+1.7.6	status	serverbound	ping (0x01)	ok	PING_REQUEST: id 1	id 0x01	none		
+1.7.6	login	clientbound	disconnect (0x00)	ok	LOGIN_DISCONNECT: id 0; string reason	id 0x00	none		
+1.7.6	login	clientbound	encryption_begin (0x01)	ok	HELLO (ENCRYPTION_REQUEST): id 1; string serverId; i16 key; i16 token	id 0x01	none		
+1.7.6	login	clientbound	success (0x02)	ok	LOGIN_SUCCESS: id 2; uuid string; username string	id 0x02	none		
+1.7.6	login	serverbound	login_start (0x00)	ok	HELLO: id 0; string username	id 0x00	none		
+1.7.6	login	serverbound	encryption_begin (0x01)	ok	KEY (ENCRYPTION_RESPONSE): id 1; i16 secret; i16 token	id 0x01	none		
+1.7.6	play	clientbound	keep_alive (0x00)	ok	col1=id 0 | i32 id	id 0x00; keep_alive	none		
+1.7.6	play	clientbound	login (0x01)	layout-mismatch	col0/1=id 1; fields match 1.7 but difficulty byte hardcoded to 2 (Normal) in legacy/packets/login.rs:76-78	id 0x01; login	med	legacy/packets/login.rs:76-78	Write the actual world difficulty (0-3) into the 1.7 login packet instead of constant 2.
+1.7.6	play	clientbound	chat (0x02)	ok	col1=id 2 | JSON string only (no mode byte)	id 0x02; chat	none		
+1.7.6	play	clientbound	update_time (0x03)	ok	col1=id 3 | 2x i64	id 0x03; update_time	none		
+1.7.6	play	clientbound	entity_equipment (0x04)	ok	col1=id 4 | i32 entity; i16 slot; slot item	id 0x04; entity_equipment	none		
+1.7.6	play	clientbound	spawn_position (0x05)	ok	col1=id 5 | x,y,z i32 (position_iii)	id 0x05; spawn_position	none		
+1.7.6	play	clientbound	update_health (0x06)	ok	col1=id 6 | f32 health; i16 food; f32 saturation	id 0x06; update_health	none		
+1.7.6	play	clientbound	respawn (0x07)	layout-mismatch	col1=id 7 | i32 dim; u8 diff; u8 gamemode; string leveltype; difficulty hardcoded 2	id 0x07; respawn	med	legacy/packets/respawn.rs:32-34	Write actual world difficulty instead of hardcoding 2 (Normal).
+1.7.6	play	clientbound	position (0x08)	ok	col1=id 8 | x,y,z f64 (y+1.62); yaw,pitch f32; bool onGround	id 0x08; position	none		
+1.7.6	play	clientbound	held_item_slot (0x09)	ok	col1=id 9 | i8 slot	id 0x09; held_item_slot	none		
+1.7.6	play	clientbound	bed (0x0A)	ok	col1=id 10 | i32 entity; x i32,y u8,z i32	id 0x0A; bed	none		
+1.7.6	play	clientbound	animation (0x0B)	ok	col1=id 11 | varint entity; u8 animation	id 0x0B; animation	none		
+1.7.6	play	clientbound	named_entity_spawn (0x0C)	ok	col1=id 12 | varint entity; uuid string; name string; 1.7.6 varint props count; x/y/z i32; yaw/pitch u8; i16 held; metadata	id 0x0C; named_entity_spawn	none		
+1.7.6	play	clientbound	collect (0x0D)	ok	col1=id 13 | 2x i32 entity ids	id 0x0D; collect	none		
+1.7.6	play	clientbound	spawn_entity (0x0E)	layout-mismatch	col1=id 14 | varint entity; u8 type; x/y/z i32(*32); pitch,yaw u8; i32 data; 3xi16 vel only when data>0	id 0x0E; spawn_entity	low	legacy/packets/spawn_entity.rs:83	Use data != 0 (not data > 0) as the velocity-shorts condition.
+1.7.6	play	clientbound	spawn_entity_living (0x0F)	ok	col1=id 15 | varint entity; u8 type; x/y/z i32; yaw,pitch,headpitch u8; 3xi16 vel; metadata	id 0x0F; spawn_entity_living	none		
+1.7.6	play	clientbound	spawn_entity_painting (0x10)	ok	col1=id 16 | varint entity; title string; x/y/z i32; i32 direction	id 0x10; spawn_entity_painting	none		
+1.7.6	play	clientbound	spawn_entity_experience_orb (0x11)	ok	col1=id 17 | varint entity; x/y/z i32; i16 count	id 0x11; spawn_entity_experience_orb	none		
+1.7.6	play	clientbound	entity_velocity (0x12)	ok	col1=id 18 | i32 entity; 3xi16 vel (*8000)	id 0x12; entity_velocity	none		
+1.7.6	play	clientbound	entity_destroy (0x13)	ok	col1=id 19 | u8 count; i32 ids	id 0x13; entity_destroy	none		
+1.7.6	play	clientbound	entity (0x14)	ok	col1=id 20 | i32 entity id only	id 0x14; entity	none		
+1.7.6	play	clientbound	rel_entity_move (0x15)	ok	col1=id 21 | i32 entity; 3xi8 delta	id 0x15; rel_entity_move	none		
+1.7.6	play	clientbound	entity_look (0x16)	ok	col1=id 22 | i32 entity; yaw,pitch u8	id 0x16; entity_look	none		
+1.7.6	play	clientbound	entity_move_look (0x17)	ok	col1=id 23 | i32 entity; 3xi8 delta; yaw,pitch u8	id 0x17; entity_move_look	none		
+1.7.6	play	clientbound	entity_teleport (0x18)	ok	col1=id 24 | i32 entity; x/y/z i32(*32); yaw,pitch u8	id 0x18; entity_teleport	none		
+1.7.6	play	clientbound	entity_head_rotation (0x19)	ok	col1=id 25 | i32 entity; u8 headYaw	id 0x19; entity_head_rotation	none		
+1.7.6	play	clientbound	entity_status (0x1A)	ok	col1=id 26 | i32 entity; i8 status (raw passthrough; layout matches)	id 0x1A; entity_status	none		
+1.7.6	play	clientbound	attach_entity (0x1B)	ok	col1=id 27 | i32 entity; i32 vehicle; bool leash	id 0x1B; attach_entity	none		
+1.7.6	play	clientbound	entity_metadata (0x1C)	missing	col1=id 28 | DROPPED (Unsupported era; tables_for returns None)	id 0x1C; entity_metadata	high	translate/entity_data.rs:32,51,291	Port 1.7 entity metadata (byte type+field, 0x7f terminator) instead of returning None from tables_for.
+1.7.6	play	clientbound	entity_effect (0x1D)	ok	col1=id 29 | i32 entity; i8 effect,amplifier; i16 duration	id 0x1D; entity_effect	none		
+1.7.6	play	clientbound	remove_entity_effect (0x1E)	ok	col1=id 30 | i32 entity; i8 effect	id 0x1E; remove_entity_effect	none		
+1.7.6	play	clientbound	experience (0x1F)	ok	col1=id 31 | f32 bar; i16 level; i16 total	id 0x1F; experience	none		
+1.7.6	play	clientbound	update_attributes (0x20)	ok	col1=id 32 | i32 entity; properties by NAME string; f64 value; UUID modifiers	id 0x20; update_attributes	none		
+1.7.6	play	clientbound	map_chunk (0x21)	ok	col1=id 33 | zlib split arrays ids/nibbles/light/add/biomes (V1_7 encoder)	id 0x21; map_chunk	none		
+1.7.6	play	clientbound	multi_block_change (0x22)	missing	col1=id 34 | DROPPED (SectionUpdateFormat::V1_7 not translated)	id 0x22; multi_block_change	med	translate/block.rs:115,130-132	Implement 1.7 multi_block_change (i16 count, packed u16 records) instead of returning None.
+1.7.6	play	clientbound	block_change (0x23)	ok	col1=id 35 | x i32,y u8,z i32; varint id<<4; u8 metadata	id 0x23; block_change	none		
+1.7.6	play	clientbound	block_action (0x24)	ok	col1=id 36 | x i32,y i16,z i32; 2xu8; varint blockid	id 0x24; block_action	none		
+1.7.6	play	clientbound	block_break_animation (0x25)	ok	col1=id 37 | varint entity; x/y/z i32; i8 stage	id 0x25; block_break_animation	none		
+1.7.6	play	clientbound	map_chunk_bulk (0x26)	ok	col1=id 38 | n/a-server (26.3 has no bulk chunk packet)	id 0x26; map_chunk_bulk	none		
+1.7.6	play	clientbound	explosion (0x27)	missing	col1=id 39 | DROPPED (write_particle returns None on 1.7)	id 0x27; explosion	high	translate/explosion.rs:41	Emit 1.7 explode layout; skip untranslatable particle options instead of returning None from write_particle.
+1.7.6	play	clientbound	world_event (0x28)	ok	col1=id 40 | i32 event; x i32,y u8,z i32; i32 data; bool global	id 0x28; world_event	none		
+1.7.6	play	clientbound	named_sound_effect (0x29)	ok	col1=id 41 | string name; x/y/z i32; f32 volume; u8 pitch (x63)	id 0x29; named_sound_effect	none		
+1.7.6	play	clientbound	world_particles (0x2A)	missing	col1=id 42 | DROPPED (ParticleFormat::Unsupported on 1.7)	id 0x2A; world_particles	med	translate/particle.rs:18,68-70	Implement 1.7 named-particle layout (name string + fields) instead of dropping.
+1.7.6	play	clientbound	game_state_change (0x2B)	ok	col1=id 43 | u8 reason + f32 value (StartWaitingChunks dropped)	id 0x2B; game_state_change	none		
+1.7.6	play	clientbound	spawn_entity_weather (0x2C)	ok	col1=id 44 | varint entity; i8 type; x/y/z i32	id 0x2C; spawn_entity_weather	none		
+1.7.6	play	clientbound	open_window (0x2D)	layout-mismatch	col1=id 45 | RAW 26.3 OPEN_SCREEN (varint ids, NBT component; no slotCount/title flag)	id 0x2D; open_window	high	packet/translator.rs:353-443	Reencode OPEN_SCREEN into u8 window, u8 invType, string title, u8 slots, bool, optional i32 entityId.
+1.7.6	play	clientbound	close_window (0x2E)	layout-mismatch	col1=id 46 | RAW 26.3 payload (varint sync id vs 1.7 u8; equal for ids<128)	id 0x2E; close_window	low	packet/translator.rs:353-443	Reencode CCloseContainer as u8 window id using the client version.
+1.7.6	play	clientbound	set_slot (0x2F)	ok	col1=id 47 | i8 window; i16 slot; slot item	id 0x2F; set_slot	none		
+1.7.6	play	clientbound	window_items (0x30)	ok	col1=id 48 | u8 window; i16 count; slot items	id 0x30; window_items	none		
+1.7.6	play	clientbound	craft_progress_bar (0x31)	ok	col1=id 49 | u8 window; i16 property; i16 value	id 0x31; craft_progress_bar	none		
+1.7.6	play	clientbound	transaction (0x32)	ok	col1=id 50 | RAW 26.3 payload	id 0x32; transaction	none		
+1.7.6	play	clientbound	update_sign (0x33)	ok	col1=id 51 | x i32,y i16,z i32; 4 strings	id 0x33; update_sign	none		
+1.7.6	play	clientbound	map (0x34)	ok	col1=id 52 | n/a-server (MAP_ITEM_DATA rarely emitted; layout unverified)	id 0x34; map	none		
+1.7.6	play	clientbound	tile_entity_data (0x35)	missing	col1=id 53 | DROPPED (BlockEntityDataFormat::Action)	id 0x35; tile_entity_data	med	translate/block.rs:85,96-98	Implement 1.7 tile_entity_data (i16 x/y, u8 action, gzip NBT) instead of dropping.
+1.7.6	play	clientbound	open_sign_entity (0x36)	ok	col1=id 54 | x/y/z i32	id 0x36; open_sign_entity	none		
+1.7.6	play	clientbound	statistics (0x37)	ok	col1=id 55 | n/a-server (AWARD_STATS raw passthrough; unverified)	id 0x37; statistics	none		
+1.7.6	play	clientbound	player_info (0x38)	missing	col1=id 56 | name string; bool online; i16 ping (only ADD_PLAYER translated)	id 0x38; player_info	med	translate/player_info.rs:227	Translate PLAYER_INFO_REMOVE into 1.7 player_info action=4 (name, online=false).
+1.7.6	play	clientbound	abilities (0x39)	ok	col1=id 57 | i8 flags; f32 fly; f32 walk (layout identical)	id 0x39; abilities	none		
+1.7.6	play	clientbound	tab_complete (0x3A)	layout-mismatch	col1=id 58 | RAW 26.3 COMMAND_SUGGESTIONS (id/start/length + tooltip flags)	id 0x3A; tab_complete	high	packet/translator.rs:353-443	Reencode COMMAND_SUGGESTIONS: drop id/start/length and tooltip flags, write count varint + strings.
+1.7.6	play	clientbound	scoreboard_objective (0x3B)	ok	col1=id 59 | name string; display string; i8 mode	id 0x3B; scoreboard_objective	none		
+1.7.6	play	clientbound	scoreboard_score (0x3C)	ok	col1=id 60 | name string; u8 action; objective string; i32 value	id 0x3C; scoreboard_score	none		
+1.7.6	play	clientbound	scoreboard_display_objective (0x3D)	ok	col1=id 61 | i8 position; string name	id 0x3D; scoreboard_display_objective	none		
+1.7.6	play	clientbound	scoreboard_team (0x3E)	ok	col1=id 62 | string team; i8 mode; conditional fields via legacy_bytes	id 0x3E; scoreboard_team	none		
+1.7.6	play	clientbound	custom_payload (0x3F)	ok	col1=id 63 | MC|Brand channel; u16 length; data	id 0x3F; custom_payload	none		
+1.7.6	play	clientbound	kick_disconnect (0x40)	ok	col1=id 64 | string reason	id 0x40; kick_disconnect	none		
+1.7.6	play	serverbound	keep_alive (0x00)	ok	col1=id 0 | i32 id	id 0x00; keep_alive	none		
+1.7.6	play	serverbound	chat (0x01)	ok	col1=id 1 | string message	id 0x01; chat	none		
+1.7.6	play	serverbound	use_entity (0x02)	ok	col1=id 2 | i32 target; i8 mouse; optional 3xf32	id 0x02; use_entity	none		
+1.7.6	play	serverbound	flying (0x03)	ok	col1=id 3 | bool onGround	id 0x03; flying	none		
+1.7.6	play	serverbound	position (0x04)	ok	col1=id 4 | x f64; stance f64; y f64; z f64; bool	id 0x04; position	none		
+1.7.6	play	serverbound	look (0x05)	ok	col1=id 5 | yaw,pitch f32; bool	id 0x05; look	none		
+1.7.6	play	serverbound	position_look (0x06)	ok	col1=id 6 | x/stance/y/z f64; yaw,pitch f32; bool	id 0x06; position_look	none		
+1.7.6	play	serverbound	block_dig (0x07)	ok	col1=id 7 | u8 status; x i32,y u8,z i32; u8 face	id 0x07; block_dig	none		
+1.7.6	play	serverbound	block_place (0x08)	ok	col1=id 8 | x i32,y u8,z i32; i8 dir; slot held; 3xi8 cursor	id 0x08; block_place	none		
+1.7.6	play	serverbound	held_item_slot (0x09)	ok	col1=id 9 | i16 slot	id 0x09; held_item_slot	none		
+1.7.6	play	serverbound	arm_animation (0x0A)	ok	col1=id 10 | i32 entity; i8 animation	id 0x0A; arm_animation	none		
+1.7.6	play	serverbound	entity_action (0x0B)	ok	col1=id 11 | i32 entity; u8 action; i32 jumpBoost	id 0x0B; entity_action	none		
+1.7.6	play	serverbound	steer_vehicle (0x0C)	ok	col1=id 12 | f32 sideways,forward; bool jump,unmount	id 0x0C; steer_vehicle	none		
+1.7.6	play	serverbound	close_window (0x0D)	layout-mismatch	col0/1=id 13; client sends u8 window; no serverbound translator (play_to_current) -> raw u8 reaches 26.3 core reader (expects varint)	id 0x0D; close_window	low	packet/translator.rs:353-443	In play_to_current, read u8 window id and reencode as 26.3 varint sync id.
+1.7.6	play	serverbound	window_click (0x0E)	ok	col1=id 14 | i8 window; i16 slot; i8 button; i16 action; i8 mode; slot item	id 0x0E; window_click	none		
+1.7.6	play	serverbound	transaction (0x0F)	ok	col1=id 15 | i8 window; i16 action; bool	id 0x0F; transaction	none		
+1.7.6	play	serverbound	set_creative_slot (0x10)	ok	col1=id 16 | i16 slot; slot item	id 0x10; set_creative_slot	none		
+1.7.6	play	serverbound	enchant_item (0x11)	ok	col1=id 17 | i8 window; i8 enchantment	id 0x11; enchant_item	none		
+1.7.6	play	serverbound	update_sign (0x12)	ok	col1=id 18 | x i32,y i16,z i32; 4 strings	id 0x12; update_sign	none		
+1.7.6	play	serverbound	abilities (0x13)	ok	col1=id 19 | i8 flags; f32 fly; f32 walk	id 0x13; abilities	none		
+1.7.6	play	serverbound	tab_complete (0x14)	layout-mismatch	col0/1=id 20; client sends only string text; no serverbound translator -> raw string reaches 26.3 core reader (expects id varint + text)	id 0x14; tab_complete	high	packet/translator.rs:353-443	In play_to_current, prepend a zero varint request id to the 1.7 tab-complete text.
+1.7.6	play	serverbound	settings (0x15)	ok	col1=id 21 | string locale; i8 view; i8 chatFlags; bool colors; u8 difficulty; bool cape	id 0x15; settings	none		
+1.7.6	play	serverbound	client_command (0x16)	ok	col1=id 22 | u8 action	id 0x16; client_command	none		
+1.7.6	play	serverbound	custom_payload (0x17)	ok	col1=id 23 | channel string; u16 length; data	id 0x17; custom_payload	none		
+1.7.6	login	clientbound	set_compression (0x03)	ok	id 3 in table but dropped for version<1.8 (translate_connection_outgoing:285-289)	not in minecraft-data 1.7 login; ViaRewind treats it as unused	low	packet/translator.rs:285-289	Confirm protocol 4/5 expect no Set Compression; document why the id table lists 3.
+1.7.6	play	clientbound	system_chat	extra	SYSTEM_CHAT -> CHAT 0x02	not defined in 1.7 protocol	none		handled by system_chat_from_current; overlay variant dropped for 1.7
+1.7.6	play	clientbound	disconnect_play	extra	DISCONNECT -> 0x40	not defined in 1.7 protocol	none		handled by component_from_current
+1.7.6	play	clientbound	player_info_remove	missing	PLAYER_INFO_REMOVE	not defined in 1.7 protocol	med	translate/player_info.rs:227	Translate PLAYER_INFO_REMOVE into 1.7 player_info action=4 (name, online=false).
+1.7.6	play	clientbound	light_update	extra	LIGHT_UPDATE	not defined in 1.7 protocol	none		id -1; dropped (1.7 light inline in chunk)
+1.7.6	play	clientbound	server_data	extra	SERVER_DATA	not defined in 1.7 protocol	none		id -1; dropped
+1.7.6	play	clientbound	tab_list	extra	TAB_LIST	not defined in 1.7 protocol	none		id -1; dropped
+1.7.6	play	clientbound	resource_pack_push	extra	RESOURCE_PACK_PUSH	not defined in 1.7 protocol	none		id -1; dropped (no 1.7 play resource-pack packet)
+1.7.6	play	clientbound	commands	extra	COMMANDS	not defined in 1.7 protocol	none		id -1; dropped (no 1.7 command-tree packet)
+1.7.6	play	clientbound	recipe_book_add / update_recipes / update_tags / update_advancements	extra	modern-only	not defined in 1.7 protocol	none		id -1; dropped
+1.7.6	play	clientbound	set_action_bar / set_title / set_subtitle	extra	modern-only	not defined in 1.7 protocol	none		id -1; dropped (no 1.7 title packets)
+1.7.6	play	clientbound	stop_sound / sound_entity	extra	modern-only	not defined in 1.7 protocol	none		id -1; dropped
+1.7.6	play	clientbound	entity_position_sync	extra	ENTITY_POSITION_SYNC -> 0x18	not defined in 1.7 protocol	none		handled by position_sync_from_current
+1.7.6	play	clientbound	swing_animation	extra	SWING_ANIMATION -> ANIMATE 0x0B	not defined in 1.7 protocol	none		handled by animation::swing_from_current
+1.7.6	SUMMARY		ok=86 mismatches=8 missing=7 unverifiable=1 extra=12	summary					

@@ -1,0 +1,1306 @@
+version	state	direction	packet	kind	ours	reference	severity	file_line	proposed_fix
+1.9	handshake	serverbound	set_protocol [INTENTION]	ok	0	0	-	legacy/generated_ids.rs:9	-
+1.9	handshake	serverbound	legacy_server_list_ping [0xFE]	n/a-server	absent	254	low	legacy/ids.rs	Legacy 0xFE ping not mapped; client-side legacy ping only.
+1.9	handshake	clientbound	(none)	n/a-server	-	-	-	-	No serverbound-only handshake replies in this era.
+1.9	status	serverbound	ping_start [STATUS_REQUEST]	ok	0	0	-	legacy/generated_ids.rs:21	-
+1.9	status	serverbound	ping [PING_REQUEST]	ok	1	1	-	legacy/generated_ids.rs:17	-
+1.9	status	clientbound	0 [core status]	unverifiable	server_info	server_info	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.9	status	clientbound	1 [core status]	unverifiable	ping	ping	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.9	login	serverbound	login_start [HELLO]	ok	0	0	-	legacy/generated_ids.rs:36	-
+1.9	login	serverbound	encryption_begin [KEY]	ok	1	1	-	legacy/generated_ids.rs:40	-
+1.9	login	clientbound	disconnect [LOGIN_DISCONNECT]	ok	0	0	-	legacy/generated_ids.rs:547	-
+1.9	login	clientbound	encryption_begin [HELLO]	ok	1	1	-	legacy/generated_ids.rs:539	-
+1.9	login	clientbound	success [GAME_PROFILE / LOGIN_FINISHED]	ok	2	2	-	legacy/generated_ids.rs:535,551	-
+1.9	login	clientbound	compress [LOGIN_COMPRESSION]	ok	3	3	-	legacy/generated_ids.rs:543	-
+1.9	login	clientbound	CUSTOM_QUERY [no ref entry]	extra	4	absent	low	legacy/generated_ids.rs:531	Current-only login packet; not translated for this era (should map to -1).
+1.9	play	clientbound	spawn_entity [ADD_ENTITY]	ok	0	0	-	legacy/generated_ids.rs:673	-
+1.9	play	clientbound	spawn_entity_experience_orb [SPAWN_EXPERIENCE_ORB]	ok	1	1	-	legacy/generated_ids.rs:1363	-
+1.9	play	clientbound	spawn_entity_weather [SPAWN_WEATHER_ENTITY]	ok	2	2	-	legacy/generated_ids.rs:1381	-
+1.9	play	clientbound	spawn_entity_living [SPAWN_LIVING_ENTITY]	ok	3	3	-	legacy/generated_ids.rs:1367	-
+1.9	play	clientbound	spawn_entity_painting [SPAWN_PAINTING]	ok	4	4	-	legacy/generated_ids.rs:1372	-
+1.9	play	clientbound	named_entity_spawn [SPAWN_PLAYER]	ok	5	5	-	legacy/generated_ids.rs:1377	-
+1.9	play	clientbound	animation [ANIMATE]	ok	6	6	-	legacy/generated_ids.rs:682	-
+1.9	play	clientbound	statistics [AWARD_STATS]	ok	7	7	-	legacy/generated_ids.rs:686	-
+1.9	play	clientbound	block_break_animation [BLOCK_DESTRUCTION]	ok	8	8	-	legacy/generated_ids.rs:695	-
+1.9	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	ok	9	9	-	legacy/generated_ids.rs:699	-
+1.9	play	clientbound	block_action [BLOCK_EVENT]	ok	10	10	-	legacy/generated_ids.rs:703	-
+1.9	play	clientbound	block_change [BLOCK_UPDATE]	ok	11	11	-	legacy/generated_ids.rs:708	-
+1.9	play	clientbound	boss_bar [BOSS_EVENT]	ok	12	12	-	legacy/generated_ids.rs:713	-
+1.9	play	clientbound	difficulty [CHANGE_DIFFICULTY]	ok	13	13	-	legacy/generated_ids.rs:723	-
+1.9	play	clientbound	tab_complete [COMMAND_SUGGESTIONS]	ok	14	14	-	legacy/generated_ids.rs:773	-
+1.9	play	clientbound	chat [CHAT]	ok	15	15	-	legacy/generated_ids.rs:728	-
+1.9	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	ok	16	16	-	legacy/generated_ids.rs:1168	-
+1.9	play	clientbound	transaction [WINDOW_CONFIRMATION]	ok	17	17	-	legacy/generated_ids.rs:1506	-
+1.9	play	clientbound	close_window [CONTAINER_CLOSE]	ok	18	18	-	legacy/generated_ids.rs:778	-
+1.9	play	clientbound	open_window [OPEN_SCREEN]	ok	19	19	-	legacy/generated_ids.rs:1018	-
+1.9	play	clientbound	window_items [CONTAINER_SET_CONTENT]	ok	20	20	-	legacy/generated_ids.rs:783	-
+1.9	play	clientbound	craft_progress_bar [CONTAINER_SET_DATA]	ok	21	21	-	legacy/generated_ids.rs:788	-
+1.9	play	clientbound	set_slot [CONTAINER_SET_SLOT]	ok	22	22	-	legacy/generated_ids.rs:793	-
+1.9	play	clientbound	set_cooldown [COOLDOWN]	ok	23	23	-	legacy/generated_ids.rs:803	-
+1.9	play	clientbound	custom_payload [CUSTOM_PAYLOAD]	ok	24	24	-	legacy/generated_ids.rs:813	-
+1.9	play	clientbound	named_sound_effect [NAMED_SOUND_EFFECT]	ok	25	25	-	legacy/generated_ids.rs:1008	-
+1.9	play	clientbound	kick_disconnect [DISCONNECT]	ok	26	26	-	legacy/generated_ids.rs:858	-
+1.9	play	clientbound	entity_status [ENTITY_EVENT]	ok	27	27	-	legacy/generated_ids.rs:873	-
+1.9	play	clientbound	explosion [EXPLODE]	ok	28	28	-	legacy/generated_ids.rs:888	-
+1.9	play	clientbound	unload_chunk [FORGET_LEVEL_CHUNK]	ok	29	29	-	legacy/generated_ids.rs:893	-
+1.9	play	clientbound	game_state_change [GAME_EVENT]	ok	30	30	-	legacy/generated_ids.rs:898	-
+1.9	play	clientbound	keep_alive [KEEP_ALIVE]	ok	31	31	-	legacy/generated_ids.rs:923	-
+1.9	play	clientbound	map_chunk [LEVEL_CHUNK_WITH_LIGHT]	ok	32	32	-	legacy/generated_ids.rs:928	-
+1.9	play	clientbound	world_event [LEVEL_EVENT]	ok	33	33	-	legacy/generated_ids.rs:933	-
+1.9	play	clientbound	world_particles [LEVEL_PARTICLES]	ok	34	34	-	legacy/generated_ids.rs:938	-
+1.9	play	clientbound	login [LOGIN]	ok	35	35	-	legacy/generated_ids.rs:948	-
+1.9	play	clientbound	map [MAP_ITEM_DATA]	ok	36	36	-	legacy/generated_ids.rs:963	-
+1.9	play	clientbound	rel_entity_move [MOVE_ENTITY_POS]	ok	37	37	-	legacy/generated_ids.rs:978	-
+1.9	play	clientbound	entity_move_look [MOVE_ENTITY_POS_ROT]	ok	38	38	-	legacy/generated_ids.rs:983	-
+1.9	play	clientbound	entity_look [MOVE_ENTITY_ROT]	ok	39	39	-	legacy/generated_ids.rs:988	-
+1.9	play	clientbound	entity [ENTITY_MOVEMENT]	ok	40	40	-	legacy/generated_ids.rs:878	-
+1.9	play	clientbound	vehicle_move [MOVE_VEHICLE]	ok	41	41	-	legacy/generated_ids.rs:1003	-
+1.9	play	clientbound	open_sign_entity [OPEN_SIGN_EDITOR]	ok	42	42	-	legacy/generated_ids.rs:1023	-
+1.9	play	clientbound	abilities [PLAYER_ABILITIES]	ok	43	43	-	legacy/generated_ids.rs:1038	-
+1.9	play	clientbound	combat_event [COMBAT_EVENT]	ok	44	44	-	legacy/generated_ids.rs:763	-
+1.9	play	clientbound	player_info [PLAYER_INFO]	ok	45	45	-	legacy/generated_ids.rs:1068	-
+1.9	play	clientbound	position [PLAYER_POSITION]	ok	46	46	-	legacy/generated_ids.rs:1088	-
+1.9	play	clientbound	bed [USE_BED]	ok	47	47	-	legacy/generated_ids.rs:1496	-
+1.9	play	clientbound	entity_destroy [REMOVE_ENTITIES]	ok	48	48	-	legacy/generated_ids.rs:1128	-
+1.9	play	clientbound	remove_entity_effect [REMOVE_MOB_EFFECT]	ok	49	49	-	legacy/generated_ids.rs:1133	-
+1.9	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	ok	50	50	-	legacy/generated_ids.rs:1148	-
+1.9	play	clientbound	respawn [RESPAWN]	ok	51	51	-	legacy/generated_ids.rs:1153	-
+1.9	play	clientbound	entity_head_rotation [ROTATE_HEAD]	ok	52	52	-	legacy/generated_ids.rs:1158	-
+1.9	play	clientbound	world_border [WORLD_BORDER]	ok	53	53	-	legacy/generated_ids.rs:1511	-
+1.9	play	clientbound	camera [SET_CAMERA]	ok	54	54	-	legacy/generated_ids.rs:1218	-
+1.9	play	clientbound	held_item_slot [SET_CARRIED_ITEM]	ok	55	55	-	legacy/generated_ids.rs:1223	-
+1.9	play	clientbound	scoreboard_display_objective [SET_DISPLAY_OBJECTIVE]	ok	56	56	-	legacy/generated_ids.rs:1253	-
+1.9	play	clientbound	entity_metadata [SET_ENTITY_DATA]	ok	57	57	-	legacy/generated_ids.rs:1258	-
+1.9	play	clientbound	attach_entity [SET_ENTITY_LINK]	ok	58	58	-	legacy/generated_ids.rs:1263	-
+1.9	play	clientbound	entity_velocity [SET_ENTITY_MOTION]	ok	59	59	-	legacy/generated_ids.rs:1268	-
+1.9	play	clientbound	entity_equipment [SET_EQUIPMENT]	ok	60	60	-	legacy/generated_ids.rs:1273	-
+1.9	play	clientbound	experience [SET_EXPERIENCE]	ok	61	61	-	legacy/generated_ids.rs:1278	-
+1.9	play	clientbound	update_health [SET_HEALTH]	ok	62	62	-	legacy/generated_ids.rs:1283	-
+1.9	play	clientbound	scoreboard_objective [SET_OBJECTIVE]	ok	63	63	-	legacy/generated_ids.rs:1293	-
+1.9	play	clientbound	set_passengers [SET_PASSENGERS]	ok	64	64	-	legacy/generated_ids.rs:1298	-
+1.9	play	clientbound	teams [SET_PLAYER_TEAM]	ok	65	65	-	legacy/generated_ids.rs:1308	-
+1.9	play	clientbound	scoreboard_score [SET_SCORE]	ok	66	66	-	legacy/generated_ids.rs:1313	-
+1.9	play	clientbound	spawn_position [SET_DEFAULT_SPAWN_POSITION]	ok	67	67	-	legacy/generated_ids.rs:1248	-
+1.9	play	clientbound	update_time [SET_TIME]	ok	68	68	-	legacy/generated_ids.rs:1328	-
+1.9	play	clientbound	title [TITLE]	ok	69	69	-	legacy/generated_ids.rs:1446	-
+1.9	play	clientbound	update_sign [SIGN_UPDATE]	ok	70	70	-	legacy/generated_ids.rs:1348	-
+1.9	play	clientbound	sound_effect [SOUND]	ok	71	71	-	legacy/generated_ids.rs:1353	-
+1.9	play	clientbound	playerlist_header [TAB_LIST]	ok	72	72	-	legacy/generated_ids.rs:1411	-
+1.9	play	clientbound	collect [TAKE_ITEM_ENTITY]	ok	73	73	-	legacy/generated_ids.rs:1421	-
+1.9	play	clientbound	entity_teleport [TELEPORT_ENTITY]	ok	74	74	-	legacy/generated_ids.rs:1426	-
+1.9	play	clientbound	entity_update_attributes [UPDATE_ATTRIBUTES]	ok	75	75	-	legacy/generated_ids.rs:1466	-
+1.9	play	clientbound	entity_effect [UPDATE_MOB_EFFECT]	ok	76	76	-	legacy/generated_ids.rs:1481	-
+1.9	play	clientbound	entity_metadata [SET_ENTITY_DATA]	missing	57	57	high	src/translate/entity_data.rs:29-62	SET_ENTITY_DATA dropped for every era version: EntityDataFormat::Unsupported=V_1_7_2 makes tables_for() return None, so translate_outgoing_packet discards the packet. Add 1.9-1.12 metadata field/serializer tables (VarInt type tag).
+1.9	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	missing	9	9	high	src/translate/block.rs:82-98	BLOCK_ENTITY_DATA dropped for every era version (BlockEntityDataFormat::Action <1.18 -> None). Implement 1.9-1.12 byte-action + NBT layout.
+1.9	play	clientbound	world_particles [LEVEL_PARTICLES]	missing	34	34	med	src/translate/particle.rs:15-19,67-70	LEVEL_PARTICLES dropped for every era version (ParticleFormat::Unsupported <1.13 -> write_particle returns None). Add 1.9-1.12 int-array particle data.
+1.9	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	missing	16	16	med	src/translate/block.rs:112-132	SECTION_BLOCKS_UPDATE dropped for every era version (SectionUpdateFormat::V1_7 <1.16 -> None). Add the per-chunk short-entry layout.
+1.9	play	clientbound	boss_bar [BOSS_EVENT]	layout-mismatch	12	12	med	src/packet/translator.rs:353-442	BOSS_BAR is raw-passed (no translator): title is a 26.3 NBT component but 1.9-1.12.2 expect a JSON string. Add a component_from_current branch.
+1.9	play	serverbound	teleport_confirm [ACCEPT_TELEPORTATION]	ok	0	0	-	legacy/generated_ids.rs:106	-
+1.9	play	serverbound	tab_complete [COMMAND_SUGGESTIONS]	ok	1	1	-	legacy/generated_ids.rs:185	-
+1.9	play	serverbound	chat [CHAT]	ok	2	2	-	legacy/generated_ids.rs:133	-
+1.9	play	serverbound	client_command [CLIENT_COMMAND]	ok	3	3	-	legacy/generated_ids.rs:167	-
+1.9	play	serverbound	settings [CLIENT_INFORMATION]	ok	4	4	-	legacy/generated_ids.rs:171	-
+1.9	play	serverbound	transaction [WINDOW_CONFIRMATION]	ok	5	5	-	legacy/generated_ids.rs:484	-
+1.9	play	serverbound	enchant_item [CONTAINER_BUTTON_CLICK]	ok	6	6	-	legacy/generated_ids.rs:194	-
+1.9	play	serverbound	window_click [CONTAINER_CLICK]	ok	7	7	-	legacy/generated_ids.rs:199	-
+1.9	play	serverbound	close_window [CONTAINER_CLOSE]	ok	8	8	-	legacy/generated_ids.rs:204	-
+1.9	play	serverbound	custom_payload [CUSTOM_PAYLOAD]	ok	9	9	-	legacy/generated_ids.rs:224	-
+1.9	play	serverbound	use_entity [INTERACT]	ok	10	10	-	legacy/generated_ids.rs:249	-
+1.9	play	serverbound	keep_alive [KEEP_ALIVE]	ok	11	11	-	legacy/generated_ids.rs:259	-
+1.9	play	serverbound	position [MOVE_PLAYER_POS]	ok	12	12	-	legacy/generated_ids.rs:269	-
+1.9	play	serverbound	position_look [MOVE_PLAYER_POS_ROT]	ok	13	13	-	legacy/generated_ids.rs:274	-
+1.9	play	serverbound	look [MOVE_PLAYER_ROT]	ok	14	14	-	legacy/generated_ids.rs:279	-
+1.9	play	serverbound	flying [MOVE_PLAYER_STATUS_ONLY]	ok	15	15	-	legacy/generated_ids.rs:284	-
+1.9	play	serverbound	vehicle_move [MOVE_VEHICLE]	ok	16	16	-	legacy/generated_ids.rs:289	-
+1.9	play	serverbound	steer_boat [PADDLE_BOAT]	ok	17	17	-	legacy/generated_ids.rs:294	-
+1.9	play	serverbound	abilities [PLAYER_ABILITIES]	ok	18	18	-	legacy/generated_ids.rs:324	-
+1.9	play	serverbound	block_dig [PLAYER_ACTION]	ok	19	19	-	legacy/generated_ids.rs:329	-
+1.9	play	serverbound	entity_action [PLAYER_COMMAND]	ok	20	20	-	legacy/generated_ids.rs:334	-
+1.9	play	serverbound	steer_vehicle [STEER_VEHICLE]	ok	21	21	-	legacy/generated_ids.rs:454	-
+1.9	play	serverbound	resource_pack_receive [RESOURCE_PACK]	ok	22	22	-	legacy/generated_ids.rs:379	-
+1.9	play	serverbound	held_item_slot [SET_CARRIED_ITEM]	ok	23	23	-	legacy/generated_ids.rs:399	-
+1.9	play	serverbound	set_creative_slot [SET_CREATIVE_MODE_SLOT]	ok	24	24	-	legacy/generated_ids.rs:414	-
+1.9	play	serverbound	update_sign [SIGN_UPDATE]	ok	25	25	-	legacy/generated_ids.rs:439	-
+1.9	play	serverbound	arm_animation [SWING]	ok	26	26	-	legacy/generated_ids.rs:459	-
+1.9	play	serverbound	spectate [SPECTATE_ENTITY]	ok	27	27	-	legacy/generated_ids.rs:444	-
+1.9	play	serverbound	block_place [USE_ITEM_ON]	ok	28	28	-	legacy/generated_ids.rs:479	-
+1.9	play	serverbound	use_item [USE_ITEM]	ok	29	29	-	legacy/generated_ids.rs:474	-
+1.9	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	layout-mismatch	50	50	high	src/legacy/packets/add_resource_pack.rs:14-25	RESOURCE_PACK_PUSH writes url,hash,forced,prompt for all <1.20.3; 1.9-1.12.2 reference is url,hash only. Two extra fields desync the client. Gate forced at >=1.17 and prompt at >=1.20.3.
+1.9	login	serverbound	CUSTOM_QUERY_ANSWER [no ref entry]	extra	2	absent	low	legacy/generated_ids.rs:32	Current-only login packet; not translated for this era (should map to -1).
+1.9	SUMMARY	all	-	summary	ok=116	layout-mismatch=2 missing=4 extra=2 unverifiable=2 n/a-server=2	-	-	minecraft-data folder=1.9; ids checked against generated_ids.rs column; layout from source review
+1.9.1	handshake	serverbound	set_protocol [INTENTION]	ok	0	0	-	legacy/generated_ids.rs:9	-
+1.9.1	handshake	serverbound	legacy_server_list_ping [0xFE]	n/a-server	absent	254	low	legacy/ids.rs	Legacy 0xFE ping not mapped; client-side legacy ping only.
+1.9.1	handshake	clientbound	(none)	n/a-server	-	-	-	-	No serverbound-only handshake replies in this era.
+1.9.1	status	serverbound	ping_start [STATUS_REQUEST]	ok	0	0	-	legacy/generated_ids.rs:21	-
+1.9.1	status	serverbound	ping [PING_REQUEST]	ok	1	1	-	legacy/generated_ids.rs:17	-
+1.9.1	status	clientbound	0 [core status]	unverifiable	server_info	server_info	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.9.1	status	clientbound	1 [core status]	unverifiable	ping	ping	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.9.1	login	serverbound	login_start [HELLO]	ok	0	0	-	legacy/generated_ids.rs:36	-
+1.9.1	login	serverbound	encryption_begin [KEY]	ok	1	1	-	legacy/generated_ids.rs:40	-
+1.9.1	login	clientbound	disconnect [LOGIN_DISCONNECT]	ok	0	0	-	legacy/generated_ids.rs:547	-
+1.9.1	login	clientbound	encryption_begin [HELLO]	ok	1	1	-	legacy/generated_ids.rs:539	-
+1.9.1	login	clientbound	success [GAME_PROFILE / LOGIN_FINISHED]	ok	2	2	-	legacy/generated_ids.rs:535,551	-
+1.9.1	login	clientbound	compress [LOGIN_COMPRESSION]	ok	3	3	-	legacy/generated_ids.rs:543	-
+1.9.1	login	clientbound	CUSTOM_QUERY [no ref entry]	extra	4	absent	low	legacy/generated_ids.rs:531	Current-only login packet; not translated for this era (should map to -1).
+1.9.1	play	clientbound	spawn_entity [ADD_ENTITY]	ok	0	0	-	legacy/generated_ids.rs:673	-
+1.9.1	play	clientbound	spawn_entity_experience_orb [SPAWN_EXPERIENCE_ORB]	ok	1	1	-	legacy/generated_ids.rs:1363	-
+1.9.1	play	clientbound	spawn_entity_weather [SPAWN_WEATHER_ENTITY]	ok	2	2	-	legacy/generated_ids.rs:1381	-
+1.9.1	play	clientbound	spawn_entity_living [SPAWN_LIVING_ENTITY]	ok	3	3	-	legacy/generated_ids.rs:1367	-
+1.9.1	play	clientbound	spawn_entity_painting [SPAWN_PAINTING]	ok	4	4	-	legacy/generated_ids.rs:1372	-
+1.9.1	play	clientbound	named_entity_spawn [SPAWN_PLAYER]	ok	5	5	-	legacy/generated_ids.rs:1377	-
+1.9.1	play	clientbound	animation [ANIMATE]	ok	6	6	-	legacy/generated_ids.rs:682	-
+1.9.1	play	clientbound	statistics [AWARD_STATS]	ok	7	7	-	legacy/generated_ids.rs:686	-
+1.9.1	play	clientbound	block_break_animation [BLOCK_DESTRUCTION]	ok	8	8	-	legacy/generated_ids.rs:695	-
+1.9.1	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	ok	9	9	-	legacy/generated_ids.rs:699	-
+1.9.1	play	clientbound	block_action [BLOCK_EVENT]	ok	10	10	-	legacy/generated_ids.rs:703	-
+1.9.1	play	clientbound	block_change [BLOCK_UPDATE]	ok	11	11	-	legacy/generated_ids.rs:708	-
+1.9.1	play	clientbound	boss_bar [BOSS_EVENT]	ok	12	12	-	legacy/generated_ids.rs:713	-
+1.9.1	play	clientbound	difficulty [CHANGE_DIFFICULTY]	ok	13	13	-	legacy/generated_ids.rs:723	-
+1.9.1	play	clientbound	tab_complete [COMMAND_SUGGESTIONS]	ok	14	14	-	legacy/generated_ids.rs:773	-
+1.9.1	play	clientbound	chat [CHAT]	ok	15	15	-	legacy/generated_ids.rs:728	-
+1.9.1	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	ok	16	16	-	legacy/generated_ids.rs:1168	-
+1.9.1	play	clientbound	transaction [WINDOW_CONFIRMATION]	ok	17	17	-	legacy/generated_ids.rs:1506	-
+1.9.1	play	clientbound	close_window [CONTAINER_CLOSE]	ok	18	18	-	legacy/generated_ids.rs:778	-
+1.9.1	play	clientbound	open_window [OPEN_SCREEN]	ok	19	19	-	legacy/generated_ids.rs:1018	-
+1.9.1	play	clientbound	window_items [CONTAINER_SET_CONTENT]	ok	20	20	-	legacy/generated_ids.rs:783	-
+1.9.1	play	clientbound	craft_progress_bar [CONTAINER_SET_DATA]	ok	21	21	-	legacy/generated_ids.rs:788	-
+1.9.1	play	clientbound	set_slot [CONTAINER_SET_SLOT]	ok	22	22	-	legacy/generated_ids.rs:793	-
+1.9.1	play	clientbound	set_cooldown [COOLDOWN]	ok	23	23	-	legacy/generated_ids.rs:803	-
+1.9.1	play	clientbound	custom_payload [CUSTOM_PAYLOAD]	ok	24	24	-	legacy/generated_ids.rs:813	-
+1.9.1	play	clientbound	named_sound_effect [NAMED_SOUND_EFFECT]	ok	25	25	-	legacy/generated_ids.rs:1008	-
+1.9.1	play	clientbound	kick_disconnect [DISCONNECT]	ok	26	26	-	legacy/generated_ids.rs:858	-
+1.9.1	play	clientbound	entity_status [ENTITY_EVENT]	ok	27	27	-	legacy/generated_ids.rs:873	-
+1.9.1	play	clientbound	explosion [EXPLODE]	ok	28	28	-	legacy/generated_ids.rs:888	-
+1.9.1	play	clientbound	unload_chunk [FORGET_LEVEL_CHUNK]	ok	29	29	-	legacy/generated_ids.rs:893	-
+1.9.1	play	clientbound	game_state_change [GAME_EVENT]	ok	30	30	-	legacy/generated_ids.rs:898	-
+1.9.1	play	clientbound	keep_alive [KEEP_ALIVE]	ok	31	31	-	legacy/generated_ids.rs:923	-
+1.9.1	play	clientbound	map_chunk [LEVEL_CHUNK_WITH_LIGHT]	ok	32	32	-	legacy/generated_ids.rs:928	-
+1.9.1	play	clientbound	world_event [LEVEL_EVENT]	ok	33	33	-	legacy/generated_ids.rs:933	-
+1.9.1	play	clientbound	world_particles [LEVEL_PARTICLES]	ok	34	34	-	legacy/generated_ids.rs:938	-
+1.9.1	play	clientbound	login [LOGIN]	ok	35	35	-	legacy/generated_ids.rs:948	-
+1.9.1	play	clientbound	map [MAP_ITEM_DATA]	ok	36	36	-	legacy/generated_ids.rs:963	-
+1.9.1	play	clientbound	rel_entity_move [MOVE_ENTITY_POS]	ok	37	37	-	legacy/generated_ids.rs:978	-
+1.9.1	play	clientbound	entity_move_look [MOVE_ENTITY_POS_ROT]	ok	38	38	-	legacy/generated_ids.rs:983	-
+1.9.1	play	clientbound	entity_look [MOVE_ENTITY_ROT]	ok	39	39	-	legacy/generated_ids.rs:988	-
+1.9.1	play	clientbound	entity [ENTITY_MOVEMENT]	ok	40	40	-	legacy/generated_ids.rs:878	-
+1.9.1	play	clientbound	vehicle_move [MOVE_VEHICLE]	ok	41	41	-	legacy/generated_ids.rs:1003	-
+1.9.1	play	clientbound	open_sign_entity [OPEN_SIGN_EDITOR]	ok	42	42	-	legacy/generated_ids.rs:1023	-
+1.9.1	play	clientbound	abilities [PLAYER_ABILITIES]	ok	43	43	-	legacy/generated_ids.rs:1038	-
+1.9.1	play	clientbound	combat_event [COMBAT_EVENT]	ok	44	44	-	legacy/generated_ids.rs:763	-
+1.9.1	play	clientbound	player_info [PLAYER_INFO]	ok	45	45	-	legacy/generated_ids.rs:1068	-
+1.9.1	play	clientbound	position [PLAYER_POSITION]	ok	46	46	-	legacy/generated_ids.rs:1088	-
+1.9.1	play	clientbound	bed [USE_BED]	ok	47	47	-	legacy/generated_ids.rs:1496	-
+1.9.1	play	clientbound	entity_destroy [REMOVE_ENTITIES]	ok	48	48	-	legacy/generated_ids.rs:1128	-
+1.9.1	play	clientbound	remove_entity_effect [REMOVE_MOB_EFFECT]	ok	49	49	-	legacy/generated_ids.rs:1133	-
+1.9.1	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	ok	50	50	-	legacy/generated_ids.rs:1148	-
+1.9.1	play	clientbound	respawn [RESPAWN]	ok	51	51	-	legacy/generated_ids.rs:1153	-
+1.9.1	play	clientbound	entity_head_rotation [ROTATE_HEAD]	ok	52	52	-	legacy/generated_ids.rs:1158	-
+1.9.1	play	clientbound	world_border [WORLD_BORDER]	ok	53	53	-	legacy/generated_ids.rs:1511	-
+1.9.1	play	clientbound	camera [SET_CAMERA]	ok	54	54	-	legacy/generated_ids.rs:1218	-
+1.9.1	play	clientbound	held_item_slot [SET_CARRIED_ITEM]	ok	55	55	-	legacy/generated_ids.rs:1223	-
+1.9.1	play	clientbound	scoreboard_display_objective [SET_DISPLAY_OBJECTIVE]	ok	56	56	-	legacy/generated_ids.rs:1253	-
+1.9.1	play	clientbound	entity_metadata [SET_ENTITY_DATA]	ok	57	57	-	legacy/generated_ids.rs:1258	-
+1.9.1	play	clientbound	attach_entity [SET_ENTITY_LINK]	ok	58	58	-	legacy/generated_ids.rs:1263	-
+1.9.1	play	clientbound	entity_velocity [SET_ENTITY_MOTION]	ok	59	59	-	legacy/generated_ids.rs:1268	-
+1.9.1	play	clientbound	entity_equipment [SET_EQUIPMENT]	ok	60	60	-	legacy/generated_ids.rs:1273	-
+1.9.1	play	clientbound	experience [SET_EXPERIENCE]	ok	61	61	-	legacy/generated_ids.rs:1278	-
+1.9.1	play	clientbound	update_health [SET_HEALTH]	ok	62	62	-	legacy/generated_ids.rs:1283	-
+1.9.1	play	clientbound	scoreboard_objective [SET_OBJECTIVE]	ok	63	63	-	legacy/generated_ids.rs:1293	-
+1.9.1	play	clientbound	set_passengers [SET_PASSENGERS]	ok	64	64	-	legacy/generated_ids.rs:1298	-
+1.9.1	play	clientbound	teams [SET_PLAYER_TEAM]	ok	65	65	-	legacy/generated_ids.rs:1308	-
+1.9.1	play	clientbound	scoreboard_score [SET_SCORE]	ok	66	66	-	legacy/generated_ids.rs:1313	-
+1.9.1	play	clientbound	spawn_position [SET_DEFAULT_SPAWN_POSITION]	ok	67	67	-	legacy/generated_ids.rs:1248	-
+1.9.1	play	clientbound	update_time [SET_TIME]	ok	68	68	-	legacy/generated_ids.rs:1328	-
+1.9.1	play	clientbound	title [TITLE]	ok	69	69	-	legacy/generated_ids.rs:1446	-
+1.9.1	play	clientbound	update_sign [SIGN_UPDATE]	ok	70	70	-	legacy/generated_ids.rs:1348	-
+1.9.1	play	clientbound	sound_effect [SOUND]	ok	71	71	-	legacy/generated_ids.rs:1353	-
+1.9.1	play	clientbound	playerlist_header [TAB_LIST]	ok	72	72	-	legacy/generated_ids.rs:1411	-
+1.9.1	play	clientbound	collect [TAKE_ITEM_ENTITY]	ok	73	73	-	legacy/generated_ids.rs:1421	-
+1.9.1	play	clientbound	entity_teleport [TELEPORT_ENTITY]	ok	74	74	-	legacy/generated_ids.rs:1426	-
+1.9.1	play	clientbound	entity_update_attributes [UPDATE_ATTRIBUTES]	ok	75	75	-	legacy/generated_ids.rs:1466	-
+1.9.1	play	clientbound	entity_effect [UPDATE_MOB_EFFECT]	ok	76	76	-	legacy/generated_ids.rs:1481	-
+1.9.1	play	clientbound	entity_metadata [SET_ENTITY_DATA]	missing	57	57	high	src/translate/entity_data.rs:29-62	SET_ENTITY_DATA dropped for every era version: EntityDataFormat::Unsupported=V_1_7_2 makes tables_for() return None, so translate_outgoing_packet discards the packet. Add 1.9-1.12 metadata field/serializer tables (VarInt type tag).
+1.9.1	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	missing	9	9	high	src/translate/block.rs:82-98	BLOCK_ENTITY_DATA dropped for every era version (BlockEntityDataFormat::Action <1.18 -> None). Implement 1.9-1.12 byte-action + NBT layout.
+1.9.1	play	clientbound	world_particles [LEVEL_PARTICLES]	missing	34	34	med	src/translate/particle.rs:15-19,67-70	LEVEL_PARTICLES dropped for every era version (ParticleFormat::Unsupported <1.13 -> write_particle returns None). Add 1.9-1.12 int-array particle data.
+1.9.1	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	missing	16	16	med	src/translate/block.rs:112-132	SECTION_BLOCKS_UPDATE dropped for every era version (SectionUpdateFormat::V1_7 <1.16 -> None). Add the per-chunk short-entry layout.
+1.9.1	play	clientbound	boss_bar [BOSS_EVENT]	layout-mismatch	12	12	med	src/packet/translator.rs:353-442	BOSS_BAR is raw-passed (no translator): title is a 26.3 NBT component but 1.9-1.12.2 expect a JSON string. Add a component_from_current branch.
+1.9.1	play	serverbound	teleport_confirm [ACCEPT_TELEPORTATION]	ok	0	0	-	legacy/generated_ids.rs:106	-
+1.9.1	play	serverbound	tab_complete [COMMAND_SUGGESTIONS]	ok	1	1	-	legacy/generated_ids.rs:185	-
+1.9.1	play	serverbound	chat [CHAT]	ok	2	2	-	legacy/generated_ids.rs:133	-
+1.9.1	play	serverbound	client_command [CLIENT_COMMAND]	ok	3	3	-	legacy/generated_ids.rs:167	-
+1.9.1	play	serverbound	settings [CLIENT_INFORMATION]	ok	4	4	-	legacy/generated_ids.rs:171	-
+1.9.1	play	serverbound	transaction [WINDOW_CONFIRMATION]	ok	5	5	-	legacy/generated_ids.rs:484	-
+1.9.1	play	serverbound	enchant_item [CONTAINER_BUTTON_CLICK]	ok	6	6	-	legacy/generated_ids.rs:194	-
+1.9.1	play	serverbound	window_click [CONTAINER_CLICK]	ok	7	7	-	legacy/generated_ids.rs:199	-
+1.9.1	play	serverbound	close_window [CONTAINER_CLOSE]	ok	8	8	-	legacy/generated_ids.rs:204	-
+1.9.1	play	serverbound	custom_payload [CUSTOM_PAYLOAD]	ok	9	9	-	legacy/generated_ids.rs:224	-
+1.9.1	play	serverbound	use_entity [INTERACT]	ok	10	10	-	legacy/generated_ids.rs:249	-
+1.9.1	play	serverbound	keep_alive [KEEP_ALIVE]	ok	11	11	-	legacy/generated_ids.rs:259	-
+1.9.1	play	serverbound	position [MOVE_PLAYER_POS]	ok	12	12	-	legacy/generated_ids.rs:269	-
+1.9.1	play	serverbound	position_look [MOVE_PLAYER_POS_ROT]	ok	13	13	-	legacy/generated_ids.rs:274	-
+1.9.1	play	serverbound	look [MOVE_PLAYER_ROT]	ok	14	14	-	legacy/generated_ids.rs:279	-
+1.9.1	play	serverbound	flying [MOVE_PLAYER_STATUS_ONLY]	ok	15	15	-	legacy/generated_ids.rs:284	-
+1.9.1	play	serverbound	vehicle_move [MOVE_VEHICLE]	ok	16	16	-	legacy/generated_ids.rs:289	-
+1.9.1	play	serverbound	steer_boat [PADDLE_BOAT]	ok	17	17	-	legacy/generated_ids.rs:294	-
+1.9.1	play	serverbound	abilities [PLAYER_ABILITIES]	ok	18	18	-	legacy/generated_ids.rs:324	-
+1.9.1	play	serverbound	block_dig [PLAYER_ACTION]	ok	19	19	-	legacy/generated_ids.rs:329	-
+1.9.1	play	serverbound	entity_action [PLAYER_COMMAND]	ok	20	20	-	legacy/generated_ids.rs:334	-
+1.9.1	play	serverbound	steer_vehicle [STEER_VEHICLE]	ok	21	21	-	legacy/generated_ids.rs:454	-
+1.9.1	play	serverbound	resource_pack_receive [RESOURCE_PACK]	ok	22	22	-	legacy/generated_ids.rs:379	-
+1.9.1	play	serverbound	held_item_slot [SET_CARRIED_ITEM]	ok	23	23	-	legacy/generated_ids.rs:399	-
+1.9.1	play	serverbound	set_creative_slot [SET_CREATIVE_MODE_SLOT]	ok	24	24	-	legacy/generated_ids.rs:414	-
+1.9.1	play	serverbound	update_sign [SIGN_UPDATE]	ok	25	25	-	legacy/generated_ids.rs:439	-
+1.9.1	play	serverbound	arm_animation [SWING]	ok	26	26	-	legacy/generated_ids.rs:459	-
+1.9.1	play	serverbound	spectate [SPECTATE_ENTITY]	ok	27	27	-	legacy/generated_ids.rs:444	-
+1.9.1	play	serverbound	block_place [USE_ITEM_ON]	ok	28	28	-	legacy/generated_ids.rs:479	-
+1.9.1	play	serverbound	use_item [USE_ITEM]	ok	29	29	-	legacy/generated_ids.rs:474	-
+1.9.1	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	layout-mismatch	50	50	high	src/legacy/packets/add_resource_pack.rs:14-25	RESOURCE_PACK_PUSH writes url,hash,forced,prompt for all <1.20.3; 1.9-1.12.2 reference is url,hash only. Two extra fields desync the client. Gate forced at >=1.17 and prompt at >=1.20.3.
+1.9.1	login	serverbound	CUSTOM_QUERY_ANSWER [no ref entry]	extra	2	absent	low	legacy/generated_ids.rs:32	Current-only login packet; not translated for this era (should map to -1).
+1.9.1	SUMMARY	all	-	summary	ok=116	layout-mismatch=2 missing=4 extra=2 unverifiable=2 n/a-server=2	-	-	minecraft-data folder=1.9; ids checked against generated_ids.rs column; layout from source review
+1.9.2	handshake	serverbound	set_protocol [INTENTION]	ok	0	0	-	legacy/generated_ids.rs:9	-
+1.9.2	handshake	serverbound	legacy_server_list_ping [0xFE]	n/a-server	absent	254	low	legacy/ids.rs	Legacy 0xFE ping not mapped; client-side legacy ping only.
+1.9.2	handshake	clientbound	(none)	n/a-server	-	-	-	-	No serverbound-only handshake replies in this era.
+1.9.2	status	serverbound	ping_start [STATUS_REQUEST]	ok	0	0	-	legacy/generated_ids.rs:21	-
+1.9.2	status	serverbound	ping [PING_REQUEST]	ok	1	1	-	legacy/generated_ids.rs:17	-
+1.9.2	status	clientbound	0 [core status]	unverifiable	server_info	server_info	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.9.2	status	clientbound	1 [core status]	unverifiable	ping	ping	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.9.2	login	serverbound	login_start [HELLO]	ok	0	0	-	legacy/generated_ids.rs:36	-
+1.9.2	login	serverbound	encryption_begin [KEY]	ok	1	1	-	legacy/generated_ids.rs:40	-
+1.9.2	login	clientbound	disconnect [LOGIN_DISCONNECT]	ok	0	0	-	legacy/generated_ids.rs:547	-
+1.9.2	login	clientbound	encryption_begin [HELLO]	ok	1	1	-	legacy/generated_ids.rs:539	-
+1.9.2	login	clientbound	success [GAME_PROFILE / LOGIN_FINISHED]	ok	2	2	-	legacy/generated_ids.rs:535,551	-
+1.9.2	login	clientbound	compress [LOGIN_COMPRESSION]	ok	3	3	-	legacy/generated_ids.rs:543	-
+1.9.2	login	clientbound	CUSTOM_QUERY [no ref entry]	extra	4	absent	low	legacy/generated_ids.rs:531	Current-only login packet; not translated for this era (should map to -1).
+1.9.2	play	clientbound	spawn_entity [ADD_ENTITY]	ok	0	0	-	legacy/generated_ids.rs:673	-
+1.9.2	play	clientbound	spawn_entity_experience_orb [SPAWN_EXPERIENCE_ORB]	ok	1	1	-	legacy/generated_ids.rs:1363	-
+1.9.2	play	clientbound	spawn_entity_weather [SPAWN_WEATHER_ENTITY]	ok	2	2	-	legacy/generated_ids.rs:1381	-
+1.9.2	play	clientbound	spawn_entity_living [SPAWN_LIVING_ENTITY]	ok	3	3	-	legacy/generated_ids.rs:1367	-
+1.9.2	play	clientbound	spawn_entity_painting [SPAWN_PAINTING]	ok	4	4	-	legacy/generated_ids.rs:1372	-
+1.9.2	play	clientbound	named_entity_spawn [SPAWN_PLAYER]	ok	5	5	-	legacy/generated_ids.rs:1377	-
+1.9.2	play	clientbound	animation [ANIMATE]	ok	6	6	-	legacy/generated_ids.rs:682	-
+1.9.2	play	clientbound	statistics [AWARD_STATS]	ok	7	7	-	legacy/generated_ids.rs:686	-
+1.9.2	play	clientbound	block_break_animation [BLOCK_DESTRUCTION]	ok	8	8	-	legacy/generated_ids.rs:695	-
+1.9.2	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	ok	9	9	-	legacy/generated_ids.rs:699	-
+1.9.2	play	clientbound	block_action [BLOCK_EVENT]	ok	10	10	-	legacy/generated_ids.rs:703	-
+1.9.2	play	clientbound	block_change [BLOCK_UPDATE]	ok	11	11	-	legacy/generated_ids.rs:708	-
+1.9.2	play	clientbound	boss_bar [BOSS_EVENT]	ok	12	12	-	legacy/generated_ids.rs:713	-
+1.9.2	play	clientbound	difficulty [CHANGE_DIFFICULTY]	ok	13	13	-	legacy/generated_ids.rs:723	-
+1.9.2	play	clientbound	tab_complete [COMMAND_SUGGESTIONS]	ok	14	14	-	legacy/generated_ids.rs:773	-
+1.9.2	play	clientbound	chat [CHAT]	ok	15	15	-	legacy/generated_ids.rs:728	-
+1.9.2	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	ok	16	16	-	legacy/generated_ids.rs:1168	-
+1.9.2	play	clientbound	transaction [WINDOW_CONFIRMATION]	ok	17	17	-	legacy/generated_ids.rs:1506	-
+1.9.2	play	clientbound	close_window [CONTAINER_CLOSE]	ok	18	18	-	legacy/generated_ids.rs:778	-
+1.9.2	play	clientbound	open_window [OPEN_SCREEN]	ok	19	19	-	legacy/generated_ids.rs:1018	-
+1.9.2	play	clientbound	window_items [CONTAINER_SET_CONTENT]	ok	20	20	-	legacy/generated_ids.rs:783	-
+1.9.2	play	clientbound	craft_progress_bar [CONTAINER_SET_DATA]	ok	21	21	-	legacy/generated_ids.rs:788	-
+1.9.2	play	clientbound	set_slot [CONTAINER_SET_SLOT]	ok	22	22	-	legacy/generated_ids.rs:793	-
+1.9.2	play	clientbound	set_cooldown [COOLDOWN]	ok	23	23	-	legacy/generated_ids.rs:803	-
+1.9.2	play	clientbound	custom_payload [CUSTOM_PAYLOAD]	ok	24	24	-	legacy/generated_ids.rs:813	-
+1.9.2	play	clientbound	named_sound_effect [NAMED_SOUND_EFFECT]	ok	25	25	-	legacy/generated_ids.rs:1008	-
+1.9.2	play	clientbound	kick_disconnect [DISCONNECT]	ok	26	26	-	legacy/generated_ids.rs:858	-
+1.9.2	play	clientbound	entity_status [ENTITY_EVENT]	ok	27	27	-	legacy/generated_ids.rs:873	-
+1.9.2	play	clientbound	explosion [EXPLODE]	ok	28	28	-	legacy/generated_ids.rs:888	-
+1.9.2	play	clientbound	unload_chunk [FORGET_LEVEL_CHUNK]	ok	29	29	-	legacy/generated_ids.rs:893	-
+1.9.2	play	clientbound	game_state_change [GAME_EVENT]	ok	30	30	-	legacy/generated_ids.rs:898	-
+1.9.2	play	clientbound	keep_alive [KEEP_ALIVE]	ok	31	31	-	legacy/generated_ids.rs:923	-
+1.9.2	play	clientbound	map_chunk [LEVEL_CHUNK_WITH_LIGHT]	ok	32	32	-	legacy/generated_ids.rs:928	-
+1.9.2	play	clientbound	world_event [LEVEL_EVENT]	ok	33	33	-	legacy/generated_ids.rs:933	-
+1.9.2	play	clientbound	world_particles [LEVEL_PARTICLES]	ok	34	34	-	legacy/generated_ids.rs:938	-
+1.9.2	play	clientbound	login [LOGIN]	ok	35	35	-	legacy/generated_ids.rs:948	-
+1.9.2	play	clientbound	map [MAP_ITEM_DATA]	ok	36	36	-	legacy/generated_ids.rs:963	-
+1.9.2	play	clientbound	rel_entity_move [MOVE_ENTITY_POS]	ok	37	37	-	legacy/generated_ids.rs:978	-
+1.9.2	play	clientbound	entity_move_look [MOVE_ENTITY_POS_ROT]	ok	38	38	-	legacy/generated_ids.rs:983	-
+1.9.2	play	clientbound	entity_look [MOVE_ENTITY_ROT]	ok	39	39	-	legacy/generated_ids.rs:988	-
+1.9.2	play	clientbound	entity [ENTITY_MOVEMENT]	ok	40	40	-	legacy/generated_ids.rs:878	-
+1.9.2	play	clientbound	vehicle_move [MOVE_VEHICLE]	ok	41	41	-	legacy/generated_ids.rs:1003	-
+1.9.2	play	clientbound	open_sign_entity [OPEN_SIGN_EDITOR]	ok	42	42	-	legacy/generated_ids.rs:1023	-
+1.9.2	play	clientbound	abilities [PLAYER_ABILITIES]	ok	43	43	-	legacy/generated_ids.rs:1038	-
+1.9.2	play	clientbound	combat_event [COMBAT_EVENT]	ok	44	44	-	legacy/generated_ids.rs:763	-
+1.9.2	play	clientbound	player_info [PLAYER_INFO]	ok	45	45	-	legacy/generated_ids.rs:1068	-
+1.9.2	play	clientbound	position [PLAYER_POSITION]	ok	46	46	-	legacy/generated_ids.rs:1088	-
+1.9.2	play	clientbound	bed [USE_BED]	ok	47	47	-	legacy/generated_ids.rs:1496	-
+1.9.2	play	clientbound	entity_destroy [REMOVE_ENTITIES]	ok	48	48	-	legacy/generated_ids.rs:1128	-
+1.9.2	play	clientbound	remove_entity_effect [REMOVE_MOB_EFFECT]	ok	49	49	-	legacy/generated_ids.rs:1133	-
+1.9.2	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	ok	50	50	-	legacy/generated_ids.rs:1148	-
+1.9.2	play	clientbound	respawn [RESPAWN]	ok	51	51	-	legacy/generated_ids.rs:1153	-
+1.9.2	play	clientbound	entity_head_rotation [ROTATE_HEAD]	ok	52	52	-	legacy/generated_ids.rs:1158	-
+1.9.2	play	clientbound	world_border [WORLD_BORDER]	ok	53	53	-	legacy/generated_ids.rs:1511	-
+1.9.2	play	clientbound	camera [SET_CAMERA]	ok	54	54	-	legacy/generated_ids.rs:1218	-
+1.9.2	play	clientbound	held_item_slot [SET_CARRIED_ITEM]	ok	55	55	-	legacy/generated_ids.rs:1223	-
+1.9.2	play	clientbound	scoreboard_display_objective [SET_DISPLAY_OBJECTIVE]	ok	56	56	-	legacy/generated_ids.rs:1253	-
+1.9.2	play	clientbound	entity_metadata [SET_ENTITY_DATA]	ok	57	57	-	legacy/generated_ids.rs:1258	-
+1.9.2	play	clientbound	attach_entity [SET_ENTITY_LINK]	ok	58	58	-	legacy/generated_ids.rs:1263	-
+1.9.2	play	clientbound	entity_velocity [SET_ENTITY_MOTION]	ok	59	59	-	legacy/generated_ids.rs:1268	-
+1.9.2	play	clientbound	entity_equipment [SET_EQUIPMENT]	ok	60	60	-	legacy/generated_ids.rs:1273	-
+1.9.2	play	clientbound	experience [SET_EXPERIENCE]	ok	61	61	-	legacy/generated_ids.rs:1278	-
+1.9.2	play	clientbound	update_health [SET_HEALTH]	ok	62	62	-	legacy/generated_ids.rs:1283	-
+1.9.2	play	clientbound	scoreboard_objective [SET_OBJECTIVE]	ok	63	63	-	legacy/generated_ids.rs:1293	-
+1.9.2	play	clientbound	set_passengers [SET_PASSENGERS]	ok	64	64	-	legacy/generated_ids.rs:1298	-
+1.9.2	play	clientbound	teams [SET_PLAYER_TEAM]	ok	65	65	-	legacy/generated_ids.rs:1308	-
+1.9.2	play	clientbound	scoreboard_score [SET_SCORE]	ok	66	66	-	legacy/generated_ids.rs:1313	-
+1.9.2	play	clientbound	spawn_position [SET_DEFAULT_SPAWN_POSITION]	ok	67	67	-	legacy/generated_ids.rs:1248	-
+1.9.2	play	clientbound	update_time [SET_TIME]	ok	68	68	-	legacy/generated_ids.rs:1328	-
+1.9.2	play	clientbound	title [TITLE]	ok	69	69	-	legacy/generated_ids.rs:1446	-
+1.9.2	play	clientbound	update_sign [SIGN_UPDATE]	ok	70	70	-	legacy/generated_ids.rs:1348	-
+1.9.2	play	clientbound	sound_effect [SOUND]	ok	71	71	-	legacy/generated_ids.rs:1353	-
+1.9.2	play	clientbound	playerlist_header [TAB_LIST]	ok	72	72	-	legacy/generated_ids.rs:1411	-
+1.9.2	play	clientbound	collect [TAKE_ITEM_ENTITY]	ok	73	73	-	legacy/generated_ids.rs:1421	-
+1.9.2	play	clientbound	entity_teleport [TELEPORT_ENTITY]	ok	74	74	-	legacy/generated_ids.rs:1426	-
+1.9.2	play	clientbound	entity_update_attributes [UPDATE_ATTRIBUTES]	ok	75	75	-	legacy/generated_ids.rs:1466	-
+1.9.2	play	clientbound	entity_effect [UPDATE_MOB_EFFECT]	ok	76	76	-	legacy/generated_ids.rs:1481	-
+1.9.2	play	clientbound	entity_metadata [SET_ENTITY_DATA]	missing	57	57	high	src/translate/entity_data.rs:29-62	SET_ENTITY_DATA dropped for every era version: EntityDataFormat::Unsupported=V_1_7_2 makes tables_for() return None, so translate_outgoing_packet discards the packet. Add 1.9-1.12 metadata field/serializer tables (VarInt type tag).
+1.9.2	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	missing	9	9	high	src/translate/block.rs:82-98	BLOCK_ENTITY_DATA dropped for every era version (BlockEntityDataFormat::Action <1.18 -> None). Implement 1.9-1.12 byte-action + NBT layout.
+1.9.2	play	clientbound	world_particles [LEVEL_PARTICLES]	missing	34	34	med	src/translate/particle.rs:15-19,67-70	LEVEL_PARTICLES dropped for every era version (ParticleFormat::Unsupported <1.13 -> write_particle returns None). Add 1.9-1.12 int-array particle data.
+1.9.2	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	missing	16	16	med	src/translate/block.rs:112-132	SECTION_BLOCKS_UPDATE dropped for every era version (SectionUpdateFormat::V1_7 <1.16 -> None). Add the per-chunk short-entry layout.
+1.9.2	play	clientbound	boss_bar [BOSS_EVENT]	layout-mismatch	12	12	med	src/packet/translator.rs:353-442	BOSS_BAR is raw-passed (no translator): title is a 26.3 NBT component but 1.9-1.12.2 expect a JSON string. Add a component_from_current branch.
+1.9.2	play	serverbound	teleport_confirm [ACCEPT_TELEPORTATION]	ok	0	0	-	legacy/generated_ids.rs:106	-
+1.9.2	play	serverbound	tab_complete [COMMAND_SUGGESTIONS]	ok	1	1	-	legacy/generated_ids.rs:185	-
+1.9.2	play	serverbound	chat [CHAT]	ok	2	2	-	legacy/generated_ids.rs:133	-
+1.9.2	play	serverbound	client_command [CLIENT_COMMAND]	ok	3	3	-	legacy/generated_ids.rs:167	-
+1.9.2	play	serverbound	settings [CLIENT_INFORMATION]	ok	4	4	-	legacy/generated_ids.rs:171	-
+1.9.2	play	serverbound	transaction [WINDOW_CONFIRMATION]	ok	5	5	-	legacy/generated_ids.rs:484	-
+1.9.2	play	serverbound	enchant_item [CONTAINER_BUTTON_CLICK]	ok	6	6	-	legacy/generated_ids.rs:194	-
+1.9.2	play	serverbound	window_click [CONTAINER_CLICK]	ok	7	7	-	legacy/generated_ids.rs:199	-
+1.9.2	play	serverbound	close_window [CONTAINER_CLOSE]	ok	8	8	-	legacy/generated_ids.rs:204	-
+1.9.2	play	serverbound	custom_payload [CUSTOM_PAYLOAD]	ok	9	9	-	legacy/generated_ids.rs:224	-
+1.9.2	play	serverbound	use_entity [INTERACT]	ok	10	10	-	legacy/generated_ids.rs:249	-
+1.9.2	play	serverbound	keep_alive [KEEP_ALIVE]	ok	11	11	-	legacy/generated_ids.rs:259	-
+1.9.2	play	serverbound	position [MOVE_PLAYER_POS]	ok	12	12	-	legacy/generated_ids.rs:269	-
+1.9.2	play	serverbound	position_look [MOVE_PLAYER_POS_ROT]	ok	13	13	-	legacy/generated_ids.rs:274	-
+1.9.2	play	serverbound	look [MOVE_PLAYER_ROT]	ok	14	14	-	legacy/generated_ids.rs:279	-
+1.9.2	play	serverbound	flying [MOVE_PLAYER_STATUS_ONLY]	ok	15	15	-	legacy/generated_ids.rs:284	-
+1.9.2	play	serverbound	vehicle_move [MOVE_VEHICLE]	ok	16	16	-	legacy/generated_ids.rs:289	-
+1.9.2	play	serverbound	steer_boat [PADDLE_BOAT]	ok	17	17	-	legacy/generated_ids.rs:294	-
+1.9.2	play	serverbound	abilities [PLAYER_ABILITIES]	ok	18	18	-	legacy/generated_ids.rs:324	-
+1.9.2	play	serverbound	block_dig [PLAYER_ACTION]	ok	19	19	-	legacy/generated_ids.rs:329	-
+1.9.2	play	serverbound	entity_action [PLAYER_COMMAND]	ok	20	20	-	legacy/generated_ids.rs:334	-
+1.9.2	play	serverbound	steer_vehicle [STEER_VEHICLE]	ok	21	21	-	legacy/generated_ids.rs:454	-
+1.9.2	play	serverbound	resource_pack_receive [RESOURCE_PACK]	ok	22	22	-	legacy/generated_ids.rs:379	-
+1.9.2	play	serverbound	held_item_slot [SET_CARRIED_ITEM]	ok	23	23	-	legacy/generated_ids.rs:399	-
+1.9.2	play	serverbound	set_creative_slot [SET_CREATIVE_MODE_SLOT]	ok	24	24	-	legacy/generated_ids.rs:414	-
+1.9.2	play	serverbound	update_sign [SIGN_UPDATE]	ok	25	25	-	legacy/generated_ids.rs:439	-
+1.9.2	play	serverbound	arm_animation [SWING]	ok	26	26	-	legacy/generated_ids.rs:459	-
+1.9.2	play	serverbound	spectate [SPECTATE_ENTITY]	ok	27	27	-	legacy/generated_ids.rs:444	-
+1.9.2	play	serverbound	block_place [USE_ITEM_ON]	ok	28	28	-	legacy/generated_ids.rs:479	-
+1.9.2	play	serverbound	use_item [USE_ITEM]	ok	29	29	-	legacy/generated_ids.rs:474	-
+1.9.2	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	layout-mismatch	50	50	high	src/legacy/packets/add_resource_pack.rs:14-25	RESOURCE_PACK_PUSH writes url,hash,forced,prompt for all <1.20.3; 1.9-1.12.2 reference is url,hash only. Two extra fields desync the client. Gate forced at >=1.17 and prompt at >=1.20.3.
+1.9.2	login	serverbound	CUSTOM_QUERY_ANSWER [no ref entry]	extra	2	absent	low	legacy/generated_ids.rs:32	Current-only login packet; not translated for this era (should map to -1).
+1.9.2	SUMMARY	all	-	summary	ok=116	layout-mismatch=2 missing=4 extra=2 unverifiable=2 n/a-server=2	-	-	minecraft-data folder=1.9.2; ids checked against generated_ids.rs column; layout from source review
+1.9.3	handshake	serverbound	set_protocol [INTENTION]	ok	0	0	-	legacy/generated_ids.rs:9	-
+1.9.3	handshake	serverbound	legacy_server_list_ping [0xFE]	n/a-server	absent	254	low	legacy/ids.rs	Legacy 0xFE ping not mapped; client-side legacy ping only.
+1.9.3	handshake	clientbound	(none)	n/a-server	-	-	-	-	No serverbound-only handshake replies in this era.
+1.9.3	status	serverbound	ping_start [STATUS_REQUEST]	ok	0	0	-	legacy/generated_ids.rs:21	-
+1.9.3	status	serverbound	ping [PING_REQUEST]	ok	1	1	-	legacy/generated_ids.rs:17	-
+1.9.3	status	clientbound	0 [core status]	unverifiable	server_info	server_info	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.9.3	status	clientbound	1 [core status]	unverifiable	ping	ping	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.9.3	login	serverbound	login_start [HELLO]	ok	0	0	-	legacy/generated_ids.rs:36	-
+1.9.3	login	serverbound	encryption_begin [KEY]	ok	1	1	-	legacy/generated_ids.rs:40	-
+1.9.3	login	clientbound	disconnect [LOGIN_DISCONNECT]	ok	0	0	-	legacy/generated_ids.rs:547	-
+1.9.3	login	clientbound	encryption_begin [HELLO]	ok	1	1	-	legacy/generated_ids.rs:539	-
+1.9.3	login	clientbound	success [GAME_PROFILE / LOGIN_FINISHED]	ok	2	2	-	legacy/generated_ids.rs:535,551	-
+1.9.3	login	clientbound	compress [LOGIN_COMPRESSION]	ok	3	3	-	legacy/generated_ids.rs:543	-
+1.9.3	login	clientbound	CUSTOM_QUERY [no ref entry]	extra	4	absent	low	legacy/generated_ids.rs:531	Current-only login packet; not translated for this era (should map to -1).
+1.9.3	play	clientbound	spawn_entity [ADD_ENTITY]	ok	0	0	-	legacy/generated_ids.rs:673	-
+1.9.3	play	clientbound	spawn_entity_experience_orb [SPAWN_EXPERIENCE_ORB]	ok	1	1	-	legacy/generated_ids.rs:1363	-
+1.9.3	play	clientbound	spawn_entity_weather [SPAWN_WEATHER_ENTITY]	ok	2	2	-	legacy/generated_ids.rs:1381	-
+1.9.3	play	clientbound	spawn_entity_living [SPAWN_LIVING_ENTITY]	ok	3	3	-	legacy/generated_ids.rs:1367	-
+1.9.3	play	clientbound	spawn_entity_painting [SPAWN_PAINTING]	ok	4	4	-	legacy/generated_ids.rs:1372	-
+1.9.3	play	clientbound	named_entity_spawn [SPAWN_PLAYER]	ok	5	5	-	legacy/generated_ids.rs:1377	-
+1.9.3	play	clientbound	animation [ANIMATE]	ok	6	6	-	legacy/generated_ids.rs:682	-
+1.9.3	play	clientbound	statistics [AWARD_STATS]	ok	7	7	-	legacy/generated_ids.rs:686	-
+1.9.3	play	clientbound	block_break_animation [BLOCK_DESTRUCTION]	ok	8	8	-	legacy/generated_ids.rs:695	-
+1.9.3	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	ok	9	9	-	legacy/generated_ids.rs:699	-
+1.9.3	play	clientbound	block_action [BLOCK_EVENT]	ok	10	10	-	legacy/generated_ids.rs:703	-
+1.9.3	play	clientbound	block_change [BLOCK_UPDATE]	ok	11	11	-	legacy/generated_ids.rs:708	-
+1.9.3	play	clientbound	boss_bar [BOSS_EVENT]	ok	12	12	-	legacy/generated_ids.rs:713	-
+1.9.3	play	clientbound	difficulty [CHANGE_DIFFICULTY]	ok	13	13	-	legacy/generated_ids.rs:723	-
+1.9.3	play	clientbound	tab_complete [COMMAND_SUGGESTIONS]	ok	14	14	-	legacy/generated_ids.rs:773	-
+1.9.3	play	clientbound	chat [CHAT]	ok	15	15	-	legacy/generated_ids.rs:728	-
+1.9.3	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	ok	16	16	-	legacy/generated_ids.rs:1168	-
+1.9.3	play	clientbound	transaction [WINDOW_CONFIRMATION]	ok	17	17	-	legacy/generated_ids.rs:1506	-
+1.9.3	play	clientbound	close_window [CONTAINER_CLOSE]	ok	18	18	-	legacy/generated_ids.rs:778	-
+1.9.3	play	clientbound	open_window [OPEN_SCREEN]	ok	19	19	-	legacy/generated_ids.rs:1018	-
+1.9.3	play	clientbound	window_items [CONTAINER_SET_CONTENT]	ok	20	20	-	legacy/generated_ids.rs:783	-
+1.9.3	play	clientbound	craft_progress_bar [CONTAINER_SET_DATA]	ok	21	21	-	legacy/generated_ids.rs:788	-
+1.9.3	play	clientbound	set_slot [CONTAINER_SET_SLOT]	ok	22	22	-	legacy/generated_ids.rs:793	-
+1.9.3	play	clientbound	set_cooldown [COOLDOWN]	ok	23	23	-	legacy/generated_ids.rs:803	-
+1.9.3	play	clientbound	custom_payload [CUSTOM_PAYLOAD]	ok	24	24	-	legacy/generated_ids.rs:813	-
+1.9.3	play	clientbound	named_sound_effect [NAMED_SOUND_EFFECT]	ok	25	25	-	legacy/generated_ids.rs:1008	-
+1.9.3	play	clientbound	kick_disconnect [DISCONNECT]	ok	26	26	-	legacy/generated_ids.rs:858	-
+1.9.3	play	clientbound	entity_status [ENTITY_EVENT]	ok	27	27	-	legacy/generated_ids.rs:873	-
+1.9.3	play	clientbound	explosion [EXPLODE]	ok	28	28	-	legacy/generated_ids.rs:888	-
+1.9.3	play	clientbound	unload_chunk [FORGET_LEVEL_CHUNK]	ok	29	29	-	legacy/generated_ids.rs:893	-
+1.9.3	play	clientbound	game_state_change [GAME_EVENT]	ok	30	30	-	legacy/generated_ids.rs:898	-
+1.9.3	play	clientbound	keep_alive [KEEP_ALIVE]	ok	31	31	-	legacy/generated_ids.rs:923	-
+1.9.3	play	clientbound	map_chunk [LEVEL_CHUNK_WITH_LIGHT]	ok	32	32	-	legacy/generated_ids.rs:928	-
+1.9.3	play	clientbound	world_event [LEVEL_EVENT]	ok	33	33	-	legacy/generated_ids.rs:933	-
+1.9.3	play	clientbound	world_particles [LEVEL_PARTICLES]	ok	34	34	-	legacy/generated_ids.rs:938	-
+1.9.3	play	clientbound	login [LOGIN]	ok	35	35	-	legacy/generated_ids.rs:948	-
+1.9.3	play	clientbound	map [MAP_ITEM_DATA]	ok	36	36	-	legacy/generated_ids.rs:963	-
+1.9.3	play	clientbound	rel_entity_move [MOVE_ENTITY_POS]	ok	37	37	-	legacy/generated_ids.rs:978	-
+1.9.3	play	clientbound	entity_move_look [MOVE_ENTITY_POS_ROT]	ok	38	38	-	legacy/generated_ids.rs:983	-
+1.9.3	play	clientbound	entity_look [MOVE_ENTITY_ROT]	ok	39	39	-	legacy/generated_ids.rs:988	-
+1.9.3	play	clientbound	entity [ENTITY_MOVEMENT]	ok	40	40	-	legacy/generated_ids.rs:878	-
+1.9.3	play	clientbound	vehicle_move [MOVE_VEHICLE]	ok	41	41	-	legacy/generated_ids.rs:1003	-
+1.9.3	play	clientbound	open_sign_entity [OPEN_SIGN_EDITOR]	ok	42	42	-	legacy/generated_ids.rs:1023	-
+1.9.3	play	clientbound	abilities [PLAYER_ABILITIES]	ok	43	43	-	legacy/generated_ids.rs:1038	-
+1.9.3	play	clientbound	combat_event [COMBAT_EVENT]	ok	44	44	-	legacy/generated_ids.rs:763	-
+1.9.3	play	clientbound	player_info [PLAYER_INFO]	ok	45	45	-	legacy/generated_ids.rs:1068	-
+1.9.3	play	clientbound	position [PLAYER_POSITION]	ok	46	46	-	legacy/generated_ids.rs:1088	-
+1.9.3	play	clientbound	bed [USE_BED]	ok	47	47	-	legacy/generated_ids.rs:1496	-
+1.9.3	play	clientbound	entity_destroy [REMOVE_ENTITIES]	ok	48	48	-	legacy/generated_ids.rs:1128	-
+1.9.3	play	clientbound	remove_entity_effect [REMOVE_MOB_EFFECT]	ok	49	49	-	legacy/generated_ids.rs:1133	-
+1.9.3	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	ok	50	50	-	legacy/generated_ids.rs:1148	-
+1.9.3	play	clientbound	respawn [RESPAWN]	ok	51	51	-	legacy/generated_ids.rs:1153	-
+1.9.3	play	clientbound	entity_head_rotation [ROTATE_HEAD]	ok	52	52	-	legacy/generated_ids.rs:1158	-
+1.9.3	play	clientbound	world_border [WORLD_BORDER]	ok	53	53	-	legacy/generated_ids.rs:1511	-
+1.9.3	play	clientbound	camera [SET_CAMERA]	ok	54	54	-	legacy/generated_ids.rs:1218	-
+1.9.3	play	clientbound	held_item_slot [SET_CARRIED_ITEM]	ok	55	55	-	legacy/generated_ids.rs:1223	-
+1.9.3	play	clientbound	scoreboard_display_objective [SET_DISPLAY_OBJECTIVE]	ok	56	56	-	legacy/generated_ids.rs:1253	-
+1.9.3	play	clientbound	entity_metadata [SET_ENTITY_DATA]	ok	57	57	-	legacy/generated_ids.rs:1258	-
+1.9.3	play	clientbound	attach_entity [SET_ENTITY_LINK]	ok	58	58	-	legacy/generated_ids.rs:1263	-
+1.9.3	play	clientbound	entity_velocity [SET_ENTITY_MOTION]	ok	59	59	-	legacy/generated_ids.rs:1268	-
+1.9.3	play	clientbound	entity_equipment [SET_EQUIPMENT]	ok	60	60	-	legacy/generated_ids.rs:1273	-
+1.9.3	play	clientbound	experience [SET_EXPERIENCE]	ok	61	61	-	legacy/generated_ids.rs:1278	-
+1.9.3	play	clientbound	update_health [SET_HEALTH]	ok	62	62	-	legacy/generated_ids.rs:1283	-
+1.9.3	play	clientbound	scoreboard_objective [SET_OBJECTIVE]	ok	63	63	-	legacy/generated_ids.rs:1293	-
+1.9.3	play	clientbound	set_passengers [SET_PASSENGERS]	ok	64	64	-	legacy/generated_ids.rs:1298	-
+1.9.3	play	clientbound	teams [SET_PLAYER_TEAM]	ok	65	65	-	legacy/generated_ids.rs:1308	-
+1.9.3	play	clientbound	scoreboard_score [SET_SCORE]	ok	66	66	-	legacy/generated_ids.rs:1313	-
+1.9.3	play	clientbound	spawn_position [SET_DEFAULT_SPAWN_POSITION]	ok	67	67	-	legacy/generated_ids.rs:1248	-
+1.9.3	play	clientbound	update_time [SET_TIME]	ok	68	68	-	legacy/generated_ids.rs:1328	-
+1.9.3	play	clientbound	title [TITLE]	ok	69	69	-	legacy/generated_ids.rs:1446	-
+1.9.3	play	clientbound	sound_effect [SOUND]	ok	70	70	-	legacy/generated_ids.rs:1353	-
+1.9.3	play	clientbound	playerlist_header [TAB_LIST]	ok	71	71	-	legacy/generated_ids.rs:1411	-
+1.9.3	play	clientbound	collect [TAKE_ITEM_ENTITY]	ok	72	72	-	legacy/generated_ids.rs:1421	-
+1.9.3	play	clientbound	entity_teleport [TELEPORT_ENTITY]	ok	73	73	-	legacy/generated_ids.rs:1426	-
+1.9.3	play	clientbound	entity_update_attributes [UPDATE_ATTRIBUTES]	ok	74	74	-	legacy/generated_ids.rs:1466	-
+1.9.3	play	clientbound	entity_effect [UPDATE_MOB_EFFECT]	ok	75	75	-	legacy/generated_ids.rs:1481	-
+1.9.3	play	clientbound	entity_metadata [SET_ENTITY_DATA]	missing	57	57	high	src/translate/entity_data.rs:29-62	SET_ENTITY_DATA dropped for every era version: EntityDataFormat::Unsupported=V_1_7_2 makes tables_for() return None, so translate_outgoing_packet discards the packet. Add 1.9-1.12 metadata field/serializer tables (VarInt type tag).
+1.9.3	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	missing	9	9	high	src/translate/block.rs:82-98	BLOCK_ENTITY_DATA dropped for every era version (BlockEntityDataFormat::Action <1.18 -> None). Implement 1.9-1.12 byte-action + NBT layout.
+1.9.3	play	clientbound	world_particles [LEVEL_PARTICLES]	missing	34	34	med	src/translate/particle.rs:15-19,67-70	LEVEL_PARTICLES dropped for every era version (ParticleFormat::Unsupported <1.13 -> write_particle returns None). Add 1.9-1.12 int-array particle data.
+1.9.3	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	missing	16	16	med	src/translate/block.rs:112-132	SECTION_BLOCKS_UPDATE dropped for every era version (SectionUpdateFormat::V1_7 <1.16 -> None). Add the per-chunk short-entry layout.
+1.9.3	play	clientbound	boss_bar [BOSS_EVENT]	layout-mismatch	12	12	med	src/packet/translator.rs:353-442	BOSS_BAR is raw-passed (no translator): title is a 26.3 NBT component but 1.9-1.12.2 expect a JSON string. Add a component_from_current branch.
+1.9.3	play	serverbound	teleport_confirm [ACCEPT_TELEPORTATION]	ok	0	0	-	legacy/generated_ids.rs:106	-
+1.9.3	play	serverbound	tab_complete [COMMAND_SUGGESTIONS]	ok	1	1	-	legacy/generated_ids.rs:185	-
+1.9.3	play	serverbound	chat [CHAT]	ok	2	2	-	legacy/generated_ids.rs:133	-
+1.9.3	play	serverbound	client_command [CLIENT_COMMAND]	ok	3	3	-	legacy/generated_ids.rs:167	-
+1.9.3	play	serverbound	settings [CLIENT_INFORMATION]	ok	4	4	-	legacy/generated_ids.rs:171	-
+1.9.3	play	serverbound	transaction [WINDOW_CONFIRMATION]	ok	5	5	-	legacy/generated_ids.rs:484	-
+1.9.3	play	serverbound	enchant_item [CONTAINER_BUTTON_CLICK]	ok	6	6	-	legacy/generated_ids.rs:194	-
+1.9.3	play	serverbound	window_click [CONTAINER_CLICK]	ok	7	7	-	legacy/generated_ids.rs:199	-
+1.9.3	play	serverbound	close_window [CONTAINER_CLOSE]	ok	8	8	-	legacy/generated_ids.rs:204	-
+1.9.3	play	serverbound	custom_payload [CUSTOM_PAYLOAD]	ok	9	9	-	legacy/generated_ids.rs:224	-
+1.9.3	play	serverbound	use_entity [INTERACT]	ok	10	10	-	legacy/generated_ids.rs:249	-
+1.9.3	play	serverbound	keep_alive [KEEP_ALIVE]	ok	11	11	-	legacy/generated_ids.rs:259	-
+1.9.3	play	serverbound	position [MOVE_PLAYER_POS]	ok	12	12	-	legacy/generated_ids.rs:269	-
+1.9.3	play	serverbound	position_look [MOVE_PLAYER_POS_ROT]	ok	13	13	-	legacy/generated_ids.rs:274	-
+1.9.3	play	serverbound	look [MOVE_PLAYER_ROT]	ok	14	14	-	legacy/generated_ids.rs:279	-
+1.9.3	play	serverbound	flying [MOVE_PLAYER_STATUS_ONLY]	ok	15	15	-	legacy/generated_ids.rs:284	-
+1.9.3	play	serverbound	vehicle_move [MOVE_VEHICLE]	ok	16	16	-	legacy/generated_ids.rs:289	-
+1.9.3	play	serverbound	steer_boat [PADDLE_BOAT]	ok	17	17	-	legacy/generated_ids.rs:294	-
+1.9.3	play	serverbound	abilities [PLAYER_ABILITIES]	ok	18	18	-	legacy/generated_ids.rs:324	-
+1.9.3	play	serverbound	block_dig [PLAYER_ACTION]	ok	19	19	-	legacy/generated_ids.rs:329	-
+1.9.3	play	serverbound	entity_action [PLAYER_COMMAND]	ok	20	20	-	legacy/generated_ids.rs:334	-
+1.9.3	play	serverbound	steer_vehicle [STEER_VEHICLE]	ok	21	21	-	legacy/generated_ids.rs:454	-
+1.9.3	play	serverbound	resource_pack_receive [RESOURCE_PACK]	ok	22	22	-	legacy/generated_ids.rs:379	-
+1.9.3	play	serverbound	held_item_slot [SET_CARRIED_ITEM]	ok	23	23	-	legacy/generated_ids.rs:399	-
+1.9.3	play	serverbound	set_creative_slot [SET_CREATIVE_MODE_SLOT]	ok	24	24	-	legacy/generated_ids.rs:414	-
+1.9.3	play	serverbound	update_sign [SIGN_UPDATE]	ok	25	25	-	legacy/generated_ids.rs:439	-
+1.9.3	play	serverbound	arm_animation [SWING]	ok	26	26	-	legacy/generated_ids.rs:459	-
+1.9.3	play	serverbound	spectate [SPECTATE_ENTITY]	ok	27	27	-	legacy/generated_ids.rs:444	-
+1.9.3	play	serverbound	block_place [USE_ITEM_ON]	ok	28	28	-	legacy/generated_ids.rs:479	-
+1.9.3	play	serverbound	use_item [USE_ITEM]	ok	29	29	-	legacy/generated_ids.rs:474	-
+1.9.3	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	layout-mismatch	50	50	high	src/legacy/packets/add_resource_pack.rs:14-25	RESOURCE_PACK_PUSH writes url,hash,forced,prompt for all <1.20.3; 1.9-1.12.2 reference is url,hash only. Two extra fields desync the client. Gate forced at >=1.17 and prompt at >=1.20.3.
+1.9.3	login	serverbound	CUSTOM_QUERY_ANSWER [no ref entry]	extra	2	absent	low	legacy/generated_ids.rs:32	Current-only login packet; not translated for this era (should map to -1).
+1.9.3	SUMMARY	all	-	summary	ok=115	layout-mismatch=2 missing=4 extra=2 unverifiable=2 n/a-server=2	-	-	minecraft-data folder=1.9.4; ids checked against generated_ids.rs column; layout from source review
+1.10	handshake	serverbound	set_protocol [INTENTION]	ok	0	0	-	legacy/generated_ids.rs:9	-
+1.10	handshake	serverbound	legacy_server_list_ping [0xFE]	n/a-server	absent	254	low	legacy/ids.rs	Legacy 0xFE ping not mapped; client-side legacy ping only.
+1.10	handshake	clientbound	(none)	n/a-server	-	-	-	-	No serverbound-only handshake replies in this era.
+1.10	status	serverbound	ping_start [STATUS_REQUEST]	ok	0	0	-	legacy/generated_ids.rs:21	-
+1.10	status	serverbound	ping [PING_REQUEST]	ok	1	1	-	legacy/generated_ids.rs:17	-
+1.10	status	clientbound	0 [core status]	unverifiable	server_info	server_info	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.10	status	clientbound	1 [core status]	unverifiable	ping	ping	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.10	login	serverbound	login_start [HELLO]	ok	0	0	-	legacy/generated_ids.rs:36	-
+1.10	login	serverbound	encryption_begin [KEY]	ok	1	1	-	legacy/generated_ids.rs:40	-
+1.10	login	clientbound	disconnect [LOGIN_DISCONNECT]	ok	0	0	-	legacy/generated_ids.rs:547	-
+1.10	login	clientbound	encryption_begin [HELLO]	ok	1	1	-	legacy/generated_ids.rs:539	-
+1.10	login	clientbound	success [GAME_PROFILE / LOGIN_FINISHED]	ok	2	2	-	legacy/generated_ids.rs:535,551	-
+1.10	login	clientbound	compress [LOGIN_COMPRESSION]	ok	3	3	-	legacy/generated_ids.rs:543	-
+1.10	login	clientbound	CUSTOM_QUERY [no ref entry]	extra	4	absent	low	legacy/generated_ids.rs:531	Current-only login packet; not translated for this era (should map to -1).
+1.10	play	clientbound	spawn_entity [ADD_ENTITY]	ok	0	0	-	legacy/generated_ids.rs:673	-
+1.10	play	clientbound	spawn_entity_experience_orb [SPAWN_EXPERIENCE_ORB]	ok	1	1	-	legacy/generated_ids.rs:1363	-
+1.10	play	clientbound	spawn_entity_weather [SPAWN_WEATHER_ENTITY]	ok	2	2	-	legacy/generated_ids.rs:1381	-
+1.10	play	clientbound	spawn_entity_living [SPAWN_LIVING_ENTITY]	ok	3	3	-	legacy/generated_ids.rs:1367	-
+1.10	play	clientbound	spawn_entity_painting [SPAWN_PAINTING]	ok	4	4	-	legacy/generated_ids.rs:1372	-
+1.10	play	clientbound	named_entity_spawn [SPAWN_PLAYER]	ok	5	5	-	legacy/generated_ids.rs:1377	-
+1.10	play	clientbound	animation [ANIMATE]	ok	6	6	-	legacy/generated_ids.rs:682	-
+1.10	play	clientbound	statistics [AWARD_STATS]	ok	7	7	-	legacy/generated_ids.rs:686	-
+1.10	play	clientbound	block_break_animation [BLOCK_DESTRUCTION]	ok	8	8	-	legacy/generated_ids.rs:695	-
+1.10	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	ok	9	9	-	legacy/generated_ids.rs:699	-
+1.10	play	clientbound	block_action [BLOCK_EVENT]	ok	10	10	-	legacy/generated_ids.rs:703	-
+1.10	play	clientbound	block_change [BLOCK_UPDATE]	ok	11	11	-	legacy/generated_ids.rs:708	-
+1.10	play	clientbound	boss_bar [BOSS_EVENT]	ok	12	12	-	legacy/generated_ids.rs:713	-
+1.10	play	clientbound	difficulty [CHANGE_DIFFICULTY]	ok	13	13	-	legacy/generated_ids.rs:723	-
+1.10	play	clientbound	tab_complete [COMMAND_SUGGESTIONS]	ok	14	14	-	legacy/generated_ids.rs:773	-
+1.10	play	clientbound	chat [CHAT]	ok	15	15	-	legacy/generated_ids.rs:728	-
+1.10	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	ok	16	16	-	legacy/generated_ids.rs:1168	-
+1.10	play	clientbound	transaction [WINDOW_CONFIRMATION]	ok	17	17	-	legacy/generated_ids.rs:1506	-
+1.10	play	clientbound	close_window [CONTAINER_CLOSE]	ok	18	18	-	legacy/generated_ids.rs:778	-
+1.10	play	clientbound	open_window [OPEN_SCREEN]	ok	19	19	-	legacy/generated_ids.rs:1018	-
+1.10	play	clientbound	window_items [CONTAINER_SET_CONTENT]	ok	20	20	-	legacy/generated_ids.rs:783	-
+1.10	play	clientbound	craft_progress_bar [CONTAINER_SET_DATA]	ok	21	21	-	legacy/generated_ids.rs:788	-
+1.10	play	clientbound	set_slot [CONTAINER_SET_SLOT]	ok	22	22	-	legacy/generated_ids.rs:793	-
+1.10	play	clientbound	set_cooldown [COOLDOWN]	ok	23	23	-	legacy/generated_ids.rs:803	-
+1.10	play	clientbound	custom_payload [CUSTOM_PAYLOAD]	ok	24	24	-	legacy/generated_ids.rs:813	-
+1.10	play	clientbound	named_sound_effect [NAMED_SOUND_EFFECT]	ok	25	25	-	legacy/generated_ids.rs:1008	-
+1.10	play	clientbound	kick_disconnect [DISCONNECT]	ok	26	26	-	legacy/generated_ids.rs:858	-
+1.10	play	clientbound	entity_status [ENTITY_EVENT]	ok	27	27	-	legacy/generated_ids.rs:873	-
+1.10	play	clientbound	explosion [EXPLODE]	ok	28	28	-	legacy/generated_ids.rs:888	-
+1.10	play	clientbound	unload_chunk [FORGET_LEVEL_CHUNK]	ok	29	29	-	legacy/generated_ids.rs:893	-
+1.10	play	clientbound	game_state_change [GAME_EVENT]	ok	30	30	-	legacy/generated_ids.rs:898	-
+1.10	play	clientbound	keep_alive [KEEP_ALIVE]	ok	31	31	-	legacy/generated_ids.rs:923	-
+1.10	play	clientbound	map_chunk [LEVEL_CHUNK_WITH_LIGHT]	ok	32	32	-	legacy/generated_ids.rs:928	-
+1.10	play	clientbound	world_event [LEVEL_EVENT]	ok	33	33	-	legacy/generated_ids.rs:933	-
+1.10	play	clientbound	world_particles [LEVEL_PARTICLES]	ok	34	34	-	legacy/generated_ids.rs:938	-
+1.10	play	clientbound	login [LOGIN]	ok	35	35	-	legacy/generated_ids.rs:948	-
+1.10	play	clientbound	map [MAP_ITEM_DATA]	ok	36	36	-	legacy/generated_ids.rs:963	-
+1.10	play	clientbound	rel_entity_move [MOVE_ENTITY_POS]	ok	37	37	-	legacy/generated_ids.rs:978	-
+1.10	play	clientbound	entity_move_look [MOVE_ENTITY_POS_ROT]	ok	38	38	-	legacy/generated_ids.rs:983	-
+1.10	play	clientbound	entity_look [MOVE_ENTITY_ROT]	ok	39	39	-	legacy/generated_ids.rs:988	-
+1.10	play	clientbound	entity [ENTITY_MOVEMENT]	ok	40	40	-	legacy/generated_ids.rs:878	-
+1.10	play	clientbound	vehicle_move [MOVE_VEHICLE]	ok	41	41	-	legacy/generated_ids.rs:1003	-
+1.10	play	clientbound	open_sign_entity [OPEN_SIGN_EDITOR]	ok	42	42	-	legacy/generated_ids.rs:1023	-
+1.10	play	clientbound	abilities [PLAYER_ABILITIES]	ok	43	43	-	legacy/generated_ids.rs:1038	-
+1.10	play	clientbound	combat_event [COMBAT_EVENT]	ok	44	44	-	legacy/generated_ids.rs:763	-
+1.10	play	clientbound	player_info [PLAYER_INFO]	ok	45	45	-	legacy/generated_ids.rs:1068	-
+1.10	play	clientbound	position [PLAYER_POSITION]	ok	46	46	-	legacy/generated_ids.rs:1088	-
+1.10	play	clientbound	bed [USE_BED]	ok	47	47	-	legacy/generated_ids.rs:1496	-
+1.10	play	clientbound	entity_destroy [REMOVE_ENTITIES]	ok	48	48	-	legacy/generated_ids.rs:1128	-
+1.10	play	clientbound	remove_entity_effect [REMOVE_MOB_EFFECT]	ok	49	49	-	legacy/generated_ids.rs:1133	-
+1.10	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	ok	50	50	-	legacy/generated_ids.rs:1148	-
+1.10	play	clientbound	respawn [RESPAWN]	ok	51	51	-	legacy/generated_ids.rs:1153	-
+1.10	play	clientbound	entity_head_rotation [ROTATE_HEAD]	ok	52	52	-	legacy/generated_ids.rs:1158	-
+1.10	play	clientbound	world_border [WORLD_BORDER]	ok	53	53	-	legacy/generated_ids.rs:1511	-
+1.10	play	clientbound	camera [SET_CAMERA]	ok	54	54	-	legacy/generated_ids.rs:1218	-
+1.10	play	clientbound	held_item_slot [SET_CARRIED_ITEM]	ok	55	55	-	legacy/generated_ids.rs:1223	-
+1.10	play	clientbound	scoreboard_display_objective [SET_DISPLAY_OBJECTIVE]	ok	56	56	-	legacy/generated_ids.rs:1253	-
+1.10	play	clientbound	entity_metadata [SET_ENTITY_DATA]	ok	57	57	-	legacy/generated_ids.rs:1258	-
+1.10	play	clientbound	attach_entity [SET_ENTITY_LINK]	ok	58	58	-	legacy/generated_ids.rs:1263	-
+1.10	play	clientbound	entity_velocity [SET_ENTITY_MOTION]	ok	59	59	-	legacy/generated_ids.rs:1268	-
+1.10	play	clientbound	entity_equipment [SET_EQUIPMENT]	ok	60	60	-	legacy/generated_ids.rs:1273	-
+1.10	play	clientbound	experience [SET_EXPERIENCE]	ok	61	61	-	legacy/generated_ids.rs:1278	-
+1.10	play	clientbound	update_health [SET_HEALTH]	ok	62	62	-	legacy/generated_ids.rs:1283	-
+1.10	play	clientbound	scoreboard_objective [SET_OBJECTIVE]	ok	63	63	-	legacy/generated_ids.rs:1293	-
+1.10	play	clientbound	set_passengers [SET_PASSENGERS]	ok	64	64	-	legacy/generated_ids.rs:1298	-
+1.10	play	clientbound	teams [SET_PLAYER_TEAM]	ok	65	65	-	legacy/generated_ids.rs:1308	-
+1.10	play	clientbound	scoreboard_score [SET_SCORE]	ok	66	66	-	legacy/generated_ids.rs:1313	-
+1.10	play	clientbound	spawn_position [SET_DEFAULT_SPAWN_POSITION]	ok	67	67	-	legacy/generated_ids.rs:1248	-
+1.10	play	clientbound	update_time [SET_TIME]	ok	68	68	-	legacy/generated_ids.rs:1328	-
+1.10	play	clientbound	title [TITLE]	ok	69	69	-	legacy/generated_ids.rs:1446	-
+1.10	play	clientbound	sound_effect [SOUND]	ok	70	70	-	legacy/generated_ids.rs:1353	-
+1.10	play	clientbound	playerlist_header [TAB_LIST]	ok	71	71	-	legacy/generated_ids.rs:1411	-
+1.10	play	clientbound	collect [TAKE_ITEM_ENTITY]	ok	72	72	-	legacy/generated_ids.rs:1421	-
+1.10	play	clientbound	entity_teleport [TELEPORT_ENTITY]	ok	73	73	-	legacy/generated_ids.rs:1426	-
+1.10	play	clientbound	entity_update_attributes [UPDATE_ATTRIBUTES]	ok	74	74	-	legacy/generated_ids.rs:1466	-
+1.10	play	clientbound	entity_effect [UPDATE_MOB_EFFECT]	ok	75	75	-	legacy/generated_ids.rs:1481	-
+1.10	play	clientbound	entity_metadata [SET_ENTITY_DATA]	missing	57	57	high	src/translate/entity_data.rs:29-62	SET_ENTITY_DATA dropped for every era version: EntityDataFormat::Unsupported=V_1_7_2 makes tables_for() return None, so translate_outgoing_packet discards the packet. Add 1.9-1.12 metadata field/serializer tables (VarInt type tag).
+1.10	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	missing	9	9	high	src/translate/block.rs:82-98	BLOCK_ENTITY_DATA dropped for every era version (BlockEntityDataFormat::Action <1.18 -> None). Implement 1.9-1.12 byte-action + NBT layout.
+1.10	play	clientbound	world_particles [LEVEL_PARTICLES]	missing	34	34	med	src/translate/particle.rs:15-19,67-70	LEVEL_PARTICLES dropped for every era version (ParticleFormat::Unsupported <1.13 -> write_particle returns None). Add 1.9-1.12 int-array particle data.
+1.10	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	missing	16	16	med	src/translate/block.rs:112-132	SECTION_BLOCKS_UPDATE dropped for every era version (SectionUpdateFormat::V1_7 <1.16 -> None). Add the per-chunk short-entry layout.
+1.10	play	clientbound	boss_bar [BOSS_EVENT]	layout-mismatch	12	12	med	src/packet/translator.rs:353-442	BOSS_BAR is raw-passed (no translator): title is a 26.3 NBT component but 1.9-1.12.2 expect a JSON string. Add a component_from_current branch.
+1.10	play	serverbound	teleport_confirm [ACCEPT_TELEPORTATION]	ok	0	0	-	legacy/generated_ids.rs:106	-
+1.10	play	serverbound	tab_complete [COMMAND_SUGGESTIONS]	ok	1	1	-	legacy/generated_ids.rs:185	-
+1.10	play	serverbound	chat [CHAT]	ok	2	2	-	legacy/generated_ids.rs:133	-
+1.10	play	serverbound	client_command [CLIENT_COMMAND]	ok	3	3	-	legacy/generated_ids.rs:167	-
+1.10	play	serverbound	settings [CLIENT_INFORMATION]	ok	4	4	-	legacy/generated_ids.rs:171	-
+1.10	play	serverbound	transaction [WINDOW_CONFIRMATION]	ok	5	5	-	legacy/generated_ids.rs:484	-
+1.10	play	serverbound	enchant_item [CONTAINER_BUTTON_CLICK]	ok	6	6	-	legacy/generated_ids.rs:194	-
+1.10	play	serverbound	window_click [CONTAINER_CLICK]	ok	7	7	-	legacy/generated_ids.rs:199	-
+1.10	play	serverbound	close_window [CONTAINER_CLOSE]	ok	8	8	-	legacy/generated_ids.rs:204	-
+1.10	play	serverbound	custom_payload [CUSTOM_PAYLOAD]	ok	9	9	-	legacy/generated_ids.rs:224	-
+1.10	play	serverbound	use_entity [INTERACT]	ok	10	10	-	legacy/generated_ids.rs:249	-
+1.10	play	serverbound	keep_alive [KEEP_ALIVE]	ok	11	11	-	legacy/generated_ids.rs:259	-
+1.10	play	serverbound	position [MOVE_PLAYER_POS]	ok	12	12	-	legacy/generated_ids.rs:269	-
+1.10	play	serverbound	position_look [MOVE_PLAYER_POS_ROT]	ok	13	13	-	legacy/generated_ids.rs:274	-
+1.10	play	serverbound	look [MOVE_PLAYER_ROT]	ok	14	14	-	legacy/generated_ids.rs:279	-
+1.10	play	serverbound	flying [MOVE_PLAYER_STATUS_ONLY]	ok	15	15	-	legacy/generated_ids.rs:284	-
+1.10	play	serverbound	vehicle_move [MOVE_VEHICLE]	ok	16	16	-	legacy/generated_ids.rs:289	-
+1.10	play	serverbound	steer_boat [PADDLE_BOAT]	ok	17	17	-	legacy/generated_ids.rs:294	-
+1.10	play	serverbound	abilities [PLAYER_ABILITIES]	ok	18	18	-	legacy/generated_ids.rs:324	-
+1.10	play	serverbound	block_dig [PLAYER_ACTION]	ok	19	19	-	legacy/generated_ids.rs:329	-
+1.10	play	serverbound	entity_action [PLAYER_COMMAND]	ok	20	20	-	legacy/generated_ids.rs:334	-
+1.10	play	serverbound	steer_vehicle [STEER_VEHICLE]	ok	21	21	-	legacy/generated_ids.rs:454	-
+1.10	play	serverbound	resource_pack_receive [RESOURCE_PACK]	ok	22	22	-	legacy/generated_ids.rs:379	-
+1.10	play	serverbound	held_item_slot [SET_CARRIED_ITEM]	ok	23	23	-	legacy/generated_ids.rs:399	-
+1.10	play	serverbound	set_creative_slot [SET_CREATIVE_MODE_SLOT]	ok	24	24	-	legacy/generated_ids.rs:414	-
+1.10	play	serverbound	update_sign [SIGN_UPDATE]	ok	25	25	-	legacy/generated_ids.rs:439	-
+1.10	play	serverbound	arm_animation [SWING]	ok	26	26	-	legacy/generated_ids.rs:459	-
+1.10	play	serverbound	spectate [SPECTATE_ENTITY]	ok	27	27	-	legacy/generated_ids.rs:444	-
+1.10	play	serverbound	block_place [USE_ITEM_ON]	ok	28	28	-	legacy/generated_ids.rs:479	-
+1.10	play	serverbound	use_item [USE_ITEM]	ok	29	29	-	legacy/generated_ids.rs:474	-
+1.10	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	layout-mismatch	50	50	high	src/legacy/packets/add_resource_pack.rs:14-25	RESOURCE_PACK_PUSH writes url,hash,forced,prompt for all <1.20.3; 1.9-1.12.2 reference is url,hash only. Two extra fields desync the client. Gate forced at >=1.17 and prompt at >=1.20.3.
+1.10	login	serverbound	CUSTOM_QUERY_ANSWER [no ref entry]	extra	2	absent	low	legacy/generated_ids.rs:32	Current-only login packet; not translated for this era (should map to -1).
+1.10	SUMMARY	all	-	summary	ok=115	layout-mismatch=2 missing=4 extra=2 unverifiable=2 n/a-server=2	-	-	minecraft-data folder=1.10; ids checked against generated_ids.rs column; layout from source review
+1.11	handshake	serverbound	set_protocol [INTENTION]	ok	0	0	-	legacy/generated_ids.rs:9	-
+1.11	handshake	serverbound	legacy_server_list_ping [0xFE]	n/a-server	absent	254	low	legacy/ids.rs	Legacy 0xFE ping not mapped; client-side legacy ping only.
+1.11	handshake	clientbound	(none)	n/a-server	-	-	-	-	No serverbound-only handshake replies in this era.
+1.11	status	serverbound	ping_start [STATUS_REQUEST]	ok	0	0	-	legacy/generated_ids.rs:21	-
+1.11	status	serverbound	ping [PING_REQUEST]	ok	1	1	-	legacy/generated_ids.rs:17	-
+1.11	status	clientbound	0 [core status]	unverifiable	server_info	server_info	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.11	status	clientbound	1 [core status]	unverifiable	ping	ping	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.11	login	serverbound	login_start [HELLO]	ok	0	0	-	legacy/generated_ids.rs:36	-
+1.11	login	serverbound	encryption_begin [KEY]	ok	1	1	-	legacy/generated_ids.rs:40	-
+1.11	login	clientbound	disconnect [LOGIN_DISCONNECT]	ok	0	0	-	legacy/generated_ids.rs:547	-
+1.11	login	clientbound	encryption_begin [HELLO]	ok	1	1	-	legacy/generated_ids.rs:539	-
+1.11	login	clientbound	success [GAME_PROFILE / LOGIN_FINISHED]	ok	2	2	-	legacy/generated_ids.rs:535,551	-
+1.11	login	clientbound	compress [LOGIN_COMPRESSION]	ok	3	3	-	legacy/generated_ids.rs:543	-
+1.11	login	clientbound	CUSTOM_QUERY [no ref entry]	extra	4	absent	low	legacy/generated_ids.rs:531	Current-only login packet; not translated for this era (should map to -1).
+1.11	play	clientbound	spawn_entity [ADD_ENTITY]	ok	0	0	-	legacy/generated_ids.rs:673	-
+1.11	play	clientbound	spawn_entity_experience_orb [SPAWN_EXPERIENCE_ORB]	ok	1	1	-	legacy/generated_ids.rs:1363	-
+1.11	play	clientbound	spawn_entity_weather [SPAWN_WEATHER_ENTITY]	ok	2	2	-	legacy/generated_ids.rs:1381	-
+1.11	play	clientbound	spawn_entity_living [SPAWN_LIVING_ENTITY]	ok	3	3	-	legacy/generated_ids.rs:1367	-
+1.11	play	clientbound	spawn_entity_painting [SPAWN_PAINTING]	ok	4	4	-	legacy/generated_ids.rs:1372	-
+1.11	play	clientbound	named_entity_spawn [SPAWN_PLAYER]	ok	5	5	-	legacy/generated_ids.rs:1377	-
+1.11	play	clientbound	animation [ANIMATE]	ok	6	6	-	legacy/generated_ids.rs:682	-
+1.11	play	clientbound	statistics [AWARD_STATS]	ok	7	7	-	legacy/generated_ids.rs:686	-
+1.11	play	clientbound	block_break_animation [BLOCK_DESTRUCTION]	ok	8	8	-	legacy/generated_ids.rs:695	-
+1.11	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	ok	9	9	-	legacy/generated_ids.rs:699	-
+1.11	play	clientbound	block_action [BLOCK_EVENT]	ok	10	10	-	legacy/generated_ids.rs:703	-
+1.11	play	clientbound	block_change [BLOCK_UPDATE]	ok	11	11	-	legacy/generated_ids.rs:708	-
+1.11	play	clientbound	boss_bar [BOSS_EVENT]	ok	12	12	-	legacy/generated_ids.rs:713	-
+1.11	play	clientbound	difficulty [CHANGE_DIFFICULTY]	ok	13	13	-	legacy/generated_ids.rs:723	-
+1.11	play	clientbound	tab_complete [COMMAND_SUGGESTIONS]	ok	14	14	-	legacy/generated_ids.rs:773	-
+1.11	play	clientbound	chat [CHAT]	ok	15	15	-	legacy/generated_ids.rs:728	-
+1.11	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	ok	16	16	-	legacy/generated_ids.rs:1168	-
+1.11	play	clientbound	transaction [WINDOW_CONFIRMATION]	ok	17	17	-	legacy/generated_ids.rs:1506	-
+1.11	play	clientbound	close_window [CONTAINER_CLOSE]	ok	18	18	-	legacy/generated_ids.rs:778	-
+1.11	play	clientbound	open_window [OPEN_SCREEN]	ok	19	19	-	legacy/generated_ids.rs:1018	-
+1.11	play	clientbound	window_items [CONTAINER_SET_CONTENT]	ok	20	20	-	legacy/generated_ids.rs:783	-
+1.11	play	clientbound	craft_progress_bar [CONTAINER_SET_DATA]	ok	21	21	-	legacy/generated_ids.rs:788	-
+1.11	play	clientbound	set_slot [CONTAINER_SET_SLOT]	ok	22	22	-	legacy/generated_ids.rs:793	-
+1.11	play	clientbound	set_cooldown [COOLDOWN]	ok	23	23	-	legacy/generated_ids.rs:803	-
+1.11	play	clientbound	custom_payload [CUSTOM_PAYLOAD]	ok	24	24	-	legacy/generated_ids.rs:813	-
+1.11	play	clientbound	named_sound_effect [NAMED_SOUND_EFFECT]	ok	25	25	-	legacy/generated_ids.rs:1008	-
+1.11	play	clientbound	kick_disconnect [DISCONNECT]	ok	26	26	-	legacy/generated_ids.rs:858	-
+1.11	play	clientbound	entity_status [ENTITY_EVENT]	ok	27	27	-	legacy/generated_ids.rs:873	-
+1.11	play	clientbound	explosion [EXPLODE]	ok	28	28	-	legacy/generated_ids.rs:888	-
+1.11	play	clientbound	unload_chunk [FORGET_LEVEL_CHUNK]	ok	29	29	-	legacy/generated_ids.rs:893	-
+1.11	play	clientbound	game_state_change [GAME_EVENT]	ok	30	30	-	legacy/generated_ids.rs:898	-
+1.11	play	clientbound	keep_alive [KEEP_ALIVE]	ok	31	31	-	legacy/generated_ids.rs:923	-
+1.11	play	clientbound	map_chunk [LEVEL_CHUNK_WITH_LIGHT]	ok	32	32	-	legacy/generated_ids.rs:928	-
+1.11	play	clientbound	world_event [LEVEL_EVENT]	ok	33	33	-	legacy/generated_ids.rs:933	-
+1.11	play	clientbound	world_particles [LEVEL_PARTICLES]	ok	34	34	-	legacy/generated_ids.rs:938	-
+1.11	play	clientbound	login [LOGIN]	ok	35	35	-	legacy/generated_ids.rs:948	-
+1.11	play	clientbound	map [MAP_ITEM_DATA]	ok	36	36	-	legacy/generated_ids.rs:963	-
+1.11	play	clientbound	rel_entity_move [MOVE_ENTITY_POS]	ok	37	37	-	legacy/generated_ids.rs:978	-
+1.11	play	clientbound	entity_move_look [MOVE_ENTITY_POS_ROT]	ok	38	38	-	legacy/generated_ids.rs:983	-
+1.11	play	clientbound	entity_look [MOVE_ENTITY_ROT]	ok	39	39	-	legacy/generated_ids.rs:988	-
+1.11	play	clientbound	entity [ENTITY_MOVEMENT]	ok	40	40	-	legacy/generated_ids.rs:878	-
+1.11	play	clientbound	vehicle_move [MOVE_VEHICLE]	ok	41	41	-	legacy/generated_ids.rs:1003	-
+1.11	play	clientbound	open_sign_entity [OPEN_SIGN_EDITOR]	ok	42	42	-	legacy/generated_ids.rs:1023	-
+1.11	play	clientbound	abilities [PLAYER_ABILITIES]	ok	43	43	-	legacy/generated_ids.rs:1038	-
+1.11	play	clientbound	combat_event [COMBAT_EVENT]	ok	44	44	-	legacy/generated_ids.rs:763	-
+1.11	play	clientbound	player_info [PLAYER_INFO]	ok	45	45	-	legacy/generated_ids.rs:1068	-
+1.11	play	clientbound	position [PLAYER_POSITION]	ok	46	46	-	legacy/generated_ids.rs:1088	-
+1.11	play	clientbound	bed [USE_BED]	ok	47	47	-	legacy/generated_ids.rs:1496	-
+1.11	play	clientbound	entity_destroy [REMOVE_ENTITIES]	ok	48	48	-	legacy/generated_ids.rs:1128	-
+1.11	play	clientbound	remove_entity_effect [REMOVE_MOB_EFFECT]	ok	49	49	-	legacy/generated_ids.rs:1133	-
+1.11	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	ok	50	50	-	legacy/generated_ids.rs:1148	-
+1.11	play	clientbound	respawn [RESPAWN]	ok	51	51	-	legacy/generated_ids.rs:1153	-
+1.11	play	clientbound	entity_head_rotation [ROTATE_HEAD]	ok	52	52	-	legacy/generated_ids.rs:1158	-
+1.11	play	clientbound	world_border [WORLD_BORDER]	ok	53	53	-	legacy/generated_ids.rs:1511	-
+1.11	play	clientbound	camera [SET_CAMERA]	ok	54	54	-	legacy/generated_ids.rs:1218	-
+1.11	play	clientbound	held_item_slot [SET_CARRIED_ITEM]	ok	55	55	-	legacy/generated_ids.rs:1223	-
+1.11	play	clientbound	scoreboard_display_objective [SET_DISPLAY_OBJECTIVE]	ok	56	56	-	legacy/generated_ids.rs:1253	-
+1.11	play	clientbound	entity_metadata [SET_ENTITY_DATA]	ok	57	57	-	legacy/generated_ids.rs:1258	-
+1.11	play	clientbound	attach_entity [SET_ENTITY_LINK]	ok	58	58	-	legacy/generated_ids.rs:1263	-
+1.11	play	clientbound	entity_velocity [SET_ENTITY_MOTION]	ok	59	59	-	legacy/generated_ids.rs:1268	-
+1.11	play	clientbound	entity_equipment [SET_EQUIPMENT]	ok	60	60	-	legacy/generated_ids.rs:1273	-
+1.11	play	clientbound	experience [SET_EXPERIENCE]	ok	61	61	-	legacy/generated_ids.rs:1278	-
+1.11	play	clientbound	update_health [SET_HEALTH]	ok	62	62	-	legacy/generated_ids.rs:1283	-
+1.11	play	clientbound	scoreboard_objective [SET_OBJECTIVE]	ok	63	63	-	legacy/generated_ids.rs:1293	-
+1.11	play	clientbound	set_passengers [SET_PASSENGERS]	ok	64	64	-	legacy/generated_ids.rs:1298	-
+1.11	play	clientbound	teams [SET_PLAYER_TEAM]	ok	65	65	-	legacy/generated_ids.rs:1308	-
+1.11	play	clientbound	scoreboard_score [SET_SCORE]	ok	66	66	-	legacy/generated_ids.rs:1313	-
+1.11	play	clientbound	spawn_position [SET_DEFAULT_SPAWN_POSITION]	ok	67	67	-	legacy/generated_ids.rs:1248	-
+1.11	play	clientbound	update_time [SET_TIME]	ok	68	68	-	legacy/generated_ids.rs:1328	-
+1.11	play	clientbound	title [TITLE]	ok	69	69	-	legacy/generated_ids.rs:1446	-
+1.11	play	clientbound	sound_effect [SOUND]	ok	70	70	-	legacy/generated_ids.rs:1353	-
+1.11	play	clientbound	playerlist_header [TAB_LIST]	ok	71	71	-	legacy/generated_ids.rs:1411	-
+1.11	play	clientbound	collect [TAKE_ITEM_ENTITY]	ok	72	72	-	legacy/generated_ids.rs:1421	-
+1.11	play	clientbound	entity_teleport [TELEPORT_ENTITY]	ok	73	73	-	legacy/generated_ids.rs:1426	-
+1.11	play	clientbound	entity_update_attributes [UPDATE_ATTRIBUTES]	ok	74	74	-	legacy/generated_ids.rs:1466	-
+1.11	play	clientbound	entity_effect [UPDATE_MOB_EFFECT]	ok	75	75	-	legacy/generated_ids.rs:1481	-
+1.11	play	clientbound	entity_metadata [SET_ENTITY_DATA]	missing	57	57	high	src/translate/entity_data.rs:29-62	SET_ENTITY_DATA dropped for every era version: EntityDataFormat::Unsupported=V_1_7_2 makes tables_for() return None, so translate_outgoing_packet discards the packet. Add 1.9-1.12 metadata field/serializer tables (VarInt type tag).
+1.11	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	missing	9	9	high	src/translate/block.rs:82-98	BLOCK_ENTITY_DATA dropped for every era version (BlockEntityDataFormat::Action <1.18 -> None). Implement 1.9-1.12 byte-action + NBT layout.
+1.11	play	clientbound	world_particles [LEVEL_PARTICLES]	missing	34	34	med	src/translate/particle.rs:15-19,67-70	LEVEL_PARTICLES dropped for every era version (ParticleFormat::Unsupported <1.13 -> write_particle returns None). Add 1.9-1.12 int-array particle data.
+1.11	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	missing	16	16	med	src/translate/block.rs:112-132	SECTION_BLOCKS_UPDATE dropped for every era version (SectionUpdateFormat::V1_7 <1.16 -> None). Add the per-chunk short-entry layout.
+1.11	play	clientbound	boss_bar [BOSS_EVENT]	layout-mismatch	12	12	med	src/packet/translator.rs:353-442	BOSS_BAR is raw-passed (no translator): title is a 26.3 NBT component but 1.9-1.12.2 expect a JSON string. Add a component_from_current branch.
+1.11	play	serverbound	teleport_confirm [ACCEPT_TELEPORTATION]	ok	0	0	-	legacy/generated_ids.rs:106	-
+1.11	play	serverbound	tab_complete [COMMAND_SUGGESTIONS]	ok	1	1	-	legacy/generated_ids.rs:185	-
+1.11	play	serverbound	chat [CHAT]	ok	2	2	-	legacy/generated_ids.rs:133	-
+1.11	play	serverbound	client_command [CLIENT_COMMAND]	ok	3	3	-	legacy/generated_ids.rs:167	-
+1.11	play	serverbound	settings [CLIENT_INFORMATION]	ok	4	4	-	legacy/generated_ids.rs:171	-
+1.11	play	serverbound	transaction [WINDOW_CONFIRMATION]	ok	5	5	-	legacy/generated_ids.rs:484	-
+1.11	play	serverbound	enchant_item [CONTAINER_BUTTON_CLICK]	ok	6	6	-	legacy/generated_ids.rs:194	-
+1.11	play	serverbound	window_click [CONTAINER_CLICK]	ok	7	7	-	legacy/generated_ids.rs:199	-
+1.11	play	serverbound	close_window [CONTAINER_CLOSE]	ok	8	8	-	legacy/generated_ids.rs:204	-
+1.11	play	serverbound	custom_payload [CUSTOM_PAYLOAD]	ok	9	9	-	legacy/generated_ids.rs:224	-
+1.11	play	serverbound	use_entity [INTERACT]	ok	10	10	-	legacy/generated_ids.rs:249	-
+1.11	play	serverbound	keep_alive [KEEP_ALIVE]	ok	11	11	-	legacy/generated_ids.rs:259	-
+1.11	play	serverbound	position [MOVE_PLAYER_POS]	ok	12	12	-	legacy/generated_ids.rs:269	-
+1.11	play	serverbound	position_look [MOVE_PLAYER_POS_ROT]	ok	13	13	-	legacy/generated_ids.rs:274	-
+1.11	play	serverbound	look [MOVE_PLAYER_ROT]	ok	14	14	-	legacy/generated_ids.rs:279	-
+1.11	play	serverbound	flying [MOVE_PLAYER_STATUS_ONLY]	ok	15	15	-	legacy/generated_ids.rs:284	-
+1.11	play	serverbound	vehicle_move [MOVE_VEHICLE]	ok	16	16	-	legacy/generated_ids.rs:289	-
+1.11	play	serverbound	steer_boat [PADDLE_BOAT]	ok	17	17	-	legacy/generated_ids.rs:294	-
+1.11	play	serverbound	abilities [PLAYER_ABILITIES]	ok	18	18	-	legacy/generated_ids.rs:324	-
+1.11	play	serverbound	block_dig [PLAYER_ACTION]	ok	19	19	-	legacy/generated_ids.rs:329	-
+1.11	play	serverbound	entity_action [PLAYER_COMMAND]	ok	20	20	-	legacy/generated_ids.rs:334	-
+1.11	play	serverbound	steer_vehicle [STEER_VEHICLE]	ok	21	21	-	legacy/generated_ids.rs:454	-
+1.11	play	serverbound	resource_pack_receive [RESOURCE_PACK]	ok	22	22	-	legacy/generated_ids.rs:379	-
+1.11	play	serverbound	held_item_slot [SET_CARRIED_ITEM]	ok	23	23	-	legacy/generated_ids.rs:399	-
+1.11	play	serverbound	set_creative_slot [SET_CREATIVE_MODE_SLOT]	ok	24	24	-	legacy/generated_ids.rs:414	-
+1.11	play	serverbound	update_sign [SIGN_UPDATE]	ok	25	25	-	legacy/generated_ids.rs:439	-
+1.11	play	serverbound	arm_animation [SWING]	ok	26	26	-	legacy/generated_ids.rs:459	-
+1.11	play	serverbound	spectate [SPECTATE_ENTITY]	ok	27	27	-	legacy/generated_ids.rs:444	-
+1.11	play	serverbound	block_place [USE_ITEM_ON]	ok	28	28	-	legacy/generated_ids.rs:479	-
+1.11	play	serverbound	use_item [USE_ITEM]	ok	29	29	-	legacy/generated_ids.rs:474	-
+1.11	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	layout-mismatch	50	50	high	src/legacy/packets/add_resource_pack.rs:14-25	RESOURCE_PACK_PUSH writes url,hash,forced,prompt for all <1.20.3; 1.9-1.12.2 reference is url,hash only. Two extra fields desync the client. Gate forced at >=1.17 and prompt at >=1.20.3.
+1.11	login	serverbound	CUSTOM_QUERY_ANSWER [no ref entry]	extra	2	absent	low	legacy/generated_ids.rs:32	Current-only login packet; not translated for this era (should map to -1).
+1.11	SUMMARY	all	-	summary	ok=115	layout-mismatch=2 missing=4 extra=2 unverifiable=2 n/a-server=2	-	-	minecraft-data folder=1.11; ids checked against generated_ids.rs column; layout from source review
+1.11.1	handshake	serverbound	set_protocol [INTENTION]	ok	0	0	-	legacy/generated_ids.rs:9	-
+1.11.1	handshake	serverbound	legacy_server_list_ping [0xFE]	n/a-server	absent	254	low	legacy/ids.rs	Legacy 0xFE ping not mapped; client-side legacy ping only.
+1.11.1	handshake	clientbound	(none)	n/a-server	-	-	-	-	No serverbound-only handshake replies in this era.
+1.11.1	status	serverbound	ping_start [STATUS_REQUEST]	ok	0	0	-	legacy/generated_ids.rs:21	-
+1.11.1	status	serverbound	ping [PING_REQUEST]	ok	1	1	-	legacy/generated_ids.rs:17	-
+1.11.1	status	clientbound	0 [core status]	unverifiable	server_info	server_info	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.11.1	status	clientbound	1 [core status]	unverifiable	ping	ping	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.11.1	login	serverbound	login_start [HELLO]	ok	0	0	-	legacy/generated_ids.rs:36	-
+1.11.1	login	serverbound	encryption_begin [KEY]	ok	1	1	-	legacy/generated_ids.rs:40	-
+1.11.1	login	clientbound	disconnect [LOGIN_DISCONNECT]	ok	0	0	-	legacy/generated_ids.rs:547	-
+1.11.1	login	clientbound	encryption_begin [HELLO]	ok	1	1	-	legacy/generated_ids.rs:539	-
+1.11.1	login	clientbound	success [GAME_PROFILE / LOGIN_FINISHED]	ok	2	2	-	legacy/generated_ids.rs:535,551	-
+1.11.1	login	clientbound	compress [LOGIN_COMPRESSION]	ok	3	3	-	legacy/generated_ids.rs:543	-
+1.11.1	login	clientbound	CUSTOM_QUERY [no ref entry]	extra	4	absent	low	legacy/generated_ids.rs:531	Current-only login packet; not translated for this era (should map to -1).
+1.11.1	play	clientbound	spawn_entity [ADD_ENTITY]	ok	0	0	-	legacy/generated_ids.rs:673	-
+1.11.1	play	clientbound	spawn_entity_experience_orb [SPAWN_EXPERIENCE_ORB]	ok	1	1	-	legacy/generated_ids.rs:1363	-
+1.11.1	play	clientbound	spawn_entity_weather [SPAWN_WEATHER_ENTITY]	ok	2	2	-	legacy/generated_ids.rs:1381	-
+1.11.1	play	clientbound	spawn_entity_living [SPAWN_LIVING_ENTITY]	ok	3	3	-	legacy/generated_ids.rs:1367	-
+1.11.1	play	clientbound	spawn_entity_painting [SPAWN_PAINTING]	ok	4	4	-	legacy/generated_ids.rs:1372	-
+1.11.1	play	clientbound	named_entity_spawn [SPAWN_PLAYER]	ok	5	5	-	legacy/generated_ids.rs:1377	-
+1.11.1	play	clientbound	animation [ANIMATE]	ok	6	6	-	legacy/generated_ids.rs:682	-
+1.11.1	play	clientbound	statistics [AWARD_STATS]	ok	7	7	-	legacy/generated_ids.rs:686	-
+1.11.1	play	clientbound	block_break_animation [BLOCK_DESTRUCTION]	ok	8	8	-	legacy/generated_ids.rs:695	-
+1.11.1	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	ok	9	9	-	legacy/generated_ids.rs:699	-
+1.11.1	play	clientbound	block_action [BLOCK_EVENT]	ok	10	10	-	legacy/generated_ids.rs:703	-
+1.11.1	play	clientbound	block_change [BLOCK_UPDATE]	ok	11	11	-	legacy/generated_ids.rs:708	-
+1.11.1	play	clientbound	boss_bar [BOSS_EVENT]	ok	12	12	-	legacy/generated_ids.rs:713	-
+1.11.1	play	clientbound	difficulty [CHANGE_DIFFICULTY]	ok	13	13	-	legacy/generated_ids.rs:723	-
+1.11.1	play	clientbound	tab_complete [COMMAND_SUGGESTIONS]	ok	14	14	-	legacy/generated_ids.rs:773	-
+1.11.1	play	clientbound	chat [CHAT]	ok	15	15	-	legacy/generated_ids.rs:728	-
+1.11.1	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	ok	16	16	-	legacy/generated_ids.rs:1168	-
+1.11.1	play	clientbound	transaction [WINDOW_CONFIRMATION]	ok	17	17	-	legacy/generated_ids.rs:1506	-
+1.11.1	play	clientbound	close_window [CONTAINER_CLOSE]	ok	18	18	-	legacy/generated_ids.rs:778	-
+1.11.1	play	clientbound	open_window [OPEN_SCREEN]	ok	19	19	-	legacy/generated_ids.rs:1018	-
+1.11.1	play	clientbound	window_items [CONTAINER_SET_CONTENT]	ok	20	20	-	legacy/generated_ids.rs:783	-
+1.11.1	play	clientbound	craft_progress_bar [CONTAINER_SET_DATA]	ok	21	21	-	legacy/generated_ids.rs:788	-
+1.11.1	play	clientbound	set_slot [CONTAINER_SET_SLOT]	ok	22	22	-	legacy/generated_ids.rs:793	-
+1.11.1	play	clientbound	set_cooldown [COOLDOWN]	ok	23	23	-	legacy/generated_ids.rs:803	-
+1.11.1	play	clientbound	custom_payload [CUSTOM_PAYLOAD]	ok	24	24	-	legacy/generated_ids.rs:813	-
+1.11.1	play	clientbound	named_sound_effect [NAMED_SOUND_EFFECT]	ok	25	25	-	legacy/generated_ids.rs:1008	-
+1.11.1	play	clientbound	kick_disconnect [DISCONNECT]	ok	26	26	-	legacy/generated_ids.rs:858	-
+1.11.1	play	clientbound	entity_status [ENTITY_EVENT]	ok	27	27	-	legacy/generated_ids.rs:873	-
+1.11.1	play	clientbound	explosion [EXPLODE]	ok	28	28	-	legacy/generated_ids.rs:888	-
+1.11.1	play	clientbound	unload_chunk [FORGET_LEVEL_CHUNK]	ok	29	29	-	legacy/generated_ids.rs:893	-
+1.11.1	play	clientbound	game_state_change [GAME_EVENT]	ok	30	30	-	legacy/generated_ids.rs:898	-
+1.11.1	play	clientbound	keep_alive [KEEP_ALIVE]	ok	31	31	-	legacy/generated_ids.rs:923	-
+1.11.1	play	clientbound	map_chunk [LEVEL_CHUNK_WITH_LIGHT]	ok	32	32	-	legacy/generated_ids.rs:928	-
+1.11.1	play	clientbound	world_event [LEVEL_EVENT]	ok	33	33	-	legacy/generated_ids.rs:933	-
+1.11.1	play	clientbound	world_particles [LEVEL_PARTICLES]	ok	34	34	-	legacy/generated_ids.rs:938	-
+1.11.1	play	clientbound	login [LOGIN]	ok	35	35	-	legacy/generated_ids.rs:948	-
+1.11.1	play	clientbound	map [MAP_ITEM_DATA]	ok	36	36	-	legacy/generated_ids.rs:963	-
+1.11.1	play	clientbound	rel_entity_move [MOVE_ENTITY_POS]	ok	37	37	-	legacy/generated_ids.rs:978	-
+1.11.1	play	clientbound	entity_move_look [MOVE_ENTITY_POS_ROT]	ok	38	38	-	legacy/generated_ids.rs:983	-
+1.11.1	play	clientbound	entity_look [MOVE_ENTITY_ROT]	ok	39	39	-	legacy/generated_ids.rs:988	-
+1.11.1	play	clientbound	entity [ENTITY_MOVEMENT]	ok	40	40	-	legacy/generated_ids.rs:878	-
+1.11.1	play	clientbound	vehicle_move [MOVE_VEHICLE]	ok	41	41	-	legacy/generated_ids.rs:1003	-
+1.11.1	play	clientbound	open_sign_entity [OPEN_SIGN_EDITOR]	ok	42	42	-	legacy/generated_ids.rs:1023	-
+1.11.1	play	clientbound	abilities [PLAYER_ABILITIES]	ok	43	43	-	legacy/generated_ids.rs:1038	-
+1.11.1	play	clientbound	combat_event [COMBAT_EVENT]	ok	44	44	-	legacy/generated_ids.rs:763	-
+1.11.1	play	clientbound	player_info [PLAYER_INFO]	ok	45	45	-	legacy/generated_ids.rs:1068	-
+1.11.1	play	clientbound	position [PLAYER_POSITION]	ok	46	46	-	legacy/generated_ids.rs:1088	-
+1.11.1	play	clientbound	bed [USE_BED]	ok	47	47	-	legacy/generated_ids.rs:1496	-
+1.11.1	play	clientbound	entity_destroy [REMOVE_ENTITIES]	ok	48	48	-	legacy/generated_ids.rs:1128	-
+1.11.1	play	clientbound	remove_entity_effect [REMOVE_MOB_EFFECT]	ok	49	49	-	legacy/generated_ids.rs:1133	-
+1.11.1	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	ok	50	50	-	legacy/generated_ids.rs:1148	-
+1.11.1	play	clientbound	respawn [RESPAWN]	ok	51	51	-	legacy/generated_ids.rs:1153	-
+1.11.1	play	clientbound	entity_head_rotation [ROTATE_HEAD]	ok	52	52	-	legacy/generated_ids.rs:1158	-
+1.11.1	play	clientbound	world_border [WORLD_BORDER]	ok	53	53	-	legacy/generated_ids.rs:1511	-
+1.11.1	play	clientbound	camera [SET_CAMERA]	ok	54	54	-	legacy/generated_ids.rs:1218	-
+1.11.1	play	clientbound	held_item_slot [SET_CARRIED_ITEM]	ok	55	55	-	legacy/generated_ids.rs:1223	-
+1.11.1	play	clientbound	scoreboard_display_objective [SET_DISPLAY_OBJECTIVE]	ok	56	56	-	legacy/generated_ids.rs:1253	-
+1.11.1	play	clientbound	entity_metadata [SET_ENTITY_DATA]	ok	57	57	-	legacy/generated_ids.rs:1258	-
+1.11.1	play	clientbound	attach_entity [SET_ENTITY_LINK]	ok	58	58	-	legacy/generated_ids.rs:1263	-
+1.11.1	play	clientbound	entity_velocity [SET_ENTITY_MOTION]	ok	59	59	-	legacy/generated_ids.rs:1268	-
+1.11.1	play	clientbound	entity_equipment [SET_EQUIPMENT]	ok	60	60	-	legacy/generated_ids.rs:1273	-
+1.11.1	play	clientbound	experience [SET_EXPERIENCE]	ok	61	61	-	legacy/generated_ids.rs:1278	-
+1.11.1	play	clientbound	update_health [SET_HEALTH]	ok	62	62	-	legacy/generated_ids.rs:1283	-
+1.11.1	play	clientbound	scoreboard_objective [SET_OBJECTIVE]	ok	63	63	-	legacy/generated_ids.rs:1293	-
+1.11.1	play	clientbound	set_passengers [SET_PASSENGERS]	ok	64	64	-	legacy/generated_ids.rs:1298	-
+1.11.1	play	clientbound	teams [SET_PLAYER_TEAM]	ok	65	65	-	legacy/generated_ids.rs:1308	-
+1.11.1	play	clientbound	scoreboard_score [SET_SCORE]	ok	66	66	-	legacy/generated_ids.rs:1313	-
+1.11.1	play	clientbound	spawn_position [SET_DEFAULT_SPAWN_POSITION]	ok	67	67	-	legacy/generated_ids.rs:1248	-
+1.11.1	play	clientbound	update_time [SET_TIME]	ok	68	68	-	legacy/generated_ids.rs:1328	-
+1.11.1	play	clientbound	title [TITLE]	ok	69	69	-	legacy/generated_ids.rs:1446	-
+1.11.1	play	clientbound	sound_effect [SOUND]	ok	70	70	-	legacy/generated_ids.rs:1353	-
+1.11.1	play	clientbound	playerlist_header [TAB_LIST]	ok	71	71	-	legacy/generated_ids.rs:1411	-
+1.11.1	play	clientbound	collect [TAKE_ITEM_ENTITY]	ok	72	72	-	legacy/generated_ids.rs:1421	-
+1.11.1	play	clientbound	entity_teleport [TELEPORT_ENTITY]	ok	73	73	-	legacy/generated_ids.rs:1426	-
+1.11.1	play	clientbound	entity_update_attributes [UPDATE_ATTRIBUTES]	ok	74	74	-	legacy/generated_ids.rs:1466	-
+1.11.1	play	clientbound	entity_effect [UPDATE_MOB_EFFECT]	ok	75	75	-	legacy/generated_ids.rs:1481	-
+1.11.1	play	clientbound	entity_metadata [SET_ENTITY_DATA]	missing	57	57	high	src/translate/entity_data.rs:29-62	SET_ENTITY_DATA dropped for every era version: EntityDataFormat::Unsupported=V_1_7_2 makes tables_for() return None, so translate_outgoing_packet discards the packet. Add 1.9-1.12 metadata field/serializer tables (VarInt type tag).
+1.11.1	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	missing	9	9	high	src/translate/block.rs:82-98	BLOCK_ENTITY_DATA dropped for every era version (BlockEntityDataFormat::Action <1.18 -> None). Implement 1.9-1.12 byte-action + NBT layout.
+1.11.1	play	clientbound	world_particles [LEVEL_PARTICLES]	missing	34	34	med	src/translate/particle.rs:15-19,67-70	LEVEL_PARTICLES dropped for every era version (ParticleFormat::Unsupported <1.13 -> write_particle returns None). Add 1.9-1.12 int-array particle data.
+1.11.1	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	missing	16	16	med	src/translate/block.rs:112-132	SECTION_BLOCKS_UPDATE dropped for every era version (SectionUpdateFormat::V1_7 <1.16 -> None). Add the per-chunk short-entry layout.
+1.11.1	play	clientbound	boss_bar [BOSS_EVENT]	layout-mismatch	12	12	med	src/packet/translator.rs:353-442	BOSS_BAR is raw-passed (no translator): title is a 26.3 NBT component but 1.9-1.12.2 expect a JSON string. Add a component_from_current branch.
+1.11.1	play	serverbound	teleport_confirm [ACCEPT_TELEPORTATION]	ok	0	0	-	legacy/generated_ids.rs:106	-
+1.11.1	play	serverbound	tab_complete [COMMAND_SUGGESTIONS]	ok	1	1	-	legacy/generated_ids.rs:185	-
+1.11.1	play	serverbound	chat [CHAT]	ok	2	2	-	legacy/generated_ids.rs:133	-
+1.11.1	play	serverbound	client_command [CLIENT_COMMAND]	ok	3	3	-	legacy/generated_ids.rs:167	-
+1.11.1	play	serverbound	settings [CLIENT_INFORMATION]	ok	4	4	-	legacy/generated_ids.rs:171	-
+1.11.1	play	serverbound	transaction [WINDOW_CONFIRMATION]	ok	5	5	-	legacy/generated_ids.rs:484	-
+1.11.1	play	serverbound	enchant_item [CONTAINER_BUTTON_CLICK]	ok	6	6	-	legacy/generated_ids.rs:194	-
+1.11.1	play	serverbound	window_click [CONTAINER_CLICK]	ok	7	7	-	legacy/generated_ids.rs:199	-
+1.11.1	play	serverbound	close_window [CONTAINER_CLOSE]	ok	8	8	-	legacy/generated_ids.rs:204	-
+1.11.1	play	serverbound	custom_payload [CUSTOM_PAYLOAD]	ok	9	9	-	legacy/generated_ids.rs:224	-
+1.11.1	play	serverbound	use_entity [INTERACT]	ok	10	10	-	legacy/generated_ids.rs:249	-
+1.11.1	play	serverbound	keep_alive [KEEP_ALIVE]	ok	11	11	-	legacy/generated_ids.rs:259	-
+1.11.1	play	serverbound	position [MOVE_PLAYER_POS]	ok	12	12	-	legacy/generated_ids.rs:269	-
+1.11.1	play	serverbound	position_look [MOVE_PLAYER_POS_ROT]	ok	13	13	-	legacy/generated_ids.rs:274	-
+1.11.1	play	serverbound	look [MOVE_PLAYER_ROT]	ok	14	14	-	legacy/generated_ids.rs:279	-
+1.11.1	play	serverbound	flying [MOVE_PLAYER_STATUS_ONLY]	ok	15	15	-	legacy/generated_ids.rs:284	-
+1.11.1	play	serverbound	vehicle_move [MOVE_VEHICLE]	ok	16	16	-	legacy/generated_ids.rs:289	-
+1.11.1	play	serverbound	steer_boat [PADDLE_BOAT]	ok	17	17	-	legacy/generated_ids.rs:294	-
+1.11.1	play	serverbound	abilities [PLAYER_ABILITIES]	ok	18	18	-	legacy/generated_ids.rs:324	-
+1.11.1	play	serverbound	block_dig [PLAYER_ACTION]	ok	19	19	-	legacy/generated_ids.rs:329	-
+1.11.1	play	serverbound	entity_action [PLAYER_COMMAND]	ok	20	20	-	legacy/generated_ids.rs:334	-
+1.11.1	play	serverbound	steer_vehicle [STEER_VEHICLE]	ok	21	21	-	legacy/generated_ids.rs:454	-
+1.11.1	play	serverbound	resource_pack_receive [RESOURCE_PACK]	ok	22	22	-	legacy/generated_ids.rs:379	-
+1.11.1	play	serverbound	held_item_slot [SET_CARRIED_ITEM]	ok	23	23	-	legacy/generated_ids.rs:399	-
+1.11.1	play	serverbound	set_creative_slot [SET_CREATIVE_MODE_SLOT]	ok	24	24	-	legacy/generated_ids.rs:414	-
+1.11.1	play	serverbound	update_sign [SIGN_UPDATE]	ok	25	25	-	legacy/generated_ids.rs:439	-
+1.11.1	play	serverbound	arm_animation [SWING]	ok	26	26	-	legacy/generated_ids.rs:459	-
+1.11.1	play	serverbound	spectate [SPECTATE_ENTITY]	ok	27	27	-	legacy/generated_ids.rs:444	-
+1.11.1	play	serverbound	block_place [USE_ITEM_ON]	ok	28	28	-	legacy/generated_ids.rs:479	-
+1.11.1	play	serverbound	use_item [USE_ITEM]	ok	29	29	-	legacy/generated_ids.rs:474	-
+1.11.1	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	layout-mismatch	50	50	high	src/legacy/packets/add_resource_pack.rs:14-25	RESOURCE_PACK_PUSH writes url,hash,forced,prompt for all <1.20.3; 1.9-1.12.2 reference is url,hash only. Two extra fields desync the client. Gate forced at >=1.17 and prompt at >=1.20.3.
+1.11.1	login	serverbound	CUSTOM_QUERY_ANSWER [no ref entry]	extra	2	absent	low	legacy/generated_ids.rs:32	Current-only login packet; not translated for this era (should map to -1).
+1.11.1	SUMMARY	all	-	summary	ok=115	layout-mismatch=2 missing=4 extra=2 unverifiable=2 n/a-server=2	-	-	minecraft-data folder=1.11; ids checked against generated_ids.rs column; layout from source review
+1.12	handshake	serverbound	set_protocol [INTENTION]	ok	0	0	-	legacy/generated_ids.rs:9	-
+1.12	handshake	serverbound	legacy_server_list_ping [0xFE]	n/a-server	absent	254	low	legacy/ids.rs	Legacy 0xFE ping not mapped; client-side legacy ping only.
+1.12	handshake	clientbound	(none)	n/a-server	-	-	-	-	No serverbound-only handshake replies in this era.
+1.12	status	serverbound	ping_start [STATUS_REQUEST]	ok	0	0	-	legacy/generated_ids.rs:21	-
+1.12	status	serverbound	ping [PING_REQUEST]	ok	1	1	-	legacy/generated_ids.rs:17	-
+1.12	status	clientbound	0 [core status]	unverifiable	server_info	server_info	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.12	status	clientbound	1 [core status]	unverifiable	ping	ping	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.12	login	serverbound	login_start [HELLO]	ok	0	0	-	legacy/generated_ids.rs:36	-
+1.12	login	serverbound	encryption_begin [KEY]	ok	1	1	-	legacy/generated_ids.rs:40	-
+1.12	login	clientbound	disconnect [LOGIN_DISCONNECT]	ok	0	0	-	legacy/generated_ids.rs:547	-
+1.12	login	clientbound	encryption_begin [HELLO]	ok	1	1	-	legacy/generated_ids.rs:539	-
+1.12	login	clientbound	success [GAME_PROFILE / LOGIN_FINISHED]	ok	2	2	-	legacy/generated_ids.rs:535,551	-
+1.12	login	clientbound	compress [LOGIN_COMPRESSION]	ok	3	3	-	legacy/generated_ids.rs:543	-
+1.12	login	clientbound	CUSTOM_QUERY [no ref entry]	extra	4	absent	low	legacy/generated_ids.rs:531	Current-only login packet; not translated for this era (should map to -1).
+1.12	play	clientbound	spawn_entity [ADD_ENTITY]	ok	0	0	-	legacy/generated_ids.rs:673	-
+1.12	play	clientbound	spawn_entity_experience_orb [SPAWN_EXPERIENCE_ORB]	ok	1	1	-	legacy/generated_ids.rs:1363	-
+1.12	play	clientbound	spawn_entity_weather [SPAWN_WEATHER_ENTITY]	ok	2	2	-	legacy/generated_ids.rs:1381	-
+1.12	play	clientbound	spawn_entity_living [SPAWN_LIVING_ENTITY]	ok	3	3	-	legacy/generated_ids.rs:1367	-
+1.12	play	clientbound	spawn_entity_painting [SPAWN_PAINTING]	ok	4	4	-	legacy/generated_ids.rs:1372	-
+1.12	play	clientbound	named_entity_spawn [SPAWN_PLAYER]	ok	5	5	-	legacy/generated_ids.rs:1377	-
+1.12	play	clientbound	animation [ANIMATE]	ok	6	6	-	legacy/generated_ids.rs:682	-
+1.12	play	clientbound	statistics [AWARD_STATS]	ok	7	7	-	legacy/generated_ids.rs:686	-
+1.12	play	clientbound	block_break_animation [BLOCK_DESTRUCTION]	ok	8	8	-	legacy/generated_ids.rs:695	-
+1.12	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	ok	9	9	-	legacy/generated_ids.rs:699	-
+1.12	play	clientbound	block_action [BLOCK_EVENT]	ok	10	10	-	legacy/generated_ids.rs:703	-
+1.12	play	clientbound	block_change [BLOCK_UPDATE]	ok	11	11	-	legacy/generated_ids.rs:708	-
+1.12	play	clientbound	boss_bar [BOSS_EVENT]	ok	12	12	-	legacy/generated_ids.rs:713	-
+1.12	play	clientbound	difficulty [CHANGE_DIFFICULTY]	ok	13	13	-	legacy/generated_ids.rs:723	-
+1.12	play	clientbound	tab_complete [COMMAND_SUGGESTIONS]	ok	14	14	-	legacy/generated_ids.rs:773	-
+1.12	play	clientbound	chat [CHAT]	ok	15	15	-	legacy/generated_ids.rs:728	-
+1.12	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	ok	16	16	-	legacy/generated_ids.rs:1168	-
+1.12	play	clientbound	transaction [WINDOW_CONFIRMATION]	ok	17	17	-	legacy/generated_ids.rs:1506	-
+1.12	play	clientbound	close_window [CONTAINER_CLOSE]	ok	18	18	-	legacy/generated_ids.rs:778	-
+1.12	play	clientbound	open_window [OPEN_SCREEN]	ok	19	19	-	legacy/generated_ids.rs:1018	-
+1.12	play	clientbound	window_items [CONTAINER_SET_CONTENT]	ok	20	20	-	legacy/generated_ids.rs:783	-
+1.12	play	clientbound	craft_progress_bar [CONTAINER_SET_DATA]	ok	21	21	-	legacy/generated_ids.rs:788	-
+1.12	play	clientbound	set_slot [CONTAINER_SET_SLOT]	ok	22	22	-	legacy/generated_ids.rs:793	-
+1.12	play	clientbound	set_cooldown [COOLDOWN]	ok	23	23	-	legacy/generated_ids.rs:803	-
+1.12	play	clientbound	custom_payload [CUSTOM_PAYLOAD]	ok	24	24	-	legacy/generated_ids.rs:813	-
+1.12	play	clientbound	named_sound_effect [NAMED_SOUND_EFFECT]	ok	25	25	-	legacy/generated_ids.rs:1008	-
+1.12	play	clientbound	kick_disconnect [DISCONNECT]	ok	26	26	-	legacy/generated_ids.rs:858	-
+1.12	play	clientbound	entity_status [ENTITY_EVENT]	ok	27	27	-	legacy/generated_ids.rs:873	-
+1.12	play	clientbound	explosion [EXPLODE]	ok	28	28	-	legacy/generated_ids.rs:888	-
+1.12	play	clientbound	unload_chunk [FORGET_LEVEL_CHUNK]	ok	29	29	-	legacy/generated_ids.rs:893	-
+1.12	play	clientbound	game_state_change [GAME_EVENT]	ok	30	30	-	legacy/generated_ids.rs:898	-
+1.12	play	clientbound	keep_alive [KEEP_ALIVE]	ok	31	31	-	legacy/generated_ids.rs:923	-
+1.12	play	clientbound	map_chunk [LEVEL_CHUNK_WITH_LIGHT]	ok	32	32	-	legacy/generated_ids.rs:928	-
+1.12	play	clientbound	world_event [LEVEL_EVENT]	ok	33	33	-	legacy/generated_ids.rs:933	-
+1.12	play	clientbound	world_particles [LEVEL_PARTICLES]	ok	34	34	-	legacy/generated_ids.rs:938	-
+1.12	play	clientbound	login [LOGIN]	ok	35	35	-	legacy/generated_ids.rs:948	-
+1.12	play	clientbound	map [MAP_ITEM_DATA]	ok	36	36	-	legacy/generated_ids.rs:963	-
+1.12	play	clientbound	entity [ENTITY_MOVEMENT]	ok	37	37	-	legacy/generated_ids.rs:878	-
+1.12	play	clientbound	rel_entity_move [MOVE_ENTITY_POS]	ok	38	38	-	legacy/generated_ids.rs:978	-
+1.12	play	clientbound	entity_move_look [MOVE_ENTITY_POS_ROT]	ok	39	39	-	legacy/generated_ids.rs:983	-
+1.12	play	clientbound	entity_look [MOVE_ENTITY_ROT]	ok	40	40	-	legacy/generated_ids.rs:988	-
+1.12	play	clientbound	vehicle_move [MOVE_VEHICLE]	ok	41	41	-	legacy/generated_ids.rs:1003	-
+1.12	play	clientbound	open_sign_entity [OPEN_SIGN_EDITOR]	ok	42	42	-	legacy/generated_ids.rs:1023	-
+1.12	play	clientbound	abilities [PLAYER_ABILITIES]	ok	43	43	-	legacy/generated_ids.rs:1038	-
+1.12	play	clientbound	combat_event [COMBAT_EVENT]	ok	44	44	-	legacy/generated_ids.rs:763	-
+1.12	play	clientbound	player_info [PLAYER_INFO]	ok	45	45	-	legacy/generated_ids.rs:1068	-
+1.12	play	clientbound	position [PLAYER_POSITION]	ok	46	46	-	legacy/generated_ids.rs:1088	-
+1.12	play	clientbound	bed [USE_BED]	ok	47	47	-	legacy/generated_ids.rs:1496	-
+1.12	play	clientbound	unlock_recipes [UNLOCK_RECIPES]	ok	48	48	-	legacy/generated_ids.rs:1456	-
+1.12	play	clientbound	entity_destroy [REMOVE_ENTITIES]	ok	49	49	-	legacy/generated_ids.rs:1128	-
+1.12	play	clientbound	remove_entity_effect [REMOVE_MOB_EFFECT]	ok	50	50	-	legacy/generated_ids.rs:1133	-
+1.12	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	ok	51	51	-	legacy/generated_ids.rs:1148	-
+1.12	play	clientbound	respawn [RESPAWN]	ok	52	52	-	legacy/generated_ids.rs:1153	-
+1.12	play	clientbound	entity_head_rotation [ROTATE_HEAD]	ok	53	53	-	legacy/generated_ids.rs:1158	-
+1.12	play	clientbound	select_advancement_tab [SELECT_ADVANCEMENTS_TAB]	ok	54	54	-	legacy/generated_ids.rs:1173	-
+1.12	play	clientbound	world_border [WORLD_BORDER]	ok	55	55	-	legacy/generated_ids.rs:1511	-
+1.12	play	clientbound	camera [SET_CAMERA]	ok	56	56	-	legacy/generated_ids.rs:1218	-
+1.12	play	clientbound	held_item_slot [SET_CARRIED_ITEM]	ok	57	57	-	legacy/generated_ids.rs:1223	-
+1.12	play	clientbound	scoreboard_display_objective [SET_DISPLAY_OBJECTIVE]	ok	58	58	-	legacy/generated_ids.rs:1253	-
+1.12	play	clientbound	entity_metadata [SET_ENTITY_DATA]	ok	59	59	-	legacy/generated_ids.rs:1258	-
+1.12	play	clientbound	attach_entity [SET_ENTITY_LINK]	ok	60	60	-	legacy/generated_ids.rs:1263	-
+1.12	play	clientbound	entity_velocity [SET_ENTITY_MOTION]	ok	61	61	-	legacy/generated_ids.rs:1268	-
+1.12	play	clientbound	entity_equipment [SET_EQUIPMENT]	ok	62	62	-	legacy/generated_ids.rs:1273	-
+1.12	play	clientbound	experience [SET_EXPERIENCE]	ok	63	63	-	legacy/generated_ids.rs:1278	-
+1.12	play	clientbound	update_health [SET_HEALTH]	ok	64	64	-	legacy/generated_ids.rs:1283	-
+1.12	play	clientbound	scoreboard_objective [SET_OBJECTIVE]	ok	65	65	-	legacy/generated_ids.rs:1293	-
+1.12	play	clientbound	set_passengers [SET_PASSENGERS]	ok	66	66	-	legacy/generated_ids.rs:1298	-
+1.12	play	clientbound	teams [SET_PLAYER_TEAM]	ok	67	67	-	legacy/generated_ids.rs:1308	-
+1.12	play	clientbound	scoreboard_score [SET_SCORE]	ok	68	68	-	legacy/generated_ids.rs:1313	-
+1.12	play	clientbound	spawn_position [SET_DEFAULT_SPAWN_POSITION]	ok	69	69	-	legacy/generated_ids.rs:1248	-
+1.12	play	clientbound	update_time [SET_TIME]	ok	70	70	-	legacy/generated_ids.rs:1328	-
+1.12	play	clientbound	title [TITLE]	ok	71	71	-	legacy/generated_ids.rs:1446	-
+1.12	play	clientbound	sound_effect [SOUND]	ok	72	72	-	legacy/generated_ids.rs:1353	-
+1.12	play	clientbound	playerlist_header [TAB_LIST]	ok	73	73	-	legacy/generated_ids.rs:1411	-
+1.12	play	clientbound	collect [TAKE_ITEM_ENTITY]	ok	74	74	-	legacy/generated_ids.rs:1421	-
+1.12	play	clientbound	entity_teleport [TELEPORT_ENTITY]	ok	75	75	-	legacy/generated_ids.rs:1426	-
+1.12	play	clientbound	advancements [UPDATE_ADVANCEMENTS]	ok	76	76	-	legacy/generated_ids.rs:1461	-
+1.12	play	clientbound	entity_update_attributes [UPDATE_ATTRIBUTES]	ok	77	77	-	legacy/generated_ids.rs:1466	-
+1.12	play	clientbound	entity_effect [UPDATE_MOB_EFFECT]	ok	78	78	-	legacy/generated_ids.rs:1481	-
+1.12	play	clientbound	entity_metadata [SET_ENTITY_DATA]	missing	59	59	high	src/translate/entity_data.rs:29-62	SET_ENTITY_DATA dropped for every era version: EntityDataFormat::Unsupported=V_1_7_2 makes tables_for() return None, so translate_outgoing_packet discards the packet. Add 1.9-1.12 metadata field/serializer tables (VarInt type tag).
+1.12	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	missing	9	9	high	src/translate/block.rs:82-98	BLOCK_ENTITY_DATA dropped for every era version (BlockEntityDataFormat::Action <1.18 -> None). Implement 1.9-1.12 byte-action + NBT layout.
+1.12	play	clientbound	world_particles [LEVEL_PARTICLES]	missing	34	34	med	src/translate/particle.rs:15-19,67-70	LEVEL_PARTICLES dropped for every era version (ParticleFormat::Unsupported <1.13 -> write_particle returns None). Add 1.9-1.12 int-array particle data.
+1.12	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	missing	16	16	med	src/translate/block.rs:112-132	SECTION_BLOCKS_UPDATE dropped for every era version (SectionUpdateFormat::V1_7 <1.16 -> None). Add the per-chunk short-entry layout.
+1.12	play	clientbound	boss_bar [BOSS_EVENT]	layout-mismatch	12	12	med	src/packet/translator.rs:353-442	BOSS_BAR is raw-passed (no translator): title is a 26.3 NBT component but 1.9-1.12.2 expect a JSON string. Add a component_from_current branch.
+1.12	play	serverbound	teleport_confirm [ACCEPT_TELEPORTATION]	ok	0	0	-	legacy/generated_ids.rs:106	-
+1.12	play	serverbound	prepare_crafting_grid [PLACE_RECIPE]	ok	1	1	-	legacy/generated_ids.rs:319	Alias: 1.12 calls this prepare_crafting_grid; our PLACE_RECIPE maps to id 1 and the numeric ids agree.
+1.12	play	serverbound	tab_complete [COMMAND_SUGGESTIONS]	ok	2	2	-	legacy/generated_ids.rs:185	-
+1.12	play	serverbound	chat [CHAT]	ok	3	3	-	legacy/generated_ids.rs:133	-
+1.12	play	serverbound	client_command [CLIENT_COMMAND]	ok	4	4	-	legacy/generated_ids.rs:167	-
+1.12	play	serverbound	settings [CLIENT_INFORMATION]	ok	5	5	-	legacy/generated_ids.rs:171	-
+1.12	play	serverbound	transaction [WINDOW_CONFIRMATION]	ok	6	6	-	legacy/generated_ids.rs:484	-
+1.12	play	serverbound	enchant_item [CONTAINER_BUTTON_CLICK]	ok	7	7	-	legacy/generated_ids.rs:194	-
+1.12	play	serverbound	window_click [CONTAINER_CLICK]	ok	8	8	-	legacy/generated_ids.rs:199	-
+1.12	play	serverbound	close_window [CONTAINER_CLOSE]	ok	9	9	-	legacy/generated_ids.rs:204	-
+1.12	play	serverbound	custom_payload [CUSTOM_PAYLOAD]	ok	10	10	-	legacy/generated_ids.rs:224	-
+1.12	play	serverbound	use_entity [INTERACT]	ok	11	11	-	legacy/generated_ids.rs:249	-
+1.12	play	serverbound	keep_alive [KEEP_ALIVE]	ok	12	12	-	legacy/generated_ids.rs:259	-
+1.12	play	serverbound	flying [MOVE_PLAYER_STATUS_ONLY]	ok	13	13	-	legacy/generated_ids.rs:284	-
+1.12	play	serverbound	position [MOVE_PLAYER_POS]	ok	14	14	-	legacy/generated_ids.rs:269	-
+1.12	play	serverbound	position_look [MOVE_PLAYER_POS_ROT]	ok	15	15	-	legacy/generated_ids.rs:274	-
+1.12	play	serverbound	look [MOVE_PLAYER_ROT]	ok	16	16	-	legacy/generated_ids.rs:279	-
+1.12	play	serverbound	vehicle_move [MOVE_VEHICLE]	ok	17	17	-	legacy/generated_ids.rs:289	-
+1.12	play	serverbound	steer_boat [PADDLE_BOAT]	ok	18	18	-	legacy/generated_ids.rs:294	-
+1.12	play	serverbound	abilities [PLAYER_ABILITIES]	ok	19	19	-	legacy/generated_ids.rs:324	-
+1.12	play	serverbound	block_dig [PLAYER_ACTION]	ok	20	20	-	legacy/generated_ids.rs:329	-
+1.12	play	serverbound	entity_action [PLAYER_COMMAND]	ok	21	21	-	legacy/generated_ids.rs:334	-
+1.12	play	serverbound	steer_vehicle [STEER_VEHICLE]	ok	22	22	-	legacy/generated_ids.rs:454	-
+1.12	play	serverbound	crafting_book_data [RECIPE_BOOK_DATA]	ok	23	23	-	legacy/generated_ids.rs:364	-
+1.12	play	serverbound	resource_pack_receive [RESOURCE_PACK]	ok	24	24	-	legacy/generated_ids.rs:379	-
+1.12	play	serverbound	advancement_tab [SEEN_ADVANCEMENTS]	ok	25	25	-	legacy/generated_ids.rs:384	-
+1.12	play	serverbound	held_item_slot [SET_CARRIED_ITEM]	ok	26	26	-	legacy/generated_ids.rs:399	-
+1.12	play	serverbound	set_creative_slot [SET_CREATIVE_MODE_SLOT]	ok	27	27	-	legacy/generated_ids.rs:414	-
+1.12	play	serverbound	update_sign [SIGN_UPDATE]	ok	28	28	-	legacy/generated_ids.rs:439	-
+1.12	play	serverbound	arm_animation [SWING]	ok	29	29	-	legacy/generated_ids.rs:459	-
+1.12	play	serverbound	spectate [SPECTATE_ENTITY]	ok	30	30	-	legacy/generated_ids.rs:444	-
+1.12	play	serverbound	block_place [USE_ITEM_ON]	ok	31	31	-	legacy/generated_ids.rs:479	-
+1.12	play	serverbound	use_item [USE_ITEM]	ok	32	32	-	legacy/generated_ids.rs:474	-
+1.12	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	layout-mismatch	51	51	high	src/legacy/packets/add_resource_pack.rs:14-25	RESOURCE_PACK_PUSH writes url,hash,forced,prompt for all <1.20.3; 1.9-1.12.2 reference is url,hash only. Two extra fields desync the client. Gate forced at >=1.17 and prompt at >=1.20.3.
+1.12	login	serverbound	CUSTOM_QUERY_ANSWER [no ref entry]	extra	2	absent	low	legacy/generated_ids.rs:32	Current-only login packet; not translated for this era (should map to -1).
+1.12	SUMMARY	all	-	summary	ok=121	layout-mismatch=2 missing=4 extra=2 unverifiable=2 n/a-server=2	-	-	minecraft-data folder=1.12; ids checked against generated_ids.rs column; layout from source review
+1.12.1	handshake	serverbound	set_protocol [INTENTION]	ok	0	0	-	legacy/generated_ids.rs:9	-
+1.12.1	handshake	serverbound	legacy_server_list_ping [0xFE]	n/a-server	absent	254	low	legacy/ids.rs	Legacy 0xFE ping not mapped; client-side legacy ping only.
+1.12.1	handshake	clientbound	(none)	n/a-server	-	-	-	-	No serverbound-only handshake replies in this era.
+1.12.1	status	serverbound	ping_start [STATUS_REQUEST]	ok	0	0	-	legacy/generated_ids.rs:21	-
+1.12.1	status	serverbound	ping [PING_REQUEST]	ok	1	1	-	legacy/generated_ids.rs:17	-
+1.12.1	status	clientbound	0 [core status]	unverifiable	server_info	server_info	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.12.1	status	clientbound	1 [core status]	unverifiable	ping	ping	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.12.1	login	serverbound	login_start [HELLO]	ok	0	0	-	legacy/generated_ids.rs:36	-
+1.12.1	login	serverbound	encryption_begin [KEY]	ok	1	1	-	legacy/generated_ids.rs:40	-
+1.12.1	login	clientbound	disconnect [LOGIN_DISCONNECT]	ok	0	0	-	legacy/generated_ids.rs:547	-
+1.12.1	login	clientbound	encryption_begin [HELLO]	ok	1	1	-	legacy/generated_ids.rs:539	-
+1.12.1	login	clientbound	success [GAME_PROFILE / LOGIN_FINISHED]	ok	2	2	-	legacy/generated_ids.rs:535,551	-
+1.12.1	login	clientbound	compress [LOGIN_COMPRESSION]	ok	3	3	-	legacy/generated_ids.rs:543	-
+1.12.1	login	clientbound	CUSTOM_QUERY [no ref entry]	extra	4	absent	low	legacy/generated_ids.rs:531	Current-only login packet; not translated for this era (should map to -1).
+1.12.1	play	clientbound	spawn_entity [ADD_ENTITY]	ok	0	0	-	legacy/generated_ids.rs:673	-
+1.12.1	play	clientbound	spawn_entity_experience_orb [SPAWN_EXPERIENCE_ORB]	ok	1	1	-	legacy/generated_ids.rs:1363	-
+1.12.1	play	clientbound	spawn_entity_weather [SPAWN_WEATHER_ENTITY]	ok	2	2	-	legacy/generated_ids.rs:1381	-
+1.12.1	play	clientbound	spawn_entity_living [SPAWN_LIVING_ENTITY]	ok	3	3	-	legacy/generated_ids.rs:1367	-
+1.12.1	play	clientbound	spawn_entity_painting [SPAWN_PAINTING]	ok	4	4	-	legacy/generated_ids.rs:1372	-
+1.12.1	play	clientbound	named_entity_spawn [SPAWN_PLAYER]	ok	5	5	-	legacy/generated_ids.rs:1377	-
+1.12.1	play	clientbound	animation [ANIMATE]	ok	6	6	-	legacy/generated_ids.rs:682	-
+1.12.1	play	clientbound	statistics [AWARD_STATS]	ok	7	7	-	legacy/generated_ids.rs:686	-
+1.12.1	play	clientbound	block_break_animation [BLOCK_DESTRUCTION]	ok	8	8	-	legacy/generated_ids.rs:695	-
+1.12.1	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	ok	9	9	-	legacy/generated_ids.rs:699	-
+1.12.1	play	clientbound	block_action [BLOCK_EVENT]	ok	10	10	-	legacy/generated_ids.rs:703	-
+1.12.1	play	clientbound	block_change [BLOCK_UPDATE]	ok	11	11	-	legacy/generated_ids.rs:708	-
+1.12.1	play	clientbound	boss_bar [BOSS_EVENT]	ok	12	12	-	legacy/generated_ids.rs:713	-
+1.12.1	play	clientbound	difficulty [CHANGE_DIFFICULTY]	ok	13	13	-	legacy/generated_ids.rs:723	-
+1.12.1	play	clientbound	tab_complete [COMMAND_SUGGESTIONS]	ok	14	14	-	legacy/generated_ids.rs:773	-
+1.12.1	play	clientbound	chat [CHAT]	ok	15	15	-	legacy/generated_ids.rs:728	-
+1.12.1	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	ok	16	16	-	legacy/generated_ids.rs:1168	-
+1.12.1	play	clientbound	transaction [WINDOW_CONFIRMATION]	ok	17	17	-	legacy/generated_ids.rs:1506	-
+1.12.1	play	clientbound	close_window [CONTAINER_CLOSE]	ok	18	18	-	legacy/generated_ids.rs:778	-
+1.12.1	play	clientbound	open_window [OPEN_SCREEN]	ok	19	19	-	legacy/generated_ids.rs:1018	-
+1.12.1	play	clientbound	window_items [CONTAINER_SET_CONTENT]	ok	20	20	-	legacy/generated_ids.rs:783	-
+1.12.1	play	clientbound	craft_progress_bar [CONTAINER_SET_DATA]	ok	21	21	-	legacy/generated_ids.rs:788	-
+1.12.1	play	clientbound	set_slot [CONTAINER_SET_SLOT]	ok	22	22	-	legacy/generated_ids.rs:793	-
+1.12.1	play	clientbound	set_cooldown [COOLDOWN]	ok	23	23	-	legacy/generated_ids.rs:803	-
+1.12.1	play	clientbound	custom_payload [CUSTOM_PAYLOAD]	ok	24	24	-	legacy/generated_ids.rs:813	-
+1.12.1	play	clientbound	named_sound_effect [NAMED_SOUND_EFFECT]	ok	25	25	-	legacy/generated_ids.rs:1008	-
+1.12.1	play	clientbound	kick_disconnect [DISCONNECT]	ok	26	26	-	legacy/generated_ids.rs:858	-
+1.12.1	play	clientbound	entity_status [ENTITY_EVENT]	ok	27	27	-	legacy/generated_ids.rs:873	-
+1.12.1	play	clientbound	explosion [EXPLODE]	ok	28	28	-	legacy/generated_ids.rs:888	-
+1.12.1	play	clientbound	unload_chunk [FORGET_LEVEL_CHUNK]	ok	29	29	-	legacy/generated_ids.rs:893	-
+1.12.1	play	clientbound	game_state_change [GAME_EVENT]	ok	30	30	-	legacy/generated_ids.rs:898	-
+1.12.1	play	clientbound	keep_alive [KEEP_ALIVE]	ok	31	31	-	legacy/generated_ids.rs:923	-
+1.12.1	play	clientbound	map_chunk [LEVEL_CHUNK_WITH_LIGHT]	ok	32	32	-	legacy/generated_ids.rs:928	-
+1.12.1	play	clientbound	world_event [LEVEL_EVENT]	ok	33	33	-	legacy/generated_ids.rs:933	-
+1.12.1	play	clientbound	world_particles [LEVEL_PARTICLES]	ok	34	34	-	legacy/generated_ids.rs:938	-
+1.12.1	play	clientbound	login [LOGIN]	ok	35	35	-	legacy/generated_ids.rs:948	-
+1.12.1	play	clientbound	map [MAP_ITEM_DATA]	ok	36	36	-	legacy/generated_ids.rs:963	-
+1.12.1	play	clientbound	entity [ENTITY_MOVEMENT]	ok	37	37	-	legacy/generated_ids.rs:878	-
+1.12.1	play	clientbound	rel_entity_move [MOVE_ENTITY_POS]	ok	38	38	-	legacy/generated_ids.rs:978	-
+1.12.1	play	clientbound	entity_move_look [MOVE_ENTITY_POS_ROT]	ok	39	39	-	legacy/generated_ids.rs:983	-
+1.12.1	play	clientbound	entity_look [MOVE_ENTITY_ROT]	ok	40	40	-	legacy/generated_ids.rs:988	-
+1.12.1	play	clientbound	vehicle_move [MOVE_VEHICLE]	ok	41	41	-	legacy/generated_ids.rs:1003	-
+1.12.1	play	clientbound	open_sign_entity [OPEN_SIGN_EDITOR]	ok	42	42	-	legacy/generated_ids.rs:1023	-
+1.12.1	play	clientbound	craft_recipe_response [PLACE_GHOST_RECIPE]	ok	43	43	-	legacy/generated_ids.rs:1033	-
+1.12.1	play	clientbound	abilities [PLAYER_ABILITIES]	ok	44	44	-	legacy/generated_ids.rs:1038	-
+1.12.1	play	clientbound	combat_event [COMBAT_EVENT]	ok	45	45	-	legacy/generated_ids.rs:763	-
+1.12.1	play	clientbound	player_info [PLAYER_INFO]	ok	46	46	-	legacy/generated_ids.rs:1068	-
+1.12.1	play	clientbound	position [PLAYER_POSITION]	ok	47	47	-	legacy/generated_ids.rs:1088	-
+1.12.1	play	clientbound	bed [USE_BED]	ok	48	48	-	legacy/generated_ids.rs:1496	-
+1.12.1	play	clientbound	unlock_recipes [UNLOCK_RECIPES]	ok	49	49	-	legacy/generated_ids.rs:1456	-
+1.12.1	play	clientbound	entity_destroy [REMOVE_ENTITIES]	ok	50	50	-	legacy/generated_ids.rs:1128	-
+1.12.1	play	clientbound	remove_entity_effect [REMOVE_MOB_EFFECT]	ok	51	51	-	legacy/generated_ids.rs:1133	-
+1.12.1	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	ok	52	52	-	legacy/generated_ids.rs:1148	-
+1.12.1	play	clientbound	respawn [RESPAWN]	ok	53	53	-	legacy/generated_ids.rs:1153	-
+1.12.1	play	clientbound	entity_head_rotation [ROTATE_HEAD]	ok	54	54	-	legacy/generated_ids.rs:1158	-
+1.12.1	play	clientbound	select_advancement_tab [SELECT_ADVANCEMENTS_TAB]	ok	55	55	-	legacy/generated_ids.rs:1173	-
+1.12.1	play	clientbound	world_border [WORLD_BORDER]	ok	56	56	-	legacy/generated_ids.rs:1511	-
+1.12.1	play	clientbound	camera [SET_CAMERA]	ok	57	57	-	legacy/generated_ids.rs:1218	-
+1.12.1	play	clientbound	held_item_slot [SET_CARRIED_ITEM]	ok	58	58	-	legacy/generated_ids.rs:1223	-
+1.12.1	play	clientbound	scoreboard_display_objective [SET_DISPLAY_OBJECTIVE]	ok	59	59	-	legacy/generated_ids.rs:1253	-
+1.12.1	play	clientbound	entity_metadata [SET_ENTITY_DATA]	ok	60	60	-	legacy/generated_ids.rs:1258	-
+1.12.1	play	clientbound	attach_entity [SET_ENTITY_LINK]	ok	61	61	-	legacy/generated_ids.rs:1263	-
+1.12.1	play	clientbound	entity_velocity [SET_ENTITY_MOTION]	ok	62	62	-	legacy/generated_ids.rs:1268	-
+1.12.1	play	clientbound	entity_equipment [SET_EQUIPMENT]	ok	63	63	-	legacy/generated_ids.rs:1273	-
+1.12.1	play	clientbound	experience [SET_EXPERIENCE]	ok	64	64	-	legacy/generated_ids.rs:1278	-
+1.12.1	play	clientbound	update_health [SET_HEALTH]	ok	65	65	-	legacy/generated_ids.rs:1283	-
+1.12.1	play	clientbound	scoreboard_objective [SET_OBJECTIVE]	ok	66	66	-	legacy/generated_ids.rs:1293	-
+1.12.1	play	clientbound	set_passengers [SET_PASSENGERS]	ok	67	67	-	legacy/generated_ids.rs:1298	-
+1.12.1	play	clientbound	teams [SET_PLAYER_TEAM]	ok	68	68	-	legacy/generated_ids.rs:1308	-
+1.12.1	play	clientbound	scoreboard_score [SET_SCORE]	ok	69	69	-	legacy/generated_ids.rs:1313	-
+1.12.1	play	clientbound	spawn_position [SET_DEFAULT_SPAWN_POSITION]	ok	70	70	-	legacy/generated_ids.rs:1248	-
+1.12.1	play	clientbound	update_time [SET_TIME]	ok	71	71	-	legacy/generated_ids.rs:1328	-
+1.12.1	play	clientbound	title [TITLE]	ok	72	72	-	legacy/generated_ids.rs:1446	-
+1.12.1	play	clientbound	sound_effect [SOUND]	ok	73	73	-	legacy/generated_ids.rs:1353	-
+1.12.1	play	clientbound	playerlist_header [TAB_LIST]	ok	74	74	-	legacy/generated_ids.rs:1411	-
+1.12.1	play	clientbound	collect [TAKE_ITEM_ENTITY]	ok	75	75	-	legacy/generated_ids.rs:1421	-
+1.12.1	play	clientbound	entity_teleport [TELEPORT_ENTITY]	ok	76	76	-	legacy/generated_ids.rs:1426	-
+1.12.1	play	clientbound	advancements [UPDATE_ADVANCEMENTS]	ok	77	77	-	legacy/generated_ids.rs:1461	-
+1.12.1	play	clientbound	entity_update_attributes [UPDATE_ATTRIBUTES]	ok	78	78	-	legacy/generated_ids.rs:1466	-
+1.12.1	play	clientbound	entity_effect [UPDATE_MOB_EFFECT]	ok	79	79	-	legacy/generated_ids.rs:1481	-
+1.12.1	play	clientbound	entity_metadata [SET_ENTITY_DATA]	missing	60	60	high	src/translate/entity_data.rs:29-62	SET_ENTITY_DATA dropped for every era version: EntityDataFormat::Unsupported=V_1_7_2 makes tables_for() return None, so translate_outgoing_packet discards the packet. Add 1.9-1.12 metadata field/serializer tables (VarInt type tag).
+1.12.1	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	missing	9	9	high	src/translate/block.rs:82-98	BLOCK_ENTITY_DATA dropped for every era version (BlockEntityDataFormat::Action <1.18 -> None). Implement 1.9-1.12 byte-action + NBT layout.
+1.12.1	play	clientbound	world_particles [LEVEL_PARTICLES]	missing	34	34	med	src/translate/particle.rs:15-19,67-70	LEVEL_PARTICLES dropped for every era version (ParticleFormat::Unsupported <1.13 -> write_particle returns None). Add 1.9-1.12 int-array particle data.
+1.12.1	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	missing	16	16	med	src/translate/block.rs:112-132	SECTION_BLOCKS_UPDATE dropped for every era version (SectionUpdateFormat::V1_7 <1.16 -> None). Add the per-chunk short-entry layout.
+1.12.1	play	clientbound	boss_bar [BOSS_EVENT]	layout-mismatch	12	12	med	src/packet/translator.rs:353-442	BOSS_BAR is raw-passed (no translator): title is a 26.3 NBT component but 1.9-1.12.2 expect a JSON string. Add a component_from_current branch.
+1.12.1	play	serverbound	teleport_confirm [ACCEPT_TELEPORTATION]	ok	0	0	-	legacy/generated_ids.rs:106	-
+1.12.1	play	serverbound	tab_complete [COMMAND_SUGGESTIONS]	ok	1	1	-	legacy/generated_ids.rs:185	-
+1.12.1	play	serverbound	chat [CHAT]	ok	2	2	-	legacy/generated_ids.rs:133	-
+1.12.1	play	serverbound	client_command [CLIENT_COMMAND]	ok	3	3	-	legacy/generated_ids.rs:167	-
+1.12.1	play	serverbound	settings [CLIENT_INFORMATION]	ok	4	4	-	legacy/generated_ids.rs:171	-
+1.12.1	play	serverbound	transaction [WINDOW_CONFIRMATION]	ok	5	5	-	legacy/generated_ids.rs:484	-
+1.12.1	play	serverbound	enchant_item [CONTAINER_BUTTON_CLICK]	ok	6	6	-	legacy/generated_ids.rs:194	-
+1.12.1	play	serverbound	window_click [CONTAINER_CLICK]	ok	7	7	-	legacy/generated_ids.rs:199	-
+1.12.1	play	serverbound	close_window [CONTAINER_CLOSE]	ok	8	8	-	legacy/generated_ids.rs:204	-
+1.12.1	play	serverbound	custom_payload [CUSTOM_PAYLOAD]	ok	9	9	-	legacy/generated_ids.rs:224	-
+1.12.1	play	serverbound	use_entity [INTERACT]	ok	10	10	-	legacy/generated_ids.rs:249	-
+1.12.1	play	serverbound	keep_alive [KEEP_ALIVE]	ok	11	11	-	legacy/generated_ids.rs:259	-
+1.12.1	play	serverbound	flying [MOVE_PLAYER_STATUS_ONLY]	ok	12	12	-	legacy/generated_ids.rs:284	-
+1.12.1	play	serverbound	position [MOVE_PLAYER_POS]	ok	13	13	-	legacy/generated_ids.rs:269	-
+1.12.1	play	serverbound	position_look [MOVE_PLAYER_POS_ROT]	ok	14	14	-	legacy/generated_ids.rs:274	-
+1.12.1	play	serverbound	look [MOVE_PLAYER_ROT]	ok	15	15	-	legacy/generated_ids.rs:279	-
+1.12.1	play	serverbound	vehicle_move [MOVE_VEHICLE]	ok	16	16	-	legacy/generated_ids.rs:289	-
+1.12.1	play	serverbound	steer_boat [PADDLE_BOAT]	ok	17	17	-	legacy/generated_ids.rs:294	-
+1.12.1	play	serverbound	craft_recipe_request [PLACE_RECIPE]	ok	18	18	-	legacy/generated_ids.rs:319	-
+1.12.1	play	serverbound	abilities [PLAYER_ABILITIES]	ok	19	19	-	legacy/generated_ids.rs:324	-
+1.12.1	play	serverbound	block_dig [PLAYER_ACTION]	ok	20	20	-	legacy/generated_ids.rs:329	-
+1.12.1	play	serverbound	entity_action [PLAYER_COMMAND]	ok	21	21	-	legacy/generated_ids.rs:334	-
+1.12.1	play	serverbound	steer_vehicle [STEER_VEHICLE]	ok	22	22	-	legacy/generated_ids.rs:454	-
+1.12.1	play	serverbound	crafting_book_data [RECIPE_BOOK_DATA]	ok	23	23	-	legacy/generated_ids.rs:364	-
+1.12.1	play	serverbound	resource_pack_receive [RESOURCE_PACK]	ok	24	24	-	legacy/generated_ids.rs:379	-
+1.12.1	play	serverbound	advancement_tab [SEEN_ADVANCEMENTS]	ok	25	25	-	legacy/generated_ids.rs:384	-
+1.12.1	play	serverbound	held_item_slot [SET_CARRIED_ITEM]	ok	26	26	-	legacy/generated_ids.rs:399	-
+1.12.1	play	serverbound	set_creative_slot [SET_CREATIVE_MODE_SLOT]	ok	27	27	-	legacy/generated_ids.rs:414	-
+1.12.1	play	serverbound	update_sign [SIGN_UPDATE]	ok	28	28	-	legacy/generated_ids.rs:439	-
+1.12.1	play	serverbound	arm_animation [SWING]	ok	29	29	-	legacy/generated_ids.rs:459	-
+1.12.1	play	serverbound	spectate [SPECTATE_ENTITY]	ok	30	30	-	legacy/generated_ids.rs:444	-
+1.12.1	play	serverbound	block_place [USE_ITEM_ON]	ok	31	31	-	legacy/generated_ids.rs:479	-
+1.12.1	play	serverbound	use_item [USE_ITEM]	ok	32	32	-	legacy/generated_ids.rs:474	-
+1.12.1	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	layout-mismatch	52	52	high	src/legacy/packets/add_resource_pack.rs:14-25	RESOURCE_PACK_PUSH writes url,hash,forced,prompt for all <1.20.3; 1.9-1.12.2 reference is url,hash only. Two extra fields desync the client. Gate forced at >=1.17 and prompt at >=1.20.3.
+1.12.1	play	clientbound	craft_recipe_response [PLACE_GHOST_RECIPE]	layout-mismatch	43	43	med	src/translate/recipe.rs:276-285	PLACE_GHOST_RECIPE writes a 26.3 recipe display; 1.12.1/1.12.2 expect i8 windowId + varint recipe id. Emit the numeric recipe id.
+1.12.1	login	serverbound	CUSTOM_QUERY_ANSWER [no ref entry]	extra	2	absent	low	legacy/generated_ids.rs:32	Current-only login packet; not translated for this era (should map to -1).
+1.12.1	SUMMARY	all	-	summary	ok=122	layout-mismatch=3 missing=4 extra=2 unverifiable=2 n/a-server=2	-	-	minecraft-data folder=1.12.1; ids checked against generated_ids.rs column; layout from source review
+1.12.2	handshake	serverbound	set_protocol [INTENTION]	ok	0	0	-	legacy/generated_ids.rs:9	-
+1.12.2	handshake	serverbound	legacy_server_list_ping [0xFE]	n/a-server	absent	254	low	legacy/ids.rs	Legacy 0xFE ping not mapped; client-side legacy ping only.
+1.12.2	handshake	clientbound	(none)	n/a-server	-	-	-	-	No serverbound-only handshake replies in this era.
+1.12.2	status	serverbound	ping_start [STATUS_REQUEST]	ok	0	0	-	legacy/generated_ids.rs:21	-
+1.12.2	status	serverbound	ping [PING_REQUEST]	ok	1	1	-	legacy/generated_ids.rs:17	-
+1.12.2	status	clientbound	0 [core status]	unverifiable	server_info	server_info	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.12.2	status	clientbound	1 [core status]	unverifiable	ping	ping	low	src/packet/translator.rs:275-299	Core writes status payload directly; no era-specific translator. Confirm with fixture.
+1.12.2	login	serverbound	login_start [HELLO]	ok	0	0	-	legacy/generated_ids.rs:36	-
+1.12.2	login	serverbound	encryption_begin [KEY]	ok	1	1	-	legacy/generated_ids.rs:40	-
+1.12.2	login	clientbound	disconnect [LOGIN_DISCONNECT]	ok	0	0	-	legacy/generated_ids.rs:547	-
+1.12.2	login	clientbound	encryption_begin [HELLO]	ok	1	1	-	legacy/generated_ids.rs:539	-
+1.12.2	login	clientbound	success [GAME_PROFILE / LOGIN_FINISHED]	ok	2	2	-	legacy/generated_ids.rs:535,551	-
+1.12.2	login	clientbound	compress [LOGIN_COMPRESSION]	ok	3	3	-	legacy/generated_ids.rs:543	-
+1.12.2	login	clientbound	CUSTOM_QUERY [no ref entry]	extra	4	absent	low	legacy/generated_ids.rs:531	Current-only login packet; not translated for this era (should map to -1).
+1.12.2	play	clientbound	spawn_entity [ADD_ENTITY]	ok	0	0	-	legacy/generated_ids.rs:673	-
+1.12.2	play	clientbound	spawn_entity_experience_orb [SPAWN_EXPERIENCE_ORB]	ok	1	1	-	legacy/generated_ids.rs:1363	-
+1.12.2	play	clientbound	spawn_entity_weather [SPAWN_WEATHER_ENTITY]	ok	2	2	-	legacy/generated_ids.rs:1381	-
+1.12.2	play	clientbound	spawn_entity_living [SPAWN_LIVING_ENTITY]	ok	3	3	-	legacy/generated_ids.rs:1367	-
+1.12.2	play	clientbound	spawn_entity_painting [SPAWN_PAINTING]	ok	4	4	-	legacy/generated_ids.rs:1372	-
+1.12.2	play	clientbound	named_entity_spawn [SPAWN_PLAYER]	ok	5	5	-	legacy/generated_ids.rs:1377	-
+1.12.2	play	clientbound	animation [ANIMATE]	ok	6	6	-	legacy/generated_ids.rs:682	-
+1.12.2	play	clientbound	statistics [AWARD_STATS]	ok	7	7	-	legacy/generated_ids.rs:686	-
+1.12.2	play	clientbound	block_break_animation [BLOCK_DESTRUCTION]	ok	8	8	-	legacy/generated_ids.rs:695	-
+1.12.2	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	ok	9	9	-	legacy/generated_ids.rs:699	-
+1.12.2	play	clientbound	block_action [BLOCK_EVENT]	ok	10	10	-	legacy/generated_ids.rs:703	-
+1.12.2	play	clientbound	block_change [BLOCK_UPDATE]	ok	11	11	-	legacy/generated_ids.rs:708	-
+1.12.2	play	clientbound	boss_bar [BOSS_EVENT]	ok	12	12	-	legacy/generated_ids.rs:713	-
+1.12.2	play	clientbound	difficulty [CHANGE_DIFFICULTY]	ok	13	13	-	legacy/generated_ids.rs:723	-
+1.12.2	play	clientbound	tab_complete [COMMAND_SUGGESTIONS]	ok	14	14	-	legacy/generated_ids.rs:773	-
+1.12.2	play	clientbound	chat [CHAT]	ok	15	15	-	legacy/generated_ids.rs:728	-
+1.12.2	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	ok	16	16	-	legacy/generated_ids.rs:1168	-
+1.12.2	play	clientbound	transaction [WINDOW_CONFIRMATION]	ok	17	17	-	legacy/generated_ids.rs:1506	-
+1.12.2	play	clientbound	close_window [CONTAINER_CLOSE]	ok	18	18	-	legacy/generated_ids.rs:778	-
+1.12.2	play	clientbound	open_window [OPEN_SCREEN]	ok	19	19	-	legacy/generated_ids.rs:1018	-
+1.12.2	play	clientbound	window_items [CONTAINER_SET_CONTENT]	ok	20	20	-	legacy/generated_ids.rs:783	-
+1.12.2	play	clientbound	craft_progress_bar [CONTAINER_SET_DATA]	ok	21	21	-	legacy/generated_ids.rs:788	-
+1.12.2	play	clientbound	set_slot [CONTAINER_SET_SLOT]	ok	22	22	-	legacy/generated_ids.rs:793	-
+1.12.2	play	clientbound	set_cooldown [COOLDOWN]	ok	23	23	-	legacy/generated_ids.rs:803	-
+1.12.2	play	clientbound	custom_payload [CUSTOM_PAYLOAD]	ok	24	24	-	legacy/generated_ids.rs:813	-
+1.12.2	play	clientbound	named_sound_effect [NAMED_SOUND_EFFECT]	ok	25	25	-	legacy/generated_ids.rs:1008	-
+1.12.2	play	clientbound	kick_disconnect [DISCONNECT]	ok	26	26	-	legacy/generated_ids.rs:858	-
+1.12.2	play	clientbound	entity_status [ENTITY_EVENT]	ok	27	27	-	legacy/generated_ids.rs:873	-
+1.12.2	play	clientbound	explosion [EXPLODE]	ok	28	28	-	legacy/generated_ids.rs:888	-
+1.12.2	play	clientbound	unload_chunk [FORGET_LEVEL_CHUNK]	ok	29	29	-	legacy/generated_ids.rs:893	-
+1.12.2	play	clientbound	game_state_change [GAME_EVENT]	ok	30	30	-	legacy/generated_ids.rs:898	-
+1.12.2	play	clientbound	keep_alive [KEEP_ALIVE]	ok	31	31	-	legacy/generated_ids.rs:923	-
+1.12.2	play	clientbound	map_chunk [LEVEL_CHUNK_WITH_LIGHT]	ok	32	32	-	legacy/generated_ids.rs:928	-
+1.12.2	play	clientbound	world_event [LEVEL_EVENT]	ok	33	33	-	legacy/generated_ids.rs:933	-
+1.12.2	play	clientbound	world_particles [LEVEL_PARTICLES]	ok	34	34	-	legacy/generated_ids.rs:938	-
+1.12.2	play	clientbound	login [LOGIN]	ok	35	35	-	legacy/generated_ids.rs:948	-
+1.12.2	play	clientbound	map [MAP_ITEM_DATA]	ok	36	36	-	legacy/generated_ids.rs:963	-
+1.12.2	play	clientbound	entity [ENTITY_MOVEMENT]	ok	37	37	-	legacy/generated_ids.rs:878	-
+1.12.2	play	clientbound	rel_entity_move [MOVE_ENTITY_POS]	ok	38	38	-	legacy/generated_ids.rs:978	-
+1.12.2	play	clientbound	entity_move_look [MOVE_ENTITY_POS_ROT]	ok	39	39	-	legacy/generated_ids.rs:983	-
+1.12.2	play	clientbound	entity_look [MOVE_ENTITY_ROT]	ok	40	40	-	legacy/generated_ids.rs:988	-
+1.12.2	play	clientbound	vehicle_move [MOVE_VEHICLE]	ok	41	41	-	legacy/generated_ids.rs:1003	-
+1.12.2	play	clientbound	open_sign_entity [OPEN_SIGN_EDITOR]	ok	42	42	-	legacy/generated_ids.rs:1023	-
+1.12.2	play	clientbound	craft_recipe_response [PLACE_GHOST_RECIPE]	ok	43	43	-	legacy/generated_ids.rs:1033	-
+1.12.2	play	clientbound	abilities [PLAYER_ABILITIES]	ok	44	44	-	legacy/generated_ids.rs:1038	-
+1.12.2	play	clientbound	combat_event [COMBAT_EVENT]	ok	45	45	-	legacy/generated_ids.rs:763	-
+1.12.2	play	clientbound	player_info [PLAYER_INFO]	ok	46	46	-	legacy/generated_ids.rs:1068	-
+1.12.2	play	clientbound	position [PLAYER_POSITION]	ok	47	47	-	legacy/generated_ids.rs:1088	-
+1.12.2	play	clientbound	bed [USE_BED]	ok	48	48	-	legacy/generated_ids.rs:1496	-
+1.12.2	play	clientbound	unlock_recipes [UNLOCK_RECIPES]	ok	49	49	-	legacy/generated_ids.rs:1456	-
+1.12.2	play	clientbound	entity_destroy [REMOVE_ENTITIES]	ok	50	50	-	legacy/generated_ids.rs:1128	-
+1.12.2	play	clientbound	remove_entity_effect [REMOVE_MOB_EFFECT]	ok	51	51	-	legacy/generated_ids.rs:1133	-
+1.12.2	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	ok	52	52	-	legacy/generated_ids.rs:1148	-
+1.12.2	play	clientbound	respawn [RESPAWN]	ok	53	53	-	legacy/generated_ids.rs:1153	-
+1.12.2	play	clientbound	entity_head_rotation [ROTATE_HEAD]	ok	54	54	-	legacy/generated_ids.rs:1158	-
+1.12.2	play	clientbound	select_advancement_tab [SELECT_ADVANCEMENTS_TAB]	ok	55	55	-	legacy/generated_ids.rs:1173	-
+1.12.2	play	clientbound	world_border [WORLD_BORDER]	ok	56	56	-	legacy/generated_ids.rs:1511	-
+1.12.2	play	clientbound	camera [SET_CAMERA]	ok	57	57	-	legacy/generated_ids.rs:1218	-
+1.12.2	play	clientbound	held_item_slot [SET_CARRIED_ITEM]	ok	58	58	-	legacy/generated_ids.rs:1223	-
+1.12.2	play	clientbound	scoreboard_display_objective [SET_DISPLAY_OBJECTIVE]	ok	59	59	-	legacy/generated_ids.rs:1253	-
+1.12.2	play	clientbound	entity_metadata [SET_ENTITY_DATA]	ok	60	60	-	legacy/generated_ids.rs:1258	-
+1.12.2	play	clientbound	attach_entity [SET_ENTITY_LINK]	ok	61	61	-	legacy/generated_ids.rs:1263	-
+1.12.2	play	clientbound	entity_velocity [SET_ENTITY_MOTION]	ok	62	62	-	legacy/generated_ids.rs:1268	-
+1.12.2	play	clientbound	entity_equipment [SET_EQUIPMENT]	ok	63	63	-	legacy/generated_ids.rs:1273	-
+1.12.2	play	clientbound	experience [SET_EXPERIENCE]	ok	64	64	-	legacy/generated_ids.rs:1278	-
+1.12.2	play	clientbound	update_health [SET_HEALTH]	ok	65	65	-	legacy/generated_ids.rs:1283	-
+1.12.2	play	clientbound	scoreboard_objective [SET_OBJECTIVE]	ok	66	66	-	legacy/generated_ids.rs:1293	-
+1.12.2	play	clientbound	set_passengers [SET_PASSENGERS]	ok	67	67	-	legacy/generated_ids.rs:1298	-
+1.12.2	play	clientbound	teams [SET_PLAYER_TEAM]	ok	68	68	-	legacy/generated_ids.rs:1308	-
+1.12.2	play	clientbound	scoreboard_score [SET_SCORE]	ok	69	69	-	legacy/generated_ids.rs:1313	-
+1.12.2	play	clientbound	spawn_position [SET_DEFAULT_SPAWN_POSITION]	ok	70	70	-	legacy/generated_ids.rs:1248	-
+1.12.2	play	clientbound	update_time [SET_TIME]	ok	71	71	-	legacy/generated_ids.rs:1328	-
+1.12.2	play	clientbound	title [TITLE]	ok	72	72	-	legacy/generated_ids.rs:1446	-
+1.12.2	play	clientbound	sound_effect [SOUND]	ok	73	73	-	legacy/generated_ids.rs:1353	-
+1.12.2	play	clientbound	playerlist_header [TAB_LIST]	ok	74	74	-	legacy/generated_ids.rs:1411	-
+1.12.2	play	clientbound	collect [TAKE_ITEM_ENTITY]	ok	75	75	-	legacy/generated_ids.rs:1421	-
+1.12.2	play	clientbound	entity_teleport [TELEPORT_ENTITY]	ok	76	76	-	legacy/generated_ids.rs:1426	-
+1.12.2	play	clientbound	advancements [UPDATE_ADVANCEMENTS]	ok	77	77	-	legacy/generated_ids.rs:1461	-
+1.12.2	play	clientbound	entity_update_attributes [UPDATE_ATTRIBUTES]	ok	78	78	-	legacy/generated_ids.rs:1466	-
+1.12.2	play	clientbound	entity_effect [UPDATE_MOB_EFFECT]	ok	79	79	-	legacy/generated_ids.rs:1481	-
+1.12.2	play	clientbound	entity_metadata [SET_ENTITY_DATA]	missing	60	60	high	src/translate/entity_data.rs:29-62	SET_ENTITY_DATA dropped for every era version: EntityDataFormat::Unsupported=V_1_7_2 makes tables_for() return None, so translate_outgoing_packet discards the packet. Add 1.9-1.12 metadata field/serializer tables (VarInt type tag).
+1.12.2	play	clientbound	tile_entity_data [BLOCK_ENTITY_DATA]	missing	9	9	high	src/translate/block.rs:82-98	BLOCK_ENTITY_DATA dropped for every era version (BlockEntityDataFormat::Action <1.18 -> None). Implement 1.9-1.12 byte-action + NBT layout.
+1.12.2	play	clientbound	world_particles [LEVEL_PARTICLES]	missing	34	34	med	src/translate/particle.rs:15-19,67-70	LEVEL_PARTICLES dropped for every era version (ParticleFormat::Unsupported <1.13 -> write_particle returns None). Add 1.9-1.12 int-array particle data.
+1.12.2	play	clientbound	multi_block_change [SECTION_BLOCKS_UPDATE]	missing	16	16	med	src/translate/block.rs:112-132	SECTION_BLOCKS_UPDATE dropped for every era version (SectionUpdateFormat::V1_7 <1.16 -> None). Add the per-chunk short-entry layout.
+1.12.2	play	clientbound	boss_bar [BOSS_EVENT]	layout-mismatch	12	12	med	src/packet/translator.rs:353-442	BOSS_BAR is raw-passed (no translator): title is a 26.3 NBT component but 1.9-1.12.2 expect a JSON string. Add a component_from_current branch.
+1.12.2	play	serverbound	teleport_confirm [ACCEPT_TELEPORTATION]	ok	0	0	-	legacy/generated_ids.rs:106	-
+1.12.2	play	serverbound	tab_complete [COMMAND_SUGGESTIONS]	ok	1	1	-	legacy/generated_ids.rs:185	-
+1.12.2	play	serverbound	chat [CHAT]	ok	2	2	-	legacy/generated_ids.rs:133	-
+1.12.2	play	serverbound	client_command [CLIENT_COMMAND]	ok	3	3	-	legacy/generated_ids.rs:167	-
+1.12.2	play	serverbound	settings [CLIENT_INFORMATION]	ok	4	4	-	legacy/generated_ids.rs:171	-
+1.12.2	play	serverbound	transaction [WINDOW_CONFIRMATION]	ok	5	5	-	legacy/generated_ids.rs:484	-
+1.12.2	play	serverbound	enchant_item [CONTAINER_BUTTON_CLICK]	ok	6	6	-	legacy/generated_ids.rs:194	-
+1.12.2	play	serverbound	window_click [CONTAINER_CLICK]	ok	7	7	-	legacy/generated_ids.rs:199	-
+1.12.2	play	serverbound	close_window [CONTAINER_CLOSE]	ok	8	8	-	legacy/generated_ids.rs:204	-
+1.12.2	play	serverbound	custom_payload [CUSTOM_PAYLOAD]	ok	9	9	-	legacy/generated_ids.rs:224	-
+1.12.2	play	serverbound	use_entity [INTERACT]	ok	10	10	-	legacy/generated_ids.rs:249	-
+1.12.2	play	serverbound	keep_alive [KEEP_ALIVE]	ok	11	11	-	legacy/generated_ids.rs:259	-
+1.12.2	play	serverbound	flying [MOVE_PLAYER_STATUS_ONLY]	ok	12	12	-	legacy/generated_ids.rs:284	-
+1.12.2	play	serverbound	position [MOVE_PLAYER_POS]	ok	13	13	-	legacy/generated_ids.rs:269	-
+1.12.2	play	serverbound	position_look [MOVE_PLAYER_POS_ROT]	ok	14	14	-	legacy/generated_ids.rs:274	-
+1.12.2	play	serverbound	look [MOVE_PLAYER_ROT]	ok	15	15	-	legacy/generated_ids.rs:279	-
+1.12.2	play	serverbound	vehicle_move [MOVE_VEHICLE]	ok	16	16	-	legacy/generated_ids.rs:289	-
+1.12.2	play	serverbound	steer_boat [PADDLE_BOAT]	ok	17	17	-	legacy/generated_ids.rs:294	-
+1.12.2	play	serverbound	craft_recipe_request [PLACE_RECIPE]	ok	18	18	-	legacy/generated_ids.rs:319	-
+1.12.2	play	serverbound	abilities [PLAYER_ABILITIES]	ok	19	19	-	legacy/generated_ids.rs:324	-
+1.12.2	play	serverbound	block_dig [PLAYER_ACTION]	ok	20	20	-	legacy/generated_ids.rs:329	-
+1.12.2	play	serverbound	entity_action [PLAYER_COMMAND]	ok	21	21	-	legacy/generated_ids.rs:334	-
+1.12.2	play	serverbound	steer_vehicle [STEER_VEHICLE]	ok	22	22	-	legacy/generated_ids.rs:454	-
+1.12.2	play	serverbound	crafting_book_data [RECIPE_BOOK_DATA]	ok	23	23	-	legacy/generated_ids.rs:364	-
+1.12.2	play	serverbound	resource_pack_receive [RESOURCE_PACK]	ok	24	24	-	legacy/generated_ids.rs:379	-
+1.12.2	play	serverbound	advancement_tab [SEEN_ADVANCEMENTS]	ok	25	25	-	legacy/generated_ids.rs:384	-
+1.12.2	play	serverbound	held_item_slot [SET_CARRIED_ITEM]	ok	26	26	-	legacy/generated_ids.rs:399	-
+1.12.2	play	serverbound	set_creative_slot [SET_CREATIVE_MODE_SLOT]	ok	27	27	-	legacy/generated_ids.rs:414	-
+1.12.2	play	serverbound	update_sign [SIGN_UPDATE]	ok	28	28	-	legacy/generated_ids.rs:439	-
+1.12.2	play	serverbound	arm_animation [SWING]	ok	29	29	-	legacy/generated_ids.rs:459	-
+1.12.2	play	serverbound	spectate [SPECTATE_ENTITY]	ok	30	30	-	legacy/generated_ids.rs:444	-
+1.12.2	play	serverbound	block_place [USE_ITEM_ON]	ok	31	31	-	legacy/generated_ids.rs:479	-
+1.12.2	play	serverbound	use_item [USE_ITEM]	ok	32	32	-	legacy/generated_ids.rs:474	-
+1.12.2	play	clientbound	resource_pack_send [RESOURCE_PACK_PUSH]	layout-mismatch	52	52	high	src/legacy/packets/add_resource_pack.rs:14-25	RESOURCE_PACK_PUSH writes url,hash,forced,prompt for all <1.20.3; 1.9-1.12.2 reference is url,hash only. Two extra fields desync the client. Gate forced at >=1.17 and prompt at >=1.20.3.
+1.12.2	play	clientbound	craft_recipe_response [PLACE_GHOST_RECIPE]	layout-mismatch	43	43	med	src/translate/recipe.rs:276-285	PLACE_GHOST_RECIPE writes a 26.3 recipe display; 1.12.1/1.12.2 expect i8 windowId + varint recipe id. Emit the numeric recipe id.
+1.12.2	login	serverbound	CUSTOM_QUERY_ANSWER [no ref entry]	extra	2	absent	low	legacy/generated_ids.rs:32	Current-only login packet; not translated for this era (should map to -1).
+1.12.2	SUMMARY	all	-	summary	ok=122	layout-mismatch=3 missing=4 extra=2 unverifiable=2 n/a-server=2	-	-	minecraft-data folder=1.12.2; ids checked against generated_ids.rs column; layout from source review

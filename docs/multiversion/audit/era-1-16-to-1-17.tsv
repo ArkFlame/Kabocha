@@ -1,0 +1,1213 @@
+version	state	direction	packet	kind	ours	reference	severity	file_line	proposed_fix
+1.16	play	clientbound	spawn_entity	ok	0	0	-	generated_ids.rs:SPAWN_ENTITY	
+1.16	play	clientbound	spawn_entity_experience_orb	ok	1	1	-	generated_ids.rs:SPAWN_EXPERIENCE_ORB	
+1.16	play	clientbound	spawn_entity_living	ok	2	2	-	generated_ids.rs:SPAWN_LIVING_ENTITY	
+1.16	play	clientbound	spawn_entity_painting	ok	3	3	-	generated_ids.rs:SPAWN_PAINTING	
+1.16	play	clientbound	named_entity_spawn	ok	4	4	-	generated_ids.rs:SPAWN_PLAYER	
+1.16	play	clientbound	animation	ok	5	5	-	generated_ids.rs:ANIMATE	
+1.16	play	clientbound	statistics	ok	6	6	-	generated_ids.rs:STATISTICS	
+1.16	play	clientbound	acknowledge_player_digging	ok	7	7	-	generated_ids.rs:ACKNOWLEDGE_PLAYER_DIGGING	
+1.16	play	clientbound	block_break_animation	ok	8	8	-	generated_ids.rs:BLOCK_BREAK_ANIMATION	
+1.16	play	clientbound	tile_entity_data	ok	9	9	-	generated_ids.rs:BLOCK_ENTITY_DATA	
+1.16	play	clientbound	block_action	ok	10	10	-	generated_ids.rs:BLOCK_ACTION	
+1.16	play	clientbound	block_change	ok	11	11	-	generated_ids.rs:BLOCK_CHANGE	
+1.16	play	clientbound	boss_bar	ok	12	12	-	generated_ids.rs:BOSS_BAR	
+1.16	play	clientbound	difficulty	ok	13	13	-	generated_ids.rs:CHANGE_DIFFICULTY	
+1.16	play	clientbound	chat	ok	14	14	-	generated_ids.rs:CHAT	
+1.16	play	clientbound	multi_block_change	ok	15	15	-	generated_ids.rs:MULTI_BLOCK_CHANGE	
+1.16	play	clientbound	tab_complete	ok	16	16	-	generated_ids.rs:TAB_COMPLETE	
+1.16	play	clientbound	declare_commands	ok	17	17	-	generated_ids.rs:DECLARE_COMMANDS	
+1.16	play	clientbound	transaction	ok	18	18	-	generated_ids.rs:WINDOW_CONFIRMATION	
+1.16	play	clientbound	close_window	ok	19	19	-	generated_ids.rs:CLOSE_WINDOW	
+1.16	play	clientbound	window_items	ok	20	20	-	generated_ids.rs:WINDOW_ITEMS	
+1.16	play	clientbound	craft_progress_bar	ok	21	21	-	generated_ids.rs:CONTAINER_SET_DATA	
+1.16	play	clientbound	set_slot	ok	22	22	-	generated_ids.rs:SET_SLOT	
+1.16	play	clientbound	set_cooldown	ok	23	23	-	generated_ids.rs:COOLDOWN	
+1.16	play	clientbound	custom_payload	ok	24	24	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.16	play	clientbound	named_sound_effect	ok	25	25	-	generated_ids.rs:NAMED_SOUND_EFFECT	
+1.16	play	clientbound	kick_disconnect	ok	26	26	-	generated_ids.rs:DISCONNECT	
+1.16	play	clientbound	entity_status	ok	27	27	-	generated_ids.rs:ENTITY_STATUS	
+1.16	play	clientbound	explosion	ok	28	28	-	generated_ids.rs:EXPLOSION	
+1.16	play	clientbound	unload_chunk	ok	29	29	-	generated_ids.rs:UNLOAD_CHUNK	
+1.16	play	clientbound	game_state_change	ok	30	30	-	generated_ids.rs:GAME_EVENT	
+1.16	play	clientbound	open_horse_window	ok	31	31	-	generated_ids.rs:OPEN_HORSE_WINDOW	
+1.16	play	clientbound	keep_alive	ok	32	32	-	generated_ids.rs:KEEP_ALIVE	
+1.16	play	clientbound	map_chunk	ok	33	33	-	generated_ids.rs:LEVEL_CHUNK_WITH_LIGHT	
+1.16	play	clientbound	world_event	ok	34	34	-	generated_ids.rs:LEVEL_EVENT	
+1.16	play	clientbound	world_particles	ok	35	35	-	generated_ids.rs:LEVEL_PARTICLES	
+1.16	play	clientbound	update_light	ok	36	36	-	generated_ids.rs:LIGHT_UPDATE	
+1.16	play	clientbound	login	ok	37	37	-	generated_ids.rs:LOGIN	
+1.16	play	clientbound	map	ok	38	38	-	generated_ids.rs:MAP_ITEM_DATA	
+1.16	play	clientbound	trade_list	ok	39	39	-	generated_ids.rs:MERCHANT_OFFERS	
+1.16	play	clientbound	rel_entity_move	ok	40	40	-	generated_ids.rs:MOVE_ENTITY_POS	
+1.16	play	clientbound	entity_move_look	ok	41	41	-	generated_ids.rs:MOVE_ENTITY_POS_ROT	
+1.16	play	clientbound	entity_look	ok	42	42	-	generated_ids.rs:MOVE_ENTITY_ROT	
+1.16	play	clientbound	entity	ok	43	43	-	generated_ids.rs:ENTITY_MOVEMENT	
+1.16	play	clientbound	vehicle_move	ok	44	44	-	generated_ids.rs:MOVE_VEHICLE	
+1.16	play	clientbound	open_book	ok	45	45	-	generated_ids.rs:OPEN_BOOK	
+1.16	play	clientbound	open_window	ok	46	46	-	generated_ids.rs:OPEN_WINDOW	
+1.16	play	clientbound	open_sign_entity	ok	47	47	-	generated_ids.rs:OPEN_SIGN_EDITOR	
+1.16	play	clientbound	craft_recipe_response	ok	48	48	-	generated_ids.rs:CRAFT_RECIPE_RESPONSE	
+1.16	play	clientbound	abilities	ok	49	49	-	generated_ids.rs:PLAYER_ABILITIES	
+1.16	play	clientbound	combat_event	ok	50	50	-	generated_ids.rs:COMBAT_EVENT	
+1.16	play	clientbound	player_info	ok	51	51	-	generated_ids.rs:PLAYER_INFO	
+1.16	play	clientbound	face_player	ok	52	52	-	generated_ids.rs:FACE_PLAYER	
+1.16	play	clientbound	position	ok	53	53	-	generated_ids.rs:PLAYER_POSITION	
+1.16	play	clientbound	unlock_recipes	ok	54	54	-	generated_ids.rs:UNLOCK_RECIPES	
+1.16	play	clientbound	entity_destroy	ok	55	55	-	generated_ids.rs:REMOVE_ENTITIES	
+1.16	play	clientbound	remove_entity_effect	ok	56	56	-	generated_ids.rs:REMOVE_ENTITY_EFFECT	
+1.16	play	clientbound	resource_pack_send	ok	57	57	-	generated_ids.rs:RESOURCE_PACK_SEND	
+1.16	play	clientbound	respawn	ok	58	58	-	generated_ids.rs:RESPAWN	
+1.16	play	clientbound	entity_head_rotation	ok	59	59	-	generated_ids.rs:ROTATE_HEAD	
+1.16	play	clientbound	select_advancement_tab	ok	60	60	-	generated_ids.rs:SELECT_ADVANCEMENTS_TAB	
+1.16	play	clientbound	world_border	ok	61	61	-	generated_ids.rs:WORLD_BORDER	
+1.16	play	clientbound	camera	ok	62	62	-	generated_ids.rs:SET_CAMERA	
+1.16	play	clientbound	held_item_slot	ok	63	63	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.16	play	clientbound	update_view_position	ok	64	64	-	generated_ids.rs:UPDATE_VIEW_POSITION	
+1.16	play	clientbound	update_view_distance	ok	65	65	-	generated_ids.rs:UPDATE_VIEW_DISTANCE	
+1.16	play	clientbound	spawn_position	id-mismatch	77	66	critical	generated_ids.rs:SPAWN_POSITION	Column is shifted; correct id is 66 (wiki + ViaVersion agree).
+1.16	play	clientbound	scoreboard_display_objective	id-mismatch	66	67	critical	generated_ids.rs:SET_DISPLAY_OBJECTIVE	Column is shifted; correct id is 67 (wiki + ViaVersion agree).
+1.16	play	clientbound	entity_metadata	id-mismatch	67	68	critical	generated_ids.rs:ENTITY_METADATA	Column is shifted; correct id is 68 (wiki + ViaVersion agree).
+1.16	play	clientbound	attach_entity	id-mismatch	68	69	critical	generated_ids.rs:ATTACH_ENTITY	Column is shifted; correct id is 69 (wiki + ViaVersion agree).
+1.16	play	clientbound	entity_velocity	id-mismatch	69	70	critical	generated_ids.rs:ENTITY_VELOCITY	Column is shifted; correct id is 70 (wiki + ViaVersion agree).
+1.16	play	clientbound	entity_equipment	id-mismatch	70	71	critical	generated_ids.rs:ENTITY_EQUIPMENT	Column is shifted; correct id is 71 (wiki + ViaVersion agree).
+1.16	play	clientbound	experience	id-mismatch	71	72	critical	generated_ids.rs:SET_EXPERIENCE	Column is shifted; correct id is 72 (wiki + ViaVersion agree).
+1.16	play	clientbound	update_health	id-mismatch	72	73	critical	generated_ids.rs:UPDATE_HEALTH	Column is shifted; correct id is 73 (wiki + ViaVersion agree).
+1.16	play	clientbound	scoreboard_objective	id-mismatch	73	74	critical	generated_ids.rs:SCOREBOARD_OBJECTIVE	Column is shifted; correct id is 74 (wiki + ViaVersion agree).
+1.16	play	clientbound	set_passengers	id-mismatch	74	75	critical	generated_ids.rs:SET_PASSENGERS	Column is shifted; correct id is 75 (wiki + ViaVersion agree).
+1.16	play	clientbound	teams	id-mismatch	75	76	critical	generated_ids.rs:SET_PLAYER_TEAM	Column is shifted; correct id is 76 (wiki + ViaVersion agree).
+1.16	play	clientbound	scoreboard_score	id-mismatch	76	77	critical	generated_ids.rs:SET_SCORE	Column is shifted; correct id is 77 (wiki + ViaVersion agree).
+1.16	play	clientbound	update_time	ok	78	78	-	generated_ids.rs:SET_TIME	
+1.16	play	clientbound	title	ok	79	79	-	generated_ids.rs:TITLE	
+1.16	play	clientbound	entity_sound_effect	ok	80	80	-	generated_ids.rs:ENTITY_SOUND_EFFECT	
+1.16	play	clientbound	sound_effect	ok	81	81	-	generated_ids.rs:SOUND_EFFECT	
+1.16	play	clientbound	stop_sound	ok	82	82	-	generated_ids.rs:STOP_SOUND	
+1.16	play	clientbound	playerlist_header	ok	83	83	-	generated_ids.rs:TAB_LIST	
+1.16	play	clientbound	nbt_query_response	ok	84	84	-	generated_ids.rs:NBT_QUERY_RESPONSE	
+1.16	play	clientbound	collect	ok	85	85	-	generated_ids.rs:TAKE_ITEM_ENTITY	
+1.16	play	clientbound	entity_teleport	ok	86	86	-	generated_ids.rs:TELEPORT_ENTITY	
+1.16	play	clientbound	advancements	ok	87	87	-	generated_ids.rs:UPDATE_ADVANCEMENTS	
+1.16	play	clientbound	entity_update_attributes	ok	88	88	-	generated_ids.rs:UPDATE_ATTRIBUTES	
+1.16	play	clientbound	entity_effect	ok	89	89	-	generated_ids.rs:ENTITY_EFFECT	
+1.16	play	clientbound	declare_recipes	ok	90	90	-	generated_ids.rs:DECLARE_RECIPES	
+1.16	play	clientbound	tags	ok	91	91	-	generated_ids.rs:TAGS	
+1.16	play	serverbound	teleport_confirm	ok	0	0	-	generated_ids.rs:TELEPORT_CONFIRM	
+1.16	play	serverbound	query_block_nbt	ok	1	1	-	generated_ids.rs:BLOCK_ENTITY_TAG_QUERY	
+1.16	play	serverbound	set_difficulty	ok	2	2	-	generated_ids.rs:SET_DIFFICULTY	
+1.16	play	serverbound	chat	ok	3	3	-	generated_ids.rs:CHAT	
+1.16	play	serverbound	client_command	ok	4	4	-	generated_ids.rs:CLIENT_COMMAND	
+1.16	play	serverbound	settings	ok	5	5	-	generated_ids.rs:CLIENT_INFORMATION	
+1.16	play	serverbound	tab_complete	ok	6	6	-	generated_ids.rs:COMMAND_SUGGESTIONS	
+1.16	play	serverbound	transaction	ok	7	7	-	generated_ids.rs:WINDOW_CONFIRMATION	
+1.16	play	serverbound	enchant_item	unverifiable	?	8	info	generated_ids.rs	No packet const mapped; id set for this version/state compared equal to reference.
+1.16	play	serverbound	window_click	ok	9	9	-	generated_ids.rs:CONTAINER_CLICK	
+1.16	play	serverbound	close_window	ok	10	10	-	generated_ids.rs:CONTAINER_CLOSE	
+1.16	play	serverbound	custom_payload	ok	11	11	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.16	play	serverbound	edit_book	ok	12	12	-	generated_ids.rs:EDIT_BOOK	
+1.16	play	serverbound	query_entity_nbt	ok	13	13	-	generated_ids.rs:ENTITY_TAG_QUERY	
+1.16	play	serverbound	use_entity	ok	14	14	-	generated_ids.rs:INTERACT_ENTITY	
+1.16	play	serverbound	generate_structure	ok	15	15	-	generated_ids.rs:GENERATE_STRUCTURE	
+1.16	play	serverbound	keep_alive	ok	16	16	-	generated_ids.rs:KEEP_ALIVE	
+1.16	play	serverbound	lock_difficulty	ok	17	17	-	generated_ids.rs:LOCK_DIFFICULTY	
+1.16	play	serverbound	position	ok	18	18	-	generated_ids.rs:MOVE_PLAYER_POS	
+1.16	play	serverbound	position_look	ok	19	19	-	generated_ids.rs:MOVE_PLAYER_POS_ROT	
+1.16	play	serverbound	look	ok	20	20	-	generated_ids.rs:PLAYER_ROTATION	
+1.16	play	serverbound	flying	ok	21	21	-	generated_ids.rs:PLAYER_FLYING	
+1.16	play	serverbound	vehicle_move	ok	22	22	-	generated_ids.rs:MOVE_VEHICLE	
+1.16	play	serverbound	steer_boat	ok	23	23	-	generated_ids.rs:STEER_BOAT	
+1.16	play	serverbound	pick_item	ok	24	24	-	generated_ids.rs:PICK_ITEM	
+1.16	play	serverbound	craft_recipe_request	ok	25	25	-	generated_ids.rs:PLACE_RECIPE	
+1.16	play	serverbound	abilities	ok	26	26	-	generated_ids.rs:PLAYER_ABILITIES	
+1.16	play	serverbound	block_dig	ok	27	27	-	generated_ids.rs:PLAYER_DIGGING	
+1.16	play	serverbound	entity_action	ok	28	28	-	generated_ids.rs:ENTITY_ACTION	
+1.16	play	serverbound	steer_vehicle	ok	29	29	-	generated_ids.rs:STEER_VEHICLE	
+1.16	play	serverbound	crafting_book_data	ok	30	30	-	generated_ids.rs:RECIPE_BOOK_CHANGE_SETTINGS	
+1.16	play	serverbound	name_item	ok	31	31	-	generated_ids.rs:RENAME_ITEM	
+1.16	play	serverbound	resource_pack_receive	ok	32	32	-	generated_ids.rs:RESOURCE_PACK	
+1.16	play	serverbound	advancement_tab	ok	33	33	-	generated_ids.rs:SEEN_ADVANCEMENTS	
+1.16	play	serverbound	select_trade	ok	34	34	-	generated_ids.rs:SELECT_TRADE	
+1.16	play	serverbound	set_beacon_effect	ok	35	35	-	generated_ids.rs:SET_BEACON	
+1.16	play	serverbound	held_item_slot	ok	36	36	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.16	play	serverbound	update_command_block	ok	37	37	-	generated_ids.rs:SET_COMMAND_BLOCK	
+1.16	play	serverbound	update_command_block_minecart	ok	38	38	-	generated_ids.rs:SET_COMMAND_MINECART	
+1.16	play	serverbound	set_creative_slot	ok	39	39	-	generated_ids.rs:SET_CREATIVE_MODE_SLOT	
+1.16	play	serverbound	update_jigsaw_block	ok	40	40	-	generated_ids.rs:SET_JIGSAW_BLOCK	
+1.16	play	serverbound	update_structure_block	ok	41	41	-	generated_ids.rs:SET_STRUCTURE_BLOCK	
+1.16	play	serverbound	update_sign	ok	42	42	-	generated_ids.rs:SIGN_UPDATE	
+1.16	play	serverbound	arm_animation	ok	43	43	-	generated_ids.rs:SWING	
+1.16	play	serverbound	spectate	ok	44	44	-	generated_ids.rs:SPECTATE_ENTITY	
+1.16	play	serverbound	block_place	ok	45	45	-	generated_ids.rs:PLAYER_BLOCK_PLACEMENT	
+1.16	play	serverbound	use_item	ok	46	46	-	generated_ids.rs:USE_ITEM	
+1.16	login	clientbound	disconnect	ok	0	0	-	generated_ids.rs:LOGIN_DISCONNECT	
+1.16	login	clientbound	encryption_begin	ok	1	1	-	generated_ids.rs:HELLO	
+1.16	login	clientbound	success	ok	2	2	-	generated_ids.rs:LOGIN_FINISHED	
+1.16	login	clientbound	compress	ok	3	3	-	generated_ids.rs:LOGIN_COMPRESSION	
+1.16	login	clientbound	login_plugin_request	ok	4	4	-	generated_ids.rs:LOGIN_PLUGIN_REQUEST	
+1.16	login	serverbound	login_start	ok	0	0	-	generated_ids.rs:LOGIN_START	
+1.16	login	serverbound	encryption_begin	ok	1	1	-	generated_ids.rs:KEY	
+1.16	login	serverbound	login_plugin_response	ok	2	2	-	generated_ids.rs:LOGIN_PLUGIN_RESPONSE	
+1.16	status	clientbound	server_info	ok	0	0	-	generated_ids.rs:STATUS_RESPONSE	
+1.16	status	clientbound	ping	ok	1	1	-	generated_ids.rs:PONG_RESPONSE	
+1.16	status	serverbound	ping_start	ok	0	0	-	generated_ids.rs:STATUS_REQUEST	
+1.16	status	serverbound	ping	ok	1	1	-	generated_ids.rs:PING_REQUEST	
+1.16	handshaking	serverbound	set_protocol	ok	0	0	-	generated_ids.rs:INTENTION	
+1.16.1	play	clientbound	spawn_entity	ok	0	0	-	generated_ids.rs:SPAWN_ENTITY	
+1.16.1	play	clientbound	spawn_entity_experience_orb	ok	1	1	-	generated_ids.rs:SPAWN_EXPERIENCE_ORB	
+1.16.1	play	clientbound	spawn_entity_living	ok	2	2	-	generated_ids.rs:SPAWN_LIVING_ENTITY	
+1.16.1	play	clientbound	spawn_entity_painting	ok	3	3	-	generated_ids.rs:SPAWN_PAINTING	
+1.16.1	play	clientbound	named_entity_spawn	ok	4	4	-	generated_ids.rs:SPAWN_PLAYER	
+1.16.1	play	clientbound	animation	ok	5	5	-	generated_ids.rs:ANIMATE	
+1.16.1	play	clientbound	statistics	ok	6	6	-	generated_ids.rs:STATISTICS	
+1.16.1	play	clientbound	acknowledge_player_digging	ok	7	7	-	generated_ids.rs:ACKNOWLEDGE_PLAYER_DIGGING	
+1.16.1	play	clientbound	block_break_animation	ok	8	8	-	generated_ids.rs:BLOCK_BREAK_ANIMATION	
+1.16.1	play	clientbound	tile_entity_data	ok	9	9	-	generated_ids.rs:BLOCK_ENTITY_DATA	
+1.16.1	play	clientbound	block_action	ok	10	10	-	generated_ids.rs:BLOCK_ACTION	
+1.16.1	play	clientbound	block_change	ok	11	11	-	generated_ids.rs:BLOCK_CHANGE	
+1.16.1	play	clientbound	boss_bar	ok	12	12	-	generated_ids.rs:BOSS_BAR	
+1.16.1	play	clientbound	difficulty	ok	13	13	-	generated_ids.rs:CHANGE_DIFFICULTY	
+1.16.1	play	clientbound	chat	ok	14	14	-	generated_ids.rs:CHAT	
+1.16.1	play	clientbound	multi_block_change	ok	15	15	-	generated_ids.rs:MULTI_BLOCK_CHANGE	
+1.16.1	play	clientbound	tab_complete	ok	16	16	-	generated_ids.rs:TAB_COMPLETE	
+1.16.1	play	clientbound	declare_commands	ok	17	17	-	generated_ids.rs:DECLARE_COMMANDS	
+1.16.1	play	clientbound	transaction	ok	18	18	-	generated_ids.rs:WINDOW_CONFIRMATION	
+1.16.1	play	clientbound	close_window	ok	19	19	-	generated_ids.rs:CLOSE_WINDOW	
+1.16.1	play	clientbound	window_items	ok	20	20	-	generated_ids.rs:WINDOW_ITEMS	
+1.16.1	play	clientbound	craft_progress_bar	ok	21	21	-	generated_ids.rs:CONTAINER_SET_DATA	
+1.16.1	play	clientbound	set_slot	ok	22	22	-	generated_ids.rs:SET_SLOT	
+1.16.1	play	clientbound	set_cooldown	ok	23	23	-	generated_ids.rs:COOLDOWN	
+1.16.1	play	clientbound	custom_payload	ok	24	24	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.16.1	play	clientbound	named_sound_effect	ok	25	25	-	generated_ids.rs:NAMED_SOUND_EFFECT	
+1.16.1	play	clientbound	kick_disconnect	ok	26	26	-	generated_ids.rs:DISCONNECT	
+1.16.1	play	clientbound	entity_status	ok	27	27	-	generated_ids.rs:ENTITY_STATUS	
+1.16.1	play	clientbound	explosion	ok	28	28	-	generated_ids.rs:EXPLOSION	
+1.16.1	play	clientbound	unload_chunk	ok	29	29	-	generated_ids.rs:UNLOAD_CHUNK	
+1.16.1	play	clientbound	game_state_change	ok	30	30	-	generated_ids.rs:GAME_EVENT	
+1.16.1	play	clientbound	open_horse_window	ok	31	31	-	generated_ids.rs:OPEN_HORSE_WINDOW	
+1.16.1	play	clientbound	keep_alive	ok	32	32	-	generated_ids.rs:KEEP_ALIVE	
+1.16.1	play	clientbound	map_chunk	ok	33	33	-	generated_ids.rs:LEVEL_CHUNK_WITH_LIGHT	
+1.16.1	play	clientbound	world_event	ok	34	34	-	generated_ids.rs:LEVEL_EVENT	
+1.16.1	play	clientbound	world_particles	ok	35	35	-	generated_ids.rs:LEVEL_PARTICLES	
+1.16.1	play	clientbound	update_light	ok	36	36	-	generated_ids.rs:LIGHT_UPDATE	
+1.16.1	play	clientbound	login	ok	37	37	-	generated_ids.rs:LOGIN	
+1.16.1	play	clientbound	map	ok	38	38	-	generated_ids.rs:MAP_ITEM_DATA	
+1.16.1	play	clientbound	trade_list	ok	39	39	-	generated_ids.rs:MERCHANT_OFFERS	
+1.16.1	play	clientbound	rel_entity_move	ok	40	40	-	generated_ids.rs:MOVE_ENTITY_POS	
+1.16.1	play	clientbound	entity_move_look	ok	41	41	-	generated_ids.rs:MOVE_ENTITY_POS_ROT	
+1.16.1	play	clientbound	entity_look	ok	42	42	-	generated_ids.rs:MOVE_ENTITY_ROT	
+1.16.1	play	clientbound	entity	ok	43	43	-	generated_ids.rs:ENTITY_MOVEMENT	
+1.16.1	play	clientbound	vehicle_move	ok	44	44	-	generated_ids.rs:MOVE_VEHICLE	
+1.16.1	play	clientbound	open_book	ok	45	45	-	generated_ids.rs:OPEN_BOOK	
+1.16.1	play	clientbound	open_window	ok	46	46	-	generated_ids.rs:OPEN_WINDOW	
+1.16.1	play	clientbound	open_sign_entity	ok	47	47	-	generated_ids.rs:OPEN_SIGN_EDITOR	
+1.16.1	play	clientbound	craft_recipe_response	ok	48	48	-	generated_ids.rs:CRAFT_RECIPE_RESPONSE	
+1.16.1	play	clientbound	abilities	ok	49	49	-	generated_ids.rs:PLAYER_ABILITIES	
+1.16.1	play	clientbound	combat_event	ok	50	50	-	generated_ids.rs:COMBAT_EVENT	
+1.16.1	play	clientbound	player_info	ok	51	51	-	generated_ids.rs:PLAYER_INFO	
+1.16.1	play	clientbound	face_player	ok	52	52	-	generated_ids.rs:FACE_PLAYER	
+1.16.1	play	clientbound	position	ok	53	53	-	generated_ids.rs:PLAYER_POSITION	
+1.16.1	play	clientbound	unlock_recipes	ok	54	54	-	generated_ids.rs:UNLOCK_RECIPES	
+1.16.1	play	clientbound	entity_destroy	ok	55	55	-	generated_ids.rs:REMOVE_ENTITIES	
+1.16.1	play	clientbound	remove_entity_effect	ok	56	56	-	generated_ids.rs:REMOVE_ENTITY_EFFECT	
+1.16.1	play	clientbound	resource_pack_send	ok	57	57	-	generated_ids.rs:RESOURCE_PACK_SEND	
+1.16.1	play	clientbound	respawn	ok	58	58	-	generated_ids.rs:RESPAWN	
+1.16.1	play	clientbound	entity_head_rotation	ok	59	59	-	generated_ids.rs:ROTATE_HEAD	
+1.16.1	play	clientbound	select_advancement_tab	ok	60	60	-	generated_ids.rs:SELECT_ADVANCEMENTS_TAB	
+1.16.1	play	clientbound	world_border	ok	61	61	-	generated_ids.rs:WORLD_BORDER	
+1.16.1	play	clientbound	camera	ok	62	62	-	generated_ids.rs:SET_CAMERA	
+1.16.1	play	clientbound	held_item_slot	ok	63	63	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.16.1	play	clientbound	update_view_position	ok	64	64	-	generated_ids.rs:UPDATE_VIEW_POSITION	
+1.16.1	play	clientbound	update_view_distance	ok	65	65	-	generated_ids.rs:UPDATE_VIEW_DISTANCE	
+1.16.1	play	clientbound	spawn_position	id-mismatch	77	66	critical	generated_ids.rs:SPAWN_POSITION	Column is shifted; correct id is 66 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	scoreboard_display_objective	id-mismatch	66	67	critical	generated_ids.rs:SET_DISPLAY_OBJECTIVE	Column is shifted; correct id is 67 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	entity_metadata	id-mismatch	67	68	critical	generated_ids.rs:ENTITY_METADATA	Column is shifted; correct id is 68 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	attach_entity	id-mismatch	68	69	critical	generated_ids.rs:ATTACH_ENTITY	Column is shifted; correct id is 69 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	entity_velocity	id-mismatch	69	70	critical	generated_ids.rs:ENTITY_VELOCITY	Column is shifted; correct id is 70 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	entity_equipment	id-mismatch	70	71	critical	generated_ids.rs:ENTITY_EQUIPMENT	Column is shifted; correct id is 71 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	experience	id-mismatch	71	72	critical	generated_ids.rs:SET_EXPERIENCE	Column is shifted; correct id is 72 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	update_health	id-mismatch	72	73	critical	generated_ids.rs:UPDATE_HEALTH	Column is shifted; correct id is 73 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	scoreboard_objective	id-mismatch	73	74	critical	generated_ids.rs:SCOREBOARD_OBJECTIVE	Column is shifted; correct id is 74 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	set_passengers	id-mismatch	74	75	critical	generated_ids.rs:SET_PASSENGERS	Column is shifted; correct id is 75 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	teams	id-mismatch	75	76	critical	generated_ids.rs:SET_PLAYER_TEAM	Column is shifted; correct id is 76 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	scoreboard_score	id-mismatch	76	77	critical	generated_ids.rs:SET_SCORE	Column is shifted; correct id is 77 (wiki + ViaVersion agree).
+1.16.1	play	clientbound	update_time	ok	78	78	-	generated_ids.rs:SET_TIME	
+1.16.1	play	clientbound	title	ok	79	79	-	generated_ids.rs:TITLE	
+1.16.1	play	clientbound	entity_sound_effect	ok	80	80	-	generated_ids.rs:ENTITY_SOUND_EFFECT	
+1.16.1	play	clientbound	sound_effect	ok	81	81	-	generated_ids.rs:SOUND_EFFECT	
+1.16.1	play	clientbound	stop_sound	ok	82	82	-	generated_ids.rs:STOP_SOUND	
+1.16.1	play	clientbound	playerlist_header	ok	83	83	-	generated_ids.rs:TAB_LIST	
+1.16.1	play	clientbound	nbt_query_response	ok	84	84	-	generated_ids.rs:NBT_QUERY_RESPONSE	
+1.16.1	play	clientbound	collect	ok	85	85	-	generated_ids.rs:TAKE_ITEM_ENTITY	
+1.16.1	play	clientbound	entity_teleport	ok	86	86	-	generated_ids.rs:TELEPORT_ENTITY	
+1.16.1	play	clientbound	advancements	ok	87	87	-	generated_ids.rs:UPDATE_ADVANCEMENTS	
+1.16.1	play	clientbound	entity_update_attributes	ok	88	88	-	generated_ids.rs:UPDATE_ATTRIBUTES	
+1.16.1	play	clientbound	entity_effect	ok	89	89	-	generated_ids.rs:ENTITY_EFFECT	
+1.16.1	play	clientbound	declare_recipes	ok	90	90	-	generated_ids.rs:DECLARE_RECIPES	
+1.16.1	play	clientbound	tags	ok	91	91	-	generated_ids.rs:TAGS	
+1.16.1	play	serverbound	teleport_confirm	ok	0	0	-	generated_ids.rs:TELEPORT_CONFIRM	
+1.16.1	play	serverbound	query_block_nbt	ok	1	1	-	generated_ids.rs:BLOCK_ENTITY_TAG_QUERY	
+1.16.1	play	serverbound	set_difficulty	ok	2	2	-	generated_ids.rs:SET_DIFFICULTY	
+1.16.1	play	serverbound	chat	ok	3	3	-	generated_ids.rs:CHAT	
+1.16.1	play	serverbound	client_command	ok	4	4	-	generated_ids.rs:CLIENT_COMMAND	
+1.16.1	play	serverbound	settings	ok	5	5	-	generated_ids.rs:CLIENT_INFORMATION	
+1.16.1	play	serverbound	tab_complete	ok	6	6	-	generated_ids.rs:COMMAND_SUGGESTIONS	
+1.16.1	play	serverbound	transaction	ok	7	7	-	generated_ids.rs:WINDOW_CONFIRMATION	
+1.16.1	play	serverbound	enchant_item	unverifiable	?	8	info	generated_ids.rs	No packet const mapped; id set for this version/state compared equal to reference.
+1.16.1	play	serverbound	window_click	ok	9	9	-	generated_ids.rs:CONTAINER_CLICK	
+1.16.1	play	serverbound	close_window	ok	10	10	-	generated_ids.rs:CONTAINER_CLOSE	
+1.16.1	play	serverbound	custom_payload	ok	11	11	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.16.1	play	serverbound	edit_book	ok	12	12	-	generated_ids.rs:EDIT_BOOK	
+1.16.1	play	serverbound	query_entity_nbt	ok	13	13	-	generated_ids.rs:ENTITY_TAG_QUERY	
+1.16.1	play	serverbound	use_entity	ok	14	14	-	generated_ids.rs:INTERACT_ENTITY	
+1.16.1	play	serverbound	generate_structure	ok	15	15	-	generated_ids.rs:GENERATE_STRUCTURE	
+1.16.1	play	serverbound	keep_alive	ok	16	16	-	generated_ids.rs:KEEP_ALIVE	
+1.16.1	play	serverbound	lock_difficulty	ok	17	17	-	generated_ids.rs:LOCK_DIFFICULTY	
+1.16.1	play	serverbound	position	ok	18	18	-	generated_ids.rs:MOVE_PLAYER_POS	
+1.16.1	play	serverbound	position_look	ok	19	19	-	generated_ids.rs:MOVE_PLAYER_POS_ROT	
+1.16.1	play	serverbound	look	ok	20	20	-	generated_ids.rs:PLAYER_ROTATION	
+1.16.1	play	serverbound	flying	ok	21	21	-	generated_ids.rs:PLAYER_FLYING	
+1.16.1	play	serverbound	vehicle_move	ok	22	22	-	generated_ids.rs:MOVE_VEHICLE	
+1.16.1	play	serverbound	steer_boat	ok	23	23	-	generated_ids.rs:STEER_BOAT	
+1.16.1	play	serverbound	pick_item	ok	24	24	-	generated_ids.rs:PICK_ITEM	
+1.16.1	play	serverbound	craft_recipe_request	ok	25	25	-	generated_ids.rs:PLACE_RECIPE	
+1.16.1	play	serverbound	abilities	ok	26	26	-	generated_ids.rs:PLAYER_ABILITIES	
+1.16.1	play	serverbound	block_dig	ok	27	27	-	generated_ids.rs:PLAYER_DIGGING	
+1.16.1	play	serverbound	entity_action	ok	28	28	-	generated_ids.rs:ENTITY_ACTION	
+1.16.1	play	serverbound	steer_vehicle	ok	29	29	-	generated_ids.rs:STEER_VEHICLE	
+1.16.1	play	serverbound	crafting_book_data	ok	30	30	-	generated_ids.rs:RECIPE_BOOK_CHANGE_SETTINGS	
+1.16.1	play	serverbound	name_item	ok	31	31	-	generated_ids.rs:RENAME_ITEM	
+1.16.1	play	serverbound	resource_pack_receive	ok	32	32	-	generated_ids.rs:RESOURCE_PACK	
+1.16.1	play	serverbound	advancement_tab	ok	33	33	-	generated_ids.rs:SEEN_ADVANCEMENTS	
+1.16.1	play	serverbound	select_trade	ok	34	34	-	generated_ids.rs:SELECT_TRADE	
+1.16.1	play	serverbound	set_beacon_effect	ok	35	35	-	generated_ids.rs:SET_BEACON	
+1.16.1	play	serverbound	held_item_slot	ok	36	36	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.16.1	play	serverbound	update_command_block	ok	37	37	-	generated_ids.rs:SET_COMMAND_BLOCK	
+1.16.1	play	serverbound	update_command_block_minecart	ok	38	38	-	generated_ids.rs:SET_COMMAND_MINECART	
+1.16.1	play	serverbound	set_creative_slot	ok	39	39	-	generated_ids.rs:SET_CREATIVE_MODE_SLOT	
+1.16.1	play	serverbound	update_jigsaw_block	ok	40	40	-	generated_ids.rs:SET_JIGSAW_BLOCK	
+1.16.1	play	serverbound	update_structure_block	ok	41	41	-	generated_ids.rs:SET_STRUCTURE_BLOCK	
+1.16.1	play	serverbound	update_sign	ok	42	42	-	generated_ids.rs:SIGN_UPDATE	
+1.16.1	play	serverbound	arm_animation	ok	43	43	-	generated_ids.rs:SWING	
+1.16.1	play	serverbound	spectate	ok	44	44	-	generated_ids.rs:SPECTATE_ENTITY	
+1.16.1	play	serverbound	block_place	ok	45	45	-	generated_ids.rs:PLAYER_BLOCK_PLACEMENT	
+1.16.1	play	serverbound	use_item	ok	46	46	-	generated_ids.rs:USE_ITEM	
+1.16.1	login	clientbound	disconnect	ok	0	0	-	generated_ids.rs:LOGIN_DISCONNECT	
+1.16.1	login	clientbound	encryption_begin	ok	1	1	-	generated_ids.rs:HELLO	
+1.16.1	login	clientbound	success	ok	2	2	-	generated_ids.rs:LOGIN_FINISHED	
+1.16.1	login	clientbound	compress	ok	3	3	-	generated_ids.rs:LOGIN_COMPRESSION	
+1.16.1	login	clientbound	login_plugin_request	ok	4	4	-	generated_ids.rs:LOGIN_PLUGIN_REQUEST	
+1.16.1	login	serverbound	login_start	ok	0	0	-	generated_ids.rs:LOGIN_START	
+1.16.1	login	serverbound	encryption_begin	ok	1	1	-	generated_ids.rs:KEY	
+1.16.1	login	serverbound	login_plugin_response	ok	2	2	-	generated_ids.rs:LOGIN_PLUGIN_RESPONSE	
+1.16.1	status	clientbound	server_info	ok	0	0	-	generated_ids.rs:STATUS_RESPONSE	
+1.16.1	status	clientbound	ping	ok	1	1	-	generated_ids.rs:PONG_RESPONSE	
+1.16.1	status	serverbound	ping_start	ok	0	0	-	generated_ids.rs:STATUS_REQUEST	
+1.16.1	status	serverbound	ping	ok	1	1	-	generated_ids.rs:PING_REQUEST	
+1.16.1	handshaking	serverbound	set_protocol	ok	0	0	-	generated_ids.rs:INTENTION	
+1.16.2	play	clientbound	spawn_entity	ok	0	0	-	generated_ids.rs:SPAWN_ENTITY	
+1.16.2	play	clientbound	spawn_entity_experience_orb	ok	1	1	-	generated_ids.rs:SPAWN_EXPERIENCE_ORB	
+1.16.2	play	clientbound	spawn_entity_living	ok	2	2	-	generated_ids.rs:SPAWN_LIVING_ENTITY	
+1.16.2	play	clientbound	spawn_entity_painting	ok	3	3	-	generated_ids.rs:SPAWN_PAINTING	
+1.16.2	play	clientbound	named_entity_spawn	ok	4	4	-	generated_ids.rs:SPAWN_PLAYER	
+1.16.2	play	clientbound	animation	ok	5	5	-	generated_ids.rs:ANIMATE	
+1.16.2	play	clientbound	statistics	ok	6	6	-	generated_ids.rs:STATISTICS	
+1.16.2	play	clientbound	acknowledge_player_digging	ok	7	7	-	generated_ids.rs:ACKNOWLEDGE_PLAYER_DIGGING	
+1.16.2	play	clientbound	block_break_animation	ok	8	8	-	generated_ids.rs:BLOCK_BREAK_ANIMATION	
+1.16.2	play	clientbound	tile_entity_data	ok	9	9	-	generated_ids.rs:BLOCK_ENTITY_DATA	
+1.16.2	play	clientbound	block_action	ok	10	10	-	generated_ids.rs:BLOCK_ACTION	
+1.16.2	play	clientbound	block_change	ok	11	11	-	generated_ids.rs:BLOCK_CHANGE	
+1.16.2	play	clientbound	boss_bar	ok	12	12	-	generated_ids.rs:BOSS_BAR	
+1.16.2	play	clientbound	difficulty	ok	13	13	-	generated_ids.rs:CHANGE_DIFFICULTY	
+1.16.2	play	clientbound	chat	ok	14	14	-	generated_ids.rs:CHAT	
+1.16.2	play	clientbound	tab_complete	ok	15	15	-	generated_ids.rs:TAB_COMPLETE	
+1.16.2	play	clientbound	declare_commands	ok	16	16	-	generated_ids.rs:DECLARE_COMMANDS	
+1.16.2	play	clientbound	transaction	ok	17	17	-	generated_ids.rs:WINDOW_CONFIRMATION	
+1.16.2	play	clientbound	close_window	ok	18	18	-	generated_ids.rs:CLOSE_WINDOW	
+1.16.2	play	clientbound	window_items	ok	19	19	-	generated_ids.rs:WINDOW_ITEMS	
+1.16.2	play	clientbound	craft_progress_bar	ok	20	20	-	generated_ids.rs:CONTAINER_SET_DATA	
+1.16.2	play	clientbound	set_slot	ok	21	21	-	generated_ids.rs:SET_SLOT	
+1.16.2	play	clientbound	set_cooldown	ok	22	22	-	generated_ids.rs:COOLDOWN	
+1.16.2	play	clientbound	custom_payload	ok	23	23	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.16.2	play	clientbound	named_sound_effect	ok	24	24	-	generated_ids.rs:NAMED_SOUND_EFFECT	
+1.16.2	play	clientbound	kick_disconnect	ok	25	25	-	generated_ids.rs:DISCONNECT	
+1.16.2	play	clientbound	entity_status	ok	26	26	-	generated_ids.rs:ENTITY_STATUS	
+1.16.2	play	clientbound	explosion	ok	27	27	-	generated_ids.rs:EXPLOSION	
+1.16.2	play	clientbound	unload_chunk	ok	28	28	-	generated_ids.rs:UNLOAD_CHUNK	
+1.16.2	play	clientbound	game_state_change	ok	29	29	-	generated_ids.rs:GAME_EVENT	
+1.16.2	play	clientbound	open_horse_window	ok	30	30	-	generated_ids.rs:OPEN_HORSE_WINDOW	
+1.16.2	play	clientbound	keep_alive	ok	31	31	-	generated_ids.rs:KEEP_ALIVE	
+1.16.2	play	clientbound	map_chunk	ok	32	32	-	generated_ids.rs:LEVEL_CHUNK_WITH_LIGHT	
+1.16.2	play	clientbound	world_event	ok	33	33	-	generated_ids.rs:LEVEL_EVENT	
+1.16.2	play	clientbound	world_particles	ok	34	34	-	generated_ids.rs:LEVEL_PARTICLES	
+1.16.2	play	clientbound	update_light	ok	35	35	-	generated_ids.rs:LIGHT_UPDATE	
+1.16.2	play	clientbound	login	ok	36	36	-	generated_ids.rs:LOGIN	
+1.16.2	play	clientbound	map	ok	37	37	-	generated_ids.rs:MAP_ITEM_DATA	
+1.16.2	play	clientbound	trade_list	ok	38	38	-	generated_ids.rs:MERCHANT_OFFERS	
+1.16.2	play	clientbound	rel_entity_move	ok	39	39	-	generated_ids.rs:MOVE_ENTITY_POS	
+1.16.2	play	clientbound	entity_move_look	ok	40	40	-	generated_ids.rs:MOVE_ENTITY_POS_ROT	
+1.16.2	play	clientbound	entity_look	ok	41	41	-	generated_ids.rs:MOVE_ENTITY_ROT	
+1.16.2	play	clientbound	entity	ok	42	42	-	generated_ids.rs:ENTITY_MOVEMENT	
+1.16.2	play	clientbound	vehicle_move	ok	43	43	-	generated_ids.rs:MOVE_VEHICLE	
+1.16.2	play	clientbound	open_book	ok	44	44	-	generated_ids.rs:OPEN_BOOK	
+1.16.2	play	clientbound	open_window	ok	45	45	-	generated_ids.rs:OPEN_WINDOW	
+1.16.2	play	clientbound	open_sign_entity	ok	46	46	-	generated_ids.rs:OPEN_SIGN_EDITOR	
+1.16.2	play	clientbound	craft_recipe_response	ok	47	47	-	generated_ids.rs:CRAFT_RECIPE_RESPONSE	
+1.16.2	play	clientbound	abilities	ok	48	48	-	generated_ids.rs:PLAYER_ABILITIES	
+1.16.2	play	clientbound	combat_event	ok	49	49	-	generated_ids.rs:COMBAT_EVENT	
+1.16.2	play	clientbound	player_info	ok	50	50	-	generated_ids.rs:PLAYER_INFO	
+1.16.2	play	clientbound	face_player	ok	51	51	-	generated_ids.rs:FACE_PLAYER	
+1.16.2	play	clientbound	position	ok	52	52	-	generated_ids.rs:PLAYER_POSITION	
+1.16.2	play	clientbound	unlock_recipes	ok	53	53	-	generated_ids.rs:UNLOCK_RECIPES	
+1.16.2	play	clientbound	entity_destroy	ok	54	54	-	generated_ids.rs:REMOVE_ENTITIES	
+1.16.2	play	clientbound	remove_entity_effect	ok	55	55	-	generated_ids.rs:REMOVE_ENTITY_EFFECT	
+1.16.2	play	clientbound	resource_pack_send	ok	56	56	-	generated_ids.rs:RESOURCE_PACK_SEND	
+1.16.2	play	clientbound	respawn	ok	57	57	-	generated_ids.rs:RESPAWN	
+1.16.2	play	clientbound	entity_head_rotation	ok	58	58	-	generated_ids.rs:ROTATE_HEAD	
+1.16.2	play	clientbound	multi_block_change	ok	59	59	-	generated_ids.rs:MULTI_BLOCK_CHANGE	
+1.16.2	play	clientbound	select_advancement_tab	ok	60	60	-	generated_ids.rs:SELECT_ADVANCEMENTS_TAB	
+1.16.2	play	clientbound	world_border	ok	61	61	-	generated_ids.rs:WORLD_BORDER	
+1.16.2	play	clientbound	camera	ok	62	62	-	generated_ids.rs:SET_CAMERA	
+1.16.2	play	clientbound	held_item_slot	ok	63	63	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.16.2	play	clientbound	update_view_position	ok	64	64	-	generated_ids.rs:UPDATE_VIEW_POSITION	
+1.16.2	play	clientbound	update_view_distance	ok	65	65	-	generated_ids.rs:UPDATE_VIEW_DISTANCE	
+1.16.2	play	clientbound	spawn_position	ok	66	66	-	generated_ids.rs:SPAWN_POSITION	
+1.16.2	play	clientbound	scoreboard_display_objective	ok	67	67	-	generated_ids.rs:SET_DISPLAY_OBJECTIVE	
+1.16.2	play	clientbound	entity_metadata	ok	68	68	-	generated_ids.rs:ENTITY_METADATA	
+1.16.2	play	clientbound	attach_entity	ok	69	69	-	generated_ids.rs:ATTACH_ENTITY	
+1.16.2	play	clientbound	entity_velocity	ok	70	70	-	generated_ids.rs:ENTITY_VELOCITY	
+1.16.2	play	clientbound	entity_equipment	ok	71	71	-	generated_ids.rs:ENTITY_EQUIPMENT	
+1.16.2	play	clientbound	experience	ok	72	72	-	generated_ids.rs:SET_EXPERIENCE	
+1.16.2	play	clientbound	update_health	ok	73	73	-	generated_ids.rs:UPDATE_HEALTH	
+1.16.2	play	clientbound	scoreboard_objective	ok	74	74	-	generated_ids.rs:SCOREBOARD_OBJECTIVE	
+1.16.2	play	clientbound	set_passengers	ok	75	75	-	generated_ids.rs:SET_PASSENGERS	
+1.16.2	play	clientbound	teams	ok	76	76	-	generated_ids.rs:SET_PLAYER_TEAM	
+1.16.2	play	clientbound	scoreboard_score	ok	77	77	-	generated_ids.rs:SET_SCORE	
+1.16.2	play	clientbound	update_time	ok	78	78	-	generated_ids.rs:SET_TIME	
+1.16.2	play	clientbound	title	ok	79	79	-	generated_ids.rs:TITLE	
+1.16.2	play	clientbound	entity_sound_effect	ok	80	80	-	generated_ids.rs:ENTITY_SOUND_EFFECT	
+1.16.2	play	clientbound	sound_effect	ok	81	81	-	generated_ids.rs:SOUND_EFFECT	
+1.16.2	play	clientbound	stop_sound	ok	82	82	-	generated_ids.rs:STOP_SOUND	
+1.16.2	play	clientbound	playerlist_header	ok	83	83	-	generated_ids.rs:TAB_LIST	
+1.16.2	play	clientbound	nbt_query_response	ok	84	84	-	generated_ids.rs:NBT_QUERY_RESPONSE	
+1.16.2	play	clientbound	collect	ok	85	85	-	generated_ids.rs:TAKE_ITEM_ENTITY	
+1.16.2	play	clientbound	entity_teleport	ok	86	86	-	generated_ids.rs:TELEPORT_ENTITY	
+1.16.2	play	clientbound	advancements	ok	87	87	-	generated_ids.rs:UPDATE_ADVANCEMENTS	
+1.16.2	play	clientbound	entity_update_attributes	ok	88	88	-	generated_ids.rs:UPDATE_ATTRIBUTES	
+1.16.2	play	clientbound	entity_effect	ok	89	89	-	generated_ids.rs:ENTITY_EFFECT	
+1.16.2	play	clientbound	declare_recipes	ok	90	90	-	generated_ids.rs:DECLARE_RECIPES	
+1.16.2	play	clientbound	tags	ok	91	91	-	generated_ids.rs:TAGS	
+1.16.2	play	serverbound	teleport_confirm	ok	0	0	-	generated_ids.rs:TELEPORT_CONFIRM	
+1.16.2	play	serverbound	query_block_nbt	ok	1	1	-	generated_ids.rs:BLOCK_ENTITY_TAG_QUERY	
+1.16.2	play	serverbound	set_difficulty	ok	2	2	-	generated_ids.rs:SET_DIFFICULTY	
+1.16.2	play	serverbound	chat	ok	3	3	-	generated_ids.rs:CHAT	
+1.16.2	play	serverbound	client_command	ok	4	4	-	generated_ids.rs:CLIENT_COMMAND	
+1.16.2	play	serverbound	settings	ok	5	5	-	generated_ids.rs:CLIENT_INFORMATION	
+1.16.2	play	serverbound	tab_complete	ok	6	6	-	generated_ids.rs:COMMAND_SUGGESTIONS	
+1.16.2	play	serverbound	transaction	ok	7	7	-	generated_ids.rs:WINDOW_CONFIRMATION	
+1.16.2	play	serverbound	enchant_item	unverifiable	?	8	info	generated_ids.rs	No packet const mapped; id set for this version/state compared equal to reference.
+1.16.2	play	serverbound	window_click	ok	9	9	-	generated_ids.rs:CONTAINER_CLICK	
+1.16.2	play	serverbound	close_window	ok	10	10	-	generated_ids.rs:CONTAINER_CLOSE	
+1.16.2	play	serverbound	custom_payload	ok	11	11	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.16.2	play	serverbound	edit_book	ok	12	12	-	generated_ids.rs:EDIT_BOOK	
+1.16.2	play	serverbound	query_entity_nbt	ok	13	13	-	generated_ids.rs:ENTITY_TAG_QUERY	
+1.16.2	play	serverbound	use_entity	ok	14	14	-	generated_ids.rs:INTERACT_ENTITY	
+1.16.2	play	serverbound	generate_structure	ok	15	15	-	generated_ids.rs:GENERATE_STRUCTURE	
+1.16.2	play	serverbound	keep_alive	ok	16	16	-	generated_ids.rs:KEEP_ALIVE	
+1.16.2	play	serverbound	lock_difficulty	ok	17	17	-	generated_ids.rs:LOCK_DIFFICULTY	
+1.16.2	play	serverbound	position	ok	18	18	-	generated_ids.rs:MOVE_PLAYER_POS	
+1.16.2	play	serverbound	position_look	ok	19	19	-	generated_ids.rs:MOVE_PLAYER_POS_ROT	
+1.16.2	play	serverbound	look	ok	20	20	-	generated_ids.rs:PLAYER_ROTATION	
+1.16.2	play	serverbound	flying	ok	21	21	-	generated_ids.rs:PLAYER_FLYING	
+1.16.2	play	serverbound	vehicle_move	ok	22	22	-	generated_ids.rs:MOVE_VEHICLE	
+1.16.2	play	serverbound	steer_boat	ok	23	23	-	generated_ids.rs:STEER_BOAT	
+1.16.2	play	serverbound	pick_item	ok	24	24	-	generated_ids.rs:PICK_ITEM	
+1.16.2	play	serverbound	craft_recipe_request	ok	25	25	-	generated_ids.rs:PLACE_RECIPE	
+1.16.2	play	serverbound	abilities	ok	26	26	-	generated_ids.rs:PLAYER_ABILITIES	
+1.16.2	play	serverbound	block_dig	ok	27	27	-	generated_ids.rs:PLAYER_DIGGING	
+1.16.2	play	serverbound	entity_action	ok	28	28	-	generated_ids.rs:ENTITY_ACTION	
+1.16.2	play	serverbound	steer_vehicle	ok	29	29	-	generated_ids.rs:STEER_VEHICLE	
+1.16.2	play	serverbound	recipe_book	missing	-1	30	low	generated_ids.rs:RECIPE_BOOK_DATA	No older-layout entry; packet dropped for this client.
+1.16.2	play	serverbound	displayed_recipe	ok	31	31	-	generated_ids.rs:RECIPE_BOOK_SEEN_RECIPE	
+1.16.2	play	serverbound	name_item	ok	32	32	-	generated_ids.rs:RENAME_ITEM	
+1.16.2	play	serverbound	resource_pack_receive	ok	33	33	-	generated_ids.rs:RESOURCE_PACK	
+1.16.2	play	serverbound	advancement_tab	ok	34	34	-	generated_ids.rs:SEEN_ADVANCEMENTS	
+1.16.2	play	serverbound	select_trade	ok	35	35	-	generated_ids.rs:SELECT_TRADE	
+1.16.2	play	serverbound	set_beacon_effect	ok	36	36	-	generated_ids.rs:SET_BEACON	
+1.16.2	play	serverbound	held_item_slot	ok	37	37	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.16.2	play	serverbound	update_command_block	ok	38	38	-	generated_ids.rs:SET_COMMAND_BLOCK	
+1.16.2	play	serverbound	update_command_block_minecart	ok	39	39	-	generated_ids.rs:SET_COMMAND_MINECART	
+1.16.2	play	serverbound	set_creative_slot	ok	40	40	-	generated_ids.rs:SET_CREATIVE_MODE_SLOT	
+1.16.2	play	serverbound	update_jigsaw_block	ok	41	41	-	generated_ids.rs:SET_JIGSAW_BLOCK	
+1.16.2	play	serverbound	update_structure_block	ok	42	42	-	generated_ids.rs:SET_STRUCTURE_BLOCK	
+1.16.2	play	serverbound	update_sign	ok	43	43	-	generated_ids.rs:SIGN_UPDATE	
+1.16.2	play	serverbound	arm_animation	ok	44	44	-	generated_ids.rs:SWING	
+1.16.2	play	serverbound	spectate	ok	45	45	-	generated_ids.rs:SPECTATE_ENTITY	
+1.16.2	play	serverbound	block_place	ok	46	46	-	generated_ids.rs:PLAYER_BLOCK_PLACEMENT	
+1.16.2	play	serverbound	use_item	ok	47	47	-	generated_ids.rs:USE_ITEM	
+1.16.2	login	clientbound	disconnect	ok	0	0	-	generated_ids.rs:LOGIN_DISCONNECT	
+1.16.2	login	clientbound	encryption_begin	ok	1	1	-	generated_ids.rs:HELLO	
+1.16.2	login	clientbound	success	ok	2	2	-	generated_ids.rs:LOGIN_FINISHED	
+1.16.2	login	clientbound	compress	ok	3	3	-	generated_ids.rs:LOGIN_COMPRESSION	
+1.16.2	login	clientbound	login_plugin_request	ok	4	4	-	generated_ids.rs:LOGIN_PLUGIN_REQUEST	
+1.16.2	login	serverbound	login_start	ok	0	0	-	generated_ids.rs:LOGIN_START	
+1.16.2	login	serverbound	encryption_begin	ok	1	1	-	generated_ids.rs:KEY	
+1.16.2	login	serverbound	login_plugin_response	ok	2	2	-	generated_ids.rs:LOGIN_PLUGIN_RESPONSE	
+1.16.2	status	clientbound	server_info	ok	0	0	-	generated_ids.rs:STATUS_RESPONSE	
+1.16.2	status	clientbound	ping	ok	1	1	-	generated_ids.rs:PONG_RESPONSE	
+1.16.2	status	serverbound	ping_start	ok	0	0	-	generated_ids.rs:STATUS_REQUEST	
+1.16.2	status	serverbound	ping	ok	1	1	-	generated_ids.rs:PING_REQUEST	
+1.16.2	handshaking	serverbound	set_protocol	ok	0	0	-	generated_ids.rs:INTENTION	
+1.16.3	play	clientbound	spawn_entity	ok	0	0	-	generated_ids.rs:SPAWN_ENTITY	
+1.16.3	play	clientbound	spawn_entity_experience_orb	ok	1	1	-	generated_ids.rs:SPAWN_EXPERIENCE_ORB	
+1.16.3	play	clientbound	spawn_entity_living	ok	2	2	-	generated_ids.rs:SPAWN_LIVING_ENTITY	
+1.16.3	play	clientbound	spawn_entity_painting	ok	3	3	-	generated_ids.rs:SPAWN_PAINTING	
+1.16.3	play	clientbound	named_entity_spawn	ok	4	4	-	generated_ids.rs:SPAWN_PLAYER	
+1.16.3	play	clientbound	animation	ok	5	5	-	generated_ids.rs:ANIMATE	
+1.16.3	play	clientbound	statistics	ok	6	6	-	generated_ids.rs:STATISTICS	
+1.16.3	play	clientbound	acknowledge_player_digging	ok	7	7	-	generated_ids.rs:ACKNOWLEDGE_PLAYER_DIGGING	
+1.16.3	play	clientbound	block_break_animation	ok	8	8	-	generated_ids.rs:BLOCK_BREAK_ANIMATION	
+1.16.3	play	clientbound	tile_entity_data	ok	9	9	-	generated_ids.rs:BLOCK_ENTITY_DATA	
+1.16.3	play	clientbound	block_action	ok	10	10	-	generated_ids.rs:BLOCK_ACTION	
+1.16.3	play	clientbound	block_change	ok	11	11	-	generated_ids.rs:BLOCK_CHANGE	
+1.16.3	play	clientbound	boss_bar	ok	12	12	-	generated_ids.rs:BOSS_BAR	
+1.16.3	play	clientbound	difficulty	ok	13	13	-	generated_ids.rs:CHANGE_DIFFICULTY	
+1.16.3	play	clientbound	chat	ok	14	14	-	generated_ids.rs:CHAT	
+1.16.3	play	clientbound	tab_complete	ok	15	15	-	generated_ids.rs:TAB_COMPLETE	
+1.16.3	play	clientbound	declare_commands	ok	16	16	-	generated_ids.rs:DECLARE_COMMANDS	
+1.16.3	play	clientbound	transaction	ok	17	17	-	generated_ids.rs:WINDOW_CONFIRMATION	
+1.16.3	play	clientbound	close_window	ok	18	18	-	generated_ids.rs:CLOSE_WINDOW	
+1.16.3	play	clientbound	window_items	ok	19	19	-	generated_ids.rs:WINDOW_ITEMS	
+1.16.3	play	clientbound	craft_progress_bar	ok	20	20	-	generated_ids.rs:CONTAINER_SET_DATA	
+1.16.3	play	clientbound	set_slot	ok	21	21	-	generated_ids.rs:SET_SLOT	
+1.16.3	play	clientbound	set_cooldown	ok	22	22	-	generated_ids.rs:COOLDOWN	
+1.16.3	play	clientbound	custom_payload	ok	23	23	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.16.3	play	clientbound	named_sound_effect	ok	24	24	-	generated_ids.rs:NAMED_SOUND_EFFECT	
+1.16.3	play	clientbound	kick_disconnect	ok	25	25	-	generated_ids.rs:DISCONNECT	
+1.16.3	play	clientbound	entity_status	ok	26	26	-	generated_ids.rs:ENTITY_STATUS	
+1.16.3	play	clientbound	explosion	ok	27	27	-	generated_ids.rs:EXPLOSION	
+1.16.3	play	clientbound	unload_chunk	ok	28	28	-	generated_ids.rs:UNLOAD_CHUNK	
+1.16.3	play	clientbound	game_state_change	ok	29	29	-	generated_ids.rs:GAME_EVENT	
+1.16.3	play	clientbound	open_horse_window	ok	30	30	-	generated_ids.rs:OPEN_HORSE_WINDOW	
+1.16.3	play	clientbound	keep_alive	ok	31	31	-	generated_ids.rs:KEEP_ALIVE	
+1.16.3	play	clientbound	map_chunk	ok	32	32	-	generated_ids.rs:LEVEL_CHUNK_WITH_LIGHT	
+1.16.3	play	clientbound	world_event	ok	33	33	-	generated_ids.rs:LEVEL_EVENT	
+1.16.3	play	clientbound	world_particles	ok	34	34	-	generated_ids.rs:LEVEL_PARTICLES	
+1.16.3	play	clientbound	update_light	ok	35	35	-	generated_ids.rs:LIGHT_UPDATE	
+1.16.3	play	clientbound	login	ok	36	36	-	generated_ids.rs:LOGIN	
+1.16.3	play	clientbound	map	ok	37	37	-	generated_ids.rs:MAP_ITEM_DATA	
+1.16.3	play	clientbound	trade_list	ok	38	38	-	generated_ids.rs:MERCHANT_OFFERS	
+1.16.3	play	clientbound	rel_entity_move	ok	39	39	-	generated_ids.rs:MOVE_ENTITY_POS	
+1.16.3	play	clientbound	entity_move_look	ok	40	40	-	generated_ids.rs:MOVE_ENTITY_POS_ROT	
+1.16.3	play	clientbound	entity_look	ok	41	41	-	generated_ids.rs:MOVE_ENTITY_ROT	
+1.16.3	play	clientbound	entity	ok	42	42	-	generated_ids.rs:ENTITY_MOVEMENT	
+1.16.3	play	clientbound	vehicle_move	ok	43	43	-	generated_ids.rs:MOVE_VEHICLE	
+1.16.3	play	clientbound	open_book	ok	44	44	-	generated_ids.rs:OPEN_BOOK	
+1.16.3	play	clientbound	open_window	ok	45	45	-	generated_ids.rs:OPEN_WINDOW	
+1.16.3	play	clientbound	open_sign_entity	ok	46	46	-	generated_ids.rs:OPEN_SIGN_EDITOR	
+1.16.3	play	clientbound	craft_recipe_response	ok	47	47	-	generated_ids.rs:CRAFT_RECIPE_RESPONSE	
+1.16.3	play	clientbound	abilities	ok	48	48	-	generated_ids.rs:PLAYER_ABILITIES	
+1.16.3	play	clientbound	combat_event	ok	49	49	-	generated_ids.rs:COMBAT_EVENT	
+1.16.3	play	clientbound	player_info	ok	50	50	-	generated_ids.rs:PLAYER_INFO	
+1.16.3	play	clientbound	face_player	ok	51	51	-	generated_ids.rs:FACE_PLAYER	
+1.16.3	play	clientbound	position	ok	52	52	-	generated_ids.rs:PLAYER_POSITION	
+1.16.3	play	clientbound	unlock_recipes	ok	53	53	-	generated_ids.rs:UNLOCK_RECIPES	
+1.16.3	play	clientbound	entity_destroy	ok	54	54	-	generated_ids.rs:REMOVE_ENTITIES	
+1.16.3	play	clientbound	remove_entity_effect	ok	55	55	-	generated_ids.rs:REMOVE_ENTITY_EFFECT	
+1.16.3	play	clientbound	resource_pack_send	ok	56	56	-	generated_ids.rs:RESOURCE_PACK_SEND	
+1.16.3	play	clientbound	respawn	ok	57	57	-	generated_ids.rs:RESPAWN	
+1.16.3	play	clientbound	entity_head_rotation	ok	58	58	-	generated_ids.rs:ROTATE_HEAD	
+1.16.3	play	clientbound	multi_block_change	ok	59	59	-	generated_ids.rs:MULTI_BLOCK_CHANGE	
+1.16.3	play	clientbound	select_advancement_tab	ok	60	60	-	generated_ids.rs:SELECT_ADVANCEMENTS_TAB	
+1.16.3	play	clientbound	world_border	ok	61	61	-	generated_ids.rs:WORLD_BORDER	
+1.16.3	play	clientbound	camera	ok	62	62	-	generated_ids.rs:SET_CAMERA	
+1.16.3	play	clientbound	held_item_slot	ok	63	63	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.16.3	play	clientbound	update_view_position	ok	64	64	-	generated_ids.rs:UPDATE_VIEW_POSITION	
+1.16.3	play	clientbound	update_view_distance	ok	65	65	-	generated_ids.rs:UPDATE_VIEW_DISTANCE	
+1.16.3	play	clientbound	spawn_position	ok	66	66	-	generated_ids.rs:SPAWN_POSITION	
+1.16.3	play	clientbound	scoreboard_display_objective	ok	67	67	-	generated_ids.rs:SET_DISPLAY_OBJECTIVE	
+1.16.3	play	clientbound	entity_metadata	ok	68	68	-	generated_ids.rs:ENTITY_METADATA	
+1.16.3	play	clientbound	attach_entity	ok	69	69	-	generated_ids.rs:ATTACH_ENTITY	
+1.16.3	play	clientbound	entity_velocity	ok	70	70	-	generated_ids.rs:ENTITY_VELOCITY	
+1.16.3	play	clientbound	entity_equipment	ok	71	71	-	generated_ids.rs:ENTITY_EQUIPMENT	
+1.16.3	play	clientbound	experience	ok	72	72	-	generated_ids.rs:SET_EXPERIENCE	
+1.16.3	play	clientbound	update_health	ok	73	73	-	generated_ids.rs:UPDATE_HEALTH	
+1.16.3	play	clientbound	scoreboard_objective	ok	74	74	-	generated_ids.rs:SCOREBOARD_OBJECTIVE	
+1.16.3	play	clientbound	set_passengers	ok	75	75	-	generated_ids.rs:SET_PASSENGERS	
+1.16.3	play	clientbound	teams	ok	76	76	-	generated_ids.rs:SET_PLAYER_TEAM	
+1.16.3	play	clientbound	scoreboard_score	ok	77	77	-	generated_ids.rs:SET_SCORE	
+1.16.3	play	clientbound	update_time	ok	78	78	-	generated_ids.rs:SET_TIME	
+1.16.3	play	clientbound	title	ok	79	79	-	generated_ids.rs:TITLE	
+1.16.3	play	clientbound	entity_sound_effect	ok	80	80	-	generated_ids.rs:ENTITY_SOUND_EFFECT	
+1.16.3	play	clientbound	sound_effect	ok	81	81	-	generated_ids.rs:SOUND_EFFECT	
+1.16.3	play	clientbound	stop_sound	ok	82	82	-	generated_ids.rs:STOP_SOUND	
+1.16.3	play	clientbound	playerlist_header	ok	83	83	-	generated_ids.rs:TAB_LIST	
+1.16.3	play	clientbound	nbt_query_response	ok	84	84	-	generated_ids.rs:NBT_QUERY_RESPONSE	
+1.16.3	play	clientbound	collect	ok	85	85	-	generated_ids.rs:TAKE_ITEM_ENTITY	
+1.16.3	play	clientbound	entity_teleport	ok	86	86	-	generated_ids.rs:TELEPORT_ENTITY	
+1.16.3	play	clientbound	advancements	ok	87	87	-	generated_ids.rs:UPDATE_ADVANCEMENTS	
+1.16.3	play	clientbound	entity_update_attributes	ok	88	88	-	generated_ids.rs:UPDATE_ATTRIBUTES	
+1.16.3	play	clientbound	entity_effect	ok	89	89	-	generated_ids.rs:ENTITY_EFFECT	
+1.16.3	play	clientbound	declare_recipes	ok	90	90	-	generated_ids.rs:DECLARE_RECIPES	
+1.16.3	play	clientbound	tags	ok	91	91	-	generated_ids.rs:TAGS	
+1.16.3	play	serverbound	teleport_confirm	ok	0	0	-	generated_ids.rs:TELEPORT_CONFIRM	
+1.16.3	play	serverbound	query_block_nbt	ok	1	1	-	generated_ids.rs:BLOCK_ENTITY_TAG_QUERY	
+1.16.3	play	serverbound	set_difficulty	ok	2	2	-	generated_ids.rs:SET_DIFFICULTY	
+1.16.3	play	serverbound	chat	ok	3	3	-	generated_ids.rs:CHAT	
+1.16.3	play	serverbound	client_command	ok	4	4	-	generated_ids.rs:CLIENT_COMMAND	
+1.16.3	play	serverbound	settings	ok	5	5	-	generated_ids.rs:CLIENT_INFORMATION	
+1.16.3	play	serverbound	tab_complete	ok	6	6	-	generated_ids.rs:COMMAND_SUGGESTIONS	
+1.16.3	play	serverbound	transaction	ok	7	7	-	generated_ids.rs:WINDOW_CONFIRMATION	
+1.16.3	play	serverbound	enchant_item	unverifiable	?	8	info	generated_ids.rs	No packet const mapped; id set for this version/state compared equal to reference.
+1.16.3	play	serverbound	window_click	ok	9	9	-	generated_ids.rs:CONTAINER_CLICK	
+1.16.3	play	serverbound	close_window	ok	10	10	-	generated_ids.rs:CONTAINER_CLOSE	
+1.16.3	play	serverbound	custom_payload	ok	11	11	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.16.3	play	serverbound	edit_book	ok	12	12	-	generated_ids.rs:EDIT_BOOK	
+1.16.3	play	serverbound	query_entity_nbt	ok	13	13	-	generated_ids.rs:ENTITY_TAG_QUERY	
+1.16.3	play	serverbound	use_entity	ok	14	14	-	generated_ids.rs:INTERACT_ENTITY	
+1.16.3	play	serverbound	generate_structure	ok	15	15	-	generated_ids.rs:GENERATE_STRUCTURE	
+1.16.3	play	serverbound	keep_alive	ok	16	16	-	generated_ids.rs:KEEP_ALIVE	
+1.16.3	play	serverbound	lock_difficulty	ok	17	17	-	generated_ids.rs:LOCK_DIFFICULTY	
+1.16.3	play	serverbound	position	ok	18	18	-	generated_ids.rs:MOVE_PLAYER_POS	
+1.16.3	play	serverbound	position_look	ok	19	19	-	generated_ids.rs:MOVE_PLAYER_POS_ROT	
+1.16.3	play	serverbound	look	ok	20	20	-	generated_ids.rs:PLAYER_ROTATION	
+1.16.3	play	serverbound	flying	ok	21	21	-	generated_ids.rs:PLAYER_FLYING	
+1.16.3	play	serverbound	vehicle_move	ok	22	22	-	generated_ids.rs:MOVE_VEHICLE	
+1.16.3	play	serverbound	steer_boat	ok	23	23	-	generated_ids.rs:STEER_BOAT	
+1.16.3	play	serverbound	pick_item	ok	24	24	-	generated_ids.rs:PICK_ITEM	
+1.16.3	play	serverbound	craft_recipe_request	ok	25	25	-	generated_ids.rs:PLACE_RECIPE	
+1.16.3	play	serverbound	abilities	ok	26	26	-	generated_ids.rs:PLAYER_ABILITIES	
+1.16.3	play	serverbound	block_dig	ok	27	27	-	generated_ids.rs:PLAYER_DIGGING	
+1.16.3	play	serverbound	entity_action	ok	28	28	-	generated_ids.rs:ENTITY_ACTION	
+1.16.3	play	serverbound	steer_vehicle	ok	29	29	-	generated_ids.rs:STEER_VEHICLE	
+1.16.3	play	serverbound	recipe_book	missing	-1	30	low	generated_ids.rs:RECIPE_BOOK_DATA	No older-layout entry; packet dropped for this client.
+1.16.3	play	serverbound	displayed_recipe	ok	31	31	-	generated_ids.rs:RECIPE_BOOK_SEEN_RECIPE	
+1.16.3	play	serverbound	name_item	ok	32	32	-	generated_ids.rs:RENAME_ITEM	
+1.16.3	play	serverbound	resource_pack_receive	ok	33	33	-	generated_ids.rs:RESOURCE_PACK	
+1.16.3	play	serverbound	advancement_tab	ok	34	34	-	generated_ids.rs:SEEN_ADVANCEMENTS	
+1.16.3	play	serverbound	select_trade	ok	35	35	-	generated_ids.rs:SELECT_TRADE	
+1.16.3	play	serverbound	set_beacon_effect	ok	36	36	-	generated_ids.rs:SET_BEACON	
+1.16.3	play	serverbound	held_item_slot	ok	37	37	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.16.3	play	serverbound	update_command_block	ok	38	38	-	generated_ids.rs:SET_COMMAND_BLOCK	
+1.16.3	play	serverbound	update_command_block_minecart	ok	39	39	-	generated_ids.rs:SET_COMMAND_MINECART	
+1.16.3	play	serverbound	set_creative_slot	ok	40	40	-	generated_ids.rs:SET_CREATIVE_MODE_SLOT	
+1.16.3	play	serverbound	update_jigsaw_block	ok	41	41	-	generated_ids.rs:SET_JIGSAW_BLOCK	
+1.16.3	play	serverbound	update_structure_block	ok	42	42	-	generated_ids.rs:SET_STRUCTURE_BLOCK	
+1.16.3	play	serverbound	update_sign	ok	43	43	-	generated_ids.rs:SIGN_UPDATE	
+1.16.3	play	serverbound	arm_animation	ok	44	44	-	generated_ids.rs:SWING	
+1.16.3	play	serverbound	spectate	ok	45	45	-	generated_ids.rs:SPECTATE_ENTITY	
+1.16.3	play	serverbound	block_place	ok	46	46	-	generated_ids.rs:PLAYER_BLOCK_PLACEMENT	
+1.16.3	play	serverbound	use_item	ok	47	47	-	generated_ids.rs:USE_ITEM	
+1.16.3	login	clientbound	disconnect	ok	0	0	-	generated_ids.rs:LOGIN_DISCONNECT	
+1.16.3	login	clientbound	encryption_begin	ok	1	1	-	generated_ids.rs:HELLO	
+1.16.3	login	clientbound	success	ok	2	2	-	generated_ids.rs:LOGIN_FINISHED	
+1.16.3	login	clientbound	compress	ok	3	3	-	generated_ids.rs:LOGIN_COMPRESSION	
+1.16.3	login	clientbound	login_plugin_request	ok	4	4	-	generated_ids.rs:LOGIN_PLUGIN_REQUEST	
+1.16.3	login	serverbound	login_start	ok	0	0	-	generated_ids.rs:LOGIN_START	
+1.16.3	login	serverbound	encryption_begin	ok	1	1	-	generated_ids.rs:KEY	
+1.16.3	login	serverbound	login_plugin_response	ok	2	2	-	generated_ids.rs:LOGIN_PLUGIN_RESPONSE	
+1.16.3	status	clientbound	server_info	ok	0	0	-	generated_ids.rs:STATUS_RESPONSE	
+1.16.3	status	clientbound	ping	ok	1	1	-	generated_ids.rs:PONG_RESPONSE	
+1.16.3	status	serverbound	ping_start	ok	0	0	-	generated_ids.rs:STATUS_REQUEST	
+1.16.3	status	serverbound	ping	ok	1	1	-	generated_ids.rs:PING_REQUEST	
+1.16.3	handshaking	serverbound	set_protocol	ok	0	0	-	generated_ids.rs:INTENTION	
+1.16.4/1.16.5	play	clientbound	spawn_entity	ok	0	0	-	generated_ids.rs:SPAWN_ENTITY	
+1.16.4/1.16.5	play	clientbound	spawn_entity_experience_orb	ok	1	1	-	generated_ids.rs:SPAWN_EXPERIENCE_ORB	
+1.16.4/1.16.5	play	clientbound	spawn_entity_living	ok	2	2	-	generated_ids.rs:SPAWN_LIVING_ENTITY	
+1.16.4/1.16.5	play	clientbound	spawn_entity_painting	ok	3	3	-	generated_ids.rs:SPAWN_PAINTING	
+1.16.4/1.16.5	play	clientbound	named_entity_spawn	ok	4	4	-	generated_ids.rs:SPAWN_PLAYER	
+1.16.4/1.16.5	play	clientbound	animation	ok	5	5	-	generated_ids.rs:ANIMATE	
+1.16.4/1.16.5	play	clientbound	statistics	ok	6	6	-	generated_ids.rs:STATISTICS	
+1.16.4/1.16.5	play	clientbound	acknowledge_player_digging	ok	7	7	-	generated_ids.rs:ACKNOWLEDGE_PLAYER_DIGGING	
+1.16.4/1.16.5	play	clientbound	block_break_animation	ok	8	8	-	generated_ids.rs:BLOCK_BREAK_ANIMATION	
+1.16.4/1.16.5	play	clientbound	tile_entity_data	ok	9	9	-	generated_ids.rs:BLOCK_ENTITY_DATA	
+1.16.4/1.16.5	play	clientbound	block_action	ok	10	10	-	generated_ids.rs:BLOCK_ACTION	
+1.16.4/1.16.5	play	clientbound	block_change	ok	11	11	-	generated_ids.rs:BLOCK_CHANGE	
+1.16.4/1.16.5	play	clientbound	boss_bar	ok	12	12	-	generated_ids.rs:BOSS_BAR	
+1.16.4/1.16.5	play	clientbound	difficulty	ok	13	13	-	generated_ids.rs:CHANGE_DIFFICULTY	
+1.16.4/1.16.5	play	clientbound	chat	ok	14	14	-	generated_ids.rs:CHAT	
+1.16.4/1.16.5	play	clientbound	tab_complete	ok	15	15	-	generated_ids.rs:TAB_COMPLETE	
+1.16.4/1.16.5	play	clientbound	declare_commands	ok	16	16	-	generated_ids.rs:DECLARE_COMMANDS	
+1.16.4/1.16.5	play	clientbound	transaction	ok	17	17	-	generated_ids.rs:WINDOW_CONFIRMATION	
+1.16.4/1.16.5	play	clientbound	close_window	ok	18	18	-	generated_ids.rs:CLOSE_WINDOW	
+1.16.4/1.16.5	play	clientbound	window_items	ok	19	19	-	generated_ids.rs:WINDOW_ITEMS	
+1.16.4/1.16.5	play	clientbound	craft_progress_bar	ok	20	20	-	generated_ids.rs:CONTAINER_SET_DATA	
+1.16.4/1.16.5	play	clientbound	set_slot	ok	21	21	-	generated_ids.rs:SET_SLOT	
+1.16.4/1.16.5	play	clientbound	set_cooldown	ok	22	22	-	generated_ids.rs:COOLDOWN	
+1.16.4/1.16.5	play	clientbound	custom_payload	ok	23	23	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.16.4/1.16.5	play	clientbound	named_sound_effect	ok	24	24	-	generated_ids.rs:NAMED_SOUND_EFFECT	
+1.16.4/1.16.5	play	clientbound	kick_disconnect	ok	25	25	-	generated_ids.rs:DISCONNECT	
+1.16.4/1.16.5	play	clientbound	entity_status	ok	26	26	-	generated_ids.rs:ENTITY_STATUS	
+1.16.4/1.16.5	play	clientbound	explosion	ok	27	27	-	generated_ids.rs:EXPLOSION	
+1.16.4/1.16.5	play	clientbound	unload_chunk	ok	28	28	-	generated_ids.rs:UNLOAD_CHUNK	
+1.16.4/1.16.5	play	clientbound	game_state_change	ok	29	29	-	generated_ids.rs:GAME_EVENT	
+1.16.4/1.16.5	play	clientbound	open_horse_window	ok	30	30	-	generated_ids.rs:OPEN_HORSE_WINDOW	
+1.16.4/1.16.5	play	clientbound	keep_alive	ok	31	31	-	generated_ids.rs:KEEP_ALIVE	
+1.16.4/1.16.5	play	clientbound	map_chunk	ok	32	32	-	generated_ids.rs:LEVEL_CHUNK_WITH_LIGHT	
+1.16.4/1.16.5	play	clientbound	world_event	ok	33	33	-	generated_ids.rs:LEVEL_EVENT	
+1.16.4/1.16.5	play	clientbound	world_particles	ok	34	34	-	generated_ids.rs:LEVEL_PARTICLES	
+1.16.4/1.16.5	play	clientbound	update_light	ok	35	35	-	generated_ids.rs:LIGHT_UPDATE	
+1.16.4/1.16.5	play	clientbound	login	ok	36	36	-	generated_ids.rs:LOGIN	
+1.16.4/1.16.5	play	clientbound	map	ok	37	37	-	generated_ids.rs:MAP_ITEM_DATA	
+1.16.4/1.16.5	play	clientbound	trade_list	ok	38	38	-	generated_ids.rs:MERCHANT_OFFERS	
+1.16.4/1.16.5	play	clientbound	rel_entity_move	ok	39	39	-	generated_ids.rs:MOVE_ENTITY_POS	
+1.16.4/1.16.5	play	clientbound	entity_move_look	ok	40	40	-	generated_ids.rs:MOVE_ENTITY_POS_ROT	
+1.16.4/1.16.5	play	clientbound	entity_look	ok	41	41	-	generated_ids.rs:MOVE_ENTITY_ROT	
+1.16.4/1.16.5	play	clientbound	entity	ok	42	42	-	generated_ids.rs:ENTITY_MOVEMENT	
+1.16.4/1.16.5	play	clientbound	vehicle_move	ok	43	43	-	generated_ids.rs:MOVE_VEHICLE	
+1.16.4/1.16.5	play	clientbound	open_book	ok	44	44	-	generated_ids.rs:OPEN_BOOK	
+1.16.4/1.16.5	play	clientbound	open_window	ok	45	45	-	generated_ids.rs:OPEN_WINDOW	
+1.16.4/1.16.5	play	clientbound	open_sign_entity	ok	46	46	-	generated_ids.rs:OPEN_SIGN_EDITOR	
+1.16.4/1.16.5	play	clientbound	craft_recipe_response	ok	47	47	-	generated_ids.rs:CRAFT_RECIPE_RESPONSE	
+1.16.4/1.16.5	play	clientbound	abilities	ok	48	48	-	generated_ids.rs:PLAYER_ABILITIES	
+1.16.4/1.16.5	play	clientbound	combat_event	ok	49	49	-	generated_ids.rs:COMBAT_EVENT	
+1.16.4/1.16.5	play	clientbound	player_info	ok	50	50	-	generated_ids.rs:PLAYER_INFO	
+1.16.4/1.16.5	play	clientbound	face_player	ok	51	51	-	generated_ids.rs:FACE_PLAYER	
+1.16.4/1.16.5	play	clientbound	position	ok	52	52	-	generated_ids.rs:PLAYER_POSITION	
+1.16.4/1.16.5	play	clientbound	unlock_recipes	ok	53	53	-	generated_ids.rs:UNLOCK_RECIPES	
+1.16.4/1.16.5	play	clientbound	entity_destroy	ok	54	54	-	generated_ids.rs:REMOVE_ENTITIES	
+1.16.4/1.16.5	play	clientbound	remove_entity_effect	ok	55	55	-	generated_ids.rs:REMOVE_ENTITY_EFFECT	
+1.16.4/1.16.5	play	clientbound	resource_pack_send	ok	56	56	-	generated_ids.rs:RESOURCE_PACK_SEND	
+1.16.4/1.16.5	play	clientbound	respawn	ok	57	57	-	generated_ids.rs:RESPAWN	
+1.16.4/1.16.5	play	clientbound	entity_head_rotation	ok	58	58	-	generated_ids.rs:ROTATE_HEAD	
+1.16.4/1.16.5	play	clientbound	multi_block_change	ok	59	59	-	generated_ids.rs:MULTI_BLOCK_CHANGE	
+1.16.4/1.16.5	play	clientbound	select_advancement_tab	ok	60	60	-	generated_ids.rs:SELECT_ADVANCEMENTS_TAB	
+1.16.4/1.16.5	play	clientbound	world_border	ok	61	61	-	generated_ids.rs:WORLD_BORDER	
+1.16.4/1.16.5	play	clientbound	camera	ok	62	62	-	generated_ids.rs:SET_CAMERA	
+1.16.4/1.16.5	play	clientbound	held_item_slot	ok	63	63	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.16.4/1.16.5	play	clientbound	update_view_position	ok	64	64	-	generated_ids.rs:UPDATE_VIEW_POSITION	
+1.16.4/1.16.5	play	clientbound	update_view_distance	ok	65	65	-	generated_ids.rs:UPDATE_VIEW_DISTANCE	
+1.16.4/1.16.5	play	clientbound	spawn_position	ok	66	66	-	generated_ids.rs:SPAWN_POSITION	
+1.16.4/1.16.5	play	clientbound	scoreboard_display_objective	ok	67	67	-	generated_ids.rs:SET_DISPLAY_OBJECTIVE	
+1.16.4/1.16.5	play	clientbound	entity_metadata	ok	68	68	-	generated_ids.rs:ENTITY_METADATA	
+1.16.4/1.16.5	play	clientbound	attach_entity	ok	69	69	-	generated_ids.rs:ATTACH_ENTITY	
+1.16.4/1.16.5	play	clientbound	entity_velocity	ok	70	70	-	generated_ids.rs:ENTITY_VELOCITY	
+1.16.4/1.16.5	play	clientbound	entity_equipment	ok	71	71	-	generated_ids.rs:ENTITY_EQUIPMENT	
+1.16.4/1.16.5	play	clientbound	experience	ok	72	72	-	generated_ids.rs:SET_EXPERIENCE	
+1.16.4/1.16.5	play	clientbound	update_health	ok	73	73	-	generated_ids.rs:UPDATE_HEALTH	
+1.16.4/1.16.5	play	clientbound	scoreboard_objective	ok	74	74	-	generated_ids.rs:SCOREBOARD_OBJECTIVE	
+1.16.4/1.16.5	play	clientbound	set_passengers	ok	75	75	-	generated_ids.rs:SET_PASSENGERS	
+1.16.4/1.16.5	play	clientbound	teams	ok	76	76	-	generated_ids.rs:SET_PLAYER_TEAM	
+1.16.4/1.16.5	play	clientbound	scoreboard_score	ok	77	77	-	generated_ids.rs:SET_SCORE	
+1.16.4/1.16.5	play	clientbound	update_time	ok	78	78	-	generated_ids.rs:SET_TIME	
+1.16.4/1.16.5	play	clientbound	title	ok	79	79	-	generated_ids.rs:TITLE	
+1.16.4/1.16.5	play	clientbound	entity_sound_effect	ok	80	80	-	generated_ids.rs:ENTITY_SOUND_EFFECT	
+1.16.4/1.16.5	play	clientbound	sound_effect	ok	81	81	-	generated_ids.rs:SOUND_EFFECT	
+1.16.4/1.16.5	play	clientbound	stop_sound	ok	82	82	-	generated_ids.rs:STOP_SOUND	
+1.16.4/1.16.5	play	clientbound	playerlist_header	ok	83	83	-	generated_ids.rs:TAB_LIST	
+1.16.4/1.16.5	play	clientbound	nbt_query_response	ok	84	84	-	generated_ids.rs:NBT_QUERY_RESPONSE	
+1.16.4/1.16.5	play	clientbound	collect	ok	85	85	-	generated_ids.rs:TAKE_ITEM_ENTITY	
+1.16.4/1.16.5	play	clientbound	entity_teleport	ok	86	86	-	generated_ids.rs:TELEPORT_ENTITY	
+1.16.4/1.16.5	play	clientbound	advancements	ok	87	87	-	generated_ids.rs:UPDATE_ADVANCEMENTS	
+1.16.4/1.16.5	play	clientbound	entity_update_attributes	ok	88	88	-	generated_ids.rs:UPDATE_ATTRIBUTES	
+1.16.4/1.16.5	play	clientbound	entity_effect	ok	89	89	-	generated_ids.rs:ENTITY_EFFECT	
+1.16.4/1.16.5	play	clientbound	declare_recipes	ok	90	90	-	generated_ids.rs:DECLARE_RECIPES	
+1.16.4/1.16.5	play	clientbound	tags	ok	91	91	-	generated_ids.rs:TAGS	
+1.16.4/1.16.5	play	serverbound	teleport_confirm	ok	0	0	-	generated_ids.rs:TELEPORT_CONFIRM	
+1.16.4/1.16.5	play	serverbound	query_block_nbt	ok	1	1	-	generated_ids.rs:BLOCK_ENTITY_TAG_QUERY	
+1.16.4/1.16.5	play	serverbound	set_difficulty	ok	2	2	-	generated_ids.rs:SET_DIFFICULTY	
+1.16.4/1.16.5	play	serverbound	chat	ok	3	3	-	generated_ids.rs:CHAT	
+1.16.4/1.16.5	play	serverbound	client_command	ok	4	4	-	generated_ids.rs:CLIENT_COMMAND	
+1.16.4/1.16.5	play	serverbound	settings	ok	5	5	-	generated_ids.rs:CLIENT_INFORMATION	
+1.16.4/1.16.5	play	serverbound	tab_complete	ok	6	6	-	generated_ids.rs:COMMAND_SUGGESTIONS	
+1.16.4/1.16.5	play	serverbound	transaction	ok	7	7	-	generated_ids.rs:WINDOW_CONFIRMATION	
+1.16.4/1.16.5	play	serverbound	enchant_item	unverifiable	?	8	info	generated_ids.rs	No packet const mapped; id set for this version/state compared equal to reference.
+1.16.4/1.16.5	play	serverbound	window_click	ok	9	9	-	generated_ids.rs:CONTAINER_CLICK	
+1.16.4/1.16.5	play	serverbound	close_window	ok	10	10	-	generated_ids.rs:CONTAINER_CLOSE	
+1.16.4/1.16.5	play	serverbound	custom_payload	ok	11	11	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.16.4/1.16.5	play	serverbound	edit_book	ok	12	12	-	generated_ids.rs:EDIT_BOOK	
+1.16.4/1.16.5	play	serverbound	query_entity_nbt	ok	13	13	-	generated_ids.rs:ENTITY_TAG_QUERY	
+1.16.4/1.16.5	play	serverbound	use_entity	ok	14	14	-	generated_ids.rs:INTERACT_ENTITY	
+1.16.4/1.16.5	play	serverbound	generate_structure	ok	15	15	-	generated_ids.rs:GENERATE_STRUCTURE	
+1.16.4/1.16.5	play	serverbound	keep_alive	ok	16	16	-	generated_ids.rs:KEEP_ALIVE	
+1.16.4/1.16.5	play	serverbound	lock_difficulty	ok	17	17	-	generated_ids.rs:LOCK_DIFFICULTY	
+1.16.4/1.16.5	play	serverbound	position	ok	18	18	-	generated_ids.rs:MOVE_PLAYER_POS	
+1.16.4/1.16.5	play	serverbound	position_look	ok	19	19	-	generated_ids.rs:MOVE_PLAYER_POS_ROT	
+1.16.4/1.16.5	play	serverbound	look	ok	20	20	-	generated_ids.rs:PLAYER_ROTATION	
+1.16.4/1.16.5	play	serverbound	flying	ok	21	21	-	generated_ids.rs:PLAYER_FLYING	
+1.16.4/1.16.5	play	serverbound	vehicle_move	ok	22	22	-	generated_ids.rs:MOVE_VEHICLE	
+1.16.4/1.16.5	play	serverbound	steer_boat	ok	23	23	-	generated_ids.rs:STEER_BOAT	
+1.16.4/1.16.5	play	serverbound	pick_item	ok	24	24	-	generated_ids.rs:PICK_ITEM	
+1.16.4/1.16.5	play	serverbound	craft_recipe_request	ok	25	25	-	generated_ids.rs:PLACE_RECIPE	
+1.16.4/1.16.5	play	serverbound	abilities	ok	26	26	-	generated_ids.rs:PLAYER_ABILITIES	
+1.16.4/1.16.5	play	serverbound	block_dig	ok	27	27	-	generated_ids.rs:PLAYER_DIGGING	
+1.16.4/1.16.5	play	serverbound	entity_action	ok	28	28	-	generated_ids.rs:ENTITY_ACTION	
+1.16.4/1.16.5	play	serverbound	steer_vehicle	ok	29	29	-	generated_ids.rs:STEER_VEHICLE	
+1.16.4/1.16.5	play	serverbound	recipe_book	missing	-1	30	low	generated_ids.rs:RECIPE_BOOK_DATA	No older-layout entry; packet dropped for this client.
+1.16.4/1.16.5	play	serverbound	displayed_recipe	ok	31	31	-	generated_ids.rs:RECIPE_BOOK_SEEN_RECIPE	
+1.16.4/1.16.5	play	serverbound	name_item	ok	32	32	-	generated_ids.rs:RENAME_ITEM	
+1.16.4/1.16.5	play	serverbound	resource_pack_receive	ok	33	33	-	generated_ids.rs:RESOURCE_PACK	
+1.16.4/1.16.5	play	serverbound	advancement_tab	ok	34	34	-	generated_ids.rs:SEEN_ADVANCEMENTS	
+1.16.4/1.16.5	play	serverbound	select_trade	ok	35	35	-	generated_ids.rs:SELECT_TRADE	
+1.16.4/1.16.5	play	serverbound	set_beacon_effect	ok	36	36	-	generated_ids.rs:SET_BEACON	
+1.16.4/1.16.5	play	serverbound	held_item_slot	ok	37	37	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.16.4/1.16.5	play	serverbound	update_command_block	ok	38	38	-	generated_ids.rs:SET_COMMAND_BLOCK	
+1.16.4/1.16.5	play	serverbound	update_command_block_minecart	ok	39	39	-	generated_ids.rs:SET_COMMAND_MINECART	
+1.16.4/1.16.5	play	serverbound	set_creative_slot	ok	40	40	-	generated_ids.rs:SET_CREATIVE_MODE_SLOT	
+1.16.4/1.16.5	play	serverbound	update_jigsaw_block	ok	41	41	-	generated_ids.rs:SET_JIGSAW_BLOCK	
+1.16.4/1.16.5	play	serverbound	update_structure_block	ok	42	42	-	generated_ids.rs:SET_STRUCTURE_BLOCK	
+1.16.4/1.16.5	play	serverbound	update_sign	ok	43	43	-	generated_ids.rs:SIGN_UPDATE	
+1.16.4/1.16.5	play	serverbound	arm_animation	ok	44	44	-	generated_ids.rs:SWING	
+1.16.4/1.16.5	play	serverbound	spectate	ok	45	45	-	generated_ids.rs:SPECTATE_ENTITY	
+1.16.4/1.16.5	play	serverbound	block_place	ok	46	46	-	generated_ids.rs:PLAYER_BLOCK_PLACEMENT	
+1.16.4/1.16.5	play	serverbound	use_item	ok	47	47	-	generated_ids.rs:USE_ITEM	
+1.16.4/1.16.5	login	clientbound	disconnect	ok	0	0	-	generated_ids.rs:LOGIN_DISCONNECT	
+1.16.4/1.16.5	login	clientbound	encryption_begin	ok	1	1	-	generated_ids.rs:HELLO	
+1.16.4/1.16.5	login	clientbound	success	ok	2	2	-	generated_ids.rs:LOGIN_FINISHED	
+1.16.4/1.16.5	login	clientbound	compress	ok	3	3	-	generated_ids.rs:LOGIN_COMPRESSION	
+1.16.4/1.16.5	login	clientbound	login_plugin_request	ok	4	4	-	generated_ids.rs:LOGIN_PLUGIN_REQUEST	
+1.16.4/1.16.5	login	serverbound	login_start	ok	0	0	-	generated_ids.rs:LOGIN_START	
+1.16.4/1.16.5	login	serverbound	encryption_begin	ok	1	1	-	generated_ids.rs:KEY	
+1.16.4/1.16.5	login	serverbound	login_plugin_response	ok	2	2	-	generated_ids.rs:LOGIN_PLUGIN_RESPONSE	
+1.16.4/1.16.5	status	clientbound	server_info	ok	0	0	-	generated_ids.rs:STATUS_RESPONSE	
+1.16.4/1.16.5	status	clientbound	ping	ok	1	1	-	generated_ids.rs:PONG_RESPONSE	
+1.16.4/1.16.5	status	serverbound	ping_start	ok	0	0	-	generated_ids.rs:STATUS_REQUEST	
+1.16.4/1.16.5	status	serverbound	ping	ok	1	1	-	generated_ids.rs:PING_REQUEST	
+1.16.4/1.16.5	handshaking	serverbound	set_protocol	ok	0	0	-	generated_ids.rs:INTENTION	
+1.17	play	clientbound	spawn_entity	ok	0	0	-	generated_ids.rs:SPAWN_ENTITY	
+1.17	play	clientbound	spawn_entity_experience_orb	ok	1	1	-	generated_ids.rs:SPAWN_EXPERIENCE_ORB	
+1.17	play	clientbound	spawn_entity_living	ok	2	2	-	generated_ids.rs:SPAWN_LIVING_ENTITY	
+1.17	play	clientbound	spawn_entity_painting	ok	3	3	-	generated_ids.rs:SPAWN_PAINTING	
+1.17	play	clientbound	named_entity_spawn	ok	4	4	-	generated_ids.rs:SPAWN_PLAYER	
+1.17	play	clientbound	sculk_vibration_signal	ok	5	5	-	generated_ids.rs:SCULK_VIBRATION_SIGNAL	
+1.17	play	clientbound	animation	ok	6	6	-	generated_ids.rs:ANIMATE	
+1.17	play	clientbound	statistics	ok	7	7	-	generated_ids.rs:STATISTICS	
+1.17	play	clientbound	acknowledge_player_digging	ok	8	8	-	generated_ids.rs:ACKNOWLEDGE_PLAYER_DIGGING	
+1.17	play	clientbound	block_break_animation	ok	9	9	-	generated_ids.rs:BLOCK_BREAK_ANIMATION	
+1.17	play	clientbound	tile_entity_data	ok	10	10	-	generated_ids.rs:BLOCK_ENTITY_DATA	
+1.17	play	clientbound	block_action	ok	11	11	-	generated_ids.rs:BLOCK_ACTION	
+1.17	play	clientbound	block_change	ok	12	12	-	generated_ids.rs:BLOCK_CHANGE	
+1.17	play	clientbound	boss_bar	ok	13	13	-	generated_ids.rs:BOSS_BAR	
+1.17	play	clientbound	difficulty	ok	14	14	-	generated_ids.rs:CHANGE_DIFFICULTY	
+1.17	play	clientbound	chat	ok	15	15	-	generated_ids.rs:CHAT	
+1.17	play	clientbound	clear_titles	ok	16	16	-	generated_ids.rs:CLEAR_TITLES	
+1.17	play	clientbound	tab_complete	ok	17	17	-	generated_ids.rs:TAB_COMPLETE	
+1.17	play	clientbound	declare_commands	ok	18	18	-	generated_ids.rs:DECLARE_COMMANDS	
+1.17	play	clientbound	close_window	ok	19	19	-	generated_ids.rs:CLOSE_WINDOW	
+1.17	play	clientbound	window_items	ok	20	20	-	generated_ids.rs:WINDOW_ITEMS	
+1.17	play	clientbound	craft_progress_bar	ok	21	21	-	generated_ids.rs:CONTAINER_SET_DATA	
+1.17	play	clientbound	set_slot	ok	22	22	-	generated_ids.rs:SET_SLOT	
+1.17	play	clientbound	set_cooldown	ok	23	23	-	generated_ids.rs:COOLDOWN	
+1.17	play	clientbound	custom_payload	ok	24	24	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.17	play	clientbound	named_sound_effect	ok	25	25	-	generated_ids.rs:NAMED_SOUND_EFFECT	
+1.17	play	clientbound	kick_disconnect	ok	26	26	-	generated_ids.rs:DISCONNECT	
+1.17	play	clientbound	entity_status	ok	27	27	-	generated_ids.rs:ENTITY_STATUS	
+1.17	play	clientbound	explosion	ok	28	28	-	generated_ids.rs:EXPLOSION	
+1.17	play	clientbound	unload_chunk	ok	29	29	-	generated_ids.rs:UNLOAD_CHUNK	
+1.17	play	clientbound	game_state_change	ok	30	30	-	generated_ids.rs:GAME_EVENT	
+1.17	play	clientbound	open_horse_window	ok	31	31	-	generated_ids.rs:OPEN_HORSE_WINDOW	
+1.17	play	clientbound	initialize_world_border	ok	32	32	-	generated_ids.rs:INITIALIZE_WORLD_BORDER	
+1.17	play	clientbound	keep_alive	ok	33	33	-	generated_ids.rs:KEEP_ALIVE	
+1.17	play	clientbound	map_chunk	ok	34	34	-	generated_ids.rs:LEVEL_CHUNK_WITH_LIGHT	
+1.17	play	clientbound	world_event	ok	35	35	-	generated_ids.rs:LEVEL_EVENT	
+1.17	play	clientbound	world_particles	ok	36	36	-	generated_ids.rs:LEVEL_PARTICLES	
+1.17	play	clientbound	update_light	ok	37	37	-	generated_ids.rs:LIGHT_UPDATE	
+1.17	play	clientbound	login	ok	38	38	-	generated_ids.rs:LOGIN	
+1.17	play	clientbound	map	ok	39	39	-	generated_ids.rs:MAP_ITEM_DATA	
+1.17	play	clientbound	trade_list	ok	40	40	-	generated_ids.rs:MERCHANT_OFFERS	
+1.17	play	clientbound	rel_entity_move	ok	41	41	-	generated_ids.rs:MOVE_ENTITY_POS	
+1.17	play	clientbound	entity_move_look	ok	42	42	-	generated_ids.rs:MOVE_ENTITY_POS_ROT	
+1.17	play	clientbound	entity_look	ok	43	43	-	generated_ids.rs:MOVE_ENTITY_ROT	
+1.17	play	clientbound	vehicle_move	ok	44	44	-	generated_ids.rs:MOVE_VEHICLE	
+1.17	play	clientbound	open_book	ok	45	45	-	generated_ids.rs:OPEN_BOOK	
+1.17	play	clientbound	open_window	ok	46	46	-	generated_ids.rs:OPEN_WINDOW	
+1.17	play	clientbound	open_sign_entity	ok	47	47	-	generated_ids.rs:OPEN_SIGN_EDITOR	
+1.17	play	clientbound	ping	ok	48	48	-	generated_ids.rs:PING	
+1.17	play	clientbound	craft_recipe_response	ok	49	49	-	generated_ids.rs:CRAFT_RECIPE_RESPONSE	
+1.17	play	clientbound	abilities	ok	50	50	-	generated_ids.rs:PLAYER_ABILITIES	
+1.17	play	clientbound	end_combat_event	unverifiable	?	51	info	generated_ids.rs	No packet const mapped; id set for this version/state compared equal to reference.
+1.17	play	clientbound	enter_combat_event	unverifiable	?	52	info	generated_ids.rs	No packet const mapped; id set for this version/state compared equal to reference.
+1.17	play	clientbound	death_combat_event	ok	53	53	-	generated_ids.rs:PLAYER_COMBAT_KILL	
+1.17	play	clientbound	player_info	ok	54	54	-	generated_ids.rs:PLAYER_INFO	
+1.17	play	clientbound	face_player	ok	55	55	-	generated_ids.rs:FACE_PLAYER	
+1.17	play	clientbound	position	ok	56	56	-	generated_ids.rs:PLAYER_POSITION	
+1.17	play	clientbound	unlock_recipes	ok	57	57	-	generated_ids.rs:UNLOCK_RECIPES	
+1.17	play	clientbound	destroy_entity	ok	58	58	-	generated_ids.rs:REMOVE_ENTITIES	
+1.17	play	clientbound	remove_entity_effect	ok	59	59	-	generated_ids.rs:REMOVE_ENTITY_EFFECT	
+1.17	play	clientbound	resource_pack_send	ok	60	60	-	generated_ids.rs:RESOURCE_PACK_SEND	
+1.17	play	clientbound	respawn	ok	61	61	-	generated_ids.rs:RESPAWN	
+1.17	play	clientbound	entity_head_rotation	ok	62	62	-	generated_ids.rs:ROTATE_HEAD	
+1.17	play	clientbound	multi_block_change	ok	63	63	-	generated_ids.rs:MULTI_BLOCK_CHANGE	
+1.17	play	clientbound	select_advancement_tab	ok	64	64	-	generated_ids.rs:SELECT_ADVANCEMENTS_TAB	
+1.17	play	clientbound	action_bar	ok	65	65	-	generated_ids.rs:ACTION_BAR	
+1.17	play	clientbound	world_border_center	ok	66	66	-	generated_ids.rs:WORLD_BORDER_CENTER	
+1.17	play	clientbound	world_border_lerp_size	ok	67	67	-	generated_ids.rs:WORLD_BORDER_LERP_SIZE	
+1.17	play	clientbound	world_border_size	ok	68	68	-	generated_ids.rs:WORLD_BORDER_SIZE	
+1.17	play	clientbound	world_border_warning_delay	ok	69	69	-	generated_ids.rs:WORLD_BORDER_WARNING_DELAY	
+1.17	play	clientbound	world_border_warning_reach	ok	70	70	-	generated_ids.rs:WORLD_BORDER_WARNING_REACH	
+1.17	play	clientbound	camera	ok	71	71	-	generated_ids.rs:SET_CAMERA	
+1.17	play	clientbound	held_item_slot	ok	72	72	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.17	play	clientbound	update_view_position	ok	73	73	-	generated_ids.rs:UPDATE_VIEW_POSITION	
+1.17	play	clientbound	update_view_distance	ok	74	74	-	generated_ids.rs:UPDATE_VIEW_DISTANCE	
+1.17	play	clientbound	spawn_position	ok	75	75	-	generated_ids.rs:SPAWN_POSITION	
+1.17	play	clientbound	scoreboard_display_objective	ok	76	76	-	generated_ids.rs:SET_DISPLAY_OBJECTIVE	
+1.17	play	clientbound	entity_metadata	ok	77	77	-	generated_ids.rs:ENTITY_METADATA	
+1.17	play	clientbound	attach_entity	ok	78	78	-	generated_ids.rs:ATTACH_ENTITY	
+1.17	play	clientbound	entity_velocity	ok	79	79	-	generated_ids.rs:ENTITY_VELOCITY	
+1.17	play	clientbound	entity_equipment	ok	80	80	-	generated_ids.rs:ENTITY_EQUIPMENT	
+1.17	play	clientbound	experience	ok	81	81	-	generated_ids.rs:SET_EXPERIENCE	
+1.17	play	clientbound	update_health	ok	82	82	-	generated_ids.rs:UPDATE_HEALTH	
+1.17	play	clientbound	scoreboard_objective	ok	83	83	-	generated_ids.rs:SCOREBOARD_OBJECTIVE	
+1.17	play	clientbound	set_passengers	ok	84	84	-	generated_ids.rs:SET_PASSENGERS	
+1.17	play	clientbound	teams	ok	85	85	-	generated_ids.rs:SET_PLAYER_TEAM	
+1.17	play	clientbound	scoreboard_score	ok	86	86	-	generated_ids.rs:SET_SCORE	
+1.17	play	clientbound	set_title_subtitle	ok	87	87	-	generated_ids.rs:SET_TITLE_SUBTITLE	
+1.17	play	clientbound	update_time	ok	88	88	-	generated_ids.rs:SET_TIME	
+1.17	play	clientbound	set_title_text	ok	89	89	-	generated_ids.rs:SET_TITLE_TEXT	
+1.17	play	clientbound	set_title_time	ok	90	90	-	generated_ids.rs:SET_TITLES_ANIMATION	
+1.17	play	clientbound	entity_sound_effect	ok	91	91	-	generated_ids.rs:ENTITY_SOUND_EFFECT	
+1.17	play	clientbound	sound_effect	ok	92	92	-	generated_ids.rs:SOUND_EFFECT	
+1.17	play	clientbound	stop_sound	ok	93	93	-	generated_ids.rs:STOP_SOUND	
+1.17	play	clientbound	playerlist_header	ok	94	94	-	generated_ids.rs:TAB_LIST	
+1.17	play	clientbound	nbt_query_response	ok	95	95	-	generated_ids.rs:NBT_QUERY_RESPONSE	
+1.17	play	clientbound	collect	ok	96	96	-	generated_ids.rs:TAKE_ITEM_ENTITY	
+1.17	play	clientbound	entity_teleport	ok	97	97	-	generated_ids.rs:TELEPORT_ENTITY	
+1.17	play	clientbound	advancements	ok	98	98	-	generated_ids.rs:UPDATE_ADVANCEMENTS	
+1.17	play	clientbound	entity_update_attributes	ok	99	99	-	generated_ids.rs:UPDATE_ATTRIBUTES	
+1.17	play	clientbound	entity_effect	ok	100	100	-	generated_ids.rs:ENTITY_EFFECT	
+1.17	play	clientbound	declare_recipes	ok	101	101	-	generated_ids.rs:DECLARE_RECIPES	
+1.17	play	clientbound	tags	ok	102	102	-	generated_ids.rs:TAGS	
+1.17	play	serverbound	teleport_confirm	ok	0	0	-	generated_ids.rs:TELEPORT_CONFIRM	
+1.17	play	serverbound	query_block_nbt	ok	1	1	-	generated_ids.rs:BLOCK_ENTITY_TAG_QUERY	
+1.17	play	serverbound	set_difficulty	ok	2	2	-	generated_ids.rs:SET_DIFFICULTY	
+1.17	play	serverbound	chat	ok	3	3	-	generated_ids.rs:CHAT	
+1.17	play	serverbound	client_command	ok	4	4	-	generated_ids.rs:CLIENT_COMMAND	
+1.17	play	serverbound	settings	ok	5	5	-	generated_ids.rs:CLIENT_INFORMATION	
+1.17	play	serverbound	tab_complete	ok	6	6	-	generated_ids.rs:COMMAND_SUGGESTIONS	
+1.17	play	serverbound	enchant_item	unverifiable	?	7	info	generated_ids.rs	No packet const mapped; id set for this version/state compared equal to reference.
+1.17	play	serverbound	window_click	ok	8	8	-	generated_ids.rs:CONTAINER_CLICK	
+1.17	play	serverbound	close_window	ok	9	9	-	generated_ids.rs:CONTAINER_CLOSE	
+1.17	play	serverbound	custom_payload	ok	10	10	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.17	play	serverbound	edit_book	ok	11	11	-	generated_ids.rs:EDIT_BOOK	
+1.17	play	serverbound	query_entity_nbt	ok	12	12	-	generated_ids.rs:ENTITY_TAG_QUERY	
+1.17	play	serverbound	use_entity	ok	13	13	-	generated_ids.rs:INTERACT_ENTITY	
+1.17	play	serverbound	generate_structure	ok	14	14	-	generated_ids.rs:GENERATE_STRUCTURE	
+1.17	play	serverbound	keep_alive	ok	15	15	-	generated_ids.rs:KEEP_ALIVE	
+1.17	play	serverbound	lock_difficulty	ok	16	16	-	generated_ids.rs:LOCK_DIFFICULTY	
+1.17	play	serverbound	position	ok	17	17	-	generated_ids.rs:MOVE_PLAYER_POS	
+1.17	play	serverbound	position_look	ok	18	18	-	generated_ids.rs:MOVE_PLAYER_POS_ROT	
+1.17	play	serverbound	look	ok	19	19	-	generated_ids.rs:PLAYER_ROTATION	
+1.17	play	serverbound	flying	ok	20	20	-	generated_ids.rs:PLAYER_FLYING	
+1.17	play	serverbound	vehicle_move	ok	21	21	-	generated_ids.rs:MOVE_VEHICLE	
+1.17	play	serverbound	steer_boat	ok	22	22	-	generated_ids.rs:STEER_BOAT	
+1.17	play	serverbound	pick_item	ok	23	23	-	generated_ids.rs:PICK_ITEM	
+1.17	play	serverbound	craft_recipe_request	ok	24	24	-	generated_ids.rs:PLACE_RECIPE	
+1.17	play	serverbound	abilities	ok	25	25	-	generated_ids.rs:PLAYER_ABILITIES	
+1.17	play	serverbound	block_dig	ok	26	26	-	generated_ids.rs:PLAYER_DIGGING	
+1.17	play	serverbound	entity_action	ok	27	27	-	generated_ids.rs:ENTITY_ACTION	
+1.17	play	serverbound	steer_vehicle	ok	28	28	-	generated_ids.rs:STEER_VEHICLE	
+1.17	play	serverbound	pong	ok	29	29	-	generated_ids.rs:PONG	
+1.17	play	serverbound	recipe_book	missing	-1	30	low	generated_ids.rs:RECIPE_BOOK_DATA	No older-layout entry; packet dropped for this client.
+1.17	play	serverbound	displayed_recipe	ok	31	31	-	generated_ids.rs:RECIPE_BOOK_SEEN_RECIPE	
+1.17	play	serverbound	name_item	ok	32	32	-	generated_ids.rs:RENAME_ITEM	
+1.17	play	serverbound	resource_pack_receive	ok	33	33	-	generated_ids.rs:RESOURCE_PACK	
+1.17	play	serverbound	advancement_tab	ok	34	34	-	generated_ids.rs:SEEN_ADVANCEMENTS	
+1.17	play	serverbound	select_trade	ok	35	35	-	generated_ids.rs:SELECT_TRADE	
+1.17	play	serverbound	set_beacon_effect	ok	36	36	-	generated_ids.rs:SET_BEACON	
+1.17	play	serverbound	held_item_slot	ok	37	37	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.17	play	serverbound	update_command_block	ok	38	38	-	generated_ids.rs:SET_COMMAND_BLOCK	
+1.17	play	serverbound	update_command_block_minecart	ok	39	39	-	generated_ids.rs:SET_COMMAND_MINECART	
+1.17	play	serverbound	set_creative_slot	ok	40	40	-	generated_ids.rs:SET_CREATIVE_MODE_SLOT	
+1.17	play	serverbound	update_jigsaw_block	ok	41	41	-	generated_ids.rs:SET_JIGSAW_BLOCK	
+1.17	play	serverbound	update_structure_block	ok	42	42	-	generated_ids.rs:SET_STRUCTURE_BLOCK	
+1.17	play	serverbound	update_sign	ok	43	43	-	generated_ids.rs:SIGN_UPDATE	
+1.17	play	serverbound	arm_animation	ok	44	44	-	generated_ids.rs:SWING	
+1.17	play	serverbound	spectate	ok	45	45	-	generated_ids.rs:SPECTATE_ENTITY	
+1.17	play	serverbound	block_place	ok	46	46	-	generated_ids.rs:PLAYER_BLOCK_PLACEMENT	
+1.17	play	serverbound	use_item	ok	47	47	-	generated_ids.rs:USE_ITEM	
+1.17	login	clientbound	disconnect	ok	0	0	-	generated_ids.rs:LOGIN_DISCONNECT	
+1.17	login	clientbound	encryption_begin	ok	1	1	-	generated_ids.rs:HELLO	
+1.17	login	clientbound	success	ok	2	2	-	generated_ids.rs:LOGIN_FINISHED	
+1.17	login	clientbound	compress	ok	3	3	-	generated_ids.rs:LOGIN_COMPRESSION	
+1.17	login	clientbound	login_plugin_request	ok	4	4	-	generated_ids.rs:LOGIN_PLUGIN_REQUEST	
+1.17	login	serverbound	login_start	ok	0	0	-	generated_ids.rs:LOGIN_START	
+1.17	login	serverbound	encryption_begin	ok	1	1	-	generated_ids.rs:KEY	
+1.17	login	serverbound	login_plugin_response	ok	2	2	-	generated_ids.rs:LOGIN_PLUGIN_RESPONSE	
+1.17	status	clientbound	server_info	ok	0	0	-	generated_ids.rs:STATUS_RESPONSE	
+1.17	status	clientbound	ping	ok	1	1	-	generated_ids.rs:PONG_RESPONSE	
+1.17	status	serverbound	ping_start	ok	0	0	-	generated_ids.rs:STATUS_REQUEST	
+1.17	status	serverbound	ping	ok	1	1	-	generated_ids.rs:PING_REQUEST	
+1.17	handshaking	serverbound	set_protocol	ok	0	0	-	generated_ids.rs:INTENTION	
+1.17.1	play	clientbound	spawn_entity	ok	0	0	-	generated_ids.rs:SPAWN_ENTITY	
+1.17.1	play	clientbound	spawn_entity_experience_orb	ok	1	1	-	generated_ids.rs:SPAWN_EXPERIENCE_ORB	
+1.17.1	play	clientbound	spawn_entity_living	ok	2	2	-	generated_ids.rs:SPAWN_LIVING_ENTITY	
+1.17.1	play	clientbound	spawn_entity_painting	ok	3	3	-	generated_ids.rs:SPAWN_PAINTING	
+1.17.1	play	clientbound	named_entity_spawn	ok	4	4	-	generated_ids.rs:SPAWN_PLAYER	
+1.17.1	play	clientbound	sculk_vibration_signal	ok	5	5	-	generated_ids.rs:SCULK_VIBRATION_SIGNAL	
+1.17.1	play	clientbound	animation	ok	6	6	-	generated_ids.rs:ANIMATE	
+1.17.1	play	clientbound	statistics	ok	7	7	-	generated_ids.rs:STATISTICS	
+1.17.1	play	clientbound	acknowledge_player_digging	ok	8	8	-	generated_ids.rs:ACKNOWLEDGE_PLAYER_DIGGING	
+1.17.1	play	clientbound	block_break_animation	ok	9	9	-	generated_ids.rs:BLOCK_BREAK_ANIMATION	
+1.17.1	play	clientbound	tile_entity_data	ok	10	10	-	generated_ids.rs:BLOCK_ENTITY_DATA	
+1.17.1	play	clientbound	block_action	ok	11	11	-	generated_ids.rs:BLOCK_ACTION	
+1.17.1	play	clientbound	block_change	ok	12	12	-	generated_ids.rs:BLOCK_CHANGE	
+1.17.1	play	clientbound	boss_bar	ok	13	13	-	generated_ids.rs:BOSS_BAR	
+1.17.1	play	clientbound	difficulty	ok	14	14	-	generated_ids.rs:CHANGE_DIFFICULTY	
+1.17.1	play	clientbound	chat	ok	15	15	-	generated_ids.rs:CHAT	
+1.17.1	play	clientbound	clear_titles	ok	16	16	-	generated_ids.rs:CLEAR_TITLES	
+1.17.1	play	clientbound	tab_complete	ok	17	17	-	generated_ids.rs:TAB_COMPLETE	
+1.17.1	play	clientbound	declare_commands	ok	18	18	-	generated_ids.rs:DECLARE_COMMANDS	
+1.17.1	play	clientbound	close_window	ok	19	19	-	generated_ids.rs:CLOSE_WINDOW	
+1.17.1	play	clientbound	window_items	ok	20	20	-	generated_ids.rs:WINDOW_ITEMS	
+1.17.1	play	clientbound	craft_progress_bar	ok	21	21	-	generated_ids.rs:CONTAINER_SET_DATA	
+1.17.1	play	clientbound	set_slot	ok	22	22	-	generated_ids.rs:SET_SLOT	
+1.17.1	play	clientbound	set_cooldown	ok	23	23	-	generated_ids.rs:COOLDOWN	
+1.17.1	play	clientbound	custom_payload	ok	24	24	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.17.1	play	clientbound	named_sound_effect	ok	25	25	-	generated_ids.rs:NAMED_SOUND_EFFECT	
+1.17.1	play	clientbound	kick_disconnect	ok	26	26	-	generated_ids.rs:DISCONNECT	
+1.17.1	play	clientbound	entity_status	ok	27	27	-	generated_ids.rs:ENTITY_STATUS	
+1.17.1	play	clientbound	explosion	ok	28	28	-	generated_ids.rs:EXPLOSION	
+1.17.1	play	clientbound	unload_chunk	ok	29	29	-	generated_ids.rs:UNLOAD_CHUNK	
+1.17.1	play	clientbound	game_state_change	ok	30	30	-	generated_ids.rs:GAME_EVENT	
+1.17.1	play	clientbound	open_horse_window	ok	31	31	-	generated_ids.rs:OPEN_HORSE_WINDOW	
+1.17.1	play	clientbound	initialize_world_border	ok	32	32	-	generated_ids.rs:INITIALIZE_WORLD_BORDER	
+1.17.1	play	clientbound	keep_alive	ok	33	33	-	generated_ids.rs:KEEP_ALIVE	
+1.17.1	play	clientbound	map_chunk	ok	34	34	-	generated_ids.rs:LEVEL_CHUNK_WITH_LIGHT	
+1.17.1	play	clientbound	world_event	ok	35	35	-	generated_ids.rs:LEVEL_EVENT	
+1.17.1	play	clientbound	world_particles	ok	36	36	-	generated_ids.rs:LEVEL_PARTICLES	
+1.17.1	play	clientbound	update_light	ok	37	37	-	generated_ids.rs:LIGHT_UPDATE	
+1.17.1	play	clientbound	login	ok	38	38	-	generated_ids.rs:LOGIN	
+1.17.1	play	clientbound	map	ok	39	39	-	generated_ids.rs:MAP_ITEM_DATA	
+1.17.1	play	clientbound	trade_list	ok	40	40	-	generated_ids.rs:MERCHANT_OFFERS	
+1.17.1	play	clientbound	rel_entity_move	ok	41	41	-	generated_ids.rs:MOVE_ENTITY_POS	
+1.17.1	play	clientbound	entity_move_look	ok	42	42	-	generated_ids.rs:MOVE_ENTITY_POS_ROT	
+1.17.1	play	clientbound	entity_look	ok	43	43	-	generated_ids.rs:MOVE_ENTITY_ROT	
+1.17.1	play	clientbound	vehicle_move	ok	44	44	-	generated_ids.rs:MOVE_VEHICLE	
+1.17.1	play	clientbound	open_book	ok	45	45	-	generated_ids.rs:OPEN_BOOK	
+1.17.1	play	clientbound	open_window	ok	46	46	-	generated_ids.rs:OPEN_WINDOW	
+1.17.1	play	clientbound	open_sign_entity	ok	47	47	-	generated_ids.rs:OPEN_SIGN_EDITOR	
+1.17.1	play	clientbound	ping	ok	48	48	-	generated_ids.rs:PING	
+1.17.1	play	clientbound	craft_recipe_response	ok	49	49	-	generated_ids.rs:CRAFT_RECIPE_RESPONSE	
+1.17.1	play	clientbound	abilities	ok	50	50	-	generated_ids.rs:PLAYER_ABILITIES	
+1.17.1	play	clientbound	end_combat_event	unverifiable	?	51	info	generated_ids.rs	No packet const mapped; id set for this version/state compared equal to reference.
+1.17.1	play	clientbound	enter_combat_event	unverifiable	?	52	info	generated_ids.rs	No packet const mapped; id set for this version/state compared equal to reference.
+1.17.1	play	clientbound	death_combat_event	ok	53	53	-	generated_ids.rs:PLAYER_COMBAT_KILL	
+1.17.1	play	clientbound	player_info	ok	54	54	-	generated_ids.rs:PLAYER_INFO	
+1.17.1	play	clientbound	face_player	ok	55	55	-	generated_ids.rs:FACE_PLAYER	
+1.17.1	play	clientbound	position	ok	56	56	-	generated_ids.rs:PLAYER_POSITION	
+1.17.1	play	clientbound	unlock_recipes	ok	57	57	-	generated_ids.rs:UNLOCK_RECIPES	
+1.17.1	play	clientbound	entity_destroy	ok	58	58	-	generated_ids.rs:REMOVE_ENTITIES	
+1.17.1	play	clientbound	remove_entity_effect	ok	59	59	-	generated_ids.rs:REMOVE_ENTITY_EFFECT	
+1.17.1	play	clientbound	resource_pack_send	ok	60	60	-	generated_ids.rs:RESOURCE_PACK_SEND	
+1.17.1	play	clientbound	respawn	ok	61	61	-	generated_ids.rs:RESPAWN	
+1.17.1	play	clientbound	entity_head_rotation	ok	62	62	-	generated_ids.rs:ROTATE_HEAD	
+1.17.1	play	clientbound	multi_block_change	ok	63	63	-	generated_ids.rs:MULTI_BLOCK_CHANGE	
+1.17.1	play	clientbound	select_advancement_tab	ok	64	64	-	generated_ids.rs:SELECT_ADVANCEMENTS_TAB	
+1.17.1	play	clientbound	action_bar	ok	65	65	-	generated_ids.rs:ACTION_BAR	
+1.17.1	play	clientbound	world_border_center	ok	66	66	-	generated_ids.rs:WORLD_BORDER_CENTER	
+1.17.1	play	clientbound	world_border_lerp_size	ok	67	67	-	generated_ids.rs:WORLD_BORDER_LERP_SIZE	
+1.17.1	play	clientbound	world_border_size	ok	68	68	-	generated_ids.rs:WORLD_BORDER_SIZE	
+1.17.1	play	clientbound	world_border_warning_delay	ok	69	69	-	generated_ids.rs:WORLD_BORDER_WARNING_DELAY	
+1.17.1	play	clientbound	world_border_warning_reach	ok	70	70	-	generated_ids.rs:WORLD_BORDER_WARNING_REACH	
+1.17.1	play	clientbound	camera	ok	71	71	-	generated_ids.rs:SET_CAMERA	
+1.17.1	play	clientbound	held_item_slot	ok	72	72	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.17.1	play	clientbound	update_view_position	ok	73	73	-	generated_ids.rs:UPDATE_VIEW_POSITION	
+1.17.1	play	clientbound	update_view_distance	ok	74	74	-	generated_ids.rs:UPDATE_VIEW_DISTANCE	
+1.17.1	play	clientbound	spawn_position	ok	75	75	-	generated_ids.rs:SPAWN_POSITION	
+1.17.1	play	clientbound	scoreboard_display_objective	ok	76	76	-	generated_ids.rs:SET_DISPLAY_OBJECTIVE	
+1.17.1	play	clientbound	entity_metadata	ok	77	77	-	generated_ids.rs:ENTITY_METADATA	
+1.17.1	play	clientbound	attach_entity	ok	78	78	-	generated_ids.rs:ATTACH_ENTITY	
+1.17.1	play	clientbound	entity_velocity	ok	79	79	-	generated_ids.rs:ENTITY_VELOCITY	
+1.17.1	play	clientbound	entity_equipment	ok	80	80	-	generated_ids.rs:ENTITY_EQUIPMENT	
+1.17.1	play	clientbound	experience	ok	81	81	-	generated_ids.rs:SET_EXPERIENCE	
+1.17.1	play	clientbound	update_health	ok	82	82	-	generated_ids.rs:UPDATE_HEALTH	
+1.17.1	play	clientbound	scoreboard_objective	ok	83	83	-	generated_ids.rs:SCOREBOARD_OBJECTIVE	
+1.17.1	play	clientbound	set_passengers	ok	84	84	-	generated_ids.rs:SET_PASSENGERS	
+1.17.1	play	clientbound	teams	ok	85	85	-	generated_ids.rs:SET_PLAYER_TEAM	
+1.17.1	play	clientbound	scoreboard_score	ok	86	86	-	generated_ids.rs:SET_SCORE	
+1.17.1	play	clientbound	set_title_subtitle	ok	87	87	-	generated_ids.rs:SET_TITLE_SUBTITLE	
+1.17.1	play	clientbound	update_time	ok	88	88	-	generated_ids.rs:SET_TIME	
+1.17.1	play	clientbound	set_title_text	ok	89	89	-	generated_ids.rs:SET_TITLE_TEXT	
+1.17.1	play	clientbound	set_title_time	ok	90	90	-	generated_ids.rs:SET_TITLES_ANIMATION	
+1.17.1	play	clientbound	entity_sound_effect	ok	91	91	-	generated_ids.rs:ENTITY_SOUND_EFFECT	
+1.17.1	play	clientbound	sound_effect	ok	92	92	-	generated_ids.rs:SOUND_EFFECT	
+1.17.1	play	clientbound	stop_sound	ok	93	93	-	generated_ids.rs:STOP_SOUND	
+1.17.1	play	clientbound	playerlist_header	ok	94	94	-	generated_ids.rs:TAB_LIST	
+1.17.1	play	clientbound	nbt_query_response	ok	95	95	-	generated_ids.rs:NBT_QUERY_RESPONSE	
+1.17.1	play	clientbound	collect	ok	96	96	-	generated_ids.rs:TAKE_ITEM_ENTITY	
+1.17.1	play	clientbound	entity_teleport	ok	97	97	-	generated_ids.rs:TELEPORT_ENTITY	
+1.17.1	play	clientbound	advancements	ok	98	98	-	generated_ids.rs:UPDATE_ADVANCEMENTS	
+1.17.1	play	clientbound	entity_update_attributes	ok	99	99	-	generated_ids.rs:UPDATE_ATTRIBUTES	
+1.17.1	play	clientbound	entity_effect	ok	100	100	-	generated_ids.rs:ENTITY_EFFECT	
+1.17.1	play	clientbound	declare_recipes	ok	101	101	-	generated_ids.rs:DECLARE_RECIPES	
+1.17.1	play	clientbound	tags	ok	102	102	-	generated_ids.rs:TAGS	
+1.17.1	play	serverbound	teleport_confirm	ok	0	0	-	generated_ids.rs:TELEPORT_CONFIRM	
+1.17.1	play	serverbound	query_block_nbt	ok	1	1	-	generated_ids.rs:BLOCK_ENTITY_TAG_QUERY	
+1.17.1	play	serverbound	set_difficulty	ok	2	2	-	generated_ids.rs:SET_DIFFICULTY	
+1.17.1	play	serverbound	chat	ok	3	3	-	generated_ids.rs:CHAT	
+1.17.1	play	serverbound	client_command	ok	4	4	-	generated_ids.rs:CLIENT_COMMAND	
+1.17.1	play	serverbound	settings	ok	5	5	-	generated_ids.rs:CLIENT_INFORMATION	
+1.17.1	play	serverbound	tab_complete	ok	6	6	-	generated_ids.rs:COMMAND_SUGGESTIONS	
+1.17.1	play	serverbound	enchant_item	unverifiable	?	7	info	generated_ids.rs	No packet const mapped; id set for this version/state compared equal to reference.
+1.17.1	play	serverbound	window_click	ok	8	8	-	generated_ids.rs:CONTAINER_CLICK	
+1.17.1	play	serverbound	close_window	ok	9	9	-	generated_ids.rs:CONTAINER_CLOSE	
+1.17.1	play	serverbound	custom_payload	ok	10	10	-	generated_ids.rs:CUSTOM_PAYLOAD	
+1.17.1	play	serverbound	edit_book	ok	11	11	-	generated_ids.rs:EDIT_BOOK	
+1.17.1	play	serverbound	query_entity_nbt	ok	12	12	-	generated_ids.rs:ENTITY_TAG_QUERY	
+1.17.1	play	serverbound	use_entity	ok	13	13	-	generated_ids.rs:INTERACT_ENTITY	
+1.17.1	play	serverbound	generate_structure	ok	14	14	-	generated_ids.rs:GENERATE_STRUCTURE	
+1.17.1	play	serverbound	keep_alive	ok	15	15	-	generated_ids.rs:KEEP_ALIVE	
+1.17.1	play	serverbound	lock_difficulty	ok	16	16	-	generated_ids.rs:LOCK_DIFFICULTY	
+1.17.1	play	serverbound	position	ok	17	17	-	generated_ids.rs:MOVE_PLAYER_POS	
+1.17.1	play	serverbound	position_look	ok	18	18	-	generated_ids.rs:MOVE_PLAYER_POS_ROT	
+1.17.1	play	serverbound	look	ok	19	19	-	generated_ids.rs:PLAYER_ROTATION	
+1.17.1	play	serverbound	flying	ok	20	20	-	generated_ids.rs:PLAYER_FLYING	
+1.17.1	play	serverbound	vehicle_move	ok	21	21	-	generated_ids.rs:MOVE_VEHICLE	
+1.17.1	play	serverbound	steer_boat	ok	22	22	-	generated_ids.rs:STEER_BOAT	
+1.17.1	play	serverbound	pick_item	ok	23	23	-	generated_ids.rs:PICK_ITEM	
+1.17.1	play	serverbound	craft_recipe_request	ok	24	24	-	generated_ids.rs:PLACE_RECIPE	
+1.17.1	play	serverbound	abilities	ok	25	25	-	generated_ids.rs:PLAYER_ABILITIES	
+1.17.1	play	serverbound	block_dig	ok	26	26	-	generated_ids.rs:PLAYER_DIGGING	
+1.17.1	play	serverbound	entity_action	ok	27	27	-	generated_ids.rs:ENTITY_ACTION	
+1.17.1	play	serverbound	steer_vehicle	ok	28	28	-	generated_ids.rs:STEER_VEHICLE	
+1.17.1	play	serverbound	pong	ok	29	29	-	generated_ids.rs:PONG	
+1.17.1	play	serverbound	recipe_book	missing	-1	30	low	generated_ids.rs:RECIPE_BOOK_DATA	No older-layout entry; packet dropped for this client.
+1.17.1	play	serverbound	displayed_recipe	ok	31	31	-	generated_ids.rs:RECIPE_BOOK_SEEN_RECIPE	
+1.17.1	play	serverbound	name_item	ok	32	32	-	generated_ids.rs:RENAME_ITEM	
+1.17.1	play	serverbound	resource_pack_receive	ok	33	33	-	generated_ids.rs:RESOURCE_PACK	
+1.17.1	play	serverbound	advancement_tab	ok	34	34	-	generated_ids.rs:SEEN_ADVANCEMENTS	
+1.17.1	play	serverbound	select_trade	ok	35	35	-	generated_ids.rs:SELECT_TRADE	
+1.17.1	play	serverbound	set_beacon_effect	ok	36	36	-	generated_ids.rs:SET_BEACON	
+1.17.1	play	serverbound	held_item_slot	ok	37	37	-	generated_ids.rs:SET_CARRIED_ITEM	
+1.17.1	play	serverbound	update_command_block	ok	38	38	-	generated_ids.rs:SET_COMMAND_BLOCK	
+1.17.1	play	serverbound	update_command_block_minecart	ok	39	39	-	generated_ids.rs:SET_COMMAND_MINECART	
+1.17.1	play	serverbound	set_creative_slot	ok	40	40	-	generated_ids.rs:SET_CREATIVE_MODE_SLOT	
+1.17.1	play	serverbound	update_jigsaw_block	ok	41	41	-	generated_ids.rs:SET_JIGSAW_BLOCK	
+1.17.1	play	serverbound	update_structure_block	ok	42	42	-	generated_ids.rs:SET_STRUCTURE_BLOCK	
+1.17.1	play	serverbound	update_sign	ok	43	43	-	generated_ids.rs:SIGN_UPDATE	
+1.17.1	play	serverbound	arm_animation	ok	44	44	-	generated_ids.rs:SWING	
+1.17.1	play	serverbound	spectate	ok	45	45	-	generated_ids.rs:SPECTATE_ENTITY	
+1.17.1	play	serverbound	block_place	ok	46	46	-	generated_ids.rs:PLAYER_BLOCK_PLACEMENT	
+1.17.1	play	serverbound	use_item	ok	47	47	-	generated_ids.rs:USE_ITEM	
+1.17.1	login	clientbound	disconnect	ok	0	0	-	generated_ids.rs:LOGIN_DISCONNECT	
+1.17.1	login	clientbound	encryption_begin	ok	1	1	-	generated_ids.rs:HELLO	
+1.17.1	login	clientbound	success	ok	2	2	-	generated_ids.rs:LOGIN_FINISHED	
+1.17.1	login	clientbound	compress	ok	3	3	-	generated_ids.rs:LOGIN_COMPRESSION	
+1.17.1	login	clientbound	login_plugin_request	ok	4	4	-	generated_ids.rs:LOGIN_PLUGIN_REQUEST	
+1.17.1	login	serverbound	login_start	ok	0	0	-	generated_ids.rs:LOGIN_START	
+1.17.1	login	serverbound	encryption_begin	ok	1	1	-	generated_ids.rs:KEY	
+1.17.1	login	serverbound	login_plugin_response	ok	2	2	-	generated_ids.rs:LOGIN_PLUGIN_RESPONSE	
+1.17.1	status	clientbound	server_info	ok	0	0	-	generated_ids.rs:STATUS_RESPONSE	
+1.17.1	status	clientbound	ping	ok	1	1	-	generated_ids.rs:PONG_RESPONSE	
+1.17.1	status	serverbound	ping_start	ok	0	0	-	generated_ids.rs:STATUS_REQUEST	
+1.17.1	status	serverbound	ping	ok	1	1	-	generated_ids.rs:PING_REQUEST	
+1.17.1	handshaking	serverbound	set_protocol	ok	0	0	-	generated_ids.rs:INTENTION	
+1.16	play	clientbound	login / Join_Game	ok	entityId; hardcore; gamemode; prevGamemode; dimensionNames; dimensionCodec NBT; dimension string; dimensionName; seed; maxPlayers; viewDistance; debug; respawn; isDebug; isFlat	wiki Join Game 1.16	-	legacy/packets/login.rs:12-172	
+1.16	play	clientbound	respawn	ok	dimension NBT/string; worldName; seed; gamemode; prev gamemode; debug; flat; copyMetadata	wiki Respawn 1.16	-	legacy/packets/respawn.rs:8-86	
+1.16	play	clientbound	chat / system_chat	ok	component; type u8; nil UUID	wiki 1.16 sender UUID	-	translate/chat.rs:83-85	
+1.16	play	clientbound	entity_update_attributes	ok	i32 property count; name; f64; varint modifiers; UUID+f64+u8	wiki Update Attributes 1.16	-	legacy/packets/update_attributes.rs:23-57	
+1.16	play	clientbound	player_info (add_player)	ok	action varint; count; UUID; name(16); properties; gamemode; ping; displayName	wiki Player Info 1.16	-	translate/player_info.rs:238-300	
+1.16	play	clientbound	map_chunk	ok	x,z; groundUp+ignoreOldData; varint bitMap; heightmaps NBT; biomes; sections; block entities	wiki Chunk Data 1.16	-	translate/chunk.rs:335-494	
+1.16	play	clientbound	update_light	ok	varint masks + 18-section arrays	wiki Update Light 1.16	-	pumpkin-protocol/src/java/client/play/light_update.rs:69-140	
+1.16	status	clientbound	ping / pong	ok	status ping=1, pong=1, request=0, response=0	wiki status 1.16	-	legacy/generated_ids.rs status	
+1.16	play	clientbound	update_tags	ok	4 fixed categories (block,item,fluid,entity)	wiki Tags 1.16	-	translate/tags.rs:276-338	
+1.16	play	clientbound	entity_destroy / destroy_entity	ok	array of varint entity ids	wiki Destroy Entities 1.16	-	translate/entity_data.rs:129-135	
+1.16	play	clientbound	block_entity_data (tile_entity_data)	unverifiable	location; action u8; NBT (pass-through)	wiki Block Entity Data 1.16	info	translate/chunk.rs / translate/block.rs	NBT content is core-owned; no version-specific field casing here.
+1.16	play	clientbound	entity UUID in NBT (1.16 int-array)	unverifiable	NBT bytes passed through unchanged	wiki 1.16 NBT UUID as IntArray	info	translate/nbt.rs:65-102	Core generates NBT; no explicit int-array UUID conversion here.
+1.16	play	clientbound	resource_pack_send	layout-mismatch	url; hash; forced(bool); optional prompt(option)	url; hash only (1.16-1.16.5)	high	legacy/packets/add_resource_pack.rs:19-25	Write forced+prompt only when version >= V_1_17; 1.16.x gets url+hash only.
+1.16	play	clientbound	teams (team color)	layout-mismatch	color as i8 (-1 = 0xFF)	color is VarInt in 1.16 (wiki + minecraft-data)	medium	legacy/packets/set_player_team.rs:60-65	Write color as VarInt for >= V_1_13; use 21 or -1 varint for no color.
+1.16	play	clientbound	title (split Set Title packets)	missing	current SET_TITLE_TEXT/SUBTITLE/ANIMATION/CLEAR map to -1; dropped	single TITLE 0x4F with action byte + component/times	medium	generated_ids.rs TITLE/SET_TITLE_TEXT; translator.rs:371-377	Translate current title packets into combined legacy TITLE payload for 1.16.x.
+1.16	config	clientbound	config-state packets	n/a-server	-	no config state before 1.20.2	-	ids.rs state_index	
+1.16.1	play	clientbound	login / Join_Game	ok	entityId; hardcore; gamemode; prevGamemode; dimensionNames; dimensionCodec NBT; dimension string; dimensionName; seed; maxPlayers; viewDistance; debug; respawn; isDebug; isFlat	wiki Join Game 1.16.1	-	legacy/packets/login.rs:12-172	
+1.16.1	play	clientbound	respawn	ok	dimension NBT/string; worldName; seed; gamemode; prev gamemode; debug; flat; copyMetadata	wiki Respawn 1.16.1	-	legacy/packets/respawn.rs:8-86	
+1.16.1	play	clientbound	chat / system_chat	ok	component; type u8; nil UUID	wiki 1.16 sender UUID	-	translate/chat.rs:83-85	
+1.16.1	play	clientbound	entity_update_attributes	ok	i32 property count; name; f64; varint modifiers; UUID+f64+u8	wiki Update Attributes 1.16.1	-	legacy/packets/update_attributes.rs:23-57	
+1.16.1	play	clientbound	player_info (add_player)	ok	action varint; count; UUID; name(16); properties; gamemode; ping; displayName	wiki Player Info 1.16.1	-	translate/player_info.rs:238-300	
+1.16.1	play	clientbound	map_chunk	ok	x,z; groundUp+ignoreOldData; varint bitMap; heightmaps NBT; biomes; sections; block entities	wiki Chunk Data 1.16.1	-	translate/chunk.rs:335-494	
+1.16.1	play	clientbound	update_light	ok	varint masks + 18-section arrays	wiki Update Light 1.16.1	-	pumpkin-protocol/src/java/client/play/light_update.rs:69-140	
+1.16.1	status	clientbound	ping / pong	ok	status ping=1, pong=1, request=0, response=0	wiki status 1.16.1	-	legacy/generated_ids.rs status	
+1.16.1	play	clientbound	update_tags	ok	4 fixed categories (block,item,fluid,entity)	wiki Tags 1.16.1	-	translate/tags.rs:276-338	
+1.16.1	play	clientbound	entity_destroy / destroy_entity	ok	array of varint entity ids	wiki Destroy Entities 1.16.1	-	translate/entity_data.rs:129-135	
+1.16.1	play	clientbound	block_entity_data (tile_entity_data)	unverifiable	location; action u8; NBT (pass-through)	wiki Block Entity Data 1.16.1	info	translate/chunk.rs / translate/block.rs	NBT content is core-owned; no version-specific field casing here.
+1.16.1	play	clientbound	entity UUID in NBT (1.16 int-array)	unverifiable	NBT bytes passed through unchanged	wiki 1.16 NBT UUID as IntArray	info	translate/nbt.rs:65-102	Core generates NBT; no explicit int-array UUID conversion here.
+1.16.1	play	clientbound	resource_pack_send	layout-mismatch	url; hash; forced(bool); optional prompt(option)	url; hash only (1.16-1.16.5)	high	legacy/packets/add_resource_pack.rs:19-25	Write forced+prompt only when version >= V_1_17; 1.16.x gets url+hash only.
+1.16.1	play	clientbound	teams (team color)	layout-mismatch	color as i8 (-1 = 0xFF)	color is VarInt in 1.16 (wiki + minecraft-data)	medium	legacy/packets/set_player_team.rs:60-65	Write color as VarInt for >= V_1_13; use 21 or -1 varint for no color.
+1.16.1	play	clientbound	title (split Set Title packets)	missing	current SET_TITLE_TEXT/SUBTITLE/ANIMATION/CLEAR map to -1; dropped	single TITLE 0x4F with action byte + component/times	medium	generated_ids.rs TITLE/SET_TITLE_TEXT; translator.rs:371-377	Translate current title packets into combined legacy TITLE payload for 1.16.x.
+1.16.1	config	clientbound	config-state packets	n/a-server	-	no config state before 1.20.2	-	ids.rs state_index	
+1.16.2	play	clientbound	login / Join_Game	ok	entityId; hardcore; gamemode; prevGamemode; dimensionNames; dimensionCodec NBT; dimension string; dimensionName; seed; maxPlayers; viewDistance; debug; respawn; isDebug; isFlat	wiki Join Game 1.16.2	-	legacy/packets/login.rs:12-172	
+1.16.2	play	clientbound	respawn	ok	dimension NBT/string; worldName; seed; gamemode; prev gamemode; debug; flat; copyMetadata	wiki Respawn 1.16.2	-	legacy/packets/respawn.rs:8-86	
+1.16.2	play	clientbound	chat / system_chat	ok	component; type u8; nil UUID	wiki 1.16 sender UUID	-	translate/chat.rs:83-85	
+1.16.2	play	clientbound	entity_update_attributes	ok	i32 property count; name; f64; varint modifiers; UUID+f64+u8	wiki Update Attributes 1.16.2	-	legacy/packets/update_attributes.rs:23-57	
+1.16.2	play	clientbound	player_info (add_player)	ok	action varint; count; UUID; name(16); properties; gamemode; ping; displayName	wiki Player Info 1.16.2	-	translate/player_info.rs:238-300	
+1.16.2	play	clientbound	map_chunk	ok	x,z; groundUp; varint bitMap; heightmaps NBT; biomes; sections; block entities	wiki Chunk Data 1.16.2	-	translate/chunk.rs:335-494	
+1.16.2	play	clientbound	update_light	ok	varint masks + 18-section arrays	wiki Update Light 1.16.2	-	pumpkin-protocol/src/java/client/play/light_update.rs:69-140	
+1.16.2	status	clientbound	ping / pong	ok	status ping=1, pong=1, request=0, response=0	wiki status 1.16.2	-	legacy/generated_ids.rs status	
+1.16.2	play	clientbound	update_tags	ok	4 fixed categories (block,item,fluid,entity)	wiki Tags 1.16.2	-	translate/tags.rs:276-338	
+1.16.2	play	clientbound	entity_destroy / destroy_entity	ok	array of varint entity ids	wiki Destroy Entities 1.16.2	-	translate/entity_data.rs:129-135	
+1.16.2	play	clientbound	block_entity_data (tile_entity_data)	unverifiable	location; action u8; NBT (pass-through)	wiki Block Entity Data 1.16.2	info	translate/chunk.rs / translate/block.rs	NBT content is core-owned; no version-specific field casing here.
+1.16.2	play	clientbound	entity UUID in NBT (1.16 int-array)	unverifiable	NBT bytes passed through unchanged	wiki 1.16 NBT UUID as IntArray	info	translate/nbt.rs:65-102	Core generates NBT; no explicit int-array UUID conversion here.
+1.16.2	play	clientbound	resource_pack_send	layout-mismatch	url; hash; forced(bool); optional prompt(option)	url; hash only (1.16-1.16.5)	high	legacy/packets/add_resource_pack.rs:19-25	Write forced+prompt only when version >= V_1_17; 1.16.x gets url+hash only.
+1.16.2	play	clientbound	teams (team color)	layout-mismatch	color as i8 (-1 = 0xFF)	color is VarInt in 1.16 (wiki + minecraft-data)	medium	legacy/packets/set_player_team.rs:60-65	Write color as VarInt for >= V_1_13; use 21 or -1 varint for no color.
+1.16.2	play	clientbound	title (split Set Title packets)	missing	current SET_TITLE_TEXT/SUBTITLE/ANIMATION/CLEAR map to -1; dropped	single TITLE 0x4F with action byte + component/times	medium	generated_ids.rs TITLE/SET_TITLE_TEXT; translator.rs:371-377	Translate current title packets into combined legacy TITLE payload for 1.16.x.
+1.16.2	config	clientbound	config-state packets	n/a-server	-	no config state before 1.20.2	-	ids.rs state_index	
+1.16.3	play	clientbound	login / Join_Game	ok	entityId; hardcore; gamemode; prevGamemode; dimensionNames; dimensionCodec NBT; dimension string; dimensionName; seed; maxPlayers; viewDistance; debug; respawn; isDebug; isFlat	wiki Join Game 1.16.3	-	legacy/packets/login.rs:12-172	
+1.16.3	play	clientbound	respawn	ok	dimension NBT/string; worldName; seed; gamemode; prev gamemode; debug; flat; copyMetadata	wiki Respawn 1.16.3	-	legacy/packets/respawn.rs:8-86	
+1.16.3	play	clientbound	chat / system_chat	ok	component; type u8; nil UUID	wiki 1.16 sender UUID	-	translate/chat.rs:83-85	
+1.16.3	play	clientbound	entity_update_attributes	ok	i32 property count; name; f64; varint modifiers; UUID+f64+u8	wiki Update Attributes 1.16.3	-	legacy/packets/update_attributes.rs:23-57	
+1.16.3	play	clientbound	player_info (add_player)	ok	action varint; count; UUID; name(16); properties; gamemode; ping; displayName	wiki Player Info 1.16.3	-	translate/player_info.rs:238-300	
+1.16.3	play	clientbound	map_chunk	ok	x,z; groundUp; varint bitMap; heightmaps NBT; biomes; sections; block entities	wiki Chunk Data 1.16.3	-	translate/chunk.rs:335-494	
+1.16.3	play	clientbound	update_light	ok	varint masks + 18-section arrays	wiki Update Light 1.16.3	-	pumpkin-protocol/src/java/client/play/light_update.rs:69-140	
+1.16.3	status	clientbound	ping / pong	ok	status ping=1, pong=1, request=0, response=0	wiki status 1.16.3	-	legacy/generated_ids.rs status	
+1.16.3	play	clientbound	update_tags	ok	4 fixed categories (block,item,fluid,entity)	wiki Tags 1.16.3	-	translate/tags.rs:276-338	
+1.16.3	play	clientbound	entity_destroy / destroy_entity	ok	array of varint entity ids	wiki Destroy Entities 1.16.3	-	translate/entity_data.rs:129-135	
+1.16.3	play	clientbound	block_entity_data (tile_entity_data)	unverifiable	location; action u8; NBT (pass-through)	wiki Block Entity Data 1.16.3	info	translate/chunk.rs / translate/block.rs	NBT content is core-owned; no version-specific field casing here.
+1.16.3	play	clientbound	entity UUID in NBT (1.16 int-array)	unverifiable	NBT bytes passed through unchanged	wiki 1.16 NBT UUID as IntArray	info	translate/nbt.rs:65-102	Core generates NBT; no explicit int-array UUID conversion here.
+1.16.3	play	clientbound	resource_pack_send	layout-mismatch	url; hash; forced(bool); optional prompt(option)	url; hash only (1.16-1.16.5)	high	legacy/packets/add_resource_pack.rs:19-25	Write forced+prompt only when version >= V_1_17; 1.16.x gets url+hash only.
+1.16.3	play	clientbound	teams (team color)	layout-mismatch	color as i8 (-1 = 0xFF)	color is VarInt in 1.16 (wiki + minecraft-data)	medium	legacy/packets/set_player_team.rs:60-65	Write color as VarInt for >= V_1_13; use 21 or -1 varint for no color.
+1.16.3	play	clientbound	title (split Set Title packets)	missing	current SET_TITLE_TEXT/SUBTITLE/ANIMATION/CLEAR map to -1; dropped	single TITLE 0x4F with action byte + component/times	medium	generated_ids.rs TITLE/SET_TITLE_TEXT; translator.rs:371-377	Translate current title packets into combined legacy TITLE payload for 1.16.x.
+1.16.3	config	clientbound	config-state packets	n/a-server	-	no config state before 1.20.2	-	ids.rs state_index	
+1.16.4/1.16.5	play	clientbound	login / Join_Game	ok	entityId; hardcore; gamemode; prevGamemode; dimensionNames; dimensionCodec NBT; dimension string; dimensionName; seed; maxPlayers; viewDistance; debug; respawn; isDebug; isFlat	wiki Join Game 1.16.4/1.16.5	-	legacy/packets/login.rs:12-172	
+1.16.4/1.16.5	play	clientbound	respawn	ok	dimension NBT/string; worldName; seed; gamemode; prev gamemode; debug; flat; copyMetadata	wiki Respawn 1.16.4/1.16.5	-	legacy/packets/respawn.rs:8-86	
+1.16.4/1.16.5	play	clientbound	chat / system_chat	ok	component; type u8; nil UUID	wiki 1.16 sender UUID	-	translate/chat.rs:83-85	
+1.16.4/1.16.5	play	clientbound	entity_update_attributes	ok	i32 property count; name; f64; varint modifiers; UUID+f64+u8	wiki Update Attributes 1.16.4/1.16.5	-	legacy/packets/update_attributes.rs:23-57	
+1.16.4/1.16.5	play	clientbound	player_info (add_player)	ok	action varint; count; UUID; name(16); properties; gamemode; ping; displayName	wiki Player Info 1.16.4/1.16.5	-	translate/player_info.rs:238-300	
+1.16.4/1.16.5	play	clientbound	map_chunk	ok	x,z; groundUp; varint bitMap; heightmaps NBT; biomes; sections; block entities	wiki Chunk Data 1.16.4/1.16.5	-	translate/chunk.rs:335-494	
+1.16.4/1.16.5	play	clientbound	update_light	ok	varint masks + 18-section arrays	wiki Update Light 1.16.4/1.16.5	-	pumpkin-protocol/src/java/client/play/light_update.rs:69-140	
+1.16.4/1.16.5	status	clientbound	ping / pong	ok	status ping=1, pong=1, request=0, response=0	wiki status 1.16.4/1.16.5	-	legacy/generated_ids.rs status	
+1.16.4/1.16.5	play	clientbound	update_tags	ok	4 fixed categories (block,item,fluid,entity)	wiki Tags 1.16.4/1.16.5	-	translate/tags.rs:276-338	
+1.16.4/1.16.5	play	clientbound	entity_destroy / destroy_entity	ok	array of varint entity ids	wiki Destroy Entities 1.16.4/1.16.5	-	translate/entity_data.rs:129-135	
+1.16.4/1.16.5	play	clientbound	block_entity_data (tile_entity_data)	unverifiable	location; action u8; NBT (pass-through)	wiki Block Entity Data 1.16.4/1.16.5	info	translate/chunk.rs / translate/block.rs	NBT content is core-owned; no version-specific field casing here.
+1.16.4/1.16.5	play	clientbound	entity UUID in NBT (1.16 int-array)	unverifiable	NBT bytes passed through unchanged	wiki 1.16 NBT UUID as IntArray	info	translate/nbt.rs:65-102	Core generates NBT; no explicit int-array UUID conversion here.
+1.16.4/1.16.5	play	clientbound	resource_pack_send	layout-mismatch	url; hash; forced(bool); optional prompt(option)	url; hash only (1.16-1.16.5)	high	legacy/packets/add_resource_pack.rs:19-25	Write forced+prompt only when version >= V_1_17; 1.16.x gets url+hash only.
+1.16.4/1.16.5	play	clientbound	teams (team color)	layout-mismatch	color as i8 (-1 = 0xFF)	color is VarInt in 1.16 (wiki + minecraft-data)	medium	legacy/packets/set_player_team.rs:60-65	Write color as VarInt for >= V_1_13; use 21 or -1 varint for no color.
+1.16.4/1.16.5	play	clientbound	title (split Set Title packets)	missing	current SET_TITLE_TEXT/SUBTITLE/ANIMATION/CLEAR map to -1; dropped	single TITLE 0x4F with action byte + component/times	medium	generated_ids.rs TITLE/SET_TITLE_TEXT; translator.rs:371-377	Translate current title packets into combined legacy TITLE payload for 1.16.x.
+1.16.4/1.16.5	config	clientbound	config-state packets	n/a-server	-	no config state before 1.20.2	-	ids.rs state_index	
+1.17	play	clientbound	login / Join_Game	ok	entityId; hardcore; gamemode; prevGamemode; dimensionNames; dimensionCodec NBT; dimensionType NBT; dimensionName; seed; maxPlayers; viewDistance; debug; respawn; isDebug; isFlat	wiki Join Game 1.17	-	legacy/packets/login.rs:12-172	
+1.17	play	clientbound	respawn	ok	dimension NBT/string; worldName; seed; gamemode; prev gamemode; debug; flat; copyMetadata	wiki Respawn 1.17	-	legacy/packets/respawn.rs:8-86	
+1.17	play	clientbound	chat / system_chat	ok	component; type u8; nil UUID	wiki 1.16 sender UUID	-	translate/chat.rs:83-85	
+1.17	play	clientbound	entity_update_attributes	ok	varint property count; name; f64; varint modifiers; UUID+f64+u8	wiki Update Attributes 1.17	-	legacy/packets/update_attributes.rs:23-57	
+1.17	play	clientbound	player_info (add_player)	ok	action varint; count; UUID; name(16); properties; gamemode; ping; displayName	wiki Player Info 1.17	-	translate/player_info.rs:238-300	
+1.17	play	clientbound	map_chunk	ok	x,z; groundUp; BitSet long array bitMap; heightmaps NBT; biomes; sections; block entities	wiki Chunk Data 1.17	-	translate/chunk.rs:335-494	
+1.17	play	clientbound	update_light	ok	BitSet long-array masks + counted arrays	wiki Update Light 1.17	-	pumpkin-protocol/src/java/client/play/light_update.rs:69-140	
+1.17	status	clientbound	ping / pong	ok	status ping=1, pong=1, request=0, response=0	wiki status 1.17	-	legacy/generated_ids.rs status	
+1.17	play	clientbound	update_tags	ok	named registries	wiki Tags 1.17	-	translate/tags.rs:276-338	
+1.17	play	clientbound	entity_destroy / destroy_entity	ok	single varint entity id	wiki Destroy Entities 1.17	-	translate/entity_data.rs:129-135	Only first id sent; split multiple removals for 1.17.
+1.17	play	clientbound	block_entity_data (tile_entity_data)	unverifiable	location; action u8; NBT (pass-through)	wiki Block Entity Data 1.17	info	translate/chunk.rs / translate/block.rs	NBT content is core-owned; no version-specific field casing here.
+1.17	play	clientbound	entity UUID in NBT (1.16 int-array)	unverifiable	NBT bytes passed through unchanged	wiki 1.16 NBT UUID as IntArray	info	translate/nbt.rs:65-102	Core generates NBT; no explicit int-array UUID conversion here.
+1.17	play	clientbound	resource_pack_send	ok	url; hash; forced(bool); prompt(option)	url; hash; forced; prompt (1.17+)	-	legacy/packets/add_resource_pack.rs:19-25	
+1.17	play	clientbound	teams (team color)	ok	color VarInt	VarInt in 1.17	-	legacy/packets/set_player_team.rs:60-62	
+1.17	play	clientbound	title (split Set Title packets)	ok	separate Set Title Text/Subtitle/Animation/Clear packets	1.17 split packets	-	generated_ids.rs:758-1360	
+1.17	config	clientbound	config-state packets	n/a-server	-	no config state before 1.20.2	-	ids.rs state_index	
+1.17.1	play	clientbound	login / Join_Game	ok	entityId; hardcore; gamemode; prevGamemode; dimensionNames; dimensionCodec NBT; dimensionType NBT; dimensionName; seed; maxPlayers; viewDistance; debug; respawn; isDebug; isFlat	wiki Join Game 1.17.1	-	legacy/packets/login.rs:12-172	
+1.17.1	play	clientbound	respawn	ok	dimension NBT/string; worldName; seed; gamemode; prev gamemode; debug; flat; copyMetadata	wiki Respawn 1.17.1	-	legacy/packets/respawn.rs:8-86	
+1.17.1	play	clientbound	chat / system_chat	ok	component; type u8; nil UUID	wiki 1.16 sender UUID	-	translate/chat.rs:83-85	
+1.17.1	play	clientbound	entity_update_attributes	ok	varint property count; name; f64; varint modifiers; UUID+f64+u8	wiki Update Attributes 1.17.1	-	legacy/packets/update_attributes.rs:23-57	
+1.17.1	play	clientbound	player_info (add_player)	ok	action varint; count; UUID; name(16); properties; gamemode; ping; displayName	wiki Player Info 1.17.1	-	translate/player_info.rs:238-300	
+1.17.1	play	clientbound	map_chunk	ok	x,z; groundUp; BitSet long array bitMap; heightmaps NBT; biomes; sections; block entities	wiki Chunk Data 1.17.1	-	translate/chunk.rs:335-494	
+1.17.1	play	clientbound	update_light	ok	BitSet long-array masks + counted arrays	wiki Update Light 1.17.1	-	pumpkin-protocol/src/java/client/play/light_update.rs:69-140	
+1.17.1	status	clientbound	ping / pong	ok	status ping=1, pong=1, request=0, response=0	wiki status 1.17.1	-	legacy/generated_ids.rs status	
+1.17.1	play	clientbound	update_tags	ok	named registries	wiki Tags 1.17.1	-	translate/tags.rs:276-338	
+1.17.1	play	clientbound	entity_destroy / destroy_entity	ok	array of varint entity ids	wiki Destroy Entities 1.17.1	-	translate/entity_data.rs:129-135	
+1.17.1	play	clientbound	block_entity_data (tile_entity_data)	unverifiable	location; action u8; NBT (pass-through)	wiki Block Entity Data 1.17.1	info	translate/chunk.rs / translate/block.rs	NBT content is core-owned; no version-specific field casing here.
+1.17.1	play	clientbound	entity UUID in NBT (1.16 int-array)	unverifiable	NBT bytes passed through unchanged	wiki 1.16 NBT UUID as IntArray	info	translate/nbt.rs:65-102	Core generates NBT; no explicit int-array UUID conversion here.
+1.17.1	play	clientbound	resource_pack_send	ok	url; hash; forced(bool); prompt(option)	url; hash; forced; prompt (1.17+)	-	legacy/packets/add_resource_pack.rs:19-25	
+1.17.1	play	clientbound	teams (team color)	ok	color VarInt	VarInt in 1.17	-	legacy/packets/set_player_team.rs:60-62	
+1.17.1	play	clientbound	title (split Set Title packets)	ok	separate Set Title Text/Subtitle/Animation/Clear packets	1.17 split packets	-	generated_ids.rs:758-1360	
+1.17.1	config	clientbound	config-state packets	n/a-server	-	no config state before 1.20.2	-	ids.rs state_index	
+1.17	login	clientbound	dimension type min_y/height	ok	min_y=0, height=256, logical_height<=256	1.17 added min_y/height with 0/256 (height raised in 1.18)	-	build/vanilla.rs:422-438	
+1.17.1	login	clientbound	dimension type min_y/height	ok	min_y=0, height=256, logical_height<=256	1.17 added min_y/height with 0/256 (height raised in 1.18)	-	build/vanilla.rs:422-438	
+1.16	SUMMARY	-	-	summary	id-mismatch=12 layout-mismatch=2 missing=1 n/a-server=1 ok=149 unverifiable=3	rows=168	critical	-	BLOCKED: 1.16 ID rotation + resource pack/team/title layout bugs
+1.16.1	SUMMARY	-	-	summary	id-mismatch=12 layout-mismatch=2 missing=1 n/a-server=1 ok=149 unverifiable=3	rows=168	critical	-	BLOCKED: 1.16 ID rotation + resource pack/team/title layout bugs
+1.16.2	SUMMARY	-	-	summary	layout-mismatch=2 missing=2 n/a-server=1 ok=161 unverifiable=3	rows=169	high	-	BLOCKED: resource pack + team color + title layout bugs
+1.16.3	SUMMARY	-	-	summary	layout-mismatch=2 missing=2 n/a-server=1 ok=161 unverifiable=3	rows=169	high	-	BLOCKED: resource pack + team color + title layout bugs
+1.16.4/1.16.5	SUMMARY	-	-	summary	layout-mismatch=2 missing=2 n/a-server=1 ok=161 unverifiable=3	rows=169	high	-	BLOCKED: resource pack + team color + title layout bugs
+1.17	SUMMARY	-	-	summary	missing=1 n/a-server=1 ok=174 unverifiable=5	rows=181	medium	-	MINOR: layout gaps noted; IDs match
+1.17.1	SUMMARY	-	-	summary	missing=1 n/a-server=1 ok=174 unverifiable=5	rows=181	medium	-	MINOR: layout gaps noted; IDs match
