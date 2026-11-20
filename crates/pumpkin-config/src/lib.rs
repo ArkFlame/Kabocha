@@ -41,6 +41,7 @@ pub use networking::lan_broadcast::LANBroadcastConfig;
 pub use networking::management::ManagementServerConfig;
 pub use networking::packet_limiter::PacketLimiterConfig;
 pub use plugins::{PluginOverride, PluginsConfig};
+pub use multiversion::MultiversionConfig;
 pub use pvp::PVPConfig;
 pub use server_links::ServerLinksConfig;
 pub use telemetry::TelemetryConfig;
@@ -63,6 +64,7 @@ pub mod op;
 
 mod advancement;
 mod player_data;
+mod multiversion;
 mod pvp;
 mod server_links;
 mod toml_adapters;
@@ -211,6 +213,9 @@ pub struct AdvancedConfiguration {
     /// Chat-related features such as formatting, filtering, and message behaviour.
     #[toml(default = Self::default().chat)]
     pub chat: ChatConfig,
+    /// Built-in multi-version support for older Java clients.
+    #[toml(default = Self::default().multiversion)]
+    pub multiversion: MultiversionConfig,
     /// Player-vs-player rules and mechanics.
     #[toml(default = Self::default().pvp)]
     pub pvp: PVPConfig,

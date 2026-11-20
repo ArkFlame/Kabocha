@@ -3347,6 +3347,7 @@ dependencies = [
  "pumpkin-gametest",
  "pumpkin-inventory",
  "pumpkin-macros",
+ "pumpkin-multiversion",
  "pumpkin-nbt",
  "pumpkin-profiler",
  "pumpkin-protocol",
@@ -3447,6 +3448,26 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.10",
+]
+
+[[package]]
+name = "pumpkin-multiversion"
+version = "0.2.2+26.3-26.63"
+dependencies = [
+ "bytes",
+ "flate2",
+ "phf",
+ "pumpkin-data",
+ "pumpkin-nbt",
+ "pumpkin-protocol",
+ "pumpkin-util",
+ "reqwest",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tracing",
+ "uuid",
+ "zip",
 ]
 
 [[package]]
@@ -3968,6 +3989,7 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-util",
+ "h2",
  "http",
  "http-body",
  "http-body-util",

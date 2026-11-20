@@ -275,6 +275,23 @@ impl PendingConnection {
         let Some(server) = self.translating_server() else {
             return (Some(packet_data), Vec::new());
         };
+        if server.advanced_config.multiversion.enabled {
+            let mut reader = &packet_data[..];
+            let Ok(packet_id) = reader.get_var_int() else {
+                return (Some(packet_data), Vec::new());
+            };
+            let state = native_state(self.connection_state.load());
+            return (
+                pumpkin_multiversion::outgoing_connection(
+                    state,
+                    self.version.load(),
+                    packet_id.0,
+                    reader,
+                )
+                .and_then(|(id, payload)| Self::frame_raw_packet(id, &payload)),
+                Vec::new(),
+            );
+        }
         if !server
             .plugin_manager
             .has_handlers::<JavaConnectionPacketSentEvent>()
@@ -320,6 +337,19 @@ impl PendingConnection {
         let Some(server) = self.translating_server() else {
             return Some(unchanged());
         };
+        if server.advanced_config.multiversion.enabled {
+            let state = native_state(self.connection_state.load());
+            return pumpkin_multiversion::incoming_connection(
+                state,
+                self.version.load(),
+                packet.id,
+                &packet.payload,
+            )
+            .map(|(id, payload)| RawPacket {
+                id,
+                payload: payload.into(),
+            });
+        }
         if !server
             .plugin_manager
             .has_handlers::<JavaConnectionPacketReceivedEvent>()
@@ -764,5 +794,17 @@ impl PendingConnection {
             packet.key,
             packet.payload.as_ref().map(|p| p.len())
         );
+    }
+}
+
+/// Maps the connection state to the translator's.
+const fn native_state(state: ConnectionState) -> pumpkin_multiversion::JavaConnectionState {
+    use pumpkin_multiversion::JavaConnectionState as State;
+    match state {
+        ConnectionState::HandShake => State::Handshake,
+        ConnectionState::Status => State::Status,
+        ConnectionState::Login | ConnectionState::Transfer => State::Login,
+        ConnectionState::Config => State::Config,
+        ConnectionState::Play => State::Play,
     }
 }

@@ -563,7 +563,10 @@ impl JavaClient {
         }
         let player = self.player.load().upgrade()?;
         let server = player.world().server.upgrade()?;
-        if !server.plugin_manager.has_handlers::<PacketSentEvent>() {
+        let version = self.version.load();
+        let native = !current_version && server.advanced_config.multiversion.enabled;
+        let has_handlers = server.plugin_manager.has_handlers::<PacketSentEvent>();
+        if !native && !has_handlers {
             return None;
         }
 
@@ -577,21 +580,49 @@ impl JavaClient {
                 };
             };
             let payload = packet_data.slice(packet_data.len() - reader.len()..);
-            let mut event = PacketSentEvent::new_raw(player, packet_id.0, payload);
-            server.plugin_manager.fire(&server, &mut event).await;
-
-            let extras = event
-                .extra_packets
-                .iter()
-                .filter_map(|(id, payload)| frame_packet(*id, payload))
-                .collect();
-            let packet = if event.cancelled {
-                None
-            } else if current_version {
-                Some(packet_data)
-            } else {
-                frame_packet(event.packet_id, &event.payload)
-            };
+            let mut id = packet_id.0;
+            let mut payload = payload;
+            let mut extras = Vec::new();
+            if has_handlers {
+                let mut event = PacketSentEvent::new_raw(player.clone(), id, payload);
+                server.plugin_manager.fire(&server, &mut event).await;
+                extras.extend(
+                    event
+                        .extra_packets
+                        .iter()
+                        .filter_map(|(id, payload)| frame_packet(*id, payload)),
+                );
+                if event.cancelled {
+                    return Transformed {
+                        packet: None,
+                        extras,
+                    };
+                }
+                if current_version {
+                    return Transformed {
+                        packet: Some(packet_data),
+                        extras,
+                    };
+                }
+                id = event.packet_id;
+                payload = event.payload;
+            }
+            if !native {
+                return Transformed {
+                    packet: frame_packet(id, &payload),
+                    extras,
+                };
+            }
+            let viewer = player.gameprofile.id.as_u128();
+            let out = pumpkin_multiversion::outgoing_play(viewer, version, id, &payload);
+            extras.extend(
+                out.extras
+                    .iter()
+                    .filter_map(|(id, payload)| frame_packet(*id, payload)),
+            );
+            let packet = out
+                .packet
+                .and_then(|(id, payload)| frame_packet(id, &payload));
             Transformed { packet, extras }
         }))
     }
@@ -903,8 +934,28 @@ impl JavaClient {
         server: &Arc<Server>,
         packet: &RawPacket,
     ) -> Result<(), Box<dyn PumpkinError>> {
-        // The multiversion plugin has converted older clients' packets to 26.3 by now.
+        // Older clients' packets are converted to 26.3 below, so handlers see 26.3.
         let version = CURRENT_MC_VERSION;
+        let native_packet;
+        let packet = if server.advanced_config.multiversion.enabled
+            && self.version.load() != CURRENT_MC_VERSION
+        {
+            let Some((id, payload)) = pumpkin_multiversion::incoming_play(
+                self.version.load(),
+                packet.id,
+                &packet.payload,
+                || (player.living_entity.entity.yaw.load(), player.living_entity.entity.pitch.load()),
+            ) else {
+                return Ok(());
+            };
+            native_packet = RawPacket {
+                id,
+                payload: payload.into(),
+            };
+            &native_packet
+        } else {
+            packet
+        };
 
         let event_payload;
         let (packet_id, mut payload) = if server

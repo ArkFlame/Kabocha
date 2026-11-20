@@ -1,0 +1,14 @@
+{
+  "category": "underground",
+  "depth": 0.1,
+  "downfall": 0.5,
+  "effects": {
+    "fog_color": 12638463,
+    "sky_color": 8103167,
+    "water_color": 4159204,
+    "water_fog_color": 329011
+  },
+  "precipitation": "rain",
+  "scale": 0.2,
+  "temperature": 0.5
+}

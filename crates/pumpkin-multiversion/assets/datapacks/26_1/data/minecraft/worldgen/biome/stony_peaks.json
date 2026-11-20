@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "minecraft:audio/background_music": {
+      "default": {
+        "max_delay": 24000,
+        "min_delay": 12000,
+        "sound": "minecraft:music.overworld.stony_peaks"
+      }
+    },
+    "minecraft:visual/sky_color": "#76a8ff"
+  },
+  "downfall": 0.3,
+  "effects": {
+    "water_color": "#3f76e4"
+  },
+  "has_precipitation": true,
+  "temperature": 1.0
+}

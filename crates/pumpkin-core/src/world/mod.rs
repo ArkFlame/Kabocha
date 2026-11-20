@@ -6456,6 +6456,7 @@ impl World {
                 &CRemoveActor::new(VarLong(entity_id as i64)),
             );
 
+            pumpkin_multiversion::forget_viewer(player.gameprofile.id.as_u128());
             if fire_event {
                 let msg_comp = TextComponent::translate_cross(
                     translation::java::MULTIPLAYER_PLAYER_LEFT,

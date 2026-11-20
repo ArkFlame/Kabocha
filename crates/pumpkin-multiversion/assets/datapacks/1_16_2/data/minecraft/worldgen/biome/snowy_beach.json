@@ -1,0 +1,20 @@
+{
+  "category": "beach",
+  "depth": 0.0,
+  "downfall": 0.3,
+  "effects": {
+    "fog_color": 12638463,
+    "mood_sound": {
+      "block_search_extent": 8,
+      "offset": 2.0,
+      "sound": "minecraft:ambient.cave",
+      "tick_delay": 6000
+    },
+    "sky_color": 8364543,
+    "water_color": 4020182,
+    "water_fog_color": 329011
+  },
+  "precipitation": "snow",
+  "scale": 0.025,
+  "temperature": 0.05
+}

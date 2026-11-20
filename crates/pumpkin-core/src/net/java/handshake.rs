@@ -55,6 +55,12 @@ impl PendingConnection {
         if self.connection_state.load() != ConnectionState::Status {
             let protocol = version;
             // A plugin translating this version (see `register_java_versions`) admits it.
+            if server.advanced_config.multiversion.enabled
+                && pumpkin_multiversion::supported_versions()
+                    .contains(&JavaMinecraftVersion::from_protocol(protocol))
+            {
+                return;
+            }
             if server
                 .plugin_manager
                 .java_versions

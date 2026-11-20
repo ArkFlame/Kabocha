@@ -18,6 +18,7 @@ pumpkin-util.workspace = true
 pumpkin-auth.workspace = true
 pumpkin-nbt.workspace = true
 pumpkin-config.workspace = true
+pumpkin-multiversion.workspace = true
 pumpkin-command.workspace = true
 pumpkin-inventory.workspace = true
 pumpkin-world.workspace = true
