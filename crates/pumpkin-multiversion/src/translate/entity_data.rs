@@ -135,7 +135,7 @@ pub fn remove_entities_from_current(
     Some(payload.to_vec())
 }
 
-fn entity_type(entity_id: i32) -> Option<u16> {
+pub(crate) fn entity_type(entity_id: i32) -> Option<u16> {
     let types = ENTITY_TYPES.lock().unwrap_or_else(PoisonError::into_inner);
     types.get(&VIEWER.get())?.get(&entity_id).copied()
 }
@@ -288,6 +288,23 @@ pub fn set_entity_data_from_current(
     mut payload: &[u8],
     version: JavaMinecraftVersion,
 ) -> Option<Vec<u8>> {
+    if (JavaMinecraftVersion::V_1_9..JavaMinecraftVersion::V_1_21).contains(&version) {
+        return super::entity_data_legacy::set_entity_data_from_current_legacy(payload, version);
+    }
+    if version < JavaMinecraftVersion::V_1_9 {
+        let entity_id = payload.get_var_int().ok()?;
+        let mut out = Vec::new();
+        // 1.7 writes the entity id as an int, 1.8 as a VarInt.
+        if version < JavaMinecraftVersion::V_1_8 {
+            out.extend_from_slice(&entity_id.0.to_be_bytes());
+        } else {
+            out.write_var_int(&entity_id).ok()?;
+        }
+        out.extend(super::entity_data_1_8::entity_data_to_legacy_1_7_8(
+            payload, version,
+        )?);
+        return Some(out);
+    }
     let tables = tables_for(version)?;
     let entity_id = payload.get_var_int().ok()?;
     let name = EntityType::from_raw(entity_type(entity_id.0)?)?.resource_name;

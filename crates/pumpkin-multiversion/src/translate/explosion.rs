@@ -7,7 +7,10 @@ use pumpkin_protocol::{
 };
 use pumpkin_util::{math::vector3::Vector3, version::JavaMinecraftVersion};
 
-use crate::translate::{particle::write_particle, sound::read_sound};
+use crate::translate::{
+    particle::{skip_particle, write_particle},
+    sound::read_sound,
+};
 
 eras! {
     pub enum ExplosionFormat {
@@ -37,15 +40,28 @@ pub fn explode_from_current(mut payload: &[u8], version: JavaMinecraftVersion) -
     } else {
         None
     };
+    // Below 1.13 the explosion layout has no particle field: consume its options
+    // without requiring a legacy translation instead of dropping the packet.
+    let legacy_particle = version < JavaMinecraftVersion::V_1_13;
     let mut particle = Vec::new();
-    write_particle(&mut payload, version, &mut particle)?;
+    if legacy_particle {
+        skip_particle(&mut payload)?;
+        // The Core branch below reads an id back from this buffer.
+        particle.write_var_int(&VarInt(0)).ok()?;
+    } else {
+        write_particle(&mut payload, version, &mut particle)?;
+    }
     let sound = read_sound(&mut payload, version)?;
 
     let block_particle_count = payload.get_var_int().ok()?;
     let mut block_particles = Vec::new();
     block_particles.write_var_int(&block_particle_count).ok()?;
     for _ in 0..block_particle_count.0 {
-        write_particle(&mut payload, version, &mut block_particles)?;
+        if legacy_particle {
+            skip_particle(&mut payload)?;
+        } else {
+            write_particle(&mut payload, version, &mut block_particles)?;
+        }
         block_particles
             .write_f32_be(payload.get_f32_be().ok()?)
             .ok()?; // scaling
@@ -116,6 +132,30 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn explode_before_1_20_3_ends_at_player_motion() {
+        let packet = CExplosion {
+            center: Vector3::new(1.0, 2.0, 3.0),
+            radius: 4.0,
+            block_count: 0,
+            knockback: Some(Vector3::new(0.5, 0.25, 0.0)),
+            particle: VarInt(0),
+            sound: IdOr::Id(0),
+            block_particles_pool_size: VarInt(0),
+            play_sound: true,
+        };
+        // center(12) + radius(4) + affected count(4) + motion(12) = 32, no trailing count.
+        for version in [
+            JavaMinecraftVersion::V_1_7_2,
+            JavaMinecraftVersion::V_1_8,
+            JavaMinecraftVersion::V_1_9,
+        ] {
+            let mut out = Vec::new();
+            packet.write_legacy(&mut out, &version).unwrap();
+            assert_eq!(out.len(), 32, "{version}");
+        }
+    }
 
     #[test]
     fn explode_drops_the_play_sound_flag() {

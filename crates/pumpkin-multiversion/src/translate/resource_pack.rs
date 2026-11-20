@@ -38,6 +38,13 @@ pub fn push_from_current(mut payload: &[u8], version: JavaMinecraftVersion) -> O
     let uuid = payload.get_uuid().ok()?;
     let url = payload.get_str_borrowed().ok()?;
     let hash = payload.get_str_borrowed().ok()?;
+    if version < JavaMinecraftVersion::V_1_17 {
+        // Before 1.17 the packet is only URL and hash; forced and prompt came later.
+        let mut out = Vec::new();
+        out.write_string(url).ok()?;
+        out.write_string(hash).ok()?;
+        return Some(out);
+    }
     let forced = payload.get_bool().ok()?;
     let prompt_message = if payload.get_bool().ok()? {
         Some(

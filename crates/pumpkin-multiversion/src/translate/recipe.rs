@@ -1,5 +1,6 @@
 //! Recipe displays: RECIPE_BOOK_ADD, PLACE_GHOST_RECIPE, UPDATE_RECIPES.
 
+use pumpkin_data::{item::Item, item_stack::ItemStack};
 use pumpkin_protocol::{
     VarInt,
     codec::item_stack_seralizer::ItemStackSerializer,
@@ -273,16 +274,132 @@ pub fn recipe_book_add_from_current(
     Some(writer.out)
 }
 
-/// PLACE_GHOST_RECIPE: container id, display.
+/// PLACE_GHOST_RECIPE: container id, then a legacy recipe id. The modern packet carries a
+/// display tree, not a recipe name, so the id is empty: the client accepts the packet but shows
+/// no ghost recipe. 1.12.1-1.12.2 uses a numeric recipe id instead of a string.
 pub fn place_ghost_recipe_from_current(
     mut payload: &[u8],
     version: JavaMinecraftVersion,
 ) -> Option<Vec<u8>> {
+    let window_id = payload.get_var_int().ok()?.0;
+    let mut out = Vec::new();
+    if version >= JavaMinecraftVersion::V_1_20_5 {
+        out.write_u8(u8::try_from(window_id).ok()?).ok()?;
+    } else {
+        out.write_i8(i8::try_from(window_id).ok()?).ok()?;
+    }
+    if version <= JavaMinecraftVersion::V_1_12_2 && version >= JavaMinecraftVersion::V_1_12 {
+        out.write_var_int(&VarInt(0)).ok()?;
+    } else {
+        out.write_string("").ok()?;
+    }
+    Some(out)
+}
+
+/// UNLOCK_RECIPES: action and book flags followed by recipe id arrays. The current layout has
+/// eight flags and string ids; 1.13-1.19 have four flags and string ids, and 1.12 has two flags
+/// and numeric ids.
+pub fn unlock_recipes_from_current(
+    mut payload: &[u8],
+    version: JavaMinecraftVersion,
+) -> Option<Vec<u8>> {
     let read = &mut payload;
-    let mut writer = Writer::new(version);
-    writer.var_int(read.get_var_int().ok()?.0)?;
-    writer.recipe_display(read)?;
-    Some(writer.out)
+    let action = read.get_var_int().ok()?;
+    let mut flags = 0u8;
+    for i in 0..8 {
+        if read.get_bool().ok()? && i < 4 {
+            flags |= 1 << i;
+        }
+    }
+    let mut out = Vec::new();
+    out.write_var_int(&action).ok()?;
+    out.write_bool(flags & 1 != 0).ok()?;
+    out.write_bool(flags & 2 != 0).ok()?;
+    if version >= JavaMinecraftVersion::V_1_13 {
+        out.write_bool(flags & 4 != 0).ok()?;
+        out.write_bool(flags & 8 != 0).ok()?;
+    }
+    let ids = read.get_var_int().ok()?.0;
+    out.write_var_int(&VarInt(ids)).ok()?;
+    for _ in 0..ids {
+        let name = read.get_str_borrowed().ok()?;
+        if version >= JavaMinecraftVersion::V_1_13 {
+            out.write_string(name).ok()?;
+        } else {
+            // 1.12 identifies recipes by registry id; no name-to-id table is available.
+            out.write_var_int(&VarInt(0)).ok()?;
+        }
+    }
+    if action.0 == 0 {
+        let ids = read.get_var_int().ok()?.0;
+        out.write_var_int(&VarInt(ids)).ok()?;
+        for _ in 0..ids {
+            let name = read.get_str_borrowed().ok()?;
+            if version >= JavaMinecraftVersion::V_1_13 {
+                out.write_string(name).ok()?;
+            } else {
+                out.write_var_int(&VarInt(0)).ok()?;
+            }
+        }
+    }
+    Some(out)
+}
+
+/// Writes one legacy recipe declaration. 1.14+ write the type before the id and prefix the
+/// type with `minecraft:`; recipe ingredients are arrays of slots.
+fn write_legacy_recipe(
+    out: &mut Vec<u8>,
+    name: &str,
+    items: &[i32],
+    version: JavaMinecraftVersion,
+) -> Option<()> {
+    let legacy_type = if version >= JavaMinecraftVersion::V_1_14 {
+        "minecraft:crafting_shapeless"
+    } else {
+        "crafting_shapeless"
+    };
+    if version >= JavaMinecraftVersion::V_1_14 {
+        out.write_string(legacy_type).ok()?;
+        out.write_string(name).ok()?;
+    } else {
+        out.write_string(name).ok()?;
+        out.write_string(legacy_type).ok()?;
+    }
+    out.write_string("").ok()?;
+    out.write_var_int(&VarInt(items.len() as i32)).ok()?;
+    let stack = ItemStack::new(1, &Item::AIR);
+    for id in items {
+        out.write_var_int(&VarInt(1)).ok()?;
+        let item = u16::try_from(*id)
+            .ok()
+            .and_then(Item::from_id)
+            .unwrap_or(&Item::AIR);
+        let ingredient = ItemStack::new(1, item);
+        write_item_for_version(&ingredient, version, out).ok()?;
+    }
+    write_item_for_version(&stack, version, out).ok()
+}
+
+/// DECLARE_RECIPES before 1.16: the current property sets are emitted as shapeless recipe
+/// declarations so older clients read a well-formed list.
+fn declare_recipes_from_current(
+    mut payload: &[u8],
+    version: JavaMinecraftVersion,
+) -> Option<Vec<u8>> {
+    let read = &mut payload;
+    let sets = read.get_var_int().ok()?.0;
+    let mut out = Vec::new();
+    out.write_var_int(&VarInt(sets)).ok()?;
+    for _ in 0..sets {
+        let name = read.get_str_borrowed().ok()?;
+        let items = read.get_var_int().ok()?.0;
+        let mut ids = Vec::new();
+        for _ in 0..items {
+            ids.push(read.get_var_int().ok()?.0);
+        }
+        write_legacy_recipe(&mut out, name, &ids, version)?;
+    }
+    Some(out)
 }
 
 /// UPDATE_RECIPES: item property sets, stonecutter recipes.
@@ -290,6 +407,9 @@ pub fn update_recipes_from_current(
     mut payload: &[u8],
     version: JavaMinecraftVersion,
 ) -> Option<Vec<u8>> {
+    if version < JavaMinecraftVersion::V_1_16 {
+        return declare_recipes_from_current(payload, version);
+    }
     let read = &mut payload;
     let mut writer = Writer::new(version);
     let sets = read.get_var_int().ok()?.0;
@@ -320,6 +440,27 @@ mod tests {
     use pumpkin_protocol::{ClientPacket, java::client::play::CRecipeBookAdd};
 
     use super::*;
+
+    #[test]
+    fn declare_recipes_for_1_14_uses_string_ids() {
+        let mut payload = Vec::new();
+        payload.write_var_int(&VarInt(1)).ok();
+        payload.write_string("minecraft:test").ok();
+        payload.write_var_int(&VarInt(2)).ok();
+        payload.write_var_int(&VarInt(5)).ok();
+        payload.write_var_int(&VarInt(6)).ok();
+        payload.write_var_int(&VarInt(0)).ok();
+        let out = update_recipes_from_current(&payload, JavaMinecraftVersion::V_1_14).unwrap();
+        let read = &mut out.as_slice();
+        assert_eq!(read.get_var_int().unwrap(), VarInt(1));
+        assert_eq!(
+            read.get_str_borrowed().unwrap(),
+            "minecraft:crafting_shapeless"
+        );
+        assert_eq!(read.get_str_borrowed().unwrap(), "minecraft:test");
+        assert_eq!(read.get_str_borrowed().unwrap(), "");
+        assert_eq!(read.get_var_int().unwrap(), VarInt(2));
+    }
 
     /// Walks a 1.21.11 slot display (types: empty, any fuel, item, item stack, tag, smithing
     /// trim, with remainder, composite).

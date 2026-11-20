@@ -1,5 +1,8 @@
 //! PLAYER_INFO_UPDATE and PLAYER_INFO_REMOVE (and pre-1.19.3 PLAYER_INFO).
 
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex, PoisonError};
+
 use crate::legacy::{LegacyWriteExt, ids};
 use pumpkin_protocol::{
     Property, VarInt,
@@ -18,6 +21,10 @@ eras! {
         V1_19_3 = V_1_19_3,
     }
 }
+
+/// Names from ADD_PLAYER, keyed by UUID, for 1.7's name-based player list.
+static NAMES: LazyLock<Mutex<HashMap<uuid::Uuid, Box<str>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// One player's actions, owned so the borrowed `PlayerAction`s can point into it.
 struct Entry {
@@ -166,6 +173,9 @@ pub fn player_info_update_from_current(
             read_entry(read, flags).ok_or_else(|| ReadingError::Message("player".into()))
         })
         .ok()?;
+    if format == PlayerInfoFormat::V1_7 && flags.contains(PlayerInfoFlags::ADD_PLAYER) {
+        remember_names(&entries);
+    }
 
     match format {
         PlayerInfoFormat::V1_19_3 => {
@@ -224,8 +234,40 @@ pub fn player_info_remove_packet_from_current(
             out.extend_from_slice(payload);
             Some((id, out))
         }
-        PlayerInfoFormat::V1_7 => None,
+        PlayerInfoFormat::V1_7 => {
+            let id = ids::clientbound::play::PLAYER_INFO.to_id(version);
+            if id == -1 {
+                return None;
+            }
+            let mut read = payload;
+            let players = read.get_list(|read| read.get_uuid()).ok()?;
+            let uuid = players.first()?;
+            let name = take_name(*uuid)?;
+            let mut out = Vec::new();
+            out.write_string(&name).ok()?;
+            out.write_bool(false).ok()?;
+            out.write_i16_be(0).ok()?;
+            Some((id, out))
+        }
     }
+}
+
+/// Remembers the names a viewer saw in ADD_PLAYER so a later remove can name the player.
+fn remember_names(entries: &[Entry]) {
+    let mut names = NAMES.lock().unwrap_or_else(PoisonError::into_inner);
+    for entry in entries {
+        if let Some((name, _)) = &entry.add {
+            names.insert(entry.uuid, truncate_chars(name, 16).into());
+        }
+    }
+}
+
+/// Returns and forgets a tracked name.
+fn take_name(uuid: uuid::Uuid) -> Option<Box<str>> {
+    NAMES
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .remove(&uuid)
 }
 
 fn truncate_chars(s: &str, max_chars: usize) -> &str {
@@ -351,6 +393,37 @@ mod tests {
             .write_legacy(&mut out, &version)
             .unwrap();
         out
+    }
+
+    fn current_add(uuid: uuid::Uuid, name: &str) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.write_u8(PlayerInfoFlags::ADD_PLAYER.bits()).unwrap();
+        out.write_var_int(&VarInt(1)).unwrap();
+        out.write_uuid(&uuid).unwrap();
+        out.write_string(name).unwrap();
+        out.write_var_int(&VarInt(0)).unwrap();
+        out
+    }
+
+    #[test]
+    fn remove_1_7_uses_the_tracked_name() {
+        let version = JavaMinecraftVersion::V_1_7_2;
+        let uuid = uuid::Uuid::from_u128(7);
+        let _ = player_info_update_from_current(&current_add(uuid, "Steve"), version);
+
+        let mut remove = Vec::new();
+        remove.write_var_int(&VarInt(1)).unwrap();
+        remove.write_uuid(&uuid).unwrap();
+        let (id, out) = player_info_remove_packet_from_current(&remove, version).unwrap();
+        assert_eq!(id, ids::clientbound::play::PLAYER_INFO.to_id(version));
+
+        let mut slice = out.as_slice();
+        assert_eq!(&*slice.get_str().unwrap(), "Steve");
+        assert!(!slice.get_bool().unwrap());
+        assert_eq!(slice.get_i16_be().unwrap(), 0);
+        assert!(slice.is_empty());
+        // A second remove has no name to write.
+        assert_eq!(player_info_remove_packet_from_current(&remove, version), None);
     }
 
     #[test]

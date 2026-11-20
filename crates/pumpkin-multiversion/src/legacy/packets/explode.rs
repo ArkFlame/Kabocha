@@ -106,9 +106,6 @@ impl LegacyWrite for CExplosion {
                     write.write_option(&range, |w, r| w.write_f32_be(*r))?;
                 }
             }
-
-            // Block count: 0
-            write.write_var_int(&VarInt(0))?;
         }
 
         Ok(())

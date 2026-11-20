@@ -16,12 +16,15 @@ impl LegacyWrite for CConfigAddResourcePack<'_> {
         }
         write.write_string(self.url)?;
         write.write_string(self.hash)?;
-        write.write_bool(self.forced)?;
-        if let Some(prompt) = &self.prompt_message {
-            write.write_bool(true)?;
-            write.write_component_legacy(prompt, version)?;
-        } else {
-            write.write_bool(false)?;
+        // Forced and prompt message did not exist before 1.17: url and hash only.
+        if *version >= JavaMinecraftVersion::V_1_17 {
+            write.write_bool(self.forced)?;
+            if let Some(prompt) = &self.prompt_message {
+                write.write_bool(true)?;
+                write.write_component_legacy(prompt, version)?;
+            } else {
+                write.write_bool(false)?;
+            }
         }
         Ok(())
     }

@@ -57,7 +57,8 @@ impl LegacyWrite for CSetPlayerTeam<'_> {
                     write.write_string_bounded(params.nametag_visibility, 40)?;
                     write.write_string_bounded(params.collision_rule, 40)?;
                 }
-                if *version >= JavaMinecraftVersion::V_1_17 {
+                if *version >= JavaMinecraftVersion::V_1_13 {
+                    // 1.13+ writes a VarInt colour enum; 21 is "reset" for no colour.
                     let color_id = if params.color < 0 { 21 } else { params.color };
                     write.write_var_int(&VarInt(color_id))?;
                 } else {

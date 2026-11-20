@@ -1,6 +1,6 @@
 //! Pre-26.3 encodings from `pumpkin-protocol`'s `java/client/play/login.rs`.
 
-use crate::legacy::packets::player_spawn_data::write_game_modes;
+use crate::legacy::packets::player_spawn_data::{legacy_difficulty, write_game_modes};
 use crate::legacy::{LegacyRegistryNbt, LegacyWriteExt, LegacyWriteWith};
 use pumpkin_protocol::java::client::play::CLogin;
 use pumpkin_protocol::{
@@ -74,8 +74,8 @@ impl LegacyWriteWith<LegacyRegistryNbt<'_>> for CLogin<'_> {
                 write.write_i8(legacy_dim_id as i8)?;
             }
             if !v1_14 {
-                // Difficulty (0: peaceful, 1: easy, 2: normal, 3: hard) - default 2 (Normal)
-                write.write_u8(2)?;
+                // 26.3 carries difficulty in CHANGE_DIFFICULTY, not in this packet.
+                write.write_u8(legacy_difficulty(None))?;
             }
         }
 

@@ -4,20 +4,20 @@
 use crate::legacy::{LegacyReadExt, LegacyWriteExt};
 use pumpkin_data::{
     block_properties::BLOCK_ENTITY_TYPES, data_component::DataComponent, entity::EntityType,
-    item_stack::ItemStack,
+    item::Item, item_stack::ItemStack,
 };
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_protocol::{
     VarInt,
     codec::{data_component::deserialize, item_stack_seralizer::ItemStackSerializer},
-    ser::{NetworkReadExt, NetworkWriteExt},
+    ser::{NetworkReadExt, NetworkReadSliceExt, NetworkWriteExt},
 };
-use pumpkin_util::version::JavaMinecraftVersion;
+use pumpkin_util::{translation::Locale, version::JavaMinecraftVersion};
 
-use crate::legacy::slot_to_version;
+use crate::legacy::{slot_to_version, text::to_legacy_string};
 use crate::remap::{
     data_component_type_id_remap::remap_data_component_type_id_from_version,
-    item_id_remap::remap_item_id_from_version,
+    item_id_remap::remap_item_id_from_version, menu_id_remap::remap_menu_id_for_version,
 };
 use crate::translate::{
     item::{CustomModelDataFormat, ItemFormat, NestedItemFormat, write_item_for_version},
@@ -374,6 +374,132 @@ pub fn set_equipment_from_current(
                 .ok()?;
             write_item_for_version(item, version, &mut out).ok()?;
         }
+    }
+    Some(out)
+}
+
+/// Reads a 26.3 item cost (item id, count, then an exact-predicate component list) as a plain
+/// stack. Legacy costs have no components, so they are read and discarded.
+fn read_item_cost(read: &mut &[u8]) -> Option<ItemStack> {
+    let id = read.get_var_int().ok()?.0;
+    let count = read.get_var_int().ok()?.0;
+    let components = read.get_var_int().ok()?.0;
+    for _ in 0..components {
+        let component = read.get_var_int().ok()?.0 as u32;
+        let component = u8::try_from(component)
+            .ok()
+            .and_then(DataComponent::try_from_id)?;
+        deserialize(component, read).ok()?;
+    }
+    let item = u16::try_from(id)
+        .ok()
+        .and_then(Item::from_id)
+        .unwrap_or(&Item::AIR);
+    Some(ItemStack::new(u8::try_from(count).unwrap_or(u8::MAX), item))
+}
+
+/// MERCHANT_OFFERS (TRADE_LIST) for 1.14-1.15: u8 count, legacy slot costs and outputs, no
+/// demand or restock flag before 1.15.
+pub fn merchant_offers_from_current(
+    mut payload: &[u8],
+    version: JavaMinecraftVersion,
+) -> Option<Vec<u8>> {
+    if version < JavaMinecraftVersion::V_1_14 || version >= JavaMinecraftVersion::V_1_19 {
+        return None;
+    }
+    let window_id = payload.get_var_int().ok()?;
+    let count = u8::try_from(payload.get_var_int().ok()?.0).ok()?;
+    let mut out = Vec::new();
+    out.write_var_int(&window_id).ok()?;
+    out.write_u8(count).ok()?;
+    for _ in 0..count {
+        let first = read_item_cost(&mut payload)?;
+        write_item_for_version(&first, version, &mut out).ok()?;
+        let output = read_item(&mut payload)?;
+        write_item_for_version(&output, version, &mut out).ok()?;
+        let has_second = payload.get_bool().ok()?;
+        out.write_bool(has_second).ok()?;
+        if has_second {
+            let second = read_item_cost(&mut payload)?;
+            write_item_for_version(&second, version, &mut out).ok()?;
+        }
+        out.write_bool(payload.get_bool().ok()?).ok()?;
+        for _ in 0..4 {
+            out.write_i32_be(payload.get_i32_be().ok()?).ok()?;
+        }
+        out.write_f32_be(payload.get_f32_be().ok()?).ok()?;
+        let demand = payload.get_i32_be().ok()?;
+        if version >= JavaMinecraftVersion::V_1_15 {
+            out.write_i32_be(demand).ok()?;
+        }
+    }
+    out.write_var_int(&payload.get_var_int().ok()?).ok()?;
+    out.write_var_int(&payload.get_var_int().ok()?).ok()?;
+    out.write_bool(payload.get_bool().ok()?).ok()?;
+    if version >= JavaMinecraftVersion::V_1_15 {
+        out.write_bool(payload.get_bool().ok()?).ok()?;
+    }
+    Some(out)
+}
+
+fn legacy_menu_name(id: u8) -> &'static str {
+    match id {
+        1 => "EntityHorse",
+        2 => "minecraft:anvil",
+        3 => "minecraft:beacon",
+        4 => "minecraft:brewing_stand",
+        5 => "minecraft:chest",
+        6 => "minecraft:container",
+        7 => "minecraft:crafting_table",
+        8 => "minecraft:dispenser",
+        9 => "minecraft:dropper",
+        10 => "minecraft:enchanting_table",
+        11 => "minecraft:furnace",
+        12 => "minecraft:hopper",
+        13 => "minecraft:villager",
+        _ => "minecraft:chest",
+    }
+}
+
+fn legacy_menu_slots(id: u8) -> u8 {
+    match id {
+        1 => 17,
+        3 | 8 | 9 | 10 | 11 | 13 => 3,
+        4 | 12 => 5,
+        2 => 3,
+        7 => 9,
+        _ => 27,
+    }
+}
+
+/// OPEN_SCREEN (OPEN_WINDOW) for 1.7.x/1.8: u8 window id, inventory type (u8 on 1.7, string
+/// on 1.8), plain title, u8 slot count, a use-title flag on 1.7, and no entity id because the
+/// current packet does not carry one.
+pub fn open_screen_from_current(
+    mut payload: &[u8],
+    version: JavaMinecraftVersion,
+) -> Option<Vec<u8>> {
+    if version >= JavaMinecraftVersion::V_1_9 {
+        return None;
+    }
+    let window_id = payload.get_var_int().ok()?.0;
+    let menu_id = u8::try_from(payload.get_var_int().ok()?.0).ok()?;
+    let title = payload
+        .get_component_borrowed(&pumpkin_data::packet::CURRENT_MC_VERSION)
+        .ok()?;
+    let legacy_id = remap_menu_id_for_version(menu_id, version);
+    let mut out = Vec::new();
+    out.write_u8(u8::try_from(window_id).ok()?).ok()?;
+    if version >= JavaMinecraftVersion::V_1_8 {
+        out.write_string(legacy_menu_name(legacy_id)).ok()?;
+    } else {
+        out.write_u8(legacy_id).ok()?;
+    }
+    out.write_string(&to_legacy_string(&title, &version, Locale::EnUs))
+        .ok()?;
+    out.write_u8(legacy_menu_slots(legacy_id)).ok()?;
+    if version < JavaMinecraftVersion::V_1_8 {
+        out.write_bool(true).ok()?;
     }
     Some(out)
 }

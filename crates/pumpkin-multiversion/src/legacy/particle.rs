@@ -6,6 +6,63 @@ use pumpkin_protocol::{
     ser::{NetworkReadExt, ReadingError},
 };
 
+use crate::legacy::packets::particle::particle_name_for_v1_7;
+
+/// Numeric particle id used by 1.8-1.12 clients, derived from the legacy 1.7 name.
+///
+/// The generated 26.3 -> older remap is not usable below 1.13: the ViaBackwards
+/// mapping files stop carrying a `particles` section at that boundary, so the
+/// generated table is just the 1.13 table copied down. Names are stable across
+/// 1.8-1.12, so the 1.7 name gives us the right numeric id for those clients.
+#[must_use]
+pub fn particle_id_for_v1_8(particle: Particle) -> u16 {
+    match particle_name_for_v1_7(particle) {
+        "explode" => 0,
+        "largeexplode" => 1,
+        "hugeexplosion" => 2,
+        "fireworksSpark" => 3,
+        "bubble" => 4,
+        "splash" => 5,
+        "wake" => 6,
+        "suspended" => 7,
+        "depthsuspend" => 8,
+        "crit" => 9,
+        "magicCrit" => 10,
+        "smoke" => 11,
+        "largesmoke" => 12,
+        "spell" => 13,
+        "instantSpell" => 14,
+        "mobSpell" => 15,
+        "mobSpellAmbient" => 16,
+        "witchMagic" => 17,
+        "dripWater" => 18,
+        "dripLava" => 19,
+        "angryVillager" => 20,
+        "happyVillager" => 21,
+        "townaura" => 22,
+        "note" => 23,
+        "portal" => 24,
+        "enchantmenttable" => 25,
+        "flame" => 26,
+        "lava" => 27,
+        "footstep" => 28,
+        "cloud" => 29,
+        "reddust" => 30,
+        "snowballpoof" => 31,
+        "snowshovel" => 32,
+        "slime" => 33,
+        "heart" => 34,
+        "barrier" => 35,
+        "iconcrack_" => 36,
+        "blockcrack_" => 37,
+        "blockdust_" => 38,
+        "droplet" => 39,
+        "take" => 40,
+        "mobappearance" => 41,
+        _ => 11,
+    }
+}
+
 /// 26.3 option payload that follows a particle type id.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ParticleOptionsLayout {

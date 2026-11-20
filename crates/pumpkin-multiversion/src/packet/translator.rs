@@ -367,6 +367,7 @@ impl PacketTranslator {
             id if id == play::LIGHT_UPDATE.current() => light::light_update_from_current,
             id if id == play::FORGET_LEVEL_CHUNK.current() => chat::forget_level_chunk_from_current,
             id if id == play::SET_PLAYER_TEAM.current() => team::set_player_team_from_current,
+            id if id == play::RESOURCE_PACK_PUSH.current() => resource_pack::push_from_current,
             id if id == play::CUSTOM_PAYLOAD.current() => plugin_message::play_from_current,
             id if id == play::DISCONNECT.current()
                 || id == play::SET_ACTION_BAR_TEXT.current()

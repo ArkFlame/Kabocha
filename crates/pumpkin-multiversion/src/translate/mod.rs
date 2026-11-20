@@ -46,6 +46,8 @@ pub mod chunk;
 pub mod commands;
 pub mod entity;
 pub mod entity_data;
+pub mod entity_data_1_8;
+pub mod entity_data_legacy;
 pub mod explosion;
 pub mod game_event;
 pub mod inventory;

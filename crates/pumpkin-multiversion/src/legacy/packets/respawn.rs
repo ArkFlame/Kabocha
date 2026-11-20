@@ -1,5 +1,6 @@
 //! Pre-26.3 encodings from `pumpkin-protocol`'s `java/client/play/respawn.rs`.
 
+use crate::legacy::packets::player_spawn_data::legacy_difficulty;
 use crate::legacy::{LegacyRegistryNbt, LegacyWrite, LegacyWriteExt, LegacyWriteWith};
 use pumpkin_protocol::java::client::play::CRespawn;
 use pumpkin_protocol::ser::{NetworkWriteExt, WritingError};
@@ -30,8 +31,8 @@ impl LegacyWriteWith<LegacyRegistryNbt<'_>> for CRespawn {
             if v1_15 {
                 write.write_i64_be(self.player_spawn_info.hashed_seed)?;
             } else if !v1_14 {
-                // Difficulty: 0: peaceful, 1: easy, 2: normal, 3: hard (default: 2 Normal)
-                write.write_u8(2)?;
+                // 26.3 carries difficulty in CHANGE_DIFFICULTY, not in this packet.
+                write.write_u8(legacy_difficulty(None))?;
             }
             write.write_u8(self.player_spawn_info.game_mode)?;
             let level_type = if self.player_spawn_info.is_flat {

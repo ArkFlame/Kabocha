@@ -1,14 +1,18 @@
 //! Block states and block entity types: BLOCK_UPDATE, SECTION_BLOCKS_UPDATE, BLOCK_ENTITY_DATA,
 //! chunk palettes.
 
-use std::sync::{Mutex, PoisonError};
+use std::{
+    io::Write,
+    sync::{Mutex, PoisonError},
+};
 
+use flate2::{Compression, write::GzEncoder};
 use pumpkin_protocol::{
     VarInt,
     codec::var_long::VarLong,
     ser::{NetworkReadExt, NetworkWriteExt},
 };
-use pumpkin_util::version::JavaMinecraftVersion;
+use pumpkin_util::{math::vector3::unpacked_chunk_pos, version::JavaMinecraftVersion};
 
 use super::{
     ceil_log2,
@@ -81,38 +85,80 @@ pub fn block_update_from_current(
 
 eras! {
     pub enum BlockEntityDataFormat {
-        // TODO: a byte action per type before 1.18; dropped until then
-        Action = V_1_7_2,
-        /// Type id.
+        /// Explicit x/y/z, byte action, gzipped NBT.
+        V1_7 = V_1_7_2,
+        /// Packed position, byte action, named NBT.
+        V1_8 = V_1_8,
+        /// Packed position, type id, network NBT.
         V1_18 = V_1_18,
     }
 }
 
-/// BLOCK_ENTITY_DATA: position, type, NBT. Types the client lacks are dropped.
+/// 26.3 network NBT as the gzipped, length-prefixed payload 1.7 clients expect.
+fn write_gzipped_nbt(nbt: &[u8], version: JavaMinecraftVersion, out: &mut Vec<u8>) -> Option<()> {
+    let (&tag_type, _) = nbt.split_first()?;
+    if tag_type == 0 {
+        out.write_i16_be(-1).ok()?;
+        return Some(());
+    }
+    let mut named = Vec::new();
+    write_network_nbt(nbt, version, &mut named);
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(&named).ok()?;
+    let compressed = encoder.finish().ok()?;
+    out.write_i16_be(i16::try_from(compressed.len()).ok()?).ok()?;
+    out.extend_from_slice(&compressed);
+    Some(())
+}
+
+/// BLOCK_ENTITY_DATA: position, type/action, NBT. Types the client lacks are dropped.
 pub fn block_entity_data_from_current(
     mut payload: &[u8],
     version: JavaMinecraftVersion,
 ) -> Option<Vec<u8>> {
-    if BlockEntityDataFormat::of(version) == BlockEntityDataFormat::Action {
-        return None;
-    }
     let position = payload.get_i64_be().ok()?;
     let kind = payload.get_var_int().ok()?.0 as u32;
     let client_kind = remap_block_entity_type(kind, version);
     if client_kind == 0 && kind != 0 {
         return None;
     }
+    let nbt = split_network_nbt(&mut payload)?;
+    let format = BlockEntityDataFormat::of(version);
     let mut out = Vec::new();
-    out.write_i64_be(position).ok()?;
-    out.write_var_int(&VarInt(client_kind as i32)).ok()?;
-    write_network_nbt(split_network_nbt(&mut payload)?, version, &mut out);
+    match format {
+        BlockEntityDataFormat::V1_7 => {
+            let pos_bytes = position.to_be_bytes();
+            let mut pos_slice = pos_bytes.as_slice();
+            let pos = pos_slice
+                .get_block_pos(&pumpkin_data::packet::CURRENT_MC_VERSION)
+                .ok()?;
+            out.write_i32_be(pos.0.x).ok()?;
+            out.write_i16_be(pos.0.y as i16).ok()?;
+            out.write_i32_be(pos.0.z).ok()?;
+            out.write_u8(client_kind as u8).ok()?;
+            write_gzipped_nbt(nbt, version, &mut out)?;
+        }
+        BlockEntityDataFormat::V1_8 => {
+            out.write_i64_be(block_pos_to_version(position, &version))
+                .ok()?;
+            out.write_u8(client_kind as u8).ok()?;
+            write_network_nbt(nbt, version, &mut out);
+        }
+        BlockEntityDataFormat::V1_18 => {
+            out.write_i64_be(position).ok()?;
+            out.write_var_int(&VarInt(client_kind as i32)).ok()?;
+            write_network_nbt(nbt, version, &mut out);
+        }
+    }
     Some(out)
 }
 
 eras! {
     pub enum SectionUpdateFormat {
-        /// Per chunk with short entries, not translated yet.
+        /// Per chunk: i16 count, i32 byte length, i16 position + i16 state records.
         V1_7 = V_1_7_2,
+        /// Per chunk: varint count, i16 position + varint state records.
+        V1_8 = V_1_8,
         /// Per section with packed var long entries and a light flag.
         V1_16 = V_1_16,
         /// Light flag removed; same as 26.3.
@@ -120,15 +166,59 @@ eras! {
     }
 }
 
+/// SECTION_BLOCKS_UPDATE before 1.16: chunk coordinates and unpacked records.
+fn section_blocks_update_legacy(
+    mut payload: &[u8],
+    format: SectionUpdateFormat,
+    version: JavaMinecraftVersion,
+) -> Option<Vec<u8>> {
+    let old = format == SectionUpdateFormat::V1_7;
+    let section = payload.get_i64_be().ok()?;
+    let chunk = unpacked_chunk_pos(section);
+    let count = if old {
+        i32::from(payload.get_i16_be().ok()?)
+    } else {
+        payload.get_var_int().ok()?.0
+    };
+    if count < 0 {
+        return None;
+    }
+    let count = count as usize;
+    let mut out = Vec::new();
+    out.write_i32_be(chunk.x).ok()?;
+    out.write_i32_be(chunk.z).ok()?;
+    if old {
+        out.write_i16_be(count as i16).ok()?;
+        out.write_i32_be((count * 4) as i32).ok()?;
+    } else {
+        out.write_var_int(&VarInt(count as i32)).ok()?;
+    }
+    for _ in 0..count {
+        let entry = payload.get_var_long().ok()?.0 as u64;
+        let local = entry & 0xFFF;
+        let rel_x = (local >> 8) & 0xF;
+        let rel_z = (local >> 4) & 0xF;
+        let rel_y = local & 0xF;
+        let packed_pos = (rel_x << 12) | (rel_z << 8) | rel_y;
+        let state = remap_state((entry >> 12) as u32, version);
+        out.write_i16_be(packed_pos as i16).ok()?;
+        if old {
+            out.write_i16_be(state as i16).ok()?;
+        } else {
+            out.write_var_int(&VarInt(state as i32)).ok()?;
+        }
+    }
+    Some(out)
+}
+
 /// SECTION_BLOCKS_UPDATE: `state << 12 | local position` entries.
-// TODO: SectionUpdateFormat::V1_7.
 pub fn section_blocks_update_from_current(
     mut payload: &[u8],
     version: JavaMinecraftVersion,
 ) -> Option<Vec<u8>> {
     let format = SectionUpdateFormat::of(version);
-    if format == SectionUpdateFormat::V1_7 {
-        return None;
+    if format == SectionUpdateFormat::V1_7 || format == SectionUpdateFormat::V1_8 {
+        return section_blocks_update_legacy(payload, format, version);
     }
     let section = payload.get_i64_be().ok()?;
     let count = payload.get_var_int().ok()?;

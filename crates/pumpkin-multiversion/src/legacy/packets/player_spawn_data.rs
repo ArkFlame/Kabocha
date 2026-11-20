@@ -9,6 +9,15 @@ use pumpkin_util::version::JavaMinecraftVersion;
 
 use crate::legacy::{LegacyWrite, LegacyWriteExt};
 
+/// Difficulty written to clients before 1.14 when the source packet carries none.
+///
+/// 26.3 has no difficulty field in login or respawn; the actual value reaches the client in
+/// `CHANGE_DIFFICULTY` instead. Pass `Some` when a source packet does carry difficulty, and
+/// clamp it to the protocol's `0..=3` range.
+pub(crate) fn legacy_difficulty(difficulty: Option<u8>) -> u8 {
+    difficulty.map_or(2, |value| value.min(3))
+}
+
 /// Game modes as var ints since 26.3, a byte and a signed byte before.
 ///
 /// Writes the current and previous game mode. Since 26.3 both are var ints and the previous game

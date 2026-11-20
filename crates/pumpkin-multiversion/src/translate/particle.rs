@@ -1,21 +1,26 @@
 //! Particles: id and options, LEVEL_PARTICLES.
 
-use crate::legacy::particle::ParticleOptionsLayout;
+use crate::legacy::particle::{ParticleOptionsLayout, particle_id_for_v1_8};
 use pumpkin_data::particle::Particle;
 use pumpkin_protocol::{
     VarInt,
+    codec::item_stack_seralizer::ItemStackSerializer,
     java::client::play::CParticle,
     ser::{NetworkReadExt, NetworkWriteExt},
 };
 use pumpkin_util::{math::vector3::Vector3, version::JavaMinecraftVersion};
 
-use crate::remap::particle_id_remap::remap_particle_id_for_version;
+use crate::remap::{
+    item_id_remap::remap_item_id_for_version, particle_id_remap::remap_particle_id_for_version,
+};
 use crate::translate::block::remap_state;
 
 eras! {
     pub enum ParticleFormat {
-        /// Particle options before 1.13 are int arrays, not translated.
-        Unsupported = V_1_7_2,
+        /// 1.7 names the particle and has no trailing data array.
+        V1_7 = V_1_7_2,
+        /// 1.8-1.12 use numeric ids and a trailing varint data array.
+        V1_8 = V_1_8,
         /// Dust colors are three floats; dust color transitions are plain dust.
         V1_13 = V_1_13,
         /// Dust color transitions, with the scale between the colors.
@@ -58,6 +63,51 @@ fn write_rgb_floats(color: i32, out: &mut Vec<u8>) -> Option<()> {
     Some(())
 }
 
+/// Varint data array appended after the count for 1.8-1.12 block/item crack particles.
+fn legacy_extra_data(
+    options: &[u8],
+    legacy_id: u16,
+    version: JavaMinecraftVersion,
+) -> Option<Vec<u8>> {
+    let mut read = options;
+    let mut out = Vec::new();
+    match legacy_id {
+        // iconcrack_(id)_(data): item id then item damage.
+        36 => {
+            let stack = ItemStackSerializer::read_template_with_version(
+                &mut read,
+                &pumpkin_data::packet::CURRENT_MC_VERSION,
+            )
+            .ok()?;
+            let item_id = remap_item_id_for_version(stack.0.item.id, version);
+            out.write_var_int(&VarInt(i32::from(item_id))).ok()?;
+            out.write_var_int(&VarInt(0)).ok()?;
+        }
+        // blockcrack_(id+(data<<12)) and blockdust_(id): one packed block value.
+        37 | 38 => {
+            let state = read.get_var_int().ok()?.0 as u32;
+            let legacy_state = remap_state(state, version);
+            let block_id = legacy_state >> 4;
+            let meta = legacy_state & 0xF;
+            let value = if legacy_id == 37 {
+                block_id | (meta << 12)
+            } else {
+                block_id
+            };
+            out.write_var_int(&VarInt(value as i32)).ok()?;
+        }
+        _ => {}
+    }
+    Some(out)
+}
+
+/// Consumes a 26.3 particle (id and options) without translating it. Older
+/// explosion layouts omit the particle entirely but still carry its bytes.
+pub fn skip_particle(read: &mut &[u8]) -> Option<()> {
+    let id = read.get_var_int().ok()?;
+    ParticleOptionsLayout::skip_from_id(read, id).ok()
+}
+
 /// Reads one 26.3 particle and writes it for `version`.
 pub fn write_particle(
     read: &mut &[u8],
@@ -65,12 +115,24 @@ pub fn write_particle(
     out: &mut Vec<u8>,
 ) -> Option<()> {
     let format = ParticleFormat::of(version);
-    if format == ParticleFormat::Unsupported {
-        return None;
-    }
     let id = read.get_var_int().ok()?.0;
     let particle = Particle::from_id(u16::try_from(id).ok()?)?;
     let options = ParticleOptionsLayout::of(particle);
+    match format {
+        ParticleFormat::V1_7 => {
+            // The legacy writer derives the name from the 26.3 id; 1.7 has no data array.
+            out.write_var_int(&VarInt(id)).ok()?;
+            return options.skip(read).ok();
+        }
+        ParticleFormat::V1_8 => {
+            let legacy_id = particle_id_for_v1_8(particle);
+            out.write_var_int(&VarInt(i32::from(legacy_id))).ok()?;
+            let option_bytes = ParticleOptionsLayout::read_bytes(read, VarInt(id)).ok()?;
+            out.extend_from_slice(&legacy_extra_data(option_bytes, legacy_id, version)?);
+            return Some(());
+        }
+        _ => {}
+    }
     out.write_var_int(&VarInt(i32::from(remap_particle_id_for_version(
         id as u16, version,
     ))))
@@ -200,6 +262,54 @@ mod tests {
     use pumpkin_protocol::ClientPacket;
 
     #[test]
+    fn legacy_particle_ids() {
+        let flame = VarInt(i32::from(Particle::Flame.to_id()));
+        let mut current = Vec::new();
+        current.write_var_int(&flame).unwrap();
+
+        // 1.7 keeps the current id so the writer can derive the particle name.
+        let mut out = Vec::new();
+        write_particle(
+            &mut current.as_slice(),
+            JavaMinecraftVersion::V_1_7_2,
+            &mut out,
+        )
+        .unwrap();
+        assert_eq!(out, current);
+
+        // 1.8 maps through the legacy name ("flame" -> 26).
+        let mut out = Vec::new();
+        write_particle(
+            &mut current.as_slice(),
+            JavaMinecraftVersion::V_1_8,
+            &mut out,
+        )
+        .unwrap();
+        let mut read = out.as_slice();
+        assert_eq!(read.get_var_int().unwrap().0, 26);
+        assert!(read.is_empty());
+    }
+
+    #[test]
+    fn legacy_block_crack_has_one_extra_varint() {
+        let block = VarInt(i32::from(Particle::Block.to_id()));
+        let mut current = Vec::new();
+        current.write_var_int(&block).unwrap();
+        current.write_var_int(&VarInt(0)).unwrap(); // 26.3 block state
+        let mut out = Vec::new();
+        write_particle(
+            &mut current.as_slice(),
+            JavaMinecraftVersion::V_1_8,
+            &mut out,
+        )
+        .unwrap();
+        let mut read = out.as_slice();
+        assert_eq!(read.get_var_int().unwrap().0, 37); // blockcrack_
+        assert!(read.get_var_int().is_ok());
+        assert!(read.is_empty());
+    }
+
+    #[test]
     fn dust_color_becomes_floats_before_1_21_2() {
         let mut current = Vec::new();
         current
@@ -241,10 +351,15 @@ mod tests {
         write_particle(&mut read, version, &mut out)?;
         assert!(read.is_empty());
         let mut out = out.as_slice();
-        assert_eq!(
-            out.get_var_int().unwrap().0,
-            i32::from(remap_particle_id_for_version(particle.to_id(), version))
-        );
+        // Before 1.13 particles use their own legacy numbering, checked by its own tests.
+        if version >= JavaMinecraftVersion::V_1_13 {
+            assert_eq!(
+                out.get_var_int().unwrap().0,
+                i32::from(remap_particle_id_for_version(particle.to_id(), version))
+            );
+        } else {
+            out.get_var_int().unwrap();
+        }
         Some(out.to_vec())
     }
 
@@ -280,7 +395,7 @@ mod tests {
             transition(JavaMinecraftVersion::V_1_16),
             Some(floats(&[1.0, 0.0, 0.0, 2.0]))
         );
-        assert_eq!(transition(JavaMinecraftVersion::V_1_12), None);
+        assert!(transition(JavaMinecraftVersion::V_1_12).is_some());
     }
 
     #[test]

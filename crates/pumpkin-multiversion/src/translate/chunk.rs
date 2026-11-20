@@ -155,7 +155,9 @@ fn legacy_chunk_from_current(
     payload = rest;
     let all_sections = decode_sections(sec_bytes, version)?;
 
+    let entity_bytes = payload;
     skip_block_entities(&mut payload)?;
+    let entity_bytes = &entity_bytes[..entity_bytes.len() - payload.len()];
     let light = decode_current_light(payload)?;
 
     let base_section = if all_sections.len() >= 24 { 4 } else { 0 };
@@ -205,6 +207,7 @@ fn legacy_chunk_from_current(
             &sky_lights,
             has_sky_light,
             version,
+            entity_bytes,
         ),
         _ => None,
     }
@@ -344,6 +347,7 @@ fn encode_v1_9(
     sky_lights: &[[u8; 2048]; 16],
     has_sky_light: bool,
     version: JavaMinecraftVersion,
+    entity_data: &[u8],
 ) -> Option<Vec<u8>> {
     let mut out = Vec::new();
     out.write_i32_be(chunk_x).ok()?;
@@ -488,7 +492,12 @@ fn encode_v1_9(
     out.extend_from_slice(&data_buf);
 
     if version >= JavaMinecraftVersion::V_1_9_3 {
-        out.write_var_int(&VarInt(0)).ok()?;
+        if (JavaMinecraftVersion::V_1_13..JavaMinecraftVersion::V_1_18).contains(&version) {
+            let mut read = entity_data;
+            block_entities(&mut read, version, &mut out)?;
+        } else {
+            out.write_var_int(&VarInt(0)).ok()?;
+        }
     }
 
     Some(out)
