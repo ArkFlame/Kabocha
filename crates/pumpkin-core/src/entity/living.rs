@@ -1289,7 +1289,42 @@ impl LivingEntity {
             .insert(target_id, now);
     }
 
+    /// 1.8 sword blocking needs no `BlocksAttacksImpl` and engages with no delay.
+    fn is_legacy_sword_blocking(&self) -> bool {
+        let world = self.entity.world.load();
+        if !world.legacy_combat() || world.get_player_by_id(self.entity.entity_id).is_none() {
+            return false;
+        }
+        let item_in_use = self
+            .item_in_use
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        item_in_use
+            .as_ref()
+            .is_some_and(|stack| stack.item.has_tag(&tag::Item::MINECRAFT_SWORDS))
+    }
+
+    /// Horizontal angle between the entity's look direction and the damage source.
+    fn block_source_angle_rad(&self, position: Option<Vector3<f64>>) -> f64 {
+        position.map_or(std::f64::consts::PI, |pos| {
+            let player_pos = self.entity.pos.load();
+            let look_vec = Vector3::rotation_vector(0.0, f64::from(self.entity.head_yaw.load()));
+            let mut to_source = pos - player_pos;
+            to_source.y = 0.0;
+            let len_sq = to_source.length_squared();
+            if len_sq > 1.0e-12 {
+                let dir = to_source * (1.0 / len_sq.sqrt());
+                dir.dot(&look_vec).clamp(-1.0, 1.0).acos()
+            } else {
+                0.0
+            }
+        })
+    }
+
     pub fn is_blocking(&self) -> bool {
+        if self.is_legacy_sword_blocking() {
+            return true;
+        }
         let item_in_use = self
             .item_in_use
             .lock()
@@ -3532,6 +3567,17 @@ impl LivingEntity {
         false
     }
 
+    /// 1.8 `EntityPlayer.damageEntity` leaves a front-blocked hit at `(1.0 + damage) * 0.5`.
+    fn legacy_block_reduction(damage: f32) -> f32 {
+        let remaining = f32::midpoint(1.0, damage);
+        damage - remaining
+    }
+
+    /// Legacy blocking only covers the frontal 90 degree arc, matching the shield angle gate.
+    const fn legacy_is_front(angle_rad: f64) -> bool {
+        angle_rad <= std::f64::consts::FRAC_PI_2
+    }
+
     /// Vanilla `LivingEntity.applyItemBlocking`: resolves data-driven `minecraft:blocks_attacks`
     /// damage reduction, item durability loss, and attacker weapon disable cooldown.
     #[allow(clippy::too_many_lines)]
@@ -3555,6 +3601,14 @@ impl LivingEntity {
             return 0.0;
         }
 
+        // Legacy 1.8 sword blocking: no data-driven component, no durability, no disable cooldown.
+        if self.is_legacy_sword_blocking()
+            && source.is_some()
+            && Self::legacy_is_front(self.block_source_angle_rad(position))
+        {
+            return Self::legacy_block_reduction(amount);
+        }
+
         let Some(blocks_attacks) = ({
             let item_in_use = self
                 .item_in_use
@@ -3576,18 +3630,7 @@ impl LivingEntity {
         }
 
         let player_pos = self.entity.pos.load();
-        let angle_rad = position.map_or(std::f64::consts::PI, |pos| {
-            let look_vec = Vector3::rotation_vector(0.0, f64::from(self.entity.head_yaw.load()));
-            let mut to_source = pos - player_pos;
-            to_source.y = 0.0;
-            let len_sq = to_source.length_squared();
-            if len_sq > 1.0e-12 {
-                let dir = to_source * (1.0 / len_sq.sqrt());
-                dir.dot(&look_vec).clamp(-1.0, 1.0).acos()
-            } else {
-                0.0
-            }
-        });
+        let angle_rad = self.block_source_angle_rad(position);
 
         let damage_blocked = blocks_attacks.resolve_blocked_damage(damage_type, amount, angle_rad);
         if damage_blocked <= 0.0 {
@@ -7062,5 +7105,28 @@ mod player_wall_tests {
         let others_same = team_with_rule("a", CollisionRule::Always);
         assert!(!is_allowed_by_team_rules(Some(&others), Some(&others_same)));
         assert!(is_allowed_by_team_rules(Some(&others), Some(&other)));
+    }
+}
+
+#[cfg(test)]
+mod legacy_combat_tests {
+    use super::LivingEntity;
+
+    #[test]
+    fn sword_block_leaves_half_plus_one_damage() {
+        // 1.8 EntityPlayer.damageEntity: damage becomes (1 + damage) * 0.5.
+        assert!((LivingEntity::legacy_block_reduction(9.0) - 4.0).abs() < 1.0e-6);
+        assert!((LivingEntity::legacy_block_reduction(3.0) - 1.0).abs() < 1.0e-6);
+        assert!(LivingEntity::legacy_block_reduction(1.0).abs() < 1.0e-6);
+    }
+
+    #[test]
+    fn legacy_front_gate_only_accepts_frontal_arc() {
+        assert!(LivingEntity::legacy_is_front(0.0));
+        assert!(LivingEntity::legacy_is_front(std::f64::consts::FRAC_PI_2));
+        assert!(!LivingEntity::legacy_is_front(
+            std::f64::consts::FRAC_PI_2 + 0.01
+        ));
+        assert!(!LivingEntity::legacy_is_front(std::f64::consts::PI));
     }
 }

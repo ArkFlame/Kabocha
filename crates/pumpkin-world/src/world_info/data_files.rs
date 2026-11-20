@@ -923,4 +923,17 @@ mod tests {
         write_world_clocks(dir.path(), &clocks).unwrap();
         assert_eq!(read_world_clocks(dir.path()), clocks);
     }
+
+    #[test]
+    fn legacy_combat_rule_round_trips() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let mut rules = GameRuleRegistry::default();
+        if let GameRuleValue::Bool(value) = rules.get_mut(&GameRule::LegacyCombat) {
+            *value = true;
+        }
+        write_game_rules(dir.path(), &rules, 1)?;
+        let loaded = read_game_rules(dir.path());
+        assert!(loaded.legacy_combat);
+        Ok(())
+    }
 }

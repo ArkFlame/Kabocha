@@ -268,6 +268,9 @@ impl Server {
                     &basic_config.generator_settings,
                     basic_config.generate_structures,
                 );
+                // A brand-new world inherits the server's legacy-combat setting; worlds loaded
+                // from disk keep the rule value already saved in their level data.
+                default_data.game_rules.legacy_combat = advanced_config.pvp.legacy_combat;
                 if basic_config.hardcore {
                     default_data.difficulty = Difficulty::Hard;
                     default_data.difficulty_locked = true;

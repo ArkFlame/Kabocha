@@ -23,6 +23,7 @@ pub enum GameRule {
     ImmediateRespawn,
     KeepInventory,
     LavaSourceConversion,
+    LegacyCombat,
     LimitedCrafting,
     LocatorBar,
     LogAdminCommands,
@@ -87,6 +88,7 @@ impl GameRule {
             Self::ImmediateRespawn,
             Self::KeepInventory,
             Self::LavaSourceConversion,
+            Self::LegacyCombat,
             Self::LimitedCrafting,
             Self::LocatorBar,
             Self::LogAdminCommands,
@@ -172,6 +174,7 @@ impl fmt::Display for GameRule {
             Self::ImmediateRespawn => write!(f, "immediate_respawn"),
             Self::KeepInventory => write!(f, "keep_inventory"),
             Self::LavaSourceConversion => write!(f, "lava_source_conversion"),
+            Self::LegacyCombat => write!(f, "legacy_combat"),
             Self::LimitedCrafting => write!(f, "limited_crafting"),
             Self::LocatorBar => write!(f, "locator_bar"),
             Self::LogAdminCommands => write!(f, "log_admin_commands"),
@@ -300,6 +303,10 @@ pub struct GameRuleRegistry {
     #[serde(default = "default_lava_source_conversion")]
     #[serde(with = "as_string")]
     pub lava_source_conversion: bool,
+    #[serde(rename = "legacy_combat")]
+    #[serde(default = "default_legacy_combat")]
+    #[serde(with = "as_string")]
+    pub legacy_combat: bool,
     #[serde(rename = "limited_crafting")]
     #[serde(default = "default_limited_crafting")]
     #[serde(with = "as_string")]
@@ -500,6 +507,7 @@ impl GameRuleRegistry {
             GameRule::ImmediateRespawn => GameRuleValue::Bool(&self.immediate_respawn),
             GameRule::KeepInventory => GameRuleValue::Bool(&self.keep_inventory),
             GameRule::LavaSourceConversion => GameRuleValue::Bool(&self.lava_source_conversion),
+            GameRule::LegacyCombat => GameRuleValue::Bool(&self.legacy_combat),
             GameRule::LimitedCrafting => GameRuleValue::Bool(&self.limited_crafting),
             GameRule::LocatorBar => GameRuleValue::Bool(&self.locator_bar),
             GameRule::LogAdminCommands => GameRuleValue::Bool(&self.log_admin_commands),
@@ -589,6 +597,7 @@ impl GameRuleRegistry {
             GameRule::ImmediateRespawn => GameRuleValue::Bool(&mut self.immediate_respawn),
             GameRule::KeepInventory => GameRuleValue::Bool(&mut self.keep_inventory),
             GameRule::LavaSourceConversion => GameRuleValue::Bool(&mut self.lava_source_conversion),
+            GameRule::LegacyCombat => GameRuleValue::Bool(&mut self.legacy_combat),
             GameRule::LimitedCrafting => GameRuleValue::Bool(&mut self.limited_crafting),
             GameRule::LocatorBar => GameRuleValue::Bool(&mut self.locator_bar),
             GameRule::LogAdminCommands => GameRuleValue::Bool(&mut self.log_admin_commands),
@@ -682,6 +691,7 @@ impl Default for GameRuleRegistry {
             immediate_respawn: false,
             keep_inventory: false,
             lava_source_conversion: false,
+            legacy_combat: false,
             limited_crafting: false,
             locator_bar: true,
             log_admin_commands: true,
@@ -783,6 +793,9 @@ fn default_keep_inventory() -> bool {
 }
 fn default_lava_source_conversion() -> bool {
     GameRuleRegistry::default().lava_source_conversion
+}
+fn default_legacy_combat() -> bool {
+    GameRuleRegistry::default().legacy_combat
 }
 fn default_limited_crafting() -> bool {
     GameRuleRegistry::default().limited_crafting

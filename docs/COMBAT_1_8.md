@@ -1,6 +1,6 @@
 # 1.8 combat mode: design note
 
-**DESIGN ONLY. Nothing here is implemented and there is no code in this commit.** The tracker row `1-8-combat-mode` is DESIGN, not a gap; treat this file as the spec a worker gets when someone decides to build it.
+**IMPLEMENTED.** Enable per world with `/gamerule legacy_combat true` (persisted in the world's game rules) or set the global default for new worlds with `pvp.legacy_combat = true` in the config. Shipped: attack cooldown and the minimum-charge gate removed, sweeping disabled, sword blocking (instant, hits from the front become `(1 + damage) / 2`, no durability use, no disable cooldown). Crit rules follow 1.8 from memory (no decompiled 1.8 source in this checkout). A modern client still shows its attack indicator because that is client-side. The sections below are the original design.
 
 Scope: an opt-in server mode that makes player melee behave like Minecraft 1.8 - no attack cooldown, and sword blocking instead of a shield. Everything below assumes a config switch, not a protocol change: modern clients still connect, the server just answers differently.
 

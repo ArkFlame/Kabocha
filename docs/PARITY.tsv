@@ -546,7 +546,7 @@ combat	Damage invulnerability frames	done	n/a	-	Implementation source found. Beh
 combat	Sweep attack	done	n/a	-	Implementation source found. Behaviour has not been reviewed for this snapshot.	crates/pumpkin-core/src/entity/combat.rs	Implementation source found.		
 combat	Enchantment integration	done	n/a	-	Implementation source found. Behaviour has not been reviewed for this snapshot.	crates/pumpkin-core/src/enchantment/helper.rs	Implementation source found.		
 combat	Status effect integration	done	n/a	-	Implementation source found. Behaviour has not been reviewed for this snapshot.	crates/pumpkin-core/src/entity/effect/mod.rs	Implementation source found.		
-combat	1.8 combat mode	planned	DESIGN	-	No dedicated implementation source identified. This does not establish that the feature is missing.				
+combat	1.8 combat mode	done	OWN-CLOSED	-	Implemented: legacy_combat game rule per world plus pvp.legacy_combat config default (docs/COMBAT_1_8.md).				
 world	World loading (level.dat, DIM1, DIM-1)	done	n/a	-	Implementation source found. Behaviour has not been reviewed for this snapshot.	crates/pumpkin-world/src/world_info/anvil.rs	Implementation source found.		
 world	World saving	done	n/a	-	Implementation source found. Behaviour has not been reviewed for this snapshot.	crates/pumpkin-world/src/level.rs	Implementation source found.		
 world	Chunk loading (vanilla, linear, pump)	done	n/a	-	Implementation source found. Behaviour has not been reviewed for this snapshot.				

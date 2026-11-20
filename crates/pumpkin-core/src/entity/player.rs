@@ -350,8 +350,8 @@ use bytes::Bytes;
 
 use super::breath::BreathManager;
 use super::combat::{
-    self, AttackType, can_smash_attack, mace_smash_damage_bonus, mace_smash_knockback,
-    player_attack_sound,
+    self, AttackType, can_smash_attack, effective_attack_progress, mace_smash_damage_bonus,
+    mace_smash_knockback, player_attack_sound,
 };
 use super::hunger::HungerManager;
 use super::item::ItemEntity;
@@ -1888,7 +1888,9 @@ impl Player {
         let attack_speed = base_attack_speed + add_speed;
 
         let is_bedrock = matches!(self.client.as_ref(), ClientPlatform::Bedrock(_));
+        let legacy = world.legacy_combat();
         if !is_bedrock
+            && !legacy
             && let Some(min_charge) = item_stack
                 .get_data_component::<pumpkin_data::data_component_impl::MinimumAttackChargeImpl>(
             )
@@ -1906,7 +1908,16 @@ impl Player {
         let attack_cooldown_progress = if is_bedrock {
             1.0
         } else {
-            self.get_attack_cooldown_progress(f64::from(server.basic_config.tps), 0.5, attack_speed)
+            let progress = self.get_attack_cooldown_progress(
+                f64::from(server.basic_config.tps),
+                0.5,
+                attack_speed,
+            );
+            if legacy {
+                f64::from(effective_attack_progress(progress as f32, true))
+            } else {
+                progress
+            }
         };
         self.last_attacked_ticks.store(0, Ordering::Relaxed);
 
@@ -1934,6 +1945,7 @@ impl Player {
             self,
             attack_cooldown_progress as f32,
             victim.get_living_entity().is_some(),
+            legacy,
         );
 
         let is_mace_smash =

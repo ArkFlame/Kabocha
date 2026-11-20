@@ -22,6 +22,9 @@ pub struct PVPConfig {
     /// Whether players swing their hand when attacking.
     #[toml(default = Self::default().swing)]
     pub swing: bool,
+    /// Default value of the per-world `legacyCombat` game rule for new worlds: 1.8 combat (no attack cooldown, sword blocking).
+    #[toml(default = Self::default().legacy_combat)]
+    pub legacy_combat: bool,
 }
 
 impl Default for PVPConfig {
@@ -32,6 +35,7 @@ impl Default for PVPConfig {
             protect_creative: true,
             knockback: true,
             swing: true,
+            legacy_combat: false,
         }
     }
 }

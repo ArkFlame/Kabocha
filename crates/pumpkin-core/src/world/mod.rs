@@ -1409,6 +1409,15 @@ impl World {
         }
     }
 
+    /// Whether this world uses the pre-1.9 combat rules (`legacy_combat` game rule).
+    #[must_use]
+    pub fn legacy_combat(&self) -> bool {
+        matches!(
+            self.get_game_rule(&GameRule::LegacyCombat),
+            GameRuleValue::Bool(true)
+        )
+    }
+
     /// Runs `f` on the locator bar manager, handing it the current `locator_bar` rule.
     ///
     /// Don't call back into the manager from `f`, the lock isn't reentrant.
@@ -10339,6 +10348,28 @@ mod tests {
             GameRuleValue::Int(v) => assert_eq!(*v, 20),
             GameRuleValue::Bool(_) => panic!("expected int"),
         }
+    }
+
+    #[tokio::test]
+    async fn legacy_combat_rule_defaults_off_and_tracks_world_rule()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use crate::entity::ai::test_support::world;
+        use pumpkin_data::game_rules::{GameRule, GameRuleRegistry, GameRuleValue};
+
+        // The rule is off by default, as vanilla has no legacy combat.
+        match GameRuleRegistry::default().get(&GameRule::LegacyCombat) {
+            GameRuleValue::Bool(v) => assert!(!v),
+            GameRuleValue::Int(_) => return Err("expected bool".into()),
+        }
+
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        assert!(!world.legacy_combat());
+
+        // A fresh world configured with legacy combat reports it through the helper.
+        world.set_game_rule(&GameRule::LegacyCombat, &GameRuleValue::Bool(true));
+        assert!(world.legacy_combat());
+        Ok(())
     }
 
     #[tokio::test]

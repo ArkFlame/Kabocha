@@ -30,7 +30,12 @@ pub enum AttackType {
 }
 
 impl AttackType {
-    pub fn new(player: &Player, attack_cooldown_progress: f32, victim_is_living: bool) -> Self {
+    pub fn new(
+        player: &Player,
+        attack_cooldown_progress: f32,
+        victim_is_living: bool,
+        legacy: bool,
+    ) -> Self {
         let entity = &player.get_entity();
 
         let sprinting = entity.is_sprinting();
@@ -70,6 +75,7 @@ impl AttackType {
         if sword
             && is_strong
             && !is_bedrock
+            && sweep_enabled(legacy)
             && on_ground
             && entity.velocity.load().horizontal_length_squared() < movement_limit * movement_limit
         {
@@ -78,6 +84,16 @@ impl AttackType {
 
         if is_strong { Self::Strong } else { Self::Weak }
     }
+}
+
+/// Forces full attack strength when legacy 1.8 combat has no attack cooldown.
+pub const fn effective_attack_progress(progress: f32, legacy: bool) -> f32 {
+    if legacy { 1.0 } else { progress }
+}
+
+/// Sweeping attacks were introduced in 1.9 and are unreachable in legacy mode.
+pub const fn sweep_enabled(legacy: bool) -> bool {
+    !legacy
 }
 
 /// Checks smash eligibility, rejecting stale fall distance after a ground-only packet.
@@ -1087,5 +1103,18 @@ mod tests {
         tracker.last_damage_time = 0;
         tracker.recheck_status(101, true);
         assert!(!tracker.in_combat);
+    }
+
+    #[test]
+    fn legacy_combat_forces_full_progress_and_disables_sweep() -> Result<(), &'static str> {
+        if effective_attack_progress(0.25, false) == 0.25
+            && effective_attack_progress(0.25, true) == 1.0
+            && sweep_enabled(false)
+            && !sweep_enabled(true)
+        {
+            Ok(())
+        } else {
+            Err("legacy combat attack decision did not match expected values")
+        }
     }
 }

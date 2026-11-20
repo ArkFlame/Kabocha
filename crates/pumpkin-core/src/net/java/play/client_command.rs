@@ -173,6 +173,7 @@ impl JavaClient {
         let rules: Vec<(String, String)> = GameRule::all()
             .iter()
             .filter(|rule| match rule {
+                GameRule::LegacyCombat => false,
                 GameRule::MaxMinecartSpeed => minecart_improvements_enabled,
                 _ => true,
             })
