@@ -355,10 +355,6 @@ impl InventoryChangedPredicate {
         true
     }
 
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one exhaustive match arm per vanilla predicate condition"
-    )]
     #[must_use]
     pub fn from_value(val: &Value) -> Self {
         let Value::Object(map) = val else {
@@ -1423,6 +1419,10 @@ impl EntityPredicate {
             })
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one exhaustive match arm per vanilla predicate condition"
+    )]
     #[must_use]
     pub fn from_value(val: &Value) -> Self {
         let pred_val = val.get("predicate").unwrap_or(val);
