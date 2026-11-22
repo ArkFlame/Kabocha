@@ -1721,6 +1721,14 @@ impl LivingEntity {
         reason = "callers across crates pass an owned Effect"
     )]
     pub fn add_effect(&self, effect: Effect) {
+        self.add_effect_with_source(effect, None);
+    }
+
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "callers across crates pass an owned Effect"
+    )]
+    pub fn add_effect_with_source(&self, effect: Effect, source: Option<&dyn EntityBase>) {
         if !self.can_be_affected(&effect) {
             return;
         }
@@ -1843,7 +1851,7 @@ impl LivingEntity {
             }
         }
         self.sync_effect_particles();
-        self.trigger_effects_changed(None);
+        self.trigger_effects_changed(source);
     }
 
     /// Sends an effect packet to every player tracking this entity, mirroring
@@ -3755,19 +3763,14 @@ impl LivingEntity {
         damage_blocked
     }
 
-    pub fn do_hurt_equipment(
-        &self,
-        caller: &dyn EntityBase,
-        damage_type: DamageType,
-        damage: f32,
-        slots: &[EquipmentSlot],
-    ) {
+    pub fn do_hurt_equipment(&self, damage_type: DamageType, damage: f32, slots: &[EquipmentSlot]) {
         if damage <= 0.0 {
             return;
         }
         let durability_damage = (damage / 4.0).max(1.0) as i32;
+        let world = self.entity.world.load();
         for slot in slots {
-            let mut stack = self
+            let stack = self
                 .entity_equipment
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -3778,27 +3781,45 @@ impl LivingEntity {
             if !damage_on_hurt || !stack.is_damageable() || !stack.can_be_hurt_by(damage_type) {
                 continue;
             }
-            if let Some(player) = caller.get_player() {
-                player.damage_item_in_slot(slot, durability_damage);
-                continue;
-            }
-            let result = stack.damage_item(durability_damage);
-            if result == DamageResult::Untouched {
-                continue;
-            }
-            self.entity_equipment
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .put(slot, stack.clone());
-            self.send_equipment_changes(&[(slot.clone(), stack)]);
-            if result == DamageResult::Broken {
-                self.entity.world.load().send_entity_status(
-                    &self.entity,
-                    super::equipment_break_status(slot),
-                    ActorEventID::None,
-                );
-            }
+            self.damage_equipped_item(&world, slot, durability_damage);
         }
+    }
+
+    /// Damages the item currently equipped in `slot`, or returns false when nothing changed.
+    pub fn damage_equipped_item(
+        &self,
+        world: &crate::world::World,
+        slot: &EquipmentSlot,
+        amount: i32,
+    ) -> bool {
+        if amount <= 0 {
+            return false;
+        }
+        if let Some(player) = world.get_player_by_id(self.entity.entity_id) {
+            return player.damage_item_in_slot(slot, amount);
+        }
+        let mut stack = self
+            .entity_equipment
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(slot);
+        let result = stack.damage_item(amount);
+        if result == DamageResult::Untouched {
+            return false;
+        }
+        self.entity_equipment
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .put(slot, stack.clone());
+        self.send_equipment_changes(&[(slot.clone(), stack)]);
+        if result == DamageResult::Broken {
+            world.send_entity_status(
+                &self.entity,
+                super::equipment_break_status(slot),
+                ActorEventID::None,
+            );
+        }
+        true
     }
 
     pub fn held_item(&self, caller: &dyn EntityBase) -> ItemStack {
@@ -4223,7 +4244,6 @@ impl LivingEntity {
         }
 
         self.do_hurt_equipment(
-            caller,
             *damage_type,
             damage,
             caller.hurt_gear_slots(GearDamage::Armor),
@@ -4531,7 +4551,6 @@ impl LivingEntity {
                 .is_empty()
         {
             self.do_hurt_equipment(
-                caller,
                 damage_type,
                 amount,
                 caller.hurt_gear_slots(GearDamage::Helmet),
