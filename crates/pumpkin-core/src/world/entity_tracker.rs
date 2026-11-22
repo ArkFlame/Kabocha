@@ -601,8 +601,8 @@ impl TrackedEntity {
             // Vanilla never updates `lastSentMovement` here.
             let velocity_changed =
                 velocity.squared_distance_to_vec(&entity.last_sent_velocity.load()) > 1.0e-7;
-            let pos_changed = (pos - entity.last_sent_pos.load()).length_squared()
-                >= POSITION_TOLERANCE;
+            let pos_changed =
+                (pos - entity.last_sent_pos.load()).length_squared() >= POSITION_TOLERANCE;
             if pos_changed || tick.is_multiple_of(60) || rot_changed || velocity_changed {
                 let step = MinecartStep {
                     position: pos,
