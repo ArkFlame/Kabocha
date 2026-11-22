@@ -24,6 +24,7 @@ use tokio::time::{Instant, MissedTickBehavior};
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
+use super::PacketRun;
 use crate::net::decrement_pending_bytes;
 
 /// Max wait for the disconnect flush (`kick_explicit`, writer drain on close).
@@ -95,13 +96,42 @@ pub enum OutgoingPacket {
     },
     /// End-of-tick barrier (`Connection.flushChannel`).
     Flush,
+    /// The ordinary packets a tick queued for this client, in order.
+    Batch(Vec<BatchItem>),
 }
 
+/// What a tick queues for a client: one packet, or a run of them. A run is taken apart
+/// by the writer task, not by the tick thread that queued it.
+pub enum BatchItem {
+    Packet(Bytes),
+    Run(PacketRun),
+}
+
+/// What the writer frames: a packet, or the packets of a run still back to back.
 struct FramePacket {
     data: Bytes,
+    /// Where each packet of a run ends in `data`. `None` for one packet.
+    run_ends: Option<Vec<usize>>,
     reserved: usize,
     transform: Option<Transform>,
     completion: Option<Completion>,
+}
+
+impl FramePacket {
+    fn packets(&self) -> impl Iterator<Item = &[u8]> {
+        let single = self.run_ends.is_none().then_some(self.data.len());
+        let mut start = 0;
+        self.run_ends
+            .iter()
+            .flatten()
+            .copied()
+            .chain(single)
+            .map(move |end| {
+                let packet = &self.data[start..end];
+                start = end;
+                packet
+            })
+    }
 }
 
 impl OutgoingPacket {
@@ -160,10 +190,35 @@ impl OutgoingPacket {
                 });
                 packets.push_back(FramePacket {
                     data,
+                    run_ends: None,
                     reserved,
                     transform,
                     completion,
                 });
+            }
+            Self::Batch(batch) => {
+                *flush_request = flush_request.merge(FlushRequest::IfNotSuspended);
+                // A run is framed from where it lies: a handle for each of its packets
+                // would cost more than framing them.
+                packets.extend(batch.into_iter().map(|item| match item {
+                    BatchItem::Packet(data) => FramePacket {
+                        reserved: data.len(),
+                        data,
+                        run_ends: None,
+                        transform: None,
+                        completion: None,
+                    },
+                    BatchItem::Run(run) => {
+                        let reserved = run.bytes.len();
+                        FramePacket {
+                            data: run.bytes.into(),
+                            reserved,
+                            run_ends: Some(run.ends),
+                            transform: None,
+                            completion: None,
+                        }
+                    }
+                }));
             }
         }
     }
@@ -211,6 +266,7 @@ async fn apply_transforms(
             ctx.pending_bytes.fetch_add(reserved, Ordering::AcqRel);
             ready.push_back(FramePacket {
                 data: extra,
+                run_ends: None,
                 reserved,
                 transform: None,
                 completion: None,
@@ -243,14 +299,17 @@ fn frame_packet_batch<W: AsyncWrite + Unpin>(
     mut writer: TCPNetworkEncoder<W>,
     batch: &[FramePacket],
 ) -> (TCPNetworkEncoder<W>, Vec<u8>, Option<PacketEncodeError>) {
-    let mut frame = Vec::new();
-    let mut frame_err = None;
-    for packet in batch {
-        if let Err(err) = writer.frame_packet(&packet.data, &mut frame) {
-            frame_err = Some(err);
-            break;
-        }
-    }
+    // Room for what is not compressed, with a short length in front of each packet.
+    let room = |packet: &FramePacket| match &packet.run_ends {
+        Some(ends) => packet.data.len() + 3 * ends.len(),
+        None if writer.is_compressing_packet(&packet.data) => 0,
+        None => packet.data.len() + 3,
+    };
+    let mut frame = Vec::with_capacity(batch.iter().map(room).sum());
+    let frame_err = batch
+        .iter()
+        .flat_map(FramePacket::packets)
+        .find_map(|packet| writer.frame_packet(packet, &mut frame).err());
     (writer, frame, frame_err)
 }
 
@@ -269,7 +328,8 @@ async fn frame_batch_maybe_offload<W: AsyncWrite + Unpin + Send + 'static>(
 > {
     let needs_offload = packet_batch
         .iter()
-        .any(|packet| writer.is_compressing_packet(&packet.data));
+        .flat_map(FramePacket::packets)
+        .any(|packet| writer.is_compressing_packet(packet));
 
     if needs_offload {
         tokio::task::spawn_blocking(move || {
@@ -420,7 +480,7 @@ fn drain_until_barrier(
     let mut disconnected = false;
     match first {
         OutgoingPacket::Flush => flush_request = FlushRequest::Always,
-        data @ OutgoingPacket::Data { .. } => {
+        data @ (OutgoingPacket::Data { .. } | OutgoingPacket::Batch(_)) => {
             data.ingest(&mut flush_request, &mut packets);
             loop {
                 match packet_receiver.try_recv() {
