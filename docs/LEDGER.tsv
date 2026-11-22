@@ -829,3 +829,4 @@ issue	4654	https://github.com/Pumpkin-MC/Pumpkin/issues/4654	Taming a horse gran
 pr	4630	https://github.com/Pumpkin-MC/Pumpkin/pull/4630	feat(entity): vanilla parity for Creaking	DONE		c5d6cdb24	feat(entity): Creaking explosion XP and AI hooks (#4630) - brain/home redesign needs absent APIs	2026-11-22
 pr	4636	https://github.com/Pumpkin-MC/Pumpkin/pull/4636	feat(entity): full vanilla parity for shulker	DONE		db6f4b83c	feat(entity): shulker snap, lid push and bullet reflection (#4636)	2026-11-22
 pr	4628	https://github.com/Pumpkin-MC/Pumpkin/pull/4628	feat(entity): vanilla parity for Breeze	DONE		ce29c4c03	feat(entity): Breeze ranged attack and movement parity (#4628) - brain/pose-veto redesign needs absent APIs	2026-11-22
+pr	4635	https://github.com/Pumpkin-MC/Pumpkin/pull/4635	fix(entity): close panda, dolphin, mooshroom and bee parity gaps	DONE		2cd7b3381	fix(entity): data-driven effect sources and bee/dolphin attribution (#4635) - codegen pending	2026-11-22
