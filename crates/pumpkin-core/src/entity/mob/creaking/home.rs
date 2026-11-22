@@ -12,14 +12,13 @@ pub(super) struct HeartChunkTicket {
 
 impl HeartChunkTicket {
     pub(super) fn new(level: Arc<Level>, chunk: Vector2<i32>) -> Self {
-        {
-            let mut loading = level
-                .chunk_loading
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            loading.add_ticket(chunk, ChunkLoading::FULL_CHUNK_LEVEL);
-            loading.send_change();
-        }
+        let mut loading = level
+            .chunk_loading
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        loading.add_ticket(chunk, ChunkLoading::FULL_CHUNK_LEVEL);
+        loading.send_change();
+        drop(loading);
         Self { level, chunk }
     }
 }

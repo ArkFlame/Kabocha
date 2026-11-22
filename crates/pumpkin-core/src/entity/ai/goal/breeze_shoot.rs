@@ -218,6 +218,7 @@ mod tests {
 
     use super::*;
     use crate::entity::ai::test_support;
+    use crate::entity::passive::iron_golem::IronGolemEntity;
 
     #[tokio::test]
     async fn breeze_charges_then_fires_an_owned_wind_charge() -> Result<(), Box<dyn Error>> {
@@ -228,10 +229,10 @@ mod tests {
             Vector3::new(0.0, 64.0, 0.0),
             &EntityType::BREEZE,
         ));
-        let target: Arc<dyn EntityBase> = Arc::new(Entity::new(
+        let target: Arc<dyn EntityBase> = IronGolemEntity::new(Entity::new(
             world.clone(),
             Vector3::new(5.0, 64.0, 0.0),
-            &EntityType::PLAYER,
+            &EntityType::IRON_GOLEM,
         ));
         breeze.mob_entity.set_target(Some(target.clone()));
 

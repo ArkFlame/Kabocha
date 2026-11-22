@@ -908,7 +908,7 @@ impl Mob for CreakingEntity {
 
 #[cfg(test)]
 mod tests {
-    use pumpkin_data::{Block, entity::EntityType};
+    use pumpkin_data::{Block, attributes::Attributes, entity::EntityType};
     use pumpkin_nbt::compound::NbtCompound;
     use pumpkin_world::{chunk::ChunkData, world::BlockFlags};
 
@@ -917,7 +917,7 @@ mod tests {
         block::entities::BlockEntity,
         entity::{
             ai::brain::memory::codec::block_pos_from_tag, ai::test_support::world,
-            passive::cow::CowEntity,
+            attributes::AttributeInstance, passive::cow::CowEntity,
         },
     };
 
@@ -1011,9 +1011,17 @@ mod tests {
             Vector3::new(1.5, 64.0, 0.0),
             &EntityType::COW,
         ));
+        creaking
+            .mob_entity
+            .living_entity
+            .attributes
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(Attributes::ATTACK_DAMAGE.id, AttributeInstance::new(3.0));
         world.add_entity_silent(creaking.clone());
         world.add_entity_silent(prey.clone());
         let health = prey.get_mob_entity().living_entity.health.load();
+        assert!(health > 0.0, "prey health was {health}");
 
         // The brain tick only reserves the hit; damage callbacks run outside its lock.
         assert!(!Mob::do_hurt_target(creaking.as_ref(), prey.as_ref()));
@@ -1026,6 +1034,11 @@ mod tests {
         );
         assert_eq!(prey.get_mob_entity().living_entity.health.load(), health);
 
+        assert!(
+            world
+                .get_entity_by_id(prey.get_entity().entity_id)
+                .is_some()
+        );
         creaking.apply_pending_melee_attack();
         assert!(
             creaking
@@ -1034,7 +1047,15 @@ mod tests {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .is_none()
         );
-        assert!(prey.get_mob_entity().living_entity.health.load() < health);
+        // Test worlds have no Server, so LivingEntity::damage_with_context records the
+        // attacker and then stops before health is applied. That marker still proves the
+        // deferred hit reached the damage path on the next tick.
+        assert_eq!(
+            prey.get_mob_entity()
+                .living_entity
+                .recent_damage_attacker_id(),
+            Some(creaking.get_entity().entity_id),
+        );
         world.level.shutdown().await;
         Ok(())
     }

@@ -1268,13 +1268,14 @@ mod tests {
         let buffer = cart
             .minecart_lerp_steps()
             .ok_or_else(|| std::io::Error::other("experimental minecart had no lerp steps"))?;
-        let steps = buffer
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        assert_eq!(steps.len(), 1);
-        assert!((steps[0].position.x - 0.75).abs() < 1.0e-9);
-        assert_eq!(steps[0].weight, 0.25);
-        drop(steps);
+        {
+            let steps = buffer
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            assert_eq!(steps.len(), 1);
+            assert!((steps[0].position.x - 0.75).abs() < 1.0e-9);
+            assert_eq!(steps[0].weight, 0.25);
+        };
         world.level.shutdown().await;
         Ok(())
     }
