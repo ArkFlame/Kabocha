@@ -310,3 +310,4 @@ issue	4654	blocked-data	failed	horse TameAnimal trigger matches every wolf/cat v
 pr	4606	already-fixed	skipped	master carries full v0.2 guest SDK (crates/pumpkin-plugin-api-v0_2/src/lib.rs:1, Cargo.toml:17, ci_packages.py:88); PR Cargo/lock/CI edits are stale-master regressions	p4606
 pr	4652	already-fixed	skipped	master implements all PR behaviours via #4535 plus parity follow-ups (sniffer/ai.rs:182-441, sniffer.rs:273-359,481); port would regress NBT persistence and explored cap	n4652
 pr	4663	already-fixed	skipped	master already implements copper golem AI, item transport, chest-age and statue NBT; PR is a conflicting alternative implementation	n4663
+pr	4628	stale-base	failed	branched from d0c0a5d7, 3299 commits behind; Breeze brain APIs, advancement predicates and PLUGIN_API_VERSION diverged; needs rewrite plus codegen	n4628
