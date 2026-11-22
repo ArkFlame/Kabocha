@@ -327,3 +327,5 @@ pr	4667	already-fixed	skipped	1.8 combat already implemented via legacy_combat g
 issue	4674	already-fixed	skipped	rail centerline snapped at vanilla height by minecart.rs:160-199 with four passing tests; no code bug visible, visual offset needs client repro	i4674
 pr	4682	already-fixed	skipped	spider/cave spider wall climb, leap range and passenger suppression already present from #4368	p4682
 issue	4678	already-fixed	skipped	block entities already receive game events (game_event.rs:101-132) and sculk sensor detection/redstone has passing tests	i4678
+issue	4623	already-fixed	skipped	locator bar player tracking implemented in world/waypoint.rs with vanilla-byte codec tests; commit 2b1bc82b4	v4623
+issue	4654	already-fixed	skipped	tame-animal component conditions generated and evaluated; commit 402c0436a, proof test predicate.rs:4436	v4654
