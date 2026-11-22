@@ -73,6 +73,20 @@ const fn rail_slowdown_factor(has_passengers: bool) -> f64 {
     if has_passengers { 0.997 } else { 0.96 }
 }
 
+/// Vanilla `NewMinecartBehavior.getSlowdownFactor`: 0.997 with a passenger, else 0.975.
+const fn experimental_rail_slowdown_factor(has_passengers: bool) -> f64 {
+    if has_passengers { 0.997 } else { 0.975 }
+}
+
+/// Vanilla `getSlowdownFactor` for the behaviour selected by the experiment.
+const fn rail_slowdown_factor_for(has_passengers: bool, experimental: bool) -> f64 {
+    if experimental {
+        experimental_rail_slowdown_factor(has_passengers)
+    } else {
+        rail_slowdown_factor(has_passengers)
+    }
+}
+
 /// Vanilla `OldMinecartBehavior.moveAlongTrack` move: scale by 0.75 with a rider, then clamp each
 /// horizontal axis to `max_speed` (already halved in water). y is cleared.
 fn on_rail_move_velocity(
@@ -451,12 +465,13 @@ impl EntityBase for MinecartEntity {
         }
 
         let world = self.vehicle.entity.world.load();
+        let experimental = minecart_improvements_enabled(&world);
         // `max_minecart_speed` only exists with the `minecart_improvements` experiment;
         // without it vanilla keeps the fixed 0.4 blocks/tick cap (`OldMinecartBehavior`).
         // The gamerule counts blocks per second (default 8), so divide by 20 ticks.
         let max_speed = {
             let level_info = world.level_info.load();
-            if minecart_improvements_enabled(&world) {
+            if experimental {
                 level_info.game_rules.max_minecart_speed as f64 / 20.0
             } else {
                 0.4
@@ -748,7 +763,8 @@ impl EntityBase for MinecartEntity {
                     .is_ok_and(|p| !p.is_empty());
                 // Vanilla `applyNaturalSlowdown`: water multiplies the factor by 0.95.
                 let in_water = self.vehicle.entity.touching_water.load(Ordering::Relaxed);
-                friction = rail_slowdown_factor(has_passengers) * if in_water { 0.95 } else { 1.0 };
+                friction = rail_slowdown_factor_for(has_passengers, experimental)
+                    * if in_water { 0.95 } else { 1.0 };
             } else {
                 let below_block_pos = BlockPos(Vector3::new(
                     block_pos.0.x,
@@ -865,6 +881,19 @@ impl EntityBase for MinecartEntity {
             });
         }
         Some(container.clone() as Arc<dyn Inventory>)
+    }
+
+    /// Vanilla `AbstractMinecart.getBlockSpeedFactor`: rails never slow a cart.
+    fn get_block_speed_factor(&self) -> f32 {
+        let entity = &self.vehicle.entity;
+        let world = entity.world.load();
+        if minecart_improvements_enabled(&world) {
+            let pos = BlockPos::floored_v(entity.pos.load());
+            if world.get_block(&pos).has_tag(&tag::Block::MINECRAFT_RAILS) {
+                return 1.0;
+            }
+        }
+        entity.get_block_speed_factor()
     }
 
     fn is_pushable(&self) -> bool {
@@ -1157,6 +1186,23 @@ impl EntityBase for MinecartEntity {
         }
     }
 
+    /// Vanilla `AbstractMinecart.getKnownMovement`: old carts clamp to the old speed cap.
+    fn known_movement(&self) -> Vector3<f64> {
+        let entity = &self.vehicle.entity;
+        let velocity = entity.velocity.load();
+        if minecart_improvements_enabled(&entity.world.load()) {
+            return velocity;
+        }
+        if velocity.x.is_nan() || velocity.y.is_nan() || velocity.z.is_nan() {
+            return Vector3::new(0.0, 0.0, 0.0);
+        }
+        Vector3::new(
+            velocity.x.clamp(-0.4, 0.4),
+            velocity.y,
+            velocity.z.clamp(-0.4, 0.4),
+        )
+    }
+
     fn cast_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -1265,6 +1311,14 @@ mod tests {
         assert_eq!((fast.x, fast.y, fast.z), (0.15, 0.0, 0.2));
         assert!((rail_slowdown_factor(true) - 0.997).abs() < f64::EPSILON);
         assert!((rail_slowdown_factor(false) - 0.96).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn experimental_rail_slowdown_uses_new_unridden_factor() {
+        assert!((rail_slowdown_factor_for(false, true) - 0.975).abs() < f64::EPSILON);
+        assert!((rail_slowdown_factor_for(true, true) - 0.997).abs() < f64::EPSILON);
+        assert!((rail_slowdown_factor_for(false, false) - 0.96).abs() < f64::EPSILON);
+        assert!((rail_slowdown_factor_for(true, false) - 0.997).abs() < f64::EPSILON);
     }
 
     #[test]

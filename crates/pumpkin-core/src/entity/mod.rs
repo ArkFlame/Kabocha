@@ -847,6 +847,11 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         )
     }
 
+    /// Vanilla `getKnownMovement`: the movement other entities see for this one.
+    fn known_movement(&self) -> Vector3<f64> {
+        known_movement(self)
+    }
+
     /// Vanilla `getSoundSource`.
     fn sound_source(&self) -> SoundCategory {
         self.get_entity().entity_type.sound_source
@@ -1779,7 +1784,7 @@ fn holder_movement(entity: &dyn EntityBase) -> Vector3<f64> {
     {
         Vector3::new(0.0, 0.0, 0.0)
     } else {
-        known_movement(entity)
+        entity.known_movement()
     }
 }
 
@@ -6195,7 +6200,7 @@ impl Entity {
         self.leash_angular_momentum.store(
             self.leash_angular_momentum.load() + LEASH_TORSIONAL_ELASTICITY * torque * scale,
         );
-        let relative_velocity = holder_movement(holder) - known_movement(caller);
+        let relative_velocity = holder_movement(holder) - caller.known_movement();
         let pull = (force * scale).multiply(
             LEASH_AXIS_ELASTICITY.x,
             LEASH_AXIS_ELASTICITY.y,
