@@ -39,7 +39,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4638](https://github.com/Pumpkin-MC/Pumpkin/pull/4638) | perf(world): batch packets per tick and send movement from the entity tracker | LANDED (18ed0b039, partial: stages 1-2) |
 | [#4639](https://github.com/Pumpkin-MC/Pumpkin/pull/4639) | fix(entity): despawn ineligible mobs on peaceful | PENDING |
 | [#4641](https://github.com/Pumpkin-MC/Pumpkin/pull/4641) | Avoid double deletion of guest-owned resources | LANDED (f033a0d53) |
-| [#4642](https://github.com/Pumpkin-MC/Pumpkin/pull/4642) | Expose transport latency through the v0.2 plugin API | PENDING |
+| [#4642](https://github.com/Pumpkin-MC/Pumpkin/pull/4642) | Expose transport latency through the v0.2 plugin API | LANDED (b9b41f8e4) |
 | [#4643](https://github.com/Pumpkin-MC/Pumpkin/pull/4643) | fix(minecart) | BLOCKED (core fixes present, remainder needs generated APIs) |
 | [#4644](https://github.com/Pumpkin-MC/Pumpkin/pull/4644) | fix(respawn_anchor): notify clients and neighbors when breaking anchor on explosion | LANDED |
 | [#4647](https://github.com/Pumpkin-MC/Pumpkin/pull/4647) | fix(entity): bring leads closer to vanilla parity | LANDED (6ca8d115a, partial: leash targets) |
@@ -47,7 +47,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4650](https://github.com/Pumpkin-MC/Pumpkin/pull/4650) | fix(block): preserve drop flags when breaking multi-part blocks | LANDED |
 | [#4652](https://github.com/Pumpkin-MC/Pumpkin/pull/4652) | feat(entity): sniffer vanilla parity | ALREADY-FIXED (#4535) |
 | [#4655](https://github.com/Pumpkin-MC/Pumpkin/pull/4655) | feat(entity): implement happy ghast vanilla parity | ALREADY-FIXED (#4206) |
-| [#4658](https://github.com/Pumpkin-MC/Pumpkin/pull/4658) | fix(plugin): separate PlayerCommandPreprocessEvent from PlayerCommandSendEvent | PENDING |
+| [#4658](https://github.com/Pumpkin-MC/Pumpkin/pull/4658) | fix(plugin): separate PlayerCommandPreprocessEvent from PlayerCommandSendEvent | LANDED (9e5b74ca2, partial: event split) |
 | [#4661](https://github.com/Pumpkin-MC/Pumpkin/pull/4661) | feat(entity): vanilla parity for armadillo | ALREADY-FIXED (armadillo.rs inline) |
 | [#4663](https://github.com/Pumpkin-MC/Pumpkin/pull/4663) | feat(entity): port copper golem behavior and item transport | ALREADY-FIXED |
 
