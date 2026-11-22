@@ -548730,6 +548730,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STONE: Self = Block {
         id: BlockId::new(1u16).unwrap(),
@@ -548748,6 +548750,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRANITE: Self = Block {
         id: BlockId::new(2u16).unwrap(),
@@ -548766,6 +548770,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/granite"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_GRANITE: Self = Block {
         id: BlockId::new(3u16).unwrap(),
@@ -548784,6 +548790,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_granite"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DIORITE: Self = Block {
         id: BlockId::new(4u16).unwrap(),
@@ -548802,6 +548810,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/diorite"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_DIORITE: Self = Block {
         id: BlockId::new(5u16).unwrap(),
@@ -548820,6 +548830,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_diorite"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ANDESITE: Self = Block {
         id: BlockId::new(6u16).unwrap(),
@@ -548838,6 +548850,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/andesite"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_ANDESITE: Self = Block {
         id: BlockId::new(7u16).unwrap(),
@@ -548856,6 +548870,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_andesite"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRASS_BLOCK: Self = Block {
         id: BlockId::new(8u16).unwrap(),
@@ -548874,6 +548890,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/grass_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DIRT: Self = Block {
         id: BlockId::new(9u16).unwrap(),
@@ -548892,6 +548910,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dirt"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COARSE_DIRT: Self = Block {
         id: BlockId::new(10u16).unwrap(),
@@ -548910,6 +548930,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/coarse_dirt"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PODZOL: Self = Block {
         id: BlockId::new(11u16).unwrap(),
@@ -548928,6 +548950,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/podzol"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COBBLESTONE: Self = Block {
         id: BlockId::new(12u16).unwrap(),
@@ -548946,6 +548970,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cobblestone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_PLANKS: Self = Block {
         id: BlockId::new(13u16).unwrap(),
@@ -548967,6 +548993,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/oak_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPRUCE_PLANKS: Self = Block {
         id: BlockId::new(14u16).unwrap(),
@@ -548988,6 +549016,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BIRCH_PLANKS: Self = Block {
         id: BlockId::new(15u16).unwrap(),
@@ -549009,6 +549039,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/birch_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JUNGLE_PLANKS: Self = Block {
         id: BlockId::new(16u16).unwrap(),
@@ -549030,6 +549062,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ACACIA_PLANKS: Self = Block {
         id: BlockId::new(17u16).unwrap(),
@@ -549051,6 +549085,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHERRY_PLANKS: Self = Block {
         id: BlockId::new(18u16).unwrap(),
@@ -549072,6 +549108,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_OAK_PLANKS: Self = Block {
         id: BlockId::new(19u16).unwrap(),
@@ -549093,6 +549131,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_OAK_WOOD: Self = Block {
         id: BlockId::new(20u16).unwrap(),
@@ -549114,6 +549154,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_OAK_PLANKS: Self = Block {
         id: BlockId::new(21u16).unwrap(),
@@ -549135,6 +549177,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MANGROVE_PLANKS: Self = Block {
         id: BlockId::new(22u16).unwrap(),
@@ -549156,6 +549200,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POPLAR_PLANKS: Self = Block {
         id: BlockId::new(23u16).unwrap(),
@@ -549177,6 +549223,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BAMBOO_PLANKS: Self = Block {
         id: BlockId::new(24u16).unwrap(),
@@ -549198,6 +549246,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BAMBOO_MOSAIC: Self = Block {
         id: BlockId::new(25u16).unwrap(),
@@ -549219,6 +549269,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_mosaic"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_SAPLING: Self = Block {
         id: BlockId::new(26u16).unwrap(),
@@ -549237,6 +549289,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oak_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPRUCE_SAPLING: Self = Block {
         id: BlockId::new(27u16).unwrap(),
@@ -549255,6 +549309,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BIRCH_SAPLING: Self = Block {
         id: BlockId::new(28u16).unwrap(),
@@ -549273,6 +549329,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/birch_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JUNGLE_SAPLING: Self = Block {
         id: BlockId::new(29u16).unwrap(),
@@ -549291,6 +549349,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ACACIA_SAPLING: Self = Block {
         id: BlockId::new(30u16).unwrap(),
@@ -549309,6 +549369,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHERRY_SAPLING: Self = Block {
         id: BlockId::new(31u16).unwrap(),
@@ -549327,6 +549389,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_OAK_SAPLING: Self = Block {
         id: BlockId::new(32u16).unwrap(),
@@ -549345,6 +549409,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_OAK_SAPLING: Self = Block {
         id: BlockId::new(33u16).unwrap(),
@@ -549363,6 +549429,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MANGROVE_PROPAGULE: Self = Block {
         id: BlockId::new(34u16).unwrap(),
@@ -549381,6 +549449,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_propagule"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POPLAR_SAPLING: Self = Block {
         id: BlockId::new(35u16).unwrap(),
@@ -549399,6 +549469,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BEDROCK: Self = Block {
         id: BlockId::new(36u16).unwrap(),
@@ -549417,6 +549489,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WATER: Self = Block {
         id: BlockId::new(37u16).unwrap(),
@@ -549435,6 +549509,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LAVA: Self = Block {
         id: BlockId::new(38u16).unwrap(),
@@ -549453,6 +549529,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SAND: Self = Block {
         id: BlockId::new(39u16).unwrap(),
@@ -549471,6 +549549,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sand"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SUSPICIOUS_SAND: Self = Block {
         id: BlockId::new(40u16).unwrap(),
@@ -549489,6 +549569,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/suspicious_sand"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_SAND: Self = Block {
         id: BlockId::new(41u16).unwrap(),
@@ -549507,6 +549589,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_sand"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAVEL: Self = Block {
         id: BlockId::new(42u16).unwrap(),
@@ -549525,6 +549609,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gravel"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SUSPICIOUS_GRAVEL: Self = Block {
         id: BlockId::new(43u16).unwrap(),
@@ -549543,6 +549629,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/suspicious_gravel"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GOLD_ORE: Self = Block {
         id: BlockId::new(44u16).unwrap(),
@@ -549563,6 +549651,8 @@ impl Block {
             experience: IntProvider::Constant(0i32),
         }),
         loot_table: Some("minecraft:blocks/gold_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_GOLD_ORE: Self = Block {
         id: BlockId::new(45u16).unwrap(),
@@ -549583,6 +549673,8 @@ impl Block {
             experience: IntProvider::Constant(0i32),
         }),
         loot_table: Some("minecraft:blocks/deepslate_gold_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const IRON_ORE: Self = Block {
         id: BlockId::new(46u16).unwrap(),
@@ -549603,6 +549695,8 @@ impl Block {
             experience: IntProvider::Constant(0i32),
         }),
         loot_table: Some("minecraft:blocks/iron_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_IRON_ORE: Self = Block {
         id: BlockId::new(47u16).unwrap(),
@@ -549623,6 +549717,8 @@ impl Block {
             experience: IntProvider::Constant(0i32),
         }),
         loot_table: Some("minecraft:blocks/deepslate_iron_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COAL_ORE: Self = Block {
         id: BlockId::new(48u16).unwrap(),
@@ -549646,6 +549742,8 @@ impl Block {
             })),
         }),
         loot_table: Some("minecraft:blocks/coal_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_COAL_ORE: Self = Block {
         id: BlockId::new(49u16).unwrap(),
@@ -549669,6 +549767,8 @@ impl Block {
             })),
         }),
         loot_table: Some("minecraft:blocks/deepslate_coal_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHER_GOLD_ORE: Self = Block {
         id: BlockId::new(50u16).unwrap(),
@@ -549692,6 +549792,8 @@ impl Block {
             })),
         }),
         loot_table: Some("minecraft:blocks/nether_gold_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_LOG: Self = Block {
         id: BlockId::new(51u16).unwrap(),
@@ -549713,6 +549815,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/oak_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPRUCE_LOG: Self = Block {
         id: BlockId::new(52u16).unwrap(),
@@ -549734,6 +549838,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BIRCH_LOG: Self = Block {
         id: BlockId::new(53u16).unwrap(),
@@ -549755,6 +549861,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/birch_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JUNGLE_LOG: Self = Block {
         id: BlockId::new(54u16).unwrap(),
@@ -549776,6 +549884,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ACACIA_LOG: Self = Block {
         id: BlockId::new(55u16).unwrap(),
@@ -549797,6 +549907,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHERRY_LOG: Self = Block {
         id: BlockId::new(56u16).unwrap(),
@@ -549818,6 +549930,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_OAK_LOG: Self = Block {
         id: BlockId::new(57u16).unwrap(),
@@ -549839,6 +549953,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_OAK_LOG: Self = Block {
         id: BlockId::new(58u16).unwrap(),
@@ -549860,6 +549976,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MANGROVE_LOG: Self = Block {
         id: BlockId::new(59u16).unwrap(),
@@ -549881,6 +549999,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POPLAR_LOG: Self = Block {
         id: BlockId::new(60u16).unwrap(),
@@ -549902,6 +550022,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MANGROVE_ROOTS: Self = Block {
         id: BlockId::new(61u16).unwrap(),
@@ -549923,6 +550045,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_roots"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MUDDY_MANGROVE_ROOTS: Self = Block {
         id: BlockId::new(62u16).unwrap(),
@@ -549941,6 +550065,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/muddy_mangrove_roots"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BAMBOO_BLOCK: Self = Block {
         id: BlockId::new(63u16).unwrap(),
@@ -549962,6 +550088,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_SPRUCE_LOG: Self = Block {
         id: BlockId::new(64u16).unwrap(),
@@ -549983,6 +550111,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_spruce_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_BIRCH_LOG: Self = Block {
         id: BlockId::new(65u16).unwrap(),
@@ -550004,6 +550134,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_birch_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_JUNGLE_LOG: Self = Block {
         id: BlockId::new(66u16).unwrap(),
@@ -550025,6 +550157,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_jungle_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_ACACIA_LOG: Self = Block {
         id: BlockId::new(67u16).unwrap(),
@@ -550046,6 +550180,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_acacia_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_CHERRY_LOG: Self = Block {
         id: BlockId::new(68u16).unwrap(),
@@ -550067,6 +550203,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_cherry_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_DARK_OAK_LOG: Self = Block {
         id: BlockId::new(69u16).unwrap(),
@@ -550088,6 +550226,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_dark_oak_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_PALE_OAK_LOG: Self = Block {
         id: BlockId::new(70u16).unwrap(),
@@ -550109,6 +550249,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_pale_oak_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_OAK_LOG: Self = Block {
         id: BlockId::new(71u16).unwrap(),
@@ -550130,6 +550272,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_oak_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_MANGROVE_LOG: Self = Block {
         id: BlockId::new(72u16).unwrap(),
@@ -550151,6 +550295,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_mangrove_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_POPLAR_LOG: Self = Block {
         id: BlockId::new(73u16).unwrap(),
@@ -550172,6 +550318,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_poplar_log"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_BAMBOO_BLOCK: Self = Block {
         id: BlockId::new(74u16).unwrap(),
@@ -550193,6 +550341,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_bamboo_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_WOOD: Self = Block {
         id: BlockId::new(75u16).unwrap(),
@@ -550214,6 +550364,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/oak_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPRUCE_WOOD: Self = Block {
         id: BlockId::new(76u16).unwrap(),
@@ -550235,6 +550387,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BIRCH_WOOD: Self = Block {
         id: BlockId::new(77u16).unwrap(),
@@ -550256,6 +550410,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/birch_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JUNGLE_WOOD: Self = Block {
         id: BlockId::new(78u16).unwrap(),
@@ -550277,6 +550433,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ACACIA_WOOD: Self = Block {
         id: BlockId::new(79u16).unwrap(),
@@ -550298,6 +550456,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHERRY_WOOD: Self = Block {
         id: BlockId::new(80u16).unwrap(),
@@ -550319,6 +550479,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_OAK_WOOD: Self = Block {
         id: BlockId::new(81u16).unwrap(),
@@ -550340,6 +550502,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MANGROVE_WOOD: Self = Block {
         id: BlockId::new(82u16).unwrap(),
@@ -550361,6 +550525,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POPLAR_WOOD: Self = Block {
         id: BlockId::new(83u16).unwrap(),
@@ -550382,6 +550548,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_OAK_WOOD: Self = Block {
         id: BlockId::new(84u16).unwrap(),
@@ -550403,6 +550571,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_oak_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_SPRUCE_WOOD: Self = Block {
         id: BlockId::new(85u16).unwrap(),
@@ -550424,6 +550594,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_spruce_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_BIRCH_WOOD: Self = Block {
         id: BlockId::new(86u16).unwrap(),
@@ -550445,6 +550617,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_birch_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_JUNGLE_WOOD: Self = Block {
         id: BlockId::new(87u16).unwrap(),
@@ -550466,6 +550640,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_jungle_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_ACACIA_WOOD: Self = Block {
         id: BlockId::new(88u16).unwrap(),
@@ -550487,6 +550663,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_acacia_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_CHERRY_WOOD: Self = Block {
         id: BlockId::new(89u16).unwrap(),
@@ -550508,6 +550686,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_cherry_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_DARK_OAK_WOOD: Self = Block {
         id: BlockId::new(90u16).unwrap(),
@@ -550529,6 +550709,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_dark_oak_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_PALE_OAK_WOOD: Self = Block {
         id: BlockId::new(91u16).unwrap(),
@@ -550550,6 +550732,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_pale_oak_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_MANGROVE_WOOD: Self = Block {
         id: BlockId::new(92u16).unwrap(),
@@ -550571,6 +550755,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_mangrove_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_POPLAR_WOOD: Self = Block {
         id: BlockId::new(93u16).unwrap(),
@@ -550592,6 +550778,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_poplar_wood"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_LEAVES: Self = Block {
         id: BlockId::new(94u16).unwrap(),
@@ -550613,6 +550801,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/oak_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPRUCE_LEAVES: Self = Block {
         id: BlockId::new(95u16).unwrap(),
@@ -550634,6 +550824,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BIRCH_LEAVES: Self = Block {
         id: BlockId::new(96u16).unwrap(),
@@ -550655,6 +550847,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/birch_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JUNGLE_LEAVES: Self = Block {
         id: BlockId::new(97u16).unwrap(),
@@ -550676,6 +550870,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ACACIA_LEAVES: Self = Block {
         id: BlockId::new(98u16).unwrap(),
@@ -550697,6 +550893,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHERRY_LEAVES: Self = Block {
         id: BlockId::new(99u16).unwrap(),
@@ -550718,6 +550916,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_OAK_LEAVES: Self = Block {
         id: BlockId::new(100u16).unwrap(),
@@ -550739,6 +550939,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_OAK_LEAVES: Self = Block {
         id: BlockId::new(101u16).unwrap(),
@@ -550760,6 +550962,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MANGROVE_LEAVES: Self = Block {
         id: BlockId::new(102u16).unwrap(),
@@ -550781,6 +550985,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_POPLAR_LEAVES: Self = Block {
         id: BlockId::new(103u16).unwrap(),
@@ -550802,6 +551008,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/red_poplar_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_POPLAR_LEAVES: Self = Block {
         id: BlockId::new(104u16).unwrap(),
@@ -550823,6 +551031,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/orange_poplar_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_POPLAR_LEAVES: Self = Block {
         id: BlockId::new(105u16).unwrap(),
@@ -550844,6 +551054,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_poplar_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const AZALEA_LEAVES: Self = Block {
         id: BlockId::new(106u16).unwrap(),
@@ -550865,6 +551077,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/azalea_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FLOWERING_AZALEA_LEAVES: Self = Block {
         id: BlockId::new(107u16).unwrap(),
@@ -550886,6 +551100,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/flowering_azalea_leaves"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPONGE: Self = Block {
         id: BlockId::new(108u16).unwrap(),
@@ -550904,6 +551120,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sponge"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WET_SPONGE: Self = Block {
         id: BlockId::new(109u16).unwrap(),
@@ -550922,6 +551140,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/wet_sponge"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GLASS: Self = Block {
         id: BlockId::new(110u16).unwrap(),
@@ -550940,6 +551160,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LAPIS_ORE: Self = Block {
         id: BlockId::new(111u16).unwrap(),
@@ -550963,6 +551185,8 @@ impl Block {
             })),
         }),
         loot_table: Some("minecraft:blocks/lapis_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_LAPIS_ORE: Self = Block {
         id: BlockId::new(112u16).unwrap(),
@@ -550986,6 +551210,8 @@ impl Block {
             })),
         }),
         loot_table: Some("minecraft:blocks/deepslate_lapis_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LAPIS_BLOCK: Self = Block {
         id: BlockId::new(113u16).unwrap(),
@@ -551004,6 +551230,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lapis_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DISPENSER: Self = Block {
         id: BlockId::new(114u16).unwrap(),
@@ -551022,6 +551250,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dispenser"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SANDSTONE: Self = Block {
         id: BlockId::new(115u16).unwrap(),
@@ -551040,6 +551270,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sandstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_SANDSTONE: Self = Block {
         id: BlockId::new(116u16).unwrap(),
@@ -551058,6 +551290,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_sandstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CUT_SANDSTONE: Self = Block {
         id: BlockId::new(117u16).unwrap(),
@@ -551076,6 +551310,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cut_sandstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NOTE_BLOCK: Self = Block {
         id: BlockId::new(118u16).unwrap(),
@@ -551094,6 +551330,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/note_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_BED: Self = Block {
         id: BlockId::new(119u16).unwrap(),
@@ -551112,6 +551350,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_BED: Self = Block {
         id: BlockId::new(120u16).unwrap(),
@@ -551130,6 +551370,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_BED: Self = Block {
         id: BlockId::new(121u16).unwrap(),
@@ -551148,6 +551390,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_BED: Self = Block {
         id: BlockId::new(122u16).unwrap(),
@@ -551166,6 +551410,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_BED: Self = Block {
         id: BlockId::new(123u16).unwrap(),
@@ -551184,6 +551430,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_BED: Self = Block {
         id: BlockId::new(124u16).unwrap(),
@@ -551202,6 +551450,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_BED: Self = Block {
         id: BlockId::new(125u16).unwrap(),
@@ -551220,6 +551470,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_BED: Self = Block {
         id: BlockId::new(126u16).unwrap(),
@@ -551238,6 +551490,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_BED: Self = Block {
         id: BlockId::new(127u16).unwrap(),
@@ -551256,6 +551510,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_BED: Self = Block {
         id: BlockId::new(128u16).unwrap(),
@@ -551274,6 +551530,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_BED: Self = Block {
         id: BlockId::new(129u16).unwrap(),
@@ -551292,6 +551550,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_BED: Self = Block {
         id: BlockId::new(130u16).unwrap(),
@@ -551310,6 +551570,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_BED: Self = Block {
         id: BlockId::new(131u16).unwrap(),
@@ -551328,6 +551590,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_BED: Self = Block {
         id: BlockId::new(132u16).unwrap(),
@@ -551346,6 +551610,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_BED: Self = Block {
         id: BlockId::new(133u16).unwrap(),
@@ -551364,6 +551630,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_BED: Self = Block {
         id: BlockId::new(134u16).unwrap(),
@@ -551382,6 +551650,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRAW_BED: Self = Block {
         id: BlockId::new(135u16).unwrap(),
@@ -551403,6 +551673,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/straw_bed"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POWERED_RAIL: Self = Block {
         id: BlockId::new(136u16).unwrap(),
@@ -551421,6 +551693,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/powered_rail"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DETECTOR_RAIL: Self = Block {
         id: BlockId::new(137u16).unwrap(),
@@ -551439,6 +551713,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/detector_rail"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STICKY_PISTON: Self = Block {
         id: BlockId::new(138u16).unwrap(),
@@ -551457,6 +551733,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sticky_piston"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COBWEB: Self = Block {
         id: BlockId::new(139u16).unwrap(),
@@ -551475,6 +551753,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cobweb"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SHORT_GRASS: Self = Block {
         id: BlockId::new(140u16).unwrap(),
@@ -551496,6 +551776,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/short_grass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FERN: Self = Block {
         id: BlockId::new(141u16).unwrap(),
@@ -551517,6 +551799,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/fern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_BUSH: Self = Block {
         id: BlockId::new(142u16).unwrap(),
@@ -551538,6 +551822,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dead_bush"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BUSH: Self = Block {
         id: BlockId::new(143u16).unwrap(),
@@ -551559,6 +551845,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bush"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_SHRUB: Self = Block {
         id: BlockId::new(144u16).unwrap(),
@@ -551580,6 +551868,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/red_shrub"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SHORT_DRY_GRASS: Self = Block {
         id: BlockId::new(145u16).unwrap(),
@@ -551601,6 +551891,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/short_dry_grass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TALL_DRY_GRASS: Self = Block {
         id: BlockId::new(146u16).unwrap(),
@@ -551622,6 +551914,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/tall_dry_grass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SEAGRASS: Self = Block {
         id: BlockId::new(147u16).unwrap(),
@@ -551640,6 +551934,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/seagrass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TALL_SEAGRASS: Self = Block {
         id: BlockId::new(148u16).unwrap(),
@@ -551658,6 +551954,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tall_seagrass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PISTON: Self = Block {
         id: BlockId::new(149u16).unwrap(),
@@ -551676,6 +551974,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/piston"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PISTON_HEAD: Self = Block {
         id: BlockId::new(150u16).unwrap(),
@@ -551694,6 +551994,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_WOOL: Self = Block {
         id: BlockId::new(151u16).unwrap(),
@@ -551715,6 +552017,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/white_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_WOOL: Self = Block {
         id: BlockId::new(152u16).unwrap(),
@@ -551736,6 +552040,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/orange_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_WOOL: Self = Block {
         id: BlockId::new(153u16).unwrap(),
@@ -551757,6 +552063,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_WOOL: Self = Block {
         id: BlockId::new(154u16).unwrap(),
@@ -551778,6 +552086,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_WOOL: Self = Block {
         id: BlockId::new(155u16).unwrap(),
@@ -551799,6 +552109,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_WOOL: Self = Block {
         id: BlockId::new(156u16).unwrap(),
@@ -551820,6 +552132,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/lime_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_WOOL: Self = Block {
         id: BlockId::new(157u16).unwrap(),
@@ -551841,6 +552155,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pink_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_WOOL: Self = Block {
         id: BlockId::new(158u16).unwrap(),
@@ -551862,6 +552178,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/gray_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_WOOL: Self = Block {
         id: BlockId::new(159u16).unwrap(),
@@ -551883,6 +552201,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_WOOL: Self = Block {
         id: BlockId::new(160u16).unwrap(),
@@ -551904,6 +552224,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_WOOL: Self = Block {
         id: BlockId::new(161u16).unwrap(),
@@ -551925,6 +552247,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/purple_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_WOOL: Self = Block {
         id: BlockId::new(162u16).unwrap(),
@@ -551946,6 +552270,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/blue_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_WOOL: Self = Block {
         id: BlockId::new(163u16).unwrap(),
@@ -551967,6 +552293,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/brown_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_WOOL: Self = Block {
         id: BlockId::new(164u16).unwrap(),
@@ -551988,6 +552316,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/green_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_WOOL: Self = Block {
         id: BlockId::new(165u16).unwrap(),
@@ -552009,6 +552339,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/red_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_WOOL: Self = Block {
         id: BlockId::new(166u16).unwrap(),
@@ -552030,6 +552362,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/black_wool"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_WOOL_STAIRS: Self = Block {
         id: BlockId::new(167u16).unwrap(),
@@ -552051,6 +552385,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/white_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_WOOL_STAIRS: Self = Block {
         id: BlockId::new(168u16).unwrap(),
@@ -552072,6 +552408,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/orange_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_WOOL_STAIRS: Self = Block {
         id: BlockId::new(169u16).unwrap(),
@@ -552093,6 +552431,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_WOOL_STAIRS: Self = Block {
         id: BlockId::new(170u16).unwrap(),
@@ -552114,6 +552454,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_WOOL_STAIRS: Self = Block {
         id: BlockId::new(171u16).unwrap(),
@@ -552135,6 +552477,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_WOOL_STAIRS: Self = Block {
         id: BlockId::new(172u16).unwrap(),
@@ -552156,6 +552500,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/lime_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_WOOL_STAIRS: Self = Block {
         id: BlockId::new(173u16).unwrap(),
@@ -552177,6 +552523,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pink_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_WOOL_STAIRS: Self = Block {
         id: BlockId::new(174u16).unwrap(),
@@ -552198,6 +552546,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/gray_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_WOOL_STAIRS: Self = Block {
         id: BlockId::new(175u16).unwrap(),
@@ -552219,6 +552569,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_WOOL_STAIRS: Self = Block {
         id: BlockId::new(176u16).unwrap(),
@@ -552240,6 +552592,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_WOOL_STAIRS: Self = Block {
         id: BlockId::new(177u16).unwrap(),
@@ -552261,6 +552615,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/purple_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_WOOL_STAIRS: Self = Block {
         id: BlockId::new(178u16).unwrap(),
@@ -552282,6 +552638,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/blue_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_WOOL_STAIRS: Self = Block {
         id: BlockId::new(179u16).unwrap(),
@@ -552303,6 +552661,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/brown_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_WOOL_STAIRS: Self = Block {
         id: BlockId::new(180u16).unwrap(),
@@ -552324,6 +552684,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/green_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_WOOL_STAIRS: Self = Block {
         id: BlockId::new(181u16).unwrap(),
@@ -552345,6 +552707,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/red_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_WOOL_STAIRS: Self = Block {
         id: BlockId::new(182u16).unwrap(),
@@ -552366,6 +552730,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/black_wool_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_WOOL_SLAB: Self = Block {
         id: BlockId::new(183u16).unwrap(),
@@ -552387,6 +552753,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/white_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_WOOL_SLAB: Self = Block {
         id: BlockId::new(184u16).unwrap(),
@@ -552408,6 +552776,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/orange_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_WOOL_SLAB: Self = Block {
         id: BlockId::new(185u16).unwrap(),
@@ -552429,6 +552799,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_WOOL_SLAB: Self = Block {
         id: BlockId::new(186u16).unwrap(),
@@ -552450,6 +552822,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_WOOL_SLAB: Self = Block {
         id: BlockId::new(187u16).unwrap(),
@@ -552471,6 +552845,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_WOOL_SLAB: Self = Block {
         id: BlockId::new(188u16).unwrap(),
@@ -552492,6 +552868,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/lime_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_WOOL_SLAB: Self = Block {
         id: BlockId::new(189u16).unwrap(),
@@ -552513,6 +552891,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pink_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_WOOL_SLAB: Self = Block {
         id: BlockId::new(190u16).unwrap(),
@@ -552534,6 +552914,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/gray_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_WOOL_SLAB: Self = Block {
         id: BlockId::new(191u16).unwrap(),
@@ -552555,6 +552937,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_WOOL_SLAB: Self = Block {
         id: BlockId::new(192u16).unwrap(),
@@ -552576,6 +552960,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_WOOL_SLAB: Self = Block {
         id: BlockId::new(193u16).unwrap(),
@@ -552597,6 +552983,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/purple_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_WOOL_SLAB: Self = Block {
         id: BlockId::new(194u16).unwrap(),
@@ -552618,6 +553006,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/blue_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_WOOL_SLAB: Self = Block {
         id: BlockId::new(195u16).unwrap(),
@@ -552639,6 +553029,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/brown_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_WOOL_SLAB: Self = Block {
         id: BlockId::new(196u16).unwrap(),
@@ -552660,6 +553052,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/green_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_WOOL_SLAB: Self = Block {
         id: BlockId::new(197u16).unwrap(),
@@ -552681,6 +553075,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/red_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_WOOL_SLAB: Self = Block {
         id: BlockId::new(198u16).unwrap(),
@@ -552702,6 +553098,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/black_wool_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MOVING_PISTON: Self = Block {
         id: BlockId::new(199u16).unwrap(),
@@ -552720,6 +553118,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DANDELION: Self = Block {
         id: BlockId::new(200u16).unwrap(),
@@ -552741,6 +553141,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dandelion"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GOLDEN_DANDELION: Self = Block {
         id: BlockId::new(201u16).unwrap(),
@@ -552762,6 +553164,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/golden_dandelion"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TORCHFLOWER: Self = Block {
         id: BlockId::new(202u16).unwrap(),
@@ -552783,6 +553187,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/torchflower"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POPPY: Self = Block {
         id: BlockId::new(203u16).unwrap(),
@@ -552804,6 +553210,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/poppy"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_ORCHID: Self = Block {
         id: BlockId::new(204u16).unwrap(),
@@ -552825,6 +553233,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/blue_orchid"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ALLIUM: Self = Block {
         id: BlockId::new(205u16).unwrap(),
@@ -552846,6 +553256,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/allium"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const AZURE_BLUET: Self = Block {
         id: BlockId::new(206u16).unwrap(),
@@ -552867,6 +553279,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/azure_bluet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_TULIP: Self = Block {
         id: BlockId::new(207u16).unwrap(),
@@ -552888,6 +553302,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/red_tulip"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_TULIP: Self = Block {
         id: BlockId::new(208u16).unwrap(),
@@ -552909,6 +553325,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/orange_tulip"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_TULIP: Self = Block {
         id: BlockId::new(209u16).unwrap(),
@@ -552930,6 +553348,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/white_tulip"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_TULIP: Self = Block {
         id: BlockId::new(210u16).unwrap(),
@@ -552951,6 +553371,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pink_tulip"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXEYE_DAISY: Self = Block {
         id: BlockId::new(211u16).unwrap(),
@@ -552972,6 +553394,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/oxeye_daisy"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CORNFLOWER: Self = Block {
         id: BlockId::new(212u16).unwrap(),
@@ -552993,6 +553417,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cornflower"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WITHER_ROSE: Self = Block {
         id: BlockId::new(213u16).unwrap(),
@@ -553014,6 +553440,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/wither_rose"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LILY_OF_THE_VALLEY: Self = Block {
         id: BlockId::new(214u16).unwrap(),
@@ -553035,6 +553463,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/lily_of_the_valley"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_MUSHROOM: Self = Block {
         id: BlockId::new(215u16).unwrap(),
@@ -553053,6 +553483,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_mushroom"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_MUSHROOM: Self = Block {
         id: BlockId::new(216u16).unwrap(),
@@ -553071,6 +553503,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_mushroom"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GOLD_BLOCK: Self = Block {
         id: BlockId::new(217u16).unwrap(),
@@ -553089,6 +553523,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gold_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const IRON_BLOCK: Self = Block {
         id: BlockId::new(218u16).unwrap(),
@@ -553107,6 +553543,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/iron_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BRICKS: Self = Block {
         id: BlockId::new(219u16).unwrap(),
@@ -553125,6 +553563,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TNT: Self = Block {
         id: BlockId::new(220u16).unwrap(),
@@ -553146,6 +553586,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/tnt"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BOOKSHELF: Self = Block {
         id: BlockId::new(221u16).unwrap(),
@@ -553167,6 +553609,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bookshelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_BOOKSHELF: Self = Block {
         id: BlockId::new(222u16).unwrap(),
@@ -553185,6 +553629,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_bookshelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ACACIA_SHELF: Self = Block {
         id: BlockId::new(223u16).unwrap(),
@@ -553206,6 +553652,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BAMBOO_SHELF: Self = Block {
         id: BlockId::new(224u16).unwrap(),
@@ -553227,6 +553675,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BIRCH_SHELF: Self = Block {
         id: BlockId::new(225u16).unwrap(),
@@ -553248,6 +553698,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/birch_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHERRY_SHELF: Self = Block {
         id: BlockId::new(226u16).unwrap(),
@@ -553269,6 +553721,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRIMSON_SHELF: Self = Block {
         id: BlockId::new(227u16).unwrap(),
@@ -553287,6 +553741,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_OAK_SHELF: Self = Block {
         id: BlockId::new(228u16).unwrap(),
@@ -553308,6 +553764,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JUNGLE_SHELF: Self = Block {
         id: BlockId::new(229u16).unwrap(),
@@ -553329,6 +553787,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MANGROVE_SHELF: Self = Block {
         id: BlockId::new(230u16).unwrap(),
@@ -553350,6 +553810,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_SHELF: Self = Block {
         id: BlockId::new(231u16).unwrap(),
@@ -553371,6 +553833,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/oak_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_OAK_SHELF: Self = Block {
         id: BlockId::new(232u16).unwrap(),
@@ -553392,6 +553856,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POPLAR_SHELF: Self = Block {
         id: BlockId::new(233u16).unwrap(),
@@ -553413,6 +553879,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPRUCE_SHELF: Self = Block {
         id: BlockId::new(234u16).unwrap(),
@@ -553434,6 +553902,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WARPED_SHELF: Self = Block {
         id: BlockId::new(235u16).unwrap(),
@@ -553452,6 +553922,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_shelf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MOSSY_COBBLESTONE: Self = Block {
         id: BlockId::new(236u16).unwrap(),
@@ -553470,6 +553942,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mossy_cobblestone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OBSIDIAN: Self = Block {
         id: BlockId::new(237u16).unwrap(),
@@ -553488,6 +553962,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/obsidian"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TORCH: Self = Block {
         id: BlockId::new(238u16).unwrap(),
@@ -553506,6 +553982,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/torch"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WALL_TORCH: Self = Block {
         id: BlockId::new(239u16).unwrap(),
@@ -553524,6 +554002,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/torch"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FIRE: Self = Block {
         id: BlockId::new(240u16).unwrap(),
@@ -553542,6 +554022,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/fire"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SOUL_FIRE: Self = Block {
         id: BlockId::new(241u16).unwrap(),
@@ -553560,6 +554042,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/soul_fire"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPAWNER: Self = Block {
         id: BlockId::new(242u16).unwrap(),
@@ -553578,6 +554062,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/spawner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CREAKING_HEART: Self = Block {
         id: BlockId::new(243u16).unwrap(),
@@ -553596,6 +554082,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/creaking_heart"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_STAIRS: Self = Block {
         id: BlockId::new(244u16).unwrap(),
@@ -553617,6 +554105,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/oak_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHEST: Self = Block {
         id: BlockId::new(245u16).unwrap(),
@@ -553635,6 +554125,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const REDSTONE_WIRE: Self = Block {
         id: BlockId::new(246u16).unwrap(),
@@ -553653,6 +554145,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/redstone_wire"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DIAMOND_ORE: Self = Block {
         id: BlockId::new(247u16).unwrap(),
@@ -553676,6 +554170,8 @@ impl Block {
             })),
         }),
         loot_table: Some("minecraft:blocks/diamond_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_DIAMOND_ORE: Self = Block {
         id: BlockId::new(248u16).unwrap(),
@@ -553699,6 +554195,8 @@ impl Block {
             })),
         }),
         loot_table: Some("minecraft:blocks/deepslate_diamond_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DIAMOND_BLOCK: Self = Block {
         id: BlockId::new(249u16).unwrap(),
@@ -553717,6 +554215,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/diamond_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRAFTING_TABLE: Self = Block {
         id: BlockId::new(250u16).unwrap(),
@@ -553735,6 +554235,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crafting_table"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHEAT: Self = Block {
         id: BlockId::new(251u16).unwrap(),
@@ -553753,6 +554255,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/wheat"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FARMLAND: Self = Block {
         id: BlockId::new(252u16).unwrap(),
@@ -553771,6 +554275,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/farmland"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FURNACE: Self = Block {
         id: BlockId::new(253u16).unwrap(),
@@ -553789,6 +554295,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/furnace"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_SIGN: Self = Block {
         id: BlockId::new(254u16).unwrap(),
@@ -553807,6 +554315,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oak_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::OAK),
     };
     pub const SPRUCE_SIGN: Self = Block {
         id: BlockId::new(255u16).unwrap(),
@@ -553825,6 +554335,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::SPRUCE),
     };
     pub const BIRCH_SIGN: Self = Block {
         id: BlockId::new(256u16).unwrap(),
@@ -553843,6 +554355,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/birch_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::BIRCH),
     };
     pub const ACACIA_SIGN: Self = Block {
         id: BlockId::new(257u16).unwrap(),
@@ -553861,6 +554375,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::ACACIA),
     };
     pub const CHERRY_SIGN: Self = Block {
         id: BlockId::new(258u16).unwrap(),
@@ -553879,6 +554395,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::CHERRY),
     };
     pub const JUNGLE_SIGN: Self = Block {
         id: BlockId::new(259u16).unwrap(),
@@ -553897,6 +554415,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::JUNGLE),
     };
     pub const DARK_OAK_SIGN: Self = Block {
         id: BlockId::new(260u16).unwrap(),
@@ -553915,6 +554435,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::DARK_OAK),
     };
     pub const PALE_OAK_SIGN: Self = Block {
         id: BlockId::new(261u16).unwrap(),
@@ -553933,6 +554455,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::PALE_OAK),
     };
     pub const MANGROVE_SIGN: Self = Block {
         id: BlockId::new(262u16).unwrap(),
@@ -553951,6 +554475,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::MANGROVE),
     };
     pub const POPLAR_SIGN: Self = Block {
         id: BlockId::new(263u16).unwrap(),
@@ -553969,6 +554495,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::POPLAR),
     };
     pub const BAMBOO_SIGN: Self = Block {
         id: BlockId::new(264u16).unwrap(),
@@ -553987,6 +554515,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::BAMBOO),
     };
     pub const OAK_DOOR: Self = Block {
         id: BlockId::new(265u16).unwrap(),
@@ -554005,6 +554535,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oak_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::OAK),
+        wood_type: None,
     };
     pub const LADDER: Self = Block {
         id: BlockId::new(266u16).unwrap(),
@@ -554023,6 +554555,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/ladder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RAIL: Self = Block {
         id: BlockId::new(267u16).unwrap(),
@@ -554041,6 +554575,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/rail"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COBBLESTONE_STAIRS: Self = Block {
         id: BlockId::new(268u16).unwrap(),
@@ -554059,6 +554595,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cobblestone_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_WALL_SIGN: Self = Block {
         id: BlockId::new(269u16).unwrap(),
@@ -554077,6 +554615,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oak_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::OAK),
     };
     pub const SPRUCE_WALL_SIGN: Self = Block {
         id: BlockId::new(270u16).unwrap(),
@@ -554095,6 +554635,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::SPRUCE),
     };
     pub const BIRCH_WALL_SIGN: Self = Block {
         id: BlockId::new(271u16).unwrap(),
@@ -554113,6 +554655,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/birch_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::BIRCH),
     };
     pub const ACACIA_WALL_SIGN: Self = Block {
         id: BlockId::new(272u16).unwrap(),
@@ -554131,6 +554675,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::ACACIA),
     };
     pub const CHERRY_WALL_SIGN: Self = Block {
         id: BlockId::new(273u16).unwrap(),
@@ -554149,6 +554695,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::CHERRY),
     };
     pub const JUNGLE_WALL_SIGN: Self = Block {
         id: BlockId::new(274u16).unwrap(),
@@ -554167,6 +554715,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::JUNGLE),
     };
     pub const DARK_OAK_WALL_SIGN: Self = Block {
         id: BlockId::new(275u16).unwrap(),
@@ -554185,6 +554735,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::DARK_OAK),
     };
     pub const PALE_OAK_WALL_SIGN: Self = Block {
         id: BlockId::new(276u16).unwrap(),
@@ -554203,6 +554755,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::PALE_OAK),
     };
     pub const MANGROVE_WALL_SIGN: Self = Block {
         id: BlockId::new(277u16).unwrap(),
@@ -554221,6 +554775,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::MANGROVE),
     };
     pub const POPLAR_WALL_SIGN: Self = Block {
         id: BlockId::new(278u16).unwrap(),
@@ -554239,6 +554795,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::POPLAR),
     };
     pub const BAMBOO_WALL_SIGN: Self = Block {
         id: BlockId::new(279u16).unwrap(),
@@ -554257,6 +554815,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::BAMBOO),
     };
     pub const OAK_HANGING_SIGN: Self = Block {
         id: BlockId::new(280u16).unwrap(),
@@ -554275,6 +554835,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oak_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::OAK),
     };
     pub const SPRUCE_HANGING_SIGN: Self = Block {
         id: BlockId::new(281u16).unwrap(),
@@ -554293,6 +554855,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::SPRUCE),
     };
     pub const BIRCH_HANGING_SIGN: Self = Block {
         id: BlockId::new(282u16).unwrap(),
@@ -554311,6 +554875,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/birch_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::BIRCH),
     };
     pub const ACACIA_HANGING_SIGN: Self = Block {
         id: BlockId::new(283u16).unwrap(),
@@ -554329,6 +554895,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::ACACIA),
     };
     pub const CHERRY_HANGING_SIGN: Self = Block {
         id: BlockId::new(284u16).unwrap(),
@@ -554347,6 +554915,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::CHERRY),
     };
     pub const JUNGLE_HANGING_SIGN: Self = Block {
         id: BlockId::new(285u16).unwrap(),
@@ -554365,6 +554935,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::JUNGLE),
     };
     pub const DARK_OAK_HANGING_SIGN: Self = Block {
         id: BlockId::new(286u16).unwrap(),
@@ -554383,6 +554955,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::DARK_OAK),
     };
     pub const PALE_OAK_HANGING_SIGN: Self = Block {
         id: BlockId::new(287u16).unwrap(),
@@ -554401,6 +554975,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::PALE_OAK),
     };
     pub const CRIMSON_HANGING_SIGN: Self = Block {
         id: BlockId::new(288u16).unwrap(),
@@ -554419,6 +554995,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::CRIMSON),
     };
     pub const WARPED_HANGING_SIGN: Self = Block {
         id: BlockId::new(289u16).unwrap(),
@@ -554437,6 +555015,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::WARPED),
     };
     pub const MANGROVE_HANGING_SIGN: Self = Block {
         id: BlockId::new(290u16).unwrap(),
@@ -554455,6 +555035,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::MANGROVE),
     };
     pub const POPLAR_HANGING_SIGN: Self = Block {
         id: BlockId::new(291u16).unwrap(),
@@ -554473,6 +555055,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::POPLAR),
     };
     pub const BAMBOO_HANGING_SIGN: Self = Block {
         id: BlockId::new(292u16).unwrap(),
@@ -554491,6 +555075,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::BAMBOO),
     };
     pub const OAK_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(293u16).unwrap(),
@@ -554509,6 +555095,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oak_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::OAK),
     };
     pub const SPRUCE_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(294u16).unwrap(),
@@ -554527,6 +555115,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::SPRUCE),
     };
     pub const BIRCH_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(295u16).unwrap(),
@@ -554545,6 +555135,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/birch_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::BIRCH),
     };
     pub const ACACIA_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(296u16).unwrap(),
@@ -554563,6 +555155,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::ACACIA),
     };
     pub const CHERRY_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(297u16).unwrap(),
@@ -554581,6 +555175,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::CHERRY),
     };
     pub const JUNGLE_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(298u16).unwrap(),
@@ -554599,6 +555195,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::JUNGLE),
     };
     pub const DARK_OAK_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(299u16).unwrap(),
@@ -554617,6 +555215,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::DARK_OAK),
     };
     pub const PALE_OAK_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(300u16).unwrap(),
@@ -554635,6 +555235,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::PALE_OAK),
     };
     pub const MANGROVE_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(301u16).unwrap(),
@@ -554653,6 +555255,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::MANGROVE),
     };
     pub const POPLAR_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(302u16).unwrap(),
@@ -554671,6 +555275,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::POPLAR),
     };
     pub const CRIMSON_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(303u16).unwrap(),
@@ -554689,6 +555295,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::CRIMSON),
     };
     pub const WARPED_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(304u16).unwrap(),
@@ -554707,6 +555315,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::WARPED),
     };
     pub const BAMBOO_WALL_HANGING_SIGN: Self = Block {
         id: BlockId::new(305u16).unwrap(),
@@ -554725,6 +555335,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_hanging_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::BAMBOO),
     };
     pub const LEVER: Self = Block {
         id: BlockId::new(306u16).unwrap(),
@@ -554743,6 +555355,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lever"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STONE_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(307u16).unwrap(),
@@ -554761,6 +555375,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stone_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::STONE),
+        wood_type: None,
     };
     pub const IRON_DOOR: Self = Block {
         id: BlockId::new(308u16).unwrap(),
@@ -554779,6 +555395,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/iron_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::IRON),
+        wood_type: None,
     };
     pub const OAK_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(309u16).unwrap(),
@@ -554797,6 +555415,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oak_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::OAK),
+        wood_type: None,
     };
     pub const SPRUCE_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(310u16).unwrap(),
@@ -554815,6 +555435,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::SPRUCE),
+        wood_type: None,
     };
     pub const BIRCH_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(311u16).unwrap(),
@@ -554833,6 +555455,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/birch_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::BIRCH),
+        wood_type: None,
     };
     pub const JUNGLE_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(312u16).unwrap(),
@@ -554851,6 +555475,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::JUNGLE),
+        wood_type: None,
     };
     pub const ACACIA_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(313u16).unwrap(),
@@ -554869,6 +555495,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::ACACIA),
+        wood_type: None,
     };
     pub const CHERRY_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(314u16).unwrap(),
@@ -554887,6 +555515,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::CHERRY),
+        wood_type: None,
     };
     pub const DARK_OAK_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(315u16).unwrap(),
@@ -554905,6 +555535,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::DARK_OAK),
+        wood_type: None,
     };
     pub const PALE_OAK_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(316u16).unwrap(),
@@ -554923,6 +555555,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::PALE_OAK),
+        wood_type: None,
     };
     pub const MANGROVE_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(317u16).unwrap(),
@@ -554941,6 +555575,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::MANGROVE),
+        wood_type: None,
     };
     pub const POPLAR_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(318u16).unwrap(),
@@ -554959,6 +555595,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::POPLAR),
+        wood_type: None,
     };
     pub const BAMBOO_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(319u16).unwrap(),
@@ -554977,6 +555615,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::BAMBOO),
+        wood_type: None,
     };
     pub const REDSTONE_ORE: Self = Block {
         id: BlockId::new(320u16).unwrap(),
@@ -554995,6 +555635,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/redstone_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_REDSTONE_ORE: Self = Block {
         id: BlockId::new(321u16).unwrap(),
@@ -555013,6 +555655,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/deepslate_redstone_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const REDSTONE_TORCH: Self = Block {
         id: BlockId::new(322u16).unwrap(),
@@ -555031,6 +555675,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/redstone_torch"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const REDSTONE_WALL_TORCH: Self = Block {
         id: BlockId::new(323u16).unwrap(),
@@ -555049,6 +555695,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/redstone_torch"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STONE_BUTTON: Self = Block {
         id: BlockId::new(324u16).unwrap(),
@@ -555067,6 +555715,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stone_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::STONE),
+        wood_type: None,
     };
     pub const SNOW: Self = Block {
         id: BlockId::new(325u16).unwrap(),
@@ -555085,6 +555735,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/snow"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ICE: Self = Block {
         id: BlockId::new(326u16).unwrap(),
@@ -555103,6 +555755,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/ice"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SNOW_BLOCK: Self = Block {
         id: BlockId::new(327u16).unwrap(),
@@ -555121,6 +555775,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/snow_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CACTUS: Self = Block {
         id: BlockId::new(328u16).unwrap(),
@@ -555139,6 +555795,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cactus"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CACTUS_FLOWER: Self = Block {
         id: BlockId::new(329u16).unwrap(),
@@ -555160,6 +555818,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cactus_flower"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CLAY: Self = Block {
         id: BlockId::new(330u16).unwrap(),
@@ -555178,6 +555838,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/clay"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SUGAR_CANE: Self = Block {
         id: BlockId::new(331u16).unwrap(),
@@ -555196,6 +555858,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sugar_cane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JUKEBOX: Self = Block {
         id: BlockId::new(332u16).unwrap(),
@@ -555214,6 +555878,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/jukebox"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_FENCE: Self = Block {
         id: BlockId::new(333u16).unwrap(),
@@ -555235,6 +555901,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/oak_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHERRACK: Self = Block {
         id: BlockId::new(334u16).unwrap(),
@@ -555253,6 +555921,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/netherrack"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SOUL_SAND: Self = Block {
         id: BlockId::new(335u16).unwrap(),
@@ -555271,6 +555941,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/soul_sand"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SOUL_SOIL: Self = Block {
         id: BlockId::new(336u16).unwrap(),
@@ -555289,6 +555961,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/soul_soil"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BASALT: Self = Block {
         id: BlockId::new(337u16).unwrap(),
@@ -555307,6 +555981,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/basalt"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_BASALT: Self = Block {
         id: BlockId::new(338u16).unwrap(),
@@ -555325,6 +556001,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_basalt"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SOUL_TORCH: Self = Block {
         id: BlockId::new(339u16).unwrap(),
@@ -555343,6 +556021,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/soul_torch"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SOUL_WALL_TORCH: Self = Block {
         id: BlockId::new(340u16).unwrap(),
@@ -555361,6 +556041,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/soul_torch"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COPPER_TORCH: Self = Block {
         id: BlockId::new(341u16).unwrap(),
@@ -555379,6 +556061,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_torch"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COPPER_WALL_TORCH: Self = Block {
         id: BlockId::new(342u16).unwrap(),
@@ -555397,6 +556081,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_torch"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GLOWSTONE: Self = Block {
         id: BlockId::new(343u16).unwrap(),
@@ -555415,6 +556101,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/glowstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHER_PORTAL: Self = Block {
         id: BlockId::new(344u16).unwrap(),
@@ -555433,6 +556121,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/nether_portal"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CARVED_PUMPKIN: Self = Block {
         id: BlockId::new(345u16).unwrap(),
@@ -555451,6 +556141,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/carved_pumpkin"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JACK_O_LANTERN: Self = Block {
         id: BlockId::new(346u16).unwrap(),
@@ -555469,6 +556161,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/jack_o_lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CAKE: Self = Block {
         id: BlockId::new(347u16).unwrap(),
@@ -555487,6 +556181,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const REPEATER: Self = Block {
         id: BlockId::new(348u16).unwrap(),
@@ -555505,6 +556201,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/repeater"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_STAINED_GLASS: Self = Block {
         id: BlockId::new(349u16).unwrap(),
@@ -555523,6 +556221,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_STAINED_GLASS: Self = Block {
         id: BlockId::new(350u16).unwrap(),
@@ -555541,6 +556241,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_STAINED_GLASS: Self = Block {
         id: BlockId::new(351u16).unwrap(),
@@ -555559,6 +556261,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_STAINED_GLASS: Self = Block {
         id: BlockId::new(352u16).unwrap(),
@@ -555577,6 +556281,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_STAINED_GLASS: Self = Block {
         id: BlockId::new(353u16).unwrap(),
@@ -555595,6 +556301,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_STAINED_GLASS: Self = Block {
         id: BlockId::new(354u16).unwrap(),
@@ -555613,6 +556321,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_STAINED_GLASS: Self = Block {
         id: BlockId::new(355u16).unwrap(),
@@ -555631,6 +556341,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_STAINED_GLASS: Self = Block {
         id: BlockId::new(356u16).unwrap(),
@@ -555649,6 +556361,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_STAINED_GLASS: Self = Block {
         id: BlockId::new(357u16).unwrap(),
@@ -555667,6 +556381,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_STAINED_GLASS: Self = Block {
         id: BlockId::new(358u16).unwrap(),
@@ -555685,6 +556401,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_STAINED_GLASS: Self = Block {
         id: BlockId::new(359u16).unwrap(),
@@ -555703,6 +556421,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_STAINED_GLASS: Self = Block {
         id: BlockId::new(360u16).unwrap(),
@@ -555721,6 +556441,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_STAINED_GLASS: Self = Block {
         id: BlockId::new(361u16).unwrap(),
@@ -555739,6 +556461,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_STAINED_GLASS: Self = Block {
         id: BlockId::new(362u16).unwrap(),
@@ -555757,6 +556481,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_STAINED_GLASS: Self = Block {
         id: BlockId::new(363u16).unwrap(),
@@ -555775,6 +556501,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_STAINED_GLASS: Self = Block {
         id: BlockId::new(364u16).unwrap(),
@@ -555793,6 +556521,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_stained_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_TRAPDOOR: Self = Block {
         id: BlockId::new(365u16).unwrap(),
@@ -555811,6 +556541,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oak_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::OAK),
+        wood_type: None,
     };
     pub const SPRUCE_TRAPDOOR: Self = Block {
         id: BlockId::new(366u16).unwrap(),
@@ -555829,6 +556561,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::SPRUCE),
+        wood_type: None,
     };
     pub const BIRCH_TRAPDOOR: Self = Block {
         id: BlockId::new(367u16).unwrap(),
@@ -555847,6 +556581,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/birch_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::BIRCH),
+        wood_type: None,
     };
     pub const JUNGLE_TRAPDOOR: Self = Block {
         id: BlockId::new(368u16).unwrap(),
@@ -555865,6 +556601,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::JUNGLE),
+        wood_type: None,
     };
     pub const ACACIA_TRAPDOOR: Self = Block {
         id: BlockId::new(369u16).unwrap(),
@@ -555883,6 +556621,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::ACACIA),
+        wood_type: None,
     };
     pub const CHERRY_TRAPDOOR: Self = Block {
         id: BlockId::new(370u16).unwrap(),
@@ -555901,6 +556641,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::CHERRY),
+        wood_type: None,
     };
     pub const DARK_OAK_TRAPDOOR: Self = Block {
         id: BlockId::new(371u16).unwrap(),
@@ -555919,6 +556661,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::DARK_OAK),
+        wood_type: None,
     };
     pub const PALE_OAK_TRAPDOOR: Self = Block {
         id: BlockId::new(372u16).unwrap(),
@@ -555937,6 +556681,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::PALE_OAK),
+        wood_type: None,
     };
     pub const MANGROVE_TRAPDOOR: Self = Block {
         id: BlockId::new(373u16).unwrap(),
@@ -555955,6 +556701,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::MANGROVE),
+        wood_type: None,
     };
     pub const POPLAR_TRAPDOOR: Self = Block {
         id: BlockId::new(374u16).unwrap(),
@@ -555973,6 +556721,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::POPLAR),
+        wood_type: None,
     };
     pub const BAMBOO_TRAPDOOR: Self = Block {
         id: BlockId::new(375u16).unwrap(),
@@ -555991,6 +556741,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::BAMBOO),
+        wood_type: None,
     };
     pub const STONE_BRICKS: Self = Block {
         id: BlockId::new(376u16).unwrap(),
@@ -556009,6 +556761,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stone_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MOSSY_STONE_BRICKS: Self = Block {
         id: BlockId::new(377u16).unwrap(),
@@ -556027,6 +556781,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mossy_stone_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRACKED_STONE_BRICKS: Self = Block {
         id: BlockId::new(378u16).unwrap(),
@@ -556045,6 +556801,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cracked_stone_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_STONE_BRICKS: Self = Block {
         id: BlockId::new(379u16).unwrap(),
@@ -556063,6 +556821,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_stone_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PACKED_MUD: Self = Block {
         id: BlockId::new(380u16).unwrap(),
@@ -556081,6 +556841,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/packed_mud"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MUD_BRICKS: Self = Block {
         id: BlockId::new(381u16).unwrap(),
@@ -556099,6 +556861,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mud_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const INFESTED_STONE: Self = Block {
         id: BlockId::new(382u16).unwrap(),
@@ -556117,6 +556881,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/infested_stone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const INFESTED_COBBLESTONE: Self = Block {
         id: BlockId::new(383u16).unwrap(),
@@ -556135,6 +556901,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/infested_cobblestone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const INFESTED_STONE_BRICKS: Self = Block {
         id: BlockId::new(384u16).unwrap(),
@@ -556153,6 +556921,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/infested_stone_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const INFESTED_MOSSY_STONE_BRICKS: Self = Block {
         id: BlockId::new(385u16).unwrap(),
@@ -556171,6 +556941,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/infested_mossy_stone_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const INFESTED_CRACKED_STONE_BRICKS: Self = Block {
         id: BlockId::new(386u16).unwrap(),
@@ -556189,6 +556961,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/infested_cracked_stone_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const INFESTED_CHISELED_STONE_BRICKS: Self = Block {
         id: BlockId::new(387u16).unwrap(),
@@ -556207,6 +556981,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/infested_chiseled_stone_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_MUSHROOM_BLOCK: Self = Block {
         id: BlockId::new(388u16).unwrap(),
@@ -556225,6 +557001,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_mushroom_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_MUSHROOM_BLOCK: Self = Block {
         id: BlockId::new(389u16).unwrap(),
@@ -556243,6 +557021,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_mushroom_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MUSHROOM_STEM: Self = Block {
         id: BlockId::new(390u16).unwrap(),
@@ -556261,6 +557041,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mushroom_stem"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const IRON_BARS: Self = Block {
         id: BlockId::new(391u16).unwrap(),
@@ -556279,6 +557061,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/iron_bars"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COPPER_BARS: Self = Block {
         id: BlockId::new(392u16).unwrap(),
@@ -556297,6 +557081,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_bars"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_COPPER_BARS: Self = Block {
         id: BlockId::new(393u16).unwrap(),
@@ -556315,6 +557101,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_copper_bars"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_COPPER_BARS: Self = Block {
         id: BlockId::new(394u16).unwrap(),
@@ -556333,6 +557121,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_copper_bars"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_COPPER_BARS: Self = Block {
         id: BlockId::new(395u16).unwrap(),
@@ -556351,6 +557141,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_copper_bars"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_COPPER_BARS: Self = Block {
         id: BlockId::new(396u16).unwrap(),
@@ -556369,6 +557161,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_copper_bars"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_COPPER_BARS: Self = Block {
         id: BlockId::new(397u16).unwrap(),
@@ -556387,6 +557181,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_copper_bars"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_COPPER_BARS: Self = Block {
         id: BlockId::new(398u16).unwrap(),
@@ -556405,6 +557201,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_copper_bars"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_COPPER_BARS: Self = Block {
         id: BlockId::new(399u16).unwrap(),
@@ -556423,6 +557221,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_copper_bars"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const IRON_CHAIN: Self = Block {
         id: BlockId::new(400u16).unwrap(),
@@ -556441,6 +557241,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/iron_chain"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COPPER_CHAIN: Self = Block {
         id: BlockId::new(401u16).unwrap(),
@@ -556459,6 +557261,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_chain"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_COPPER_CHAIN: Self = Block {
         id: BlockId::new(402u16).unwrap(),
@@ -556477,6 +557281,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_copper_chain"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_COPPER_CHAIN: Self = Block {
         id: BlockId::new(403u16).unwrap(),
@@ -556495,6 +557301,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_copper_chain"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_COPPER_CHAIN: Self = Block {
         id: BlockId::new(404u16).unwrap(),
@@ -556513,6 +557321,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_copper_chain"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_COPPER_CHAIN: Self = Block {
         id: BlockId::new(405u16).unwrap(),
@@ -556531,6 +557341,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_copper_chain"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_COPPER_CHAIN: Self = Block {
         id: BlockId::new(406u16).unwrap(),
@@ -556549,6 +557361,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_copper_chain"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_COPPER_CHAIN: Self = Block {
         id: BlockId::new(407u16).unwrap(),
@@ -556567,6 +557381,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_copper_chain"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_COPPER_CHAIN: Self = Block {
         id: BlockId::new(408u16).unwrap(),
@@ -556585,6 +557401,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_copper_chain"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GLASS_PANE: Self = Block {
         id: BlockId::new(409u16).unwrap(),
@@ -556603,6 +557421,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PUMPKIN: Self = Block {
         id: BlockId::new(410u16).unwrap(),
@@ -556621,6 +557441,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pumpkin"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MELON: Self = Block {
         id: BlockId::new(411u16).unwrap(),
@@ -556639,6 +557461,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/melon"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ATTACHED_PUMPKIN_STEM: Self = Block {
         id: BlockId::new(412u16).unwrap(),
@@ -556657,6 +557481,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/attached_pumpkin_stem"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ATTACHED_MELON_STEM: Self = Block {
         id: BlockId::new(413u16).unwrap(),
@@ -556675,6 +557501,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/attached_melon_stem"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PUMPKIN_STEM: Self = Block {
         id: BlockId::new(414u16).unwrap(),
@@ -556693,6 +557521,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pumpkin_stem"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MELON_STEM: Self = Block {
         id: BlockId::new(415u16).unwrap(),
@@ -556711,6 +557541,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/melon_stem"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const VINE: Self = Block {
         id: BlockId::new(416u16).unwrap(),
@@ -556732,6 +557564,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/vine"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GLOW_LICHEN: Self = Block {
         id: BlockId::new(417u16).unwrap(),
@@ -556753,6 +557587,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/glow_lichen"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RESIN_CLUMP: Self = Block {
         id: BlockId::new(418u16).unwrap(),
@@ -556771,6 +557607,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/resin_clump"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_FENCE_GATE: Self = Block {
         id: BlockId::new(419u16).unwrap(),
@@ -556792,6 +557630,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/oak_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::OAK),
     };
     pub const BRICK_STAIRS: Self = Block {
         id: BlockId::new(420u16).unwrap(),
@@ -556810,6 +557650,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STONE_BRICK_STAIRS: Self = Block {
         id: BlockId::new(421u16).unwrap(),
@@ -556828,6 +557670,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stone_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MUD_BRICK_STAIRS: Self = Block {
         id: BlockId::new(422u16).unwrap(),
@@ -556846,6 +557690,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mud_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MYCELIUM: Self = Block {
         id: BlockId::new(423u16).unwrap(),
@@ -556864,6 +557710,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mycelium"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LILY_PAD: Self = Block {
         id: BlockId::new(424u16).unwrap(),
@@ -556882,6 +557730,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lily_pad"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RESIN_BLOCK: Self = Block {
         id: BlockId::new(425u16).unwrap(),
@@ -556900,6 +557750,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/resin_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RESIN_BRICKS: Self = Block {
         id: BlockId::new(426u16).unwrap(),
@@ -556918,6 +557770,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/resin_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RESIN_BRICK_STAIRS: Self = Block {
         id: BlockId::new(427u16).unwrap(),
@@ -556936,6 +557790,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/resin_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RESIN_BRICK_SLAB: Self = Block {
         id: BlockId::new(428u16).unwrap(),
@@ -556954,6 +557810,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/resin_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RESIN_BRICK_WALL: Self = Block {
         id: BlockId::new(429u16).unwrap(),
@@ -556972,6 +557830,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/resin_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_RESIN_BRICKS: Self = Block {
         id: BlockId::new(430u16).unwrap(),
@@ -556990,6 +557850,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_resin_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHER_BRICKS: Self = Block {
         id: BlockId::new(431u16).unwrap(),
@@ -557008,6 +557870,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/nether_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHER_BRICK_FENCE: Self = Block {
         id: BlockId::new(432u16).unwrap(),
@@ -557026,6 +557890,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/nether_brick_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHER_BRICK_STAIRS: Self = Block {
         id: BlockId::new(433u16).unwrap(),
@@ -557044,6 +557910,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/nether_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHER_WART: Self = Block {
         id: BlockId::new(434u16).unwrap(),
@@ -557062,6 +557930,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/nether_wart"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ENCHANTING_TABLE: Self = Block {
         id: BlockId::new(435u16).unwrap(),
@@ -557080,6 +557950,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/enchanting_table"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BREWING_STAND: Self = Block {
         id: BlockId::new(436u16).unwrap(),
@@ -557098,6 +557970,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brewing_stand"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CAULDRON: Self = Block {
         id: BlockId::new(437u16).unwrap(),
@@ -557116,6 +557990,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cauldron"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WATER_CAULDRON: Self = Block {
         id: BlockId::new(438u16).unwrap(),
@@ -557134,6 +558010,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/water_cauldron"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LAVA_CAULDRON: Self = Block {
         id: BlockId::new(439u16).unwrap(),
@@ -557152,6 +558030,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lava_cauldron"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POWDER_SNOW_CAULDRON: Self = Block {
         id: BlockId::new(440u16).unwrap(),
@@ -557170,6 +558050,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/powder_snow_cauldron"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const END_PORTAL: Self = Block {
         id: BlockId::new(441u16).unwrap(),
@@ -557188,6 +558070,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const END_PORTAL_FRAME: Self = Block {
         id: BlockId::new(442u16).unwrap(),
@@ -557206,6 +558090,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const END_STONE: Self = Block {
         id: BlockId::new(443u16).unwrap(),
@@ -557224,6 +558110,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/end_stone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DRAGON_EGG: Self = Block {
         id: BlockId::new(444u16).unwrap(),
@@ -557242,6 +558130,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dragon_egg"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const REDSTONE_LAMP: Self = Block {
         id: BlockId::new(445u16).unwrap(),
@@ -557260,6 +558150,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/redstone_lamp"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COCOA: Self = Block {
         id: BlockId::new(446u16).unwrap(),
@@ -557278,6 +558170,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cocoa"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SHELF_MUSHROOM: Self = Block {
         id: BlockId::new(447u16).unwrap(),
@@ -557296,6 +558190,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/shelf_mushroom"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SANDSTONE_STAIRS: Self = Block {
         id: BlockId::new(448u16).unwrap(),
@@ -557314,6 +558210,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sandstone_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EMERALD_ORE: Self = Block {
         id: BlockId::new(449u16).unwrap(),
@@ -557337,6 +558235,8 @@ impl Block {
             })),
         }),
         loot_table: Some("minecraft:blocks/emerald_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_EMERALD_ORE: Self = Block {
         id: BlockId::new(450u16).unwrap(),
@@ -557360,6 +558260,8 @@ impl Block {
             })),
         }),
         loot_table: Some("minecraft:blocks/deepslate_emerald_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ENDER_CHEST: Self = Block {
         id: BlockId::new(451u16).unwrap(),
@@ -557378,6 +558280,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/ender_chest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TRIPWIRE_HOOK: Self = Block {
         id: BlockId::new(452u16).unwrap(),
@@ -557396,6 +558300,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tripwire_hook"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TRIPWIRE: Self = Block {
         id: BlockId::new(453u16).unwrap(),
@@ -557414,6 +558320,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tripwire"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EMERALD_BLOCK: Self = Block {
         id: BlockId::new(454u16).unwrap(),
@@ -557432,6 +558340,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/emerald_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPRUCE_STAIRS: Self = Block {
         id: BlockId::new(455u16).unwrap(),
@@ -557453,6 +558363,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BIRCH_STAIRS: Self = Block {
         id: BlockId::new(456u16).unwrap(),
@@ -557474,6 +558386,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/birch_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JUNGLE_STAIRS: Self = Block {
         id: BlockId::new(457u16).unwrap(),
@@ -557495,6 +558409,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COMMAND_BLOCK: Self = Block {
         id: BlockId::new(458u16).unwrap(),
@@ -557513,6 +558429,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BEACON: Self = Block {
         id: BlockId::new(459u16).unwrap(),
@@ -557531,6 +558449,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/beacon"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COBBLESTONE_WALL: Self = Block {
         id: BlockId::new(460u16).unwrap(),
@@ -557549,6 +558469,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cobblestone_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MOSSY_COBBLESTONE_WALL: Self = Block {
         id: BlockId::new(461u16).unwrap(),
@@ -557567,6 +558489,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mossy_cobblestone_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FLOWER_POT: Self = Block {
         id: BlockId::new(462u16).unwrap(),
@@ -557585,6 +558509,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/flower_pot"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_TORCHFLOWER: Self = Block {
         id: BlockId::new(463u16).unwrap(),
@@ -557603,6 +558529,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_torchflower"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_OAK_SAPLING: Self = Block {
         id: BlockId::new(464u16).unwrap(),
@@ -557621,6 +558549,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_oak_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_SPRUCE_SAPLING: Self = Block {
         id: BlockId::new(465u16).unwrap(),
@@ -557639,6 +558569,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_spruce_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_BIRCH_SAPLING: Self = Block {
         id: BlockId::new(466u16).unwrap(),
@@ -557657,6 +558589,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_birch_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_JUNGLE_SAPLING: Self = Block {
         id: BlockId::new(467u16).unwrap(),
@@ -557675,6 +558609,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_jungle_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_ACACIA_SAPLING: Self = Block {
         id: BlockId::new(468u16).unwrap(),
@@ -557693,6 +558629,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_acacia_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_CHERRY_SAPLING: Self = Block {
         id: BlockId::new(469u16).unwrap(),
@@ -557711,6 +558649,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_cherry_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_DARK_OAK_SAPLING: Self = Block {
         id: BlockId::new(470u16).unwrap(),
@@ -557729,6 +558669,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_dark_oak_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_PALE_OAK_SAPLING: Self = Block {
         id: BlockId::new(471u16).unwrap(),
@@ -557747,6 +558689,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_pale_oak_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_POPLAR_SAPLING: Self = Block {
         id: BlockId::new(472u16).unwrap(),
@@ -557765,6 +558709,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_poplar_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_MANGROVE_PROPAGULE: Self = Block {
         id: BlockId::new(473u16).unwrap(),
@@ -557783,6 +558729,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_mangrove_propagule"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_FERN: Self = Block {
         id: BlockId::new(474u16).unwrap(),
@@ -557801,6 +558749,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_fern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_DANDELION: Self = Block {
         id: BlockId::new(475u16).unwrap(),
@@ -557819,6 +558769,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_dandelion"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_GOLDEN_DANDELION: Self = Block {
         id: BlockId::new(476u16).unwrap(),
@@ -557837,6 +558789,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_golden_dandelion"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_POPPY: Self = Block {
         id: BlockId::new(477u16).unwrap(),
@@ -557855,6 +558809,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_poppy"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_BLUE_ORCHID: Self = Block {
         id: BlockId::new(478u16).unwrap(),
@@ -557873,6 +558829,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_blue_orchid"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_ALLIUM: Self = Block {
         id: BlockId::new(479u16).unwrap(),
@@ -557891,6 +558849,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_allium"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_AZURE_BLUET: Self = Block {
         id: BlockId::new(480u16).unwrap(),
@@ -557909,6 +558869,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_azure_bluet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_RED_TULIP: Self = Block {
         id: BlockId::new(481u16).unwrap(),
@@ -557927,6 +558889,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_red_tulip"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_ORANGE_TULIP: Self = Block {
         id: BlockId::new(482u16).unwrap(),
@@ -557945,6 +558909,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_orange_tulip"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_WHITE_TULIP: Self = Block {
         id: BlockId::new(483u16).unwrap(),
@@ -557963,6 +558929,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_white_tulip"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_PINK_TULIP: Self = Block {
         id: BlockId::new(484u16).unwrap(),
@@ -557981,6 +558949,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_pink_tulip"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_OXEYE_DAISY: Self = Block {
         id: BlockId::new(485u16).unwrap(),
@@ -557999,6 +558969,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_oxeye_daisy"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_CORNFLOWER: Self = Block {
         id: BlockId::new(486u16).unwrap(),
@@ -558017,6 +558989,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_cornflower"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_LILY_OF_THE_VALLEY: Self = Block {
         id: BlockId::new(487u16).unwrap(),
@@ -558035,6 +559009,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_lily_of_the_valley"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_WITHER_ROSE: Self = Block {
         id: BlockId::new(488u16).unwrap(),
@@ -558053,6 +559029,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_wither_rose"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_RED_MUSHROOM: Self = Block {
         id: BlockId::new(489u16).unwrap(),
@@ -558071,6 +559049,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_red_mushroom"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_BROWN_MUSHROOM: Self = Block {
         id: BlockId::new(490u16).unwrap(),
@@ -558089,6 +559069,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_brown_mushroom"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_DEAD_BUSH: Self = Block {
         id: BlockId::new(491u16).unwrap(),
@@ -558107,6 +559089,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_dead_bush"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_CACTUS: Self = Block {
         id: BlockId::new(492u16).unwrap(),
@@ -558125,6 +559109,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_cactus"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CARROTS: Self = Block {
         id: BlockId::new(493u16).unwrap(),
@@ -558143,6 +559129,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/carrots"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTATOES: Self = Block {
         id: BlockId::new(494u16).unwrap(),
@@ -558161,6 +559149,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potatoes"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_BUTTON: Self = Block {
         id: BlockId::new(495u16).unwrap(),
@@ -558179,6 +559169,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oak_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::OAK),
+        wood_type: None,
     };
     pub const SPRUCE_BUTTON: Self = Block {
         id: BlockId::new(496u16).unwrap(),
@@ -558197,6 +559189,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::SPRUCE),
+        wood_type: None,
     };
     pub const BIRCH_BUTTON: Self = Block {
         id: BlockId::new(497u16).unwrap(),
@@ -558215,6 +559209,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/birch_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::BIRCH),
+        wood_type: None,
     };
     pub const JUNGLE_BUTTON: Self = Block {
         id: BlockId::new(498u16).unwrap(),
@@ -558233,6 +559229,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::JUNGLE),
+        wood_type: None,
     };
     pub const ACACIA_BUTTON: Self = Block {
         id: BlockId::new(499u16).unwrap(),
@@ -558251,6 +559249,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::ACACIA),
+        wood_type: None,
     };
     pub const CHERRY_BUTTON: Self = Block {
         id: BlockId::new(500u16).unwrap(),
@@ -558269,6 +559269,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::CHERRY),
+        wood_type: None,
     };
     pub const DARK_OAK_BUTTON: Self = Block {
         id: BlockId::new(501u16).unwrap(),
@@ -558287,6 +559289,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::DARK_OAK),
+        wood_type: None,
     };
     pub const PALE_OAK_BUTTON: Self = Block {
         id: BlockId::new(502u16).unwrap(),
@@ -558305,6 +559309,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::PALE_OAK),
+        wood_type: None,
     };
     pub const MANGROVE_BUTTON: Self = Block {
         id: BlockId::new(503u16).unwrap(),
@@ -558323,6 +559329,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::MANGROVE),
+        wood_type: None,
     };
     pub const POPLAR_BUTTON: Self = Block {
         id: BlockId::new(504u16).unwrap(),
@@ -558341,6 +559349,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::POPLAR),
+        wood_type: None,
     };
     pub const BAMBOO_BUTTON: Self = Block {
         id: BlockId::new(505u16).unwrap(),
@@ -558359,6 +559369,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::BAMBOO),
+        wood_type: None,
     };
     pub const SKELETON_SKULL: Self = Block {
         id: BlockId::new(506u16).unwrap(),
@@ -558377,6 +559389,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/skeleton_skull"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SKELETON_WALL_SKULL: Self = Block {
         id: BlockId::new(507u16).unwrap(),
@@ -558395,6 +559409,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/skeleton_skull"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WITHER_SKELETON_SKULL: Self = Block {
         id: BlockId::new(508u16).unwrap(),
@@ -558413,6 +559429,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/wither_skeleton_skull"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WITHER_SKELETON_WALL_SKULL: Self = Block {
         id: BlockId::new(509u16).unwrap(),
@@ -558431,6 +559449,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/wither_skeleton_skull"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ZOMBIE_HEAD: Self = Block {
         id: BlockId::new(510u16).unwrap(),
@@ -558449,6 +559469,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/zombie_head"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ZOMBIE_WALL_HEAD: Self = Block {
         id: BlockId::new(511u16).unwrap(),
@@ -558467,6 +559489,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/zombie_head"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PLAYER_HEAD: Self = Block {
         id: BlockId::new(512u16).unwrap(),
@@ -558485,6 +559509,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/player_head"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PLAYER_WALL_HEAD: Self = Block {
         id: BlockId::new(513u16).unwrap(),
@@ -558503,6 +559529,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/player_head"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CREEPER_HEAD: Self = Block {
         id: BlockId::new(514u16).unwrap(),
@@ -558521,6 +559549,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/creeper_head"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CREEPER_WALL_HEAD: Self = Block {
         id: BlockId::new(515u16).unwrap(),
@@ -558539,6 +559569,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/creeper_head"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DRAGON_HEAD: Self = Block {
         id: BlockId::new(516u16).unwrap(),
@@ -558557,6 +559589,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dragon_head"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DRAGON_WALL_HEAD: Self = Block {
         id: BlockId::new(517u16).unwrap(),
@@ -558575,6 +559609,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dragon_head"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PIGLIN_HEAD: Self = Block {
         id: BlockId::new(518u16).unwrap(),
@@ -558593,6 +559629,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/piglin_head"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PIGLIN_WALL_HEAD: Self = Block {
         id: BlockId::new(519u16).unwrap(),
@@ -558611,6 +559649,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/piglin_head"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ANVIL: Self = Block {
         id: BlockId::new(520u16).unwrap(),
@@ -558629,6 +559669,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/anvil"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHIPPED_ANVIL: Self = Block {
         id: BlockId::new(521u16).unwrap(),
@@ -558647,6 +559689,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chipped_anvil"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DAMAGED_ANVIL: Self = Block {
         id: BlockId::new(522u16).unwrap(),
@@ -558665,6 +559709,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/damaged_anvil"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TRAPPED_CHEST: Self = Block {
         id: BlockId::new(523u16).unwrap(),
@@ -558683,6 +559729,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/trapped_chest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_WEIGHTED_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(524u16).unwrap(),
@@ -558701,6 +559749,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_weighted_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::GOLD),
+        wood_type: None,
     };
     pub const HEAVY_WEIGHTED_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(525u16).unwrap(),
@@ -558719,6 +559769,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/heavy_weighted_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::IRON),
+        wood_type: None,
     };
     pub const COMPARATOR: Self = Block {
         id: BlockId::new(526u16).unwrap(),
@@ -558737,6 +559789,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/comparator"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DAYLIGHT_DETECTOR: Self = Block {
         id: BlockId::new(527u16).unwrap(),
@@ -558755,6 +559809,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/daylight_detector"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const REDSTONE_BLOCK: Self = Block {
         id: BlockId::new(528u16).unwrap(),
@@ -558773,6 +559829,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/redstone_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHER_QUARTZ_ORE: Self = Block {
         id: BlockId::new(529u16).unwrap(),
@@ -558796,6 +559854,8 @@ impl Block {
             })),
         }),
         loot_table: Some("minecraft:blocks/nether_quartz_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const HOPPER: Self = Block {
         id: BlockId::new(530u16).unwrap(),
@@ -558814,6 +559874,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/hopper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const QUARTZ_BLOCK: Self = Block {
         id: BlockId::new(531u16).unwrap(),
@@ -558832,6 +559894,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/quartz_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_QUARTZ_BLOCK: Self = Block {
         id: BlockId::new(532u16).unwrap(),
@@ -558850,6 +559914,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_quartz_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const QUARTZ_PILLAR: Self = Block {
         id: BlockId::new(533u16).unwrap(),
@@ -558868,6 +559934,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/quartz_pillar"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const QUARTZ_STAIRS: Self = Block {
         id: BlockId::new(534u16).unwrap(),
@@ -558886,6 +559954,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/quartz_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ACTIVATOR_RAIL: Self = Block {
         id: BlockId::new(535u16).unwrap(),
@@ -558904,6 +559974,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/activator_rail"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DROPPER: Self = Block {
         id: BlockId::new(536u16).unwrap(),
@@ -558922,6 +559994,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dropper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_TERRACOTTA: Self = Block {
         id: BlockId::new(537u16).unwrap(),
@@ -558940,6 +560014,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_TERRACOTTA: Self = Block {
         id: BlockId::new(538u16).unwrap(),
@@ -558958,6 +560034,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_TERRACOTTA: Self = Block {
         id: BlockId::new(539u16).unwrap(),
@@ -558976,6 +560054,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_TERRACOTTA: Self = Block {
         id: BlockId::new(540u16).unwrap(),
@@ -558994,6 +560074,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_TERRACOTTA: Self = Block {
         id: BlockId::new(541u16).unwrap(),
@@ -559012,6 +560094,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_TERRACOTTA: Self = Block {
         id: BlockId::new(542u16).unwrap(),
@@ -559030,6 +560114,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_TERRACOTTA: Self = Block {
         id: BlockId::new(543u16).unwrap(),
@@ -559048,6 +560134,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_TERRACOTTA: Self = Block {
         id: BlockId::new(544u16).unwrap(),
@@ -559066,6 +560154,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_TERRACOTTA: Self = Block {
         id: BlockId::new(545u16).unwrap(),
@@ -559084,6 +560174,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_TERRACOTTA: Self = Block {
         id: BlockId::new(546u16).unwrap(),
@@ -559102,6 +560194,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_TERRACOTTA: Self = Block {
         id: BlockId::new(547u16).unwrap(),
@@ -559120,6 +560214,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_TERRACOTTA: Self = Block {
         id: BlockId::new(548u16).unwrap(),
@@ -559138,6 +560234,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_TERRACOTTA: Self = Block {
         id: BlockId::new(549u16).unwrap(),
@@ -559156,6 +560254,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_TERRACOTTA: Self = Block {
         id: BlockId::new(550u16).unwrap(),
@@ -559174,6 +560274,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_TERRACOTTA: Self = Block {
         id: BlockId::new(551u16).unwrap(),
@@ -559192,6 +560294,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_TERRACOTTA: Self = Block {
         id: BlockId::new(552u16).unwrap(),
@@ -559210,6 +560314,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(553u16).unwrap(),
@@ -559228,6 +560334,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(554u16).unwrap(),
@@ -559246,6 +560354,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(555u16).unwrap(),
@@ -559264,6 +560374,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(556u16).unwrap(),
@@ -559282,6 +560394,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(557u16).unwrap(),
@@ -559300,6 +560414,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(558u16).unwrap(),
@@ -559318,6 +560434,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(559u16).unwrap(),
@@ -559336,6 +560454,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(560u16).unwrap(),
@@ -559354,6 +560474,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(561u16).unwrap(),
@@ -559372,6 +560494,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(562u16).unwrap(),
@@ -559390,6 +560514,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(563u16).unwrap(),
@@ -559408,6 +560534,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(564u16).unwrap(),
@@ -559426,6 +560554,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(565u16).unwrap(),
@@ -559444,6 +560574,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(566u16).unwrap(),
@@ -559462,6 +560594,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(567u16).unwrap(),
@@ -559480,6 +560614,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_STAINED_GLASS_PANE: Self = Block {
         id: BlockId::new(568u16).unwrap(),
@@ -559498,6 +560634,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_stained_glass_pane"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ACACIA_STAIRS: Self = Block {
         id: BlockId::new(569u16).unwrap(),
@@ -559519,6 +560657,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHERRY_STAIRS: Self = Block {
         id: BlockId::new(570u16).unwrap(),
@@ -559540,6 +560680,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_OAK_STAIRS: Self = Block {
         id: BlockId::new(571u16).unwrap(),
@@ -559561,6 +560703,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_OAK_STAIRS: Self = Block {
         id: BlockId::new(572u16).unwrap(),
@@ -559582,6 +560726,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MANGROVE_STAIRS: Self = Block {
         id: BlockId::new(573u16).unwrap(),
@@ -559603,6 +560749,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POPLAR_STAIRS: Self = Block {
         id: BlockId::new(574u16).unwrap(),
@@ -559624,6 +560772,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BAMBOO_STAIRS: Self = Block {
         id: BlockId::new(575u16).unwrap(),
@@ -559645,6 +560795,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BAMBOO_MOSAIC_STAIRS: Self = Block {
         id: BlockId::new(576u16).unwrap(),
@@ -559666,6 +560818,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_mosaic_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SLIME_BLOCK: Self = Block {
         id: BlockId::new(577u16).unwrap(),
@@ -559684,6 +560838,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/slime_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BARRIER: Self = Block {
         id: BlockId::new(578u16).unwrap(),
@@ -559702,6 +560858,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT: Self = Block {
         id: BlockId::new(579u16).unwrap(),
@@ -559720,6 +560878,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const IRON_TRAPDOOR: Self = Block {
         id: BlockId::new(580u16).unwrap(),
@@ -559738,6 +560898,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/iron_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::IRON),
+        wood_type: None,
     };
     pub const PRISMARINE: Self = Block {
         id: BlockId::new(581u16).unwrap(),
@@ -559756,6 +560918,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/prismarine"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PRISMARINE_BRICKS: Self = Block {
         id: BlockId::new(582u16).unwrap(),
@@ -559774,6 +560938,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/prismarine_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_PRISMARINE: Self = Block {
         id: BlockId::new(583u16).unwrap(),
@@ -559792,6 +560958,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_prismarine"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PRISMARINE_STAIRS: Self = Block {
         id: BlockId::new(584u16).unwrap(),
@@ -559810,6 +560978,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/prismarine_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PRISMARINE_BRICK_STAIRS: Self = Block {
         id: BlockId::new(585u16).unwrap(),
@@ -559828,6 +560998,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/prismarine_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_PRISMARINE_STAIRS: Self = Block {
         id: BlockId::new(586u16).unwrap(),
@@ -559846,6 +561018,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_prismarine_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PRISMARINE_SLAB: Self = Block {
         id: BlockId::new(587u16).unwrap(),
@@ -559864,6 +561038,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/prismarine_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PRISMARINE_BRICK_SLAB: Self = Block {
         id: BlockId::new(588u16).unwrap(),
@@ -559882,6 +561058,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/prismarine_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_PRISMARINE_SLAB: Self = Block {
         id: BlockId::new(589u16).unwrap(),
@@ -559900,6 +561078,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_prismarine_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SEA_LANTERN: Self = Block {
         id: BlockId::new(590u16).unwrap(),
@@ -559918,6 +561098,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sea_lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const HAY_BLOCK: Self = Block {
         id: BlockId::new(591u16).unwrap(),
@@ -559939,6 +561121,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/hay_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_CARPET: Self = Block {
         id: BlockId::new(592u16).unwrap(),
@@ -559960,6 +561144,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/white_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_CARPET: Self = Block {
         id: BlockId::new(593u16).unwrap(),
@@ -559981,6 +561167,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/orange_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_CARPET: Self = Block {
         id: BlockId::new(594u16).unwrap(),
@@ -560002,6 +561190,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_CARPET: Self = Block {
         id: BlockId::new(595u16).unwrap(),
@@ -560023,6 +561213,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_CARPET: Self = Block {
         id: BlockId::new(596u16).unwrap(),
@@ -560044,6 +561236,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_CARPET: Self = Block {
         id: BlockId::new(597u16).unwrap(),
@@ -560065,6 +561259,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/lime_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_CARPET: Self = Block {
         id: BlockId::new(598u16).unwrap(),
@@ -560086,6 +561282,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pink_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_CARPET: Self = Block {
         id: BlockId::new(599u16).unwrap(),
@@ -560107,6 +561305,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/gray_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_CARPET: Self = Block {
         id: BlockId::new(600u16).unwrap(),
@@ -560128,6 +561328,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_CARPET: Self = Block {
         id: BlockId::new(601u16).unwrap(),
@@ -560149,6 +561351,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_CARPET: Self = Block {
         id: BlockId::new(602u16).unwrap(),
@@ -560170,6 +561374,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/purple_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_CARPET: Self = Block {
         id: BlockId::new(603u16).unwrap(),
@@ -560191,6 +561397,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/blue_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_CARPET: Self = Block {
         id: BlockId::new(604u16).unwrap(),
@@ -560212,6 +561420,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/brown_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_CARPET: Self = Block {
         id: BlockId::new(605u16).unwrap(),
@@ -560233,6 +561443,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/green_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_CARPET: Self = Block {
         id: BlockId::new(606u16).unwrap(),
@@ -560254,6 +561466,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/red_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_CARPET: Self = Block {
         id: BlockId::new(607u16).unwrap(),
@@ -560275,6 +561489,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/black_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TERRACOTTA: Self = Block {
         id: BlockId::new(608u16).unwrap(),
@@ -560293,6 +561509,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COAL_BLOCK: Self = Block {
         id: BlockId::new(609u16).unwrap(),
@@ -560314,6 +561532,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/coal_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PACKED_ICE: Self = Block {
         id: BlockId::new(610u16).unwrap(),
@@ -560332,6 +561552,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/packed_ice"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SUNFLOWER: Self = Block {
         id: BlockId::new(611u16).unwrap(),
@@ -560353,6 +561575,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/sunflower"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LILAC: Self = Block {
         id: BlockId::new(612u16).unwrap(),
@@ -560374,6 +561598,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/lilac"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ROSE_BUSH: Self = Block {
         id: BlockId::new(613u16).unwrap(),
@@ -560395,6 +561621,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/rose_bush"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PEONY: Self = Block {
         id: BlockId::new(614u16).unwrap(),
@@ -560416,6 +561644,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/peony"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TALL_GRASS: Self = Block {
         id: BlockId::new(615u16).unwrap(),
@@ -560437,6 +561667,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/tall_grass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LARGE_FERN: Self = Block {
         id: BlockId::new(616u16).unwrap(),
@@ -560458,6 +561690,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/large_fern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_BANNER: Self = Block {
         id: BlockId::new(617u16).unwrap(),
@@ -560476,6 +561710,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_BANNER: Self = Block {
         id: BlockId::new(618u16).unwrap(),
@@ -560494,6 +561730,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_BANNER: Self = Block {
         id: BlockId::new(619u16).unwrap(),
@@ -560512,6 +561750,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_BANNER: Self = Block {
         id: BlockId::new(620u16).unwrap(),
@@ -560530,6 +561770,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_BANNER: Self = Block {
         id: BlockId::new(621u16).unwrap(),
@@ -560548,6 +561790,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_BANNER: Self = Block {
         id: BlockId::new(622u16).unwrap(),
@@ -560566,6 +561810,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_BANNER: Self = Block {
         id: BlockId::new(623u16).unwrap(),
@@ -560584,6 +561830,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_BANNER: Self = Block {
         id: BlockId::new(624u16).unwrap(),
@@ -560602,6 +561850,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_BANNER: Self = Block {
         id: BlockId::new(625u16).unwrap(),
@@ -560620,6 +561870,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_BANNER: Self = Block {
         id: BlockId::new(626u16).unwrap(),
@@ -560638,6 +561890,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_BANNER: Self = Block {
         id: BlockId::new(627u16).unwrap(),
@@ -560656,6 +561910,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_BANNER: Self = Block {
         id: BlockId::new(628u16).unwrap(),
@@ -560674,6 +561930,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_BANNER: Self = Block {
         id: BlockId::new(629u16).unwrap(),
@@ -560692,6 +561950,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_BANNER: Self = Block {
         id: BlockId::new(630u16).unwrap(),
@@ -560710,6 +561970,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_BANNER: Self = Block {
         id: BlockId::new(631u16).unwrap(),
@@ -560728,6 +561990,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_BANNER: Self = Block {
         id: BlockId::new(632u16).unwrap(),
@@ -560746,6 +562010,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_WALL_BANNER: Self = Block {
         id: BlockId::new(633u16).unwrap(),
@@ -560764,6 +562030,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_WALL_BANNER: Self = Block {
         id: BlockId::new(634u16).unwrap(),
@@ -560782,6 +562050,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_WALL_BANNER: Self = Block {
         id: BlockId::new(635u16).unwrap(),
@@ -560800,6 +562070,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_WALL_BANNER: Self = Block {
         id: BlockId::new(636u16).unwrap(),
@@ -560818,6 +562090,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_WALL_BANNER: Self = Block {
         id: BlockId::new(637u16).unwrap(),
@@ -560836,6 +562110,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_WALL_BANNER: Self = Block {
         id: BlockId::new(638u16).unwrap(),
@@ -560854,6 +562130,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_WALL_BANNER: Self = Block {
         id: BlockId::new(639u16).unwrap(),
@@ -560872,6 +562150,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_WALL_BANNER: Self = Block {
         id: BlockId::new(640u16).unwrap(),
@@ -560890,6 +562170,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_WALL_BANNER: Self = Block {
         id: BlockId::new(641u16).unwrap(),
@@ -560908,6 +562190,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_WALL_BANNER: Self = Block {
         id: BlockId::new(642u16).unwrap(),
@@ -560926,6 +562210,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_WALL_BANNER: Self = Block {
         id: BlockId::new(643u16).unwrap(),
@@ -560944,6 +562230,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_WALL_BANNER: Self = Block {
         id: BlockId::new(644u16).unwrap(),
@@ -560962,6 +562250,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_WALL_BANNER: Self = Block {
         id: BlockId::new(645u16).unwrap(),
@@ -560980,6 +562270,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_WALL_BANNER: Self = Block {
         id: BlockId::new(646u16).unwrap(),
@@ -560998,6 +562290,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_WALL_BANNER: Self = Block {
         id: BlockId::new(647u16).unwrap(),
@@ -561016,6 +562310,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_WALL_BANNER: Self = Block {
         id: BlockId::new(648u16).unwrap(),
@@ -561034,6 +562330,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_banner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_SANDSTONE: Self = Block {
         id: BlockId::new(649u16).unwrap(),
@@ -561052,6 +562350,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_sandstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_RED_SANDSTONE: Self = Block {
         id: BlockId::new(650u16).unwrap(),
@@ -561070,6 +562370,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_red_sandstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CUT_RED_SANDSTONE: Self = Block {
         id: BlockId::new(651u16).unwrap(),
@@ -561088,6 +562390,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cut_red_sandstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_SANDSTONE_STAIRS: Self = Block {
         id: BlockId::new(652u16).unwrap(),
@@ -561106,6 +562410,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_sandstone_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OAK_SLAB: Self = Block {
         id: BlockId::new(653u16).unwrap(),
@@ -561127,6 +562433,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/oak_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPRUCE_SLAB: Self = Block {
         id: BlockId::new(654u16).unwrap(),
@@ -561148,6 +562456,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BIRCH_SLAB: Self = Block {
         id: BlockId::new(655u16).unwrap(),
@@ -561169,6 +562479,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/birch_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JUNGLE_SLAB: Self = Block {
         id: BlockId::new(656u16).unwrap(),
@@ -561190,6 +562502,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ACACIA_SLAB: Self = Block {
         id: BlockId::new(657u16).unwrap(),
@@ -561211,6 +562525,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHERRY_SLAB: Self = Block {
         id: BlockId::new(658u16).unwrap(),
@@ -561232,6 +562548,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_OAK_SLAB: Self = Block {
         id: BlockId::new(659u16).unwrap(),
@@ -561253,6 +562571,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_OAK_SLAB: Self = Block {
         id: BlockId::new(660u16).unwrap(),
@@ -561274,6 +562594,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MANGROVE_SLAB: Self = Block {
         id: BlockId::new(661u16).unwrap(),
@@ -561295,6 +562617,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POPLAR_SLAB: Self = Block {
         id: BlockId::new(662u16).unwrap(),
@@ -561316,6 +562640,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BAMBOO_SLAB: Self = Block {
         id: BlockId::new(663u16).unwrap(),
@@ -561337,6 +562663,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BAMBOO_MOSAIC_SLAB: Self = Block {
         id: BlockId::new(664u16).unwrap(),
@@ -561358,6 +562686,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_mosaic_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STONE_SLAB: Self = Block {
         id: BlockId::new(665u16).unwrap(),
@@ -561376,6 +562706,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SANDSTONE_SLAB: Self = Block {
         id: BlockId::new(666u16).unwrap(),
@@ -561394,6 +562726,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sandstone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CUT_SANDSTONE_SLAB: Self = Block {
         id: BlockId::new(667u16).unwrap(),
@@ -561412,6 +562746,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cut_sandstone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PETRIFIED_OAK_SLAB: Self = Block {
         id: BlockId::new(668u16).unwrap(),
@@ -561430,6 +562766,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/petrified_oak_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COBBLESTONE_SLAB: Self = Block {
         id: BlockId::new(669u16).unwrap(),
@@ -561448,6 +562786,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cobblestone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BRICK_SLAB: Self = Block {
         id: BlockId::new(670u16).unwrap(),
@@ -561466,6 +562806,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STONE_BRICK_SLAB: Self = Block {
         id: BlockId::new(671u16).unwrap(),
@@ -561484,6 +562826,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stone_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MUD_BRICK_SLAB: Self = Block {
         id: BlockId::new(672u16).unwrap(),
@@ -561502,6 +562846,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mud_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHER_BRICK_SLAB: Self = Block {
         id: BlockId::new(673u16).unwrap(),
@@ -561520,6 +562866,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/nether_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const QUARTZ_SLAB: Self = Block {
         id: BlockId::new(674u16).unwrap(),
@@ -561538,6 +562886,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/quartz_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_SANDSTONE_SLAB: Self = Block {
         id: BlockId::new(675u16).unwrap(),
@@ -561556,6 +562906,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_sandstone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CUT_RED_SANDSTONE_SLAB: Self = Block {
         id: BlockId::new(676u16).unwrap(),
@@ -561574,6 +562926,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cut_red_sandstone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_STONE: Self = Block {
         id: BlockId::new(677u16).unwrap(),
@@ -561592,6 +562946,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_stone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_STONE_SLAB: Self = Block {
         id: BlockId::new(678u16).unwrap(),
@@ -561610,6 +562966,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_stone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_SANDSTONE: Self = Block {
         id: BlockId::new(679u16).unwrap(),
@@ -561628,6 +562986,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_sandstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_QUARTZ: Self = Block {
         id: BlockId::new(680u16).unwrap(),
@@ -561646,6 +563006,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_quartz"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_RED_SANDSTONE: Self = Block {
         id: BlockId::new(681u16).unwrap(),
@@ -561664,6 +563026,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_red_sandstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPRUCE_FENCE_GATE: Self = Block {
         id: BlockId::new(682u16).unwrap(),
@@ -561685,6 +563049,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::SPRUCE),
     };
     pub const BIRCH_FENCE_GATE: Self = Block {
         id: BlockId::new(683u16).unwrap(),
@@ -561706,6 +563072,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/birch_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::BIRCH),
     };
     pub const JUNGLE_FENCE_GATE: Self = Block {
         id: BlockId::new(684u16).unwrap(),
@@ -561727,6 +563095,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::JUNGLE),
     };
     pub const ACACIA_FENCE_GATE: Self = Block {
         id: BlockId::new(685u16).unwrap(),
@@ -561748,6 +563118,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::ACACIA),
     };
     pub const CHERRY_FENCE_GATE: Self = Block {
         id: BlockId::new(686u16).unwrap(),
@@ -561769,6 +563141,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::CHERRY),
     };
     pub const DARK_OAK_FENCE_GATE: Self = Block {
         id: BlockId::new(687u16).unwrap(),
@@ -561790,6 +563164,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::DARK_OAK),
     };
     pub const PALE_OAK_FENCE_GATE: Self = Block {
         id: BlockId::new(688u16).unwrap(),
@@ -561811,6 +563187,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::PALE_OAK),
     };
     pub const MANGROVE_FENCE_GATE: Self = Block {
         id: BlockId::new(689u16).unwrap(),
@@ -561832,6 +563210,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::MANGROVE),
     };
     pub const POPLAR_FENCE_GATE: Self = Block {
         id: BlockId::new(690u16).unwrap(),
@@ -561853,6 +563233,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::POPLAR),
     };
     pub const BAMBOO_FENCE_GATE: Self = Block {
         id: BlockId::new(691u16).unwrap(),
@@ -561874,6 +563256,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::BAMBOO),
     };
     pub const SPRUCE_FENCE: Self = Block {
         id: BlockId::new(692u16).unwrap(),
@@ -561895,6 +563279,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BIRCH_FENCE: Self = Block {
         id: BlockId::new(693u16).unwrap(),
@@ -561916,6 +563302,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/birch_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JUNGLE_FENCE: Self = Block {
         id: BlockId::new(694u16).unwrap(),
@@ -561937,6 +563325,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ACACIA_FENCE: Self = Block {
         id: BlockId::new(695u16).unwrap(),
@@ -561958,6 +563348,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHERRY_FENCE: Self = Block {
         id: BlockId::new(696u16).unwrap(),
@@ -561979,6 +563371,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DARK_OAK_FENCE: Self = Block {
         id: BlockId::new(697u16).unwrap(),
@@ -562000,6 +563394,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_OAK_FENCE: Self = Block {
         id: BlockId::new(698u16).unwrap(),
@@ -562021,6 +563417,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MANGROVE_FENCE: Self = Block {
         id: BlockId::new(699u16).unwrap(),
@@ -562042,6 +563440,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POPLAR_FENCE: Self = Block {
         id: BlockId::new(700u16).unwrap(),
@@ -562063,6 +563463,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BAMBOO_FENCE: Self = Block {
         id: BlockId::new(701u16).unwrap(),
@@ -562084,6 +563486,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPRUCE_DOOR: Self = Block {
         id: BlockId::new(702u16).unwrap(),
@@ -562102,6 +563506,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/spruce_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::SPRUCE),
+        wood_type: None,
     };
     pub const BIRCH_DOOR: Self = Block {
         id: BlockId::new(703u16).unwrap(),
@@ -562120,6 +563526,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/birch_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::BIRCH),
+        wood_type: None,
     };
     pub const JUNGLE_DOOR: Self = Block {
         id: BlockId::new(704u16).unwrap(),
@@ -562138,6 +563546,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/jungle_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::JUNGLE),
+        wood_type: None,
     };
     pub const ACACIA_DOOR: Self = Block {
         id: BlockId::new(705u16).unwrap(),
@@ -562156,6 +563566,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/acacia_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::ACACIA),
+        wood_type: None,
     };
     pub const CHERRY_DOOR: Self = Block {
         id: BlockId::new(706u16).unwrap(),
@@ -562174,6 +563586,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cherry_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::CHERRY),
+        wood_type: None,
     };
     pub const DARK_OAK_DOOR: Self = Block {
         id: BlockId::new(707u16).unwrap(),
@@ -562192,6 +563606,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dark_oak_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::DARK_OAK),
+        wood_type: None,
     };
     pub const PALE_OAK_DOOR: Self = Block {
         id: BlockId::new(708u16).unwrap(),
@@ -562210,6 +563626,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pale_oak_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::PALE_OAK),
+        wood_type: None,
     };
     pub const MANGROVE_DOOR: Self = Block {
         id: BlockId::new(709u16).unwrap(),
@@ -562228,6 +563646,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mangrove_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::MANGROVE),
+        wood_type: None,
     };
     pub const POPLAR_DOOR: Self = Block {
         id: BlockId::new(710u16).unwrap(),
@@ -562246,6 +563666,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/poplar_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::POPLAR),
+        wood_type: None,
     };
     pub const BAMBOO_DOOR: Self = Block {
         id: BlockId::new(711u16).unwrap(),
@@ -562264,6 +563686,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::BAMBOO),
+        wood_type: None,
     };
     pub const END_ROD: Self = Block {
         id: BlockId::new(712u16).unwrap(),
@@ -562282,6 +563706,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/end_rod"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHORUS_PLANT: Self = Block {
         id: BlockId::new(713u16).unwrap(),
@@ -562300,6 +563726,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chorus_plant"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHORUS_FLOWER: Self = Block {
         id: BlockId::new(714u16).unwrap(),
@@ -562318,6 +563746,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chorus_flower"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPUR_BLOCK: Self = Block {
         id: BlockId::new(715u16).unwrap(),
@@ -562336,6 +563766,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purpur_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPUR_SLAB: Self = Block {
         id: BlockId::new(716u16).unwrap(),
@@ -562354,6 +563786,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purpur_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPUR_PILLAR: Self = Block {
         id: BlockId::new(717u16).unwrap(),
@@ -562372,6 +563806,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purpur_pillar"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPUR_STAIRS: Self = Block {
         id: BlockId::new(718u16).unwrap(),
@@ -562390,6 +563826,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purpur_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const END_STONE_BRICKS: Self = Block {
         id: BlockId::new(719u16).unwrap(),
@@ -562408,6 +563846,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/end_stone_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TORCHFLOWER_CROP: Self = Block {
         id: BlockId::new(720u16).unwrap(),
@@ -562426,6 +563866,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/torchflower_crop"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PITCHER_CROP: Self = Block {
         id: BlockId::new(721u16).unwrap(),
@@ -562444,6 +563886,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pitcher_crop"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PITCHER_PLANT: Self = Block {
         id: BlockId::new(722u16).unwrap(),
@@ -562465,6 +563909,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pitcher_plant"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BEETROOTS: Self = Block {
         id: BlockId::new(723u16).unwrap(),
@@ -562483,6 +563929,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/beetroots"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DIRT_PATH: Self = Block {
         id: BlockId::new(724u16).unwrap(),
@@ -562501,6 +563949,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dirt_path"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const END_GATEWAY: Self = Block {
         id: BlockId::new(725u16).unwrap(),
@@ -562519,6 +563969,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const REPEATING_COMMAND_BLOCK: Self = Block {
         id: BlockId::new(726u16).unwrap(),
@@ -562537,6 +563989,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHAIN_COMMAND_BLOCK: Self = Block {
         id: BlockId::new(727u16).unwrap(),
@@ -562555,6 +564009,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FROSTED_ICE: Self = Block {
         id: BlockId::new(728u16).unwrap(),
@@ -562573,6 +564029,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/frosted_ice"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGMA_BLOCK: Self = Block {
         id: BlockId::new(729u16).unwrap(),
@@ -562591,6 +564049,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magma_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHER_WART_BLOCK: Self = Block {
         id: BlockId::new(730u16).unwrap(),
@@ -562609,6 +564069,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/nether_wart_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_NETHER_BRICKS: Self = Block {
         id: BlockId::new(731u16).unwrap(),
@@ -562627,6 +564089,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_nether_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BONE_BLOCK: Self = Block {
         id: BlockId::new(732u16).unwrap(),
@@ -562645,6 +564109,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bone_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRUCTURE_VOID: Self = Block {
         id: BlockId::new(733u16).unwrap(),
@@ -562663,6 +564129,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OBSERVER: Self = Block {
         id: BlockId::new(734u16).unwrap(),
@@ -562681,6 +564149,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/observer"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SHULKER_BOX: Self = Block {
         id: BlockId::new(735u16).unwrap(),
@@ -562699,6 +564169,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_SHULKER_BOX: Self = Block {
         id: BlockId::new(736u16).unwrap(),
@@ -562717,6 +564189,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_SHULKER_BOX: Self = Block {
         id: BlockId::new(737u16).unwrap(),
@@ -562735,6 +564209,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_SHULKER_BOX: Self = Block {
         id: BlockId::new(738u16).unwrap(),
@@ -562753,6 +564229,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_SHULKER_BOX: Self = Block {
         id: BlockId::new(739u16).unwrap(),
@@ -562771,6 +564249,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_SHULKER_BOX: Self = Block {
         id: BlockId::new(740u16).unwrap(),
@@ -562789,6 +564269,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_SHULKER_BOX: Self = Block {
         id: BlockId::new(741u16).unwrap(),
@@ -562807,6 +564289,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_SHULKER_BOX: Self = Block {
         id: BlockId::new(742u16).unwrap(),
@@ -562825,6 +564309,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_SHULKER_BOX: Self = Block {
         id: BlockId::new(743u16).unwrap(),
@@ -562843,6 +564329,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_SHULKER_BOX: Self = Block {
         id: BlockId::new(744u16).unwrap(),
@@ -562861,6 +564349,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_SHULKER_BOX: Self = Block {
         id: BlockId::new(745u16).unwrap(),
@@ -562879,6 +564369,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_SHULKER_BOX: Self = Block {
         id: BlockId::new(746u16).unwrap(),
@@ -562897,6 +564389,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_SHULKER_BOX: Self = Block {
         id: BlockId::new(747u16).unwrap(),
@@ -562915,6 +564409,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_SHULKER_BOX: Self = Block {
         id: BlockId::new(748u16).unwrap(),
@@ -562933,6 +564429,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_SHULKER_BOX: Self = Block {
         id: BlockId::new(749u16).unwrap(),
@@ -562951,6 +564449,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_SHULKER_BOX: Self = Block {
         id: BlockId::new(750u16).unwrap(),
@@ -562969,6 +564469,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_SHULKER_BOX: Self = Block {
         id: BlockId::new(751u16).unwrap(),
@@ -562987,6 +564489,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_shulker_box"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(752u16).unwrap(),
@@ -563005,6 +564509,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(753u16).unwrap(),
@@ -563023,6 +564529,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(754u16).unwrap(),
@@ -563041,6 +564549,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(755u16).unwrap(),
@@ -563059,6 +564569,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(756u16).unwrap(),
@@ -563077,6 +564589,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(757u16).unwrap(),
@@ -563095,6 +564609,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(758u16).unwrap(),
@@ -563113,6 +564629,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(759u16).unwrap(),
@@ -563131,6 +564649,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(760u16).unwrap(),
@@ -563149,6 +564669,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(761u16).unwrap(),
@@ -563167,6 +564689,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(762u16).unwrap(),
@@ -563185,6 +564709,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(763u16).unwrap(),
@@ -563203,6 +564729,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(764u16).unwrap(),
@@ -563221,6 +564749,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(765u16).unwrap(),
@@ -563239,6 +564769,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(766u16).unwrap(),
@@ -563257,6 +564789,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_GLAZED_TERRACOTTA: Self = Block {
         id: BlockId::new(767u16).unwrap(),
@@ -563275,6 +564809,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_glazed_terracotta"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_CONCRETE: Self = Block {
         id: BlockId::new(768u16).unwrap(),
@@ -563293,6 +564829,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_CONCRETE: Self = Block {
         id: BlockId::new(769u16).unwrap(),
@@ -563311,6 +564849,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_CONCRETE: Self = Block {
         id: BlockId::new(770u16).unwrap(),
@@ -563329,6 +564869,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_CONCRETE: Self = Block {
         id: BlockId::new(771u16).unwrap(),
@@ -563347,6 +564889,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_CONCRETE: Self = Block {
         id: BlockId::new(772u16).unwrap(),
@@ -563365,6 +564909,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_CONCRETE: Self = Block {
         id: BlockId::new(773u16).unwrap(),
@@ -563383,6 +564929,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_CONCRETE: Self = Block {
         id: BlockId::new(774u16).unwrap(),
@@ -563401,6 +564949,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_CONCRETE: Self = Block {
         id: BlockId::new(775u16).unwrap(),
@@ -563419,6 +564969,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_CONCRETE: Self = Block {
         id: BlockId::new(776u16).unwrap(),
@@ -563437,6 +564989,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_CONCRETE: Self = Block {
         id: BlockId::new(777u16).unwrap(),
@@ -563455,6 +565009,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_CONCRETE: Self = Block {
         id: BlockId::new(778u16).unwrap(),
@@ -563473,6 +565029,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_CONCRETE: Self = Block {
         id: BlockId::new(779u16).unwrap(),
@@ -563491,6 +565049,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_CONCRETE: Self = Block {
         id: BlockId::new(780u16).unwrap(),
@@ -563509,6 +565069,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_CONCRETE: Self = Block {
         id: BlockId::new(781u16).unwrap(),
@@ -563527,6 +565089,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_CONCRETE: Self = Block {
         id: BlockId::new(782u16).unwrap(),
@@ -563545,6 +565109,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_CONCRETE: Self = Block {
         id: BlockId::new(783u16).unwrap(),
@@ -563563,6 +565129,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_concrete"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(784u16).unwrap(),
@@ -563581,6 +565149,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(785u16).unwrap(),
@@ -563599,6 +565169,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(786u16).unwrap(),
@@ -563617,6 +565189,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(787u16).unwrap(),
@@ -563635,6 +565209,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(788u16).unwrap(),
@@ -563653,6 +565229,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(789u16).unwrap(),
@@ -563671,6 +565249,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(790u16).unwrap(),
@@ -563689,6 +565269,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(791u16).unwrap(),
@@ -563707,6 +565289,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(792u16).unwrap(),
@@ -563725,6 +565309,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(793u16).unwrap(),
@@ -563743,6 +565329,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(794u16).unwrap(),
@@ -563761,6 +565349,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(795u16).unwrap(),
@@ -563779,6 +565369,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(796u16).unwrap(),
@@ -563797,6 +565389,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(797u16).unwrap(),
@@ -563815,6 +565409,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(798u16).unwrap(),
@@ -563833,6 +565429,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_CONCRETE_STAIRS: Self = Block {
         id: BlockId::new(799u16).unwrap(),
@@ -563851,6 +565449,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_concrete_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(800u16).unwrap(),
@@ -563869,6 +565469,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(801u16).unwrap(),
@@ -563887,6 +565489,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(802u16).unwrap(),
@@ -563905,6 +565509,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(803u16).unwrap(),
@@ -563923,6 +565529,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(804u16).unwrap(),
@@ -563941,6 +565549,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(805u16).unwrap(),
@@ -563959,6 +565569,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(806u16).unwrap(),
@@ -563977,6 +565589,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(807u16).unwrap(),
@@ -563995,6 +565609,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(808u16).unwrap(),
@@ -564013,6 +565629,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(809u16).unwrap(),
@@ -564031,6 +565649,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(810u16).unwrap(),
@@ -564049,6 +565669,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(811u16).unwrap(),
@@ -564067,6 +565689,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(812u16).unwrap(),
@@ -564085,6 +565709,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(813u16).unwrap(),
@@ -564103,6 +565729,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(814u16).unwrap(),
@@ -564121,6 +565749,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_CONCRETE_SLAB: Self = Block {
         id: BlockId::new(815u16).unwrap(),
@@ -564139,6 +565769,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_concrete_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(816u16).unwrap(),
@@ -564157,6 +565789,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(817u16).unwrap(),
@@ -564175,6 +565809,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(818u16).unwrap(),
@@ -564193,6 +565829,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(819u16).unwrap(),
@@ -564211,6 +565849,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(820u16).unwrap(),
@@ -564229,6 +565869,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(821u16).unwrap(),
@@ -564247,6 +565889,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(822u16).unwrap(),
@@ -564265,6 +565909,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(823u16).unwrap(),
@@ -564283,6 +565929,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(824u16).unwrap(),
@@ -564301,6 +565949,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(825u16).unwrap(),
@@ -564319,6 +565969,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(826u16).unwrap(),
@@ -564337,6 +565989,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(827u16).unwrap(),
@@ -564355,6 +566009,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(828u16).unwrap(),
@@ -564373,6 +566029,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(829u16).unwrap(),
@@ -564391,6 +566049,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(830u16).unwrap(),
@@ -564409,6 +566069,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_CONCRETE_POWDER: Self = Block {
         id: BlockId::new(831u16).unwrap(),
@@ -564427,6 +566089,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_concrete_powder"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const KELP: Self = Block {
         id: BlockId::new(832u16).unwrap(),
@@ -564445,6 +566109,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/kelp"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const KELP_PLANT: Self = Block {
         id: BlockId::new(833u16).unwrap(),
@@ -564463,6 +566129,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/kelp_plant"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DRIED_KELP_BLOCK: Self = Block {
         id: BlockId::new(834u16).unwrap(),
@@ -564484,6 +566152,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/dried_kelp_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TURTLE_EGG: Self = Block {
         id: BlockId::new(835u16).unwrap(),
@@ -564502,6 +566172,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/turtle_egg"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SNIFFER_EGG: Self = Block {
         id: BlockId::new(836u16).unwrap(),
@@ -564520,6 +566192,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sniffer_egg"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DRIED_GHAST: Self = Block {
         id: BlockId::new(837u16).unwrap(),
@@ -564538,6 +566212,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dried_ghast"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_TUBE_CORAL_BLOCK: Self = Block {
         id: BlockId::new(838u16).unwrap(),
@@ -564556,6 +566232,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_tube_coral_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_BRAIN_CORAL_BLOCK: Self = Block {
         id: BlockId::new(839u16).unwrap(),
@@ -564574,6 +566252,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_brain_coral_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_BUBBLE_CORAL_BLOCK: Self = Block {
         id: BlockId::new(840u16).unwrap(),
@@ -564592,6 +566272,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_bubble_coral_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_FIRE_CORAL_BLOCK: Self = Block {
         id: BlockId::new(841u16).unwrap(),
@@ -564610,6 +566292,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_fire_coral_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_HORN_CORAL_BLOCK: Self = Block {
         id: BlockId::new(842u16).unwrap(),
@@ -564628,6 +566312,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_horn_coral_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUBE_CORAL_BLOCK: Self = Block {
         id: BlockId::new(843u16).unwrap(),
@@ -564646,6 +566332,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tube_coral_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BRAIN_CORAL_BLOCK: Self = Block {
         id: BlockId::new(844u16).unwrap(),
@@ -564664,6 +566352,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brain_coral_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BUBBLE_CORAL_BLOCK: Self = Block {
         id: BlockId::new(845u16).unwrap(),
@@ -564682,6 +566372,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bubble_coral_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FIRE_CORAL_BLOCK: Self = Block {
         id: BlockId::new(846u16).unwrap(),
@@ -564700,6 +566392,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/fire_coral_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const HORN_CORAL_BLOCK: Self = Block {
         id: BlockId::new(847u16).unwrap(),
@@ -564718,6 +566412,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/horn_coral_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_TUBE_CORAL: Self = Block {
         id: BlockId::new(848u16).unwrap(),
@@ -564736,6 +566432,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_tube_coral"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_BRAIN_CORAL: Self = Block {
         id: BlockId::new(849u16).unwrap(),
@@ -564754,6 +566452,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_brain_coral"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_BUBBLE_CORAL: Self = Block {
         id: BlockId::new(850u16).unwrap(),
@@ -564772,6 +566472,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_bubble_coral"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_FIRE_CORAL: Self = Block {
         id: BlockId::new(851u16).unwrap(),
@@ -564790,6 +566492,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_fire_coral"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_HORN_CORAL: Self = Block {
         id: BlockId::new(852u16).unwrap(),
@@ -564808,6 +566512,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_horn_coral"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUBE_CORAL: Self = Block {
         id: BlockId::new(853u16).unwrap(),
@@ -564826,6 +566532,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tube_coral"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BRAIN_CORAL: Self = Block {
         id: BlockId::new(854u16).unwrap(),
@@ -564844,6 +566552,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brain_coral"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BUBBLE_CORAL: Self = Block {
         id: BlockId::new(855u16).unwrap(),
@@ -564862,6 +566572,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bubble_coral"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FIRE_CORAL: Self = Block {
         id: BlockId::new(856u16).unwrap(),
@@ -564880,6 +566592,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/fire_coral"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const HORN_CORAL: Self = Block {
         id: BlockId::new(857u16).unwrap(),
@@ -564898,6 +566612,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/horn_coral"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_TUBE_CORAL_FAN: Self = Block {
         id: BlockId::new(858u16).unwrap(),
@@ -564916,6 +566632,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_tube_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_BRAIN_CORAL_FAN: Self = Block {
         id: BlockId::new(859u16).unwrap(),
@@ -564934,6 +566652,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_brain_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_BUBBLE_CORAL_FAN: Self = Block {
         id: BlockId::new(860u16).unwrap(),
@@ -564952,6 +566672,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_bubble_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_FIRE_CORAL_FAN: Self = Block {
         id: BlockId::new(861u16).unwrap(),
@@ -564970,6 +566692,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_fire_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_HORN_CORAL_FAN: Self = Block {
         id: BlockId::new(862u16).unwrap(),
@@ -564988,6 +566712,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_horn_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUBE_CORAL_FAN: Self = Block {
         id: BlockId::new(863u16).unwrap(),
@@ -565006,6 +566732,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tube_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BRAIN_CORAL_FAN: Self = Block {
         id: BlockId::new(864u16).unwrap(),
@@ -565024,6 +566752,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brain_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BUBBLE_CORAL_FAN: Self = Block {
         id: BlockId::new(865u16).unwrap(),
@@ -565042,6 +566772,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bubble_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FIRE_CORAL_FAN: Self = Block {
         id: BlockId::new(866u16).unwrap(),
@@ -565060,6 +566792,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/fire_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const HORN_CORAL_FAN: Self = Block {
         id: BlockId::new(867u16).unwrap(),
@@ -565078,6 +566812,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/horn_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_TUBE_CORAL_WALL_FAN: Self = Block {
         id: BlockId::new(868u16).unwrap(),
@@ -565096,6 +566832,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_tube_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_BRAIN_CORAL_WALL_FAN: Self = Block {
         id: BlockId::new(869u16).unwrap(),
@@ -565114,6 +566852,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_brain_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_BUBBLE_CORAL_WALL_FAN: Self = Block {
         id: BlockId::new(870u16).unwrap(),
@@ -565132,6 +566872,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_bubble_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_FIRE_CORAL_WALL_FAN: Self = Block {
         id: BlockId::new(871u16).unwrap(),
@@ -565150,6 +566892,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_fire_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEAD_HORN_CORAL_WALL_FAN: Self = Block {
         id: BlockId::new(872u16).unwrap(),
@@ -565168,6 +566912,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dead_horn_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUBE_CORAL_WALL_FAN: Self = Block {
         id: BlockId::new(873u16).unwrap(),
@@ -565186,6 +566932,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tube_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BRAIN_CORAL_WALL_FAN: Self = Block {
         id: BlockId::new(874u16).unwrap(),
@@ -565204,6 +566952,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brain_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BUBBLE_CORAL_WALL_FAN: Self = Block {
         id: BlockId::new(875u16).unwrap(),
@@ -565222,6 +566972,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bubble_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FIRE_CORAL_WALL_FAN: Self = Block {
         id: BlockId::new(876u16).unwrap(),
@@ -565240,6 +566992,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/fire_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const HORN_CORAL_WALL_FAN: Self = Block {
         id: BlockId::new(877u16).unwrap(),
@@ -565258,6 +567012,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/horn_coral_fan"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SEA_PICKLE: Self = Block {
         id: BlockId::new(878u16).unwrap(),
@@ -565276,6 +567032,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sea_pickle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_ICE: Self = Block {
         id: BlockId::new(879u16).unwrap(),
@@ -565294,6 +567052,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_ice"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CONDUIT: Self = Block {
         id: BlockId::new(880u16).unwrap(),
@@ -565312,6 +567072,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/conduit"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BAMBOO_SAPLING: Self = Block {
         id: BlockId::new(881u16).unwrap(),
@@ -565330,6 +567092,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo_sapling"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BAMBOO: Self = Block {
         id: BlockId::new(882u16).unwrap(),
@@ -565351,6 +567115,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bamboo"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_BAMBOO: Self = Block {
         id: BlockId::new(883u16).unwrap(),
@@ -565369,6 +567135,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_bamboo"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const VOID_AIR: Self = Block {
         id: BlockId::new(884u16).unwrap(),
@@ -565387,6 +567155,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CAVE_AIR: Self = Block {
         id: BlockId::new(885u16).unwrap(),
@@ -565405,6 +567175,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BUBBLE_COLUMN: Self = Block {
         id: BlockId::new(886u16).unwrap(),
@@ -565423,6 +567195,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_GRANITE_STAIRS: Self = Block {
         id: BlockId::new(887u16).unwrap(),
@@ -565441,6 +567215,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_granite_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_RED_SANDSTONE_STAIRS: Self = Block {
         id: BlockId::new(888u16).unwrap(),
@@ -565459,6 +567235,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_red_sandstone_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MOSSY_STONE_BRICK_STAIRS: Self = Block {
         id: BlockId::new(889u16).unwrap(),
@@ -565477,6 +567255,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mossy_stone_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_DIORITE_STAIRS: Self = Block {
         id: BlockId::new(890u16).unwrap(),
@@ -565495,6 +567275,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_diorite_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MOSSY_COBBLESTONE_STAIRS: Self = Block {
         id: BlockId::new(891u16).unwrap(),
@@ -565513,6 +567295,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mossy_cobblestone_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const END_STONE_BRICK_STAIRS: Self = Block {
         id: BlockId::new(892u16).unwrap(),
@@ -565531,6 +567315,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/end_stone_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STONE_STAIRS: Self = Block {
         id: BlockId::new(893u16).unwrap(),
@@ -565549,6 +567335,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stone_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_SANDSTONE_STAIRS: Self = Block {
         id: BlockId::new(894u16).unwrap(),
@@ -565567,6 +567355,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_sandstone_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_QUARTZ_STAIRS: Self = Block {
         id: BlockId::new(895u16).unwrap(),
@@ -565585,6 +567375,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_quartz_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRANITE_STAIRS: Self = Block {
         id: BlockId::new(896u16).unwrap(),
@@ -565603,6 +567395,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/granite_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ANDESITE_STAIRS: Self = Block {
         id: BlockId::new(897u16).unwrap(),
@@ -565621,6 +567415,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/andesite_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_NETHER_BRICK_STAIRS: Self = Block {
         id: BlockId::new(898u16).unwrap(),
@@ -565639,6 +567435,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_nether_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_ANDESITE_STAIRS: Self = Block {
         id: BlockId::new(899u16).unwrap(),
@@ -565657,6 +567455,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_andesite_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DIORITE_STAIRS: Self = Block {
         id: BlockId::new(900u16).unwrap(),
@@ -565675,6 +567475,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/diorite_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_GRANITE_SLAB: Self = Block {
         id: BlockId::new(901u16).unwrap(),
@@ -565693,6 +567495,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_granite_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_RED_SANDSTONE_SLAB: Self = Block {
         id: BlockId::new(902u16).unwrap(),
@@ -565711,6 +567515,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_red_sandstone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MOSSY_STONE_BRICK_SLAB: Self = Block {
         id: BlockId::new(903u16).unwrap(),
@@ -565729,6 +567535,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mossy_stone_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_DIORITE_SLAB: Self = Block {
         id: BlockId::new(904u16).unwrap(),
@@ -565747,6 +567555,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_diorite_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MOSSY_COBBLESTONE_SLAB: Self = Block {
         id: BlockId::new(905u16).unwrap(),
@@ -565765,6 +567575,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mossy_cobblestone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const END_STONE_BRICK_SLAB: Self = Block {
         id: BlockId::new(906u16).unwrap(),
@@ -565783,6 +567595,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/end_stone_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_SANDSTONE_SLAB: Self = Block {
         id: BlockId::new(907u16).unwrap(),
@@ -565801,6 +567615,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_sandstone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_QUARTZ_SLAB: Self = Block {
         id: BlockId::new(908u16).unwrap(),
@@ -565819,6 +567635,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_quartz_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRANITE_SLAB: Self = Block {
         id: BlockId::new(909u16).unwrap(),
@@ -565837,6 +567655,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/granite_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ANDESITE_SLAB: Self = Block {
         id: BlockId::new(910u16).unwrap(),
@@ -565855,6 +567675,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/andesite_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_NETHER_BRICK_SLAB: Self = Block {
         id: BlockId::new(911u16).unwrap(),
@@ -565873,6 +567695,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_nether_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_ANDESITE_SLAB: Self = Block {
         id: BlockId::new(912u16).unwrap(),
@@ -565891,6 +567715,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_andesite_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DIORITE_SLAB: Self = Block {
         id: BlockId::new(913u16).unwrap(),
@@ -565909,6 +567735,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/diorite_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BRICK_WALL: Self = Block {
         id: BlockId::new(914u16).unwrap(),
@@ -565927,6 +567755,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PRISMARINE_WALL: Self = Block {
         id: BlockId::new(915u16).unwrap(),
@@ -565945,6 +567775,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/prismarine_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_SANDSTONE_WALL: Self = Block {
         id: BlockId::new(916u16).unwrap(),
@@ -565963,6 +567795,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_sandstone_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MOSSY_STONE_BRICK_WALL: Self = Block {
         id: BlockId::new(917u16).unwrap(),
@@ -565981,6 +567815,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mossy_stone_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRANITE_WALL: Self = Block {
         id: BlockId::new(918u16).unwrap(),
@@ -565999,6 +567835,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/granite_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STONE_BRICK_WALL: Self = Block {
         id: BlockId::new(919u16).unwrap(),
@@ -566017,6 +567855,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stone_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MUD_BRICK_WALL: Self = Block {
         id: BlockId::new(920u16).unwrap(),
@@ -566035,6 +567875,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mud_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHER_BRICK_WALL: Self = Block {
         id: BlockId::new(921u16).unwrap(),
@@ -566053,6 +567895,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/nether_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ANDESITE_WALL: Self = Block {
         id: BlockId::new(922u16).unwrap(),
@@ -566071,6 +567915,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/andesite_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_NETHER_BRICK_WALL: Self = Block {
         id: BlockId::new(923u16).unwrap(),
@@ -566089,6 +567935,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_nether_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SANDSTONE_WALL: Self = Block {
         id: BlockId::new(924u16).unwrap(),
@@ -566107,6 +567955,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sandstone_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const END_STONE_BRICK_WALL: Self = Block {
         id: BlockId::new(925u16).unwrap(),
@@ -566125,6 +567975,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/end_stone_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DIORITE_WALL: Self = Block {
         id: BlockId::new(926u16).unwrap(),
@@ -566143,6 +567995,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/diorite_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SCAFFOLDING: Self = Block {
         id: BlockId::new(927u16).unwrap(),
@@ -566164,6 +568018,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/scaffolding"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LOOM: Self = Block {
         id: BlockId::new(928u16).unwrap(),
@@ -566182,6 +568038,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/loom"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BARREL: Self = Block {
         id: BlockId::new(929u16).unwrap(),
@@ -566200,6 +568058,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/barrel"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOKER: Self = Block {
         id: BlockId::new(930u16).unwrap(),
@@ -566218,6 +568078,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smoker"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLAST_FURNACE: Self = Block {
         id: BlockId::new(931u16).unwrap(),
@@ -566236,6 +568098,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blast_furnace"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CARTOGRAPHY_TABLE: Self = Block {
         id: BlockId::new(932u16).unwrap(),
@@ -566254,6 +568118,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cartography_table"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FLETCHING_TABLE: Self = Block {
         id: BlockId::new(933u16).unwrap(),
@@ -566272,6 +568138,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/fletching_table"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRINDSTONE: Self = Block {
         id: BlockId::new(934u16).unwrap(),
@@ -566290,6 +568158,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/grindstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LECTERN: Self = Block {
         id: BlockId::new(935u16).unwrap(),
@@ -566311,6 +568181,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/lectern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMITHING_TABLE: Self = Block {
         id: BlockId::new(936u16).unwrap(),
@@ -566329,6 +568201,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smithing_table"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STONECUTTER: Self = Block {
         id: BlockId::new(937u16).unwrap(),
@@ -566347,6 +568221,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stonecutter"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BELL: Self = Block {
         id: BlockId::new(938u16).unwrap(),
@@ -566365,6 +568241,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/bell"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LANTERN: Self = Block {
         id: BlockId::new(939u16).unwrap(),
@@ -566383,6 +568261,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SOUL_LANTERN: Self = Block {
         id: BlockId::new(940u16).unwrap(),
@@ -566401,6 +568281,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/soul_lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COPPER_LANTERN: Self = Block {
         id: BlockId::new(941u16).unwrap(),
@@ -566419,6 +568301,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_COPPER_LANTERN: Self = Block {
         id: BlockId::new(942u16).unwrap(),
@@ -566437,6 +568321,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_copper_lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_COPPER_LANTERN: Self = Block {
         id: BlockId::new(943u16).unwrap(),
@@ -566455,6 +568341,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_copper_lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_COPPER_LANTERN: Self = Block {
         id: BlockId::new(944u16).unwrap(),
@@ -566473,6 +568361,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_copper_lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_COPPER_LANTERN: Self = Block {
         id: BlockId::new(945u16).unwrap(),
@@ -566491,6 +568381,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_copper_lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_COPPER_LANTERN: Self = Block {
         id: BlockId::new(946u16).unwrap(),
@@ -566509,6 +568401,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_copper_lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_COPPER_LANTERN: Self = Block {
         id: BlockId::new(947u16).unwrap(),
@@ -566527,6 +568421,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_copper_lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_COPPER_LANTERN: Self = Block {
         id: BlockId::new(948u16).unwrap(),
@@ -566545,6 +568441,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_copper_lantern"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CAMPFIRE: Self = Block {
         id: BlockId::new(949u16).unwrap(),
@@ -566563,6 +568461,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/campfire"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SOUL_CAMPFIRE: Self = Block {
         id: BlockId::new(950u16).unwrap(),
@@ -566581,6 +568481,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/soul_campfire"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SWEET_BERRY_BUSH: Self = Block {
         id: BlockId::new(951u16).unwrap(),
@@ -566602,6 +568504,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/sweet_berry_bush"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WARPED_STEM: Self = Block {
         id: BlockId::new(952u16).unwrap(),
@@ -566620,6 +568524,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_stem"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_WARPED_STEM: Self = Block {
         id: BlockId::new(953u16).unwrap(),
@@ -566638,6 +568544,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_warped_stem"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WARPED_HYPHAE: Self = Block {
         id: BlockId::new(954u16).unwrap(),
@@ -566656,6 +568564,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_hyphae"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_WARPED_HYPHAE: Self = Block {
         id: BlockId::new(955u16).unwrap(),
@@ -566674,6 +568584,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_warped_hyphae"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WARPED_NYLIUM: Self = Block {
         id: BlockId::new(956u16).unwrap(),
@@ -566692,6 +568604,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_nylium"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WARPED_FUNGUS: Self = Block {
         id: BlockId::new(957u16).unwrap(),
@@ -566710,6 +568624,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_fungus"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WARPED_WART_BLOCK: Self = Block {
         id: BlockId::new(958u16).unwrap(),
@@ -566728,6 +568644,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_wart_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WARPED_ROOTS: Self = Block {
         id: BlockId::new(959u16).unwrap(),
@@ -566746,6 +568664,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_roots"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHER_SPROUTS: Self = Block {
         id: BlockId::new(960u16).unwrap(),
@@ -566764,6 +568684,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/nether_sprouts"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRIMSON_STEM: Self = Block {
         id: BlockId::new(961u16).unwrap(),
@@ -566782,6 +568704,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_stem"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_CRIMSON_STEM: Self = Block {
         id: BlockId::new(962u16).unwrap(),
@@ -566800,6 +568724,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_crimson_stem"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRIMSON_HYPHAE: Self = Block {
         id: BlockId::new(963u16).unwrap(),
@@ -566818,6 +568744,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_hyphae"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const STRIPPED_CRIMSON_HYPHAE: Self = Block {
         id: BlockId::new(964u16).unwrap(),
@@ -566836,6 +568764,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/stripped_crimson_hyphae"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRIMSON_NYLIUM: Self = Block {
         id: BlockId::new(965u16).unwrap(),
@@ -566854,6 +568784,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_nylium"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRIMSON_FUNGUS: Self = Block {
         id: BlockId::new(966u16).unwrap(),
@@ -566872,6 +568804,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_fungus"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SHROOMLIGHT: Self = Block {
         id: BlockId::new(967u16).unwrap(),
@@ -566890,6 +568824,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/shroomlight"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEEPING_VINES: Self = Block {
         id: BlockId::new(968u16).unwrap(),
@@ -566908,6 +568844,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weeping_vines"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEEPING_VINES_PLANT: Self = Block {
         id: BlockId::new(969u16).unwrap(),
@@ -566926,6 +568864,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weeping_vines_plant"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TWISTING_VINES: Self = Block {
         id: BlockId::new(970u16).unwrap(),
@@ -566944,6 +568884,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/twisting_vines"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TWISTING_VINES_PLANT: Self = Block {
         id: BlockId::new(971u16).unwrap(),
@@ -566962,6 +568904,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/twisting_vines_plant"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRIMSON_ROOTS: Self = Block {
         id: BlockId::new(972u16).unwrap(),
@@ -566980,6 +568924,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_roots"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRIMSON_PLANKS: Self = Block {
         id: BlockId::new(973u16).unwrap(),
@@ -566998,6 +568944,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WARPED_PLANKS: Self = Block {
         id: BlockId::new(974u16).unwrap(),
@@ -567016,6 +568964,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_planks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRIMSON_SLAB: Self = Block {
         id: BlockId::new(975u16).unwrap(),
@@ -567034,6 +568984,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WARPED_SLAB: Self = Block {
         id: BlockId::new(976u16).unwrap(),
@@ -567052,6 +569004,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRIMSON_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(977u16).unwrap(),
@@ -567070,6 +569024,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::CRIMSON),
+        wood_type: None,
     };
     pub const WARPED_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(978u16).unwrap(),
@@ -567088,6 +569044,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::WARPED),
+        wood_type: None,
     };
     pub const CRIMSON_FENCE: Self = Block {
         id: BlockId::new(979u16).unwrap(),
@@ -567106,6 +569064,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WARPED_FENCE: Self = Block {
         id: BlockId::new(980u16).unwrap(),
@@ -567124,6 +569084,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_fence"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRIMSON_TRAPDOOR: Self = Block {
         id: BlockId::new(981u16).unwrap(),
@@ -567142,6 +569104,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::CRIMSON),
+        wood_type: None,
     };
     pub const WARPED_TRAPDOOR: Self = Block {
         id: BlockId::new(982u16).unwrap(),
@@ -567160,6 +569124,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::WARPED),
+        wood_type: None,
     };
     pub const CRIMSON_FENCE_GATE: Self = Block {
         id: BlockId::new(983u16).unwrap(),
@@ -567178,6 +569144,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::CRIMSON),
     };
     pub const WARPED_FENCE_GATE: Self = Block {
         id: BlockId::new(984u16).unwrap(),
@@ -567196,6 +569164,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_fence_gate"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::WARPED),
     };
     pub const CRIMSON_STAIRS: Self = Block {
         id: BlockId::new(985u16).unwrap(),
@@ -567214,6 +569184,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WARPED_STAIRS: Self = Block {
         id: BlockId::new(986u16).unwrap(),
@@ -567232,6 +569204,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRIMSON_BUTTON: Self = Block {
         id: BlockId::new(987u16).unwrap(),
@@ -567250,6 +569224,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::CRIMSON),
+        wood_type: None,
     };
     pub const WARPED_BUTTON: Self = Block {
         id: BlockId::new(988u16).unwrap(),
@@ -567268,6 +569244,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::WARPED),
+        wood_type: None,
     };
     pub const CRIMSON_DOOR: Self = Block {
         id: BlockId::new(989u16).unwrap(),
@@ -567286,6 +569264,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::CRIMSON),
+        wood_type: None,
     };
     pub const WARPED_DOOR: Self = Block {
         id: BlockId::new(990u16).unwrap(),
@@ -567304,6 +569284,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::WARPED),
+        wood_type: None,
     };
     pub const CRIMSON_SIGN: Self = Block {
         id: BlockId::new(991u16).unwrap(),
@@ -567322,6 +569304,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::CRIMSON),
     };
     pub const WARPED_SIGN: Self = Block {
         id: BlockId::new(992u16).unwrap(),
@@ -567340,6 +569324,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::WARPED),
     };
     pub const CRIMSON_WALL_SIGN: Self = Block {
         id: BlockId::new(993u16).unwrap(),
@@ -567358,6 +569344,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crimson_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::CRIMSON),
     };
     pub const WARPED_WALL_SIGN: Self = Block {
         id: BlockId::new(994u16).unwrap(),
@@ -567376,6 +569364,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/warped_sign"),
+        block_set_type: None,
+        wood_type: Some(&crate::wood_type::WoodType::WARPED),
     };
     pub const STRUCTURE_BLOCK: Self = Block {
         id: BlockId::new(995u16).unwrap(),
@@ -567394,6 +569384,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const JIGSAW: Self = Block {
         id: BlockId::new(996u16).unwrap(),
@@ -567412,6 +569404,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TEST_BLOCK: Self = Block {
         id: BlockId::new(997u16).unwrap(),
@@ -567430,6 +569424,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TEST_INSTANCE_BLOCK: Self = Block {
         id: BlockId::new(998u16).unwrap(),
@@ -567448,6 +569444,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: None,
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COMPOSTER: Self = Block {
         id: BlockId::new(999u16).unwrap(),
@@ -567469,6 +569467,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/composter"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TARGET: Self = Block {
         id: BlockId::new(1000u16).unwrap(),
@@ -567490,6 +569490,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/target"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BEE_NEST: Self = Block {
         id: BlockId::new(1001u16).unwrap(),
@@ -567511,6 +569513,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/bee_nest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BEEHIVE: Self = Block {
         id: BlockId::new(1002u16).unwrap(),
@@ -567532,6 +569536,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/beehive"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const HONEY_BLOCK: Self = Block {
         id: BlockId::new(1003u16).unwrap(),
@@ -567550,6 +569556,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/honey_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const HONEYCOMB_BLOCK: Self = Block {
         id: BlockId::new(1004u16).unwrap(),
@@ -567568,6 +569576,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/honeycomb_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const NETHERITE_BLOCK: Self = Block {
         id: BlockId::new(1005u16).unwrap(),
@@ -567586,6 +569596,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/netherite_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ANCIENT_DEBRIS: Self = Block {
         id: BlockId::new(1006u16).unwrap(),
@@ -567604,6 +569616,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/ancient_debris"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRYING_OBSIDIAN: Self = Block {
         id: BlockId::new(1007u16).unwrap(),
@@ -567622,6 +569636,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crying_obsidian"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RESPAWN_ANCHOR: Self = Block {
         id: BlockId::new(1008u16).unwrap(),
@@ -567640,6 +569656,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/respawn_anchor"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_CRIMSON_FUNGUS: Self = Block {
         id: BlockId::new(1009u16).unwrap(),
@@ -567658,6 +569676,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_crimson_fungus"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_WARPED_FUNGUS: Self = Block {
         id: BlockId::new(1010u16).unwrap(),
@@ -567676,6 +569696,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_warped_fungus"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_CRIMSON_ROOTS: Self = Block {
         id: BlockId::new(1011u16).unwrap(),
@@ -567694,6 +569716,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_crimson_roots"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_WARPED_ROOTS: Self = Block {
         id: BlockId::new(1012u16).unwrap(),
@@ -567712,6 +569736,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_warped_roots"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LODESTONE: Self = Block {
         id: BlockId::new(1013u16).unwrap(),
@@ -567730,6 +569756,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lodestone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACKSTONE: Self = Block {
         id: BlockId::new(1014u16).unwrap(),
@@ -567748,6 +569776,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blackstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACKSTONE_STAIRS: Self = Block {
         id: BlockId::new(1015u16).unwrap(),
@@ -567766,6 +569796,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blackstone_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACKSTONE_WALL: Self = Block {
         id: BlockId::new(1016u16).unwrap(),
@@ -567784,6 +569816,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blackstone_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACKSTONE_SLAB: Self = Block {
         id: BlockId::new(1017u16).unwrap(),
@@ -567802,6 +569836,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blackstone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_BLACKSTONE: Self = Block {
         id: BlockId::new(1018u16).unwrap(),
@@ -567820,6 +569856,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_blackstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_BLACKSTONE_BRICKS: Self = Block {
         id: BlockId::new(1019u16).unwrap(),
@@ -567838,6 +569876,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_blackstone_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRACKED_POLISHED_BLACKSTONE_BRICKS: Self = Block {
         id: BlockId::new(1020u16).unwrap(),
@@ -567856,6 +569896,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cracked_polished_blackstone_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_POLISHED_BLACKSTONE: Self = Block {
         id: BlockId::new(1021u16).unwrap(),
@@ -567874,6 +569916,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_polished_blackstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_BLACKSTONE_BRICK_SLAB: Self = Block {
         id: BlockId::new(1022u16).unwrap(),
@@ -567892,6 +569936,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_blackstone_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_BLACKSTONE_BRICK_STAIRS: Self = Block {
         id: BlockId::new(1023u16).unwrap(),
@@ -567910,6 +569956,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_blackstone_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_BLACKSTONE_BRICK_WALL: Self = Block {
         id: BlockId::new(1024u16).unwrap(),
@@ -567928,6 +569976,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_blackstone_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GILDED_BLACKSTONE: Self = Block {
         id: BlockId::new(1025u16).unwrap(),
@@ -567946,6 +569996,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gilded_blackstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_BLACKSTONE_STAIRS: Self = Block {
         id: BlockId::new(1026u16).unwrap(),
@@ -567964,6 +570016,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_blackstone_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_BLACKSTONE_SLAB: Self = Block {
         id: BlockId::new(1027u16).unwrap(),
@@ -567982,6 +570036,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_blackstone_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_BLACKSTONE_PRESSURE_PLATE: Self = Block {
         id: BlockId::new(1028u16).unwrap(),
@@ -568000,6 +570056,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_blackstone_pressure_plate"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::POLISHED_BLACKSTONE),
+        wood_type: None,
     };
     pub const POLISHED_BLACKSTONE_BUTTON: Self = Block {
         id: BlockId::new(1029u16).unwrap(),
@@ -568018,6 +570076,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_blackstone_button"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::STONE),
+        wood_type: None,
     };
     pub const POLISHED_BLACKSTONE_WALL: Self = Block {
         id: BlockId::new(1030u16).unwrap(),
@@ -568036,6 +570096,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_blackstone_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_NETHER_BRICKS: Self = Block {
         id: BlockId::new(1031u16).unwrap(),
@@ -568054,6 +570116,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_nether_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRACKED_NETHER_BRICKS: Self = Block {
         id: BlockId::new(1032u16).unwrap(),
@@ -568072,6 +570136,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cracked_nether_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const QUARTZ_BRICKS: Self = Block {
         id: BlockId::new(1033u16).unwrap(),
@@ -568090,6 +570156,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/quartz_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CANDLE: Self = Block {
         id: BlockId::new(1034u16).unwrap(),
@@ -568108,6 +570176,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_CANDLE: Self = Block {
         id: BlockId::new(1035u16).unwrap(),
@@ -568126,6 +570196,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_CANDLE: Self = Block {
         id: BlockId::new(1036u16).unwrap(),
@@ -568144,6 +570216,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_CANDLE: Self = Block {
         id: BlockId::new(1037u16).unwrap(),
@@ -568162,6 +570236,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_CANDLE: Self = Block {
         id: BlockId::new(1038u16).unwrap(),
@@ -568180,6 +570256,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_CANDLE: Self = Block {
         id: BlockId::new(1039u16).unwrap(),
@@ -568198,6 +570276,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_CANDLE: Self = Block {
         id: BlockId::new(1040u16).unwrap(),
@@ -568216,6 +570296,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_CANDLE: Self = Block {
         id: BlockId::new(1041u16).unwrap(),
@@ -568234,6 +570316,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_CANDLE: Self = Block {
         id: BlockId::new(1042u16).unwrap(),
@@ -568252,6 +570336,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_CANDLE: Self = Block {
         id: BlockId::new(1043u16).unwrap(),
@@ -568270,6 +570356,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_CANDLE: Self = Block {
         id: BlockId::new(1044u16).unwrap(),
@@ -568288,6 +570376,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_CANDLE: Self = Block {
         id: BlockId::new(1045u16).unwrap(),
@@ -568306,6 +570396,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_CANDLE: Self = Block {
         id: BlockId::new(1046u16).unwrap(),
@@ -568324,6 +570416,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_CANDLE: Self = Block {
         id: BlockId::new(1047u16).unwrap(),
@@ -568342,6 +570436,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_CANDLE: Self = Block {
         id: BlockId::new(1048u16).unwrap(),
@@ -568360,6 +570456,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_CANDLE: Self = Block {
         id: BlockId::new(1049u16).unwrap(),
@@ -568378,6 +570476,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_CANDLE: Self = Block {
         id: BlockId::new(1050u16).unwrap(),
@@ -568396,6 +570496,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_candle"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CANDLE_CAKE: Self = Block {
         id: BlockId::new(1051u16).unwrap(),
@@ -568414,6 +570516,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WHITE_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1052u16).unwrap(),
@@ -568432,6 +570536,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/white_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ORANGE_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1053u16).unwrap(),
@@ -568450,6 +570556,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/orange_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MAGENTA_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1054u16).unwrap(),
@@ -568468,6 +570576,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/magenta_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_BLUE_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1055u16).unwrap(),
@@ -568486,6 +570596,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_blue_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const YELLOW_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1056u16).unwrap(),
@@ -568504,6 +570616,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/yellow_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIME_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1057u16).unwrap(),
@@ -568522,6 +570636,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lime_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1058u16).unwrap(),
@@ -568540,6 +570656,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pink_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GRAY_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1059u16).unwrap(),
@@ -568558,6 +570676,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/gray_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHT_GRAY_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1060u16).unwrap(),
@@ -568576,6 +570696,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/light_gray_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CYAN_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1061u16).unwrap(),
@@ -568594,6 +570716,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cyan_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PURPLE_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1062u16).unwrap(),
@@ -568612,6 +570736,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/purple_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLUE_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1063u16).unwrap(),
@@ -568630,6 +570756,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/blue_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BROWN_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1064u16).unwrap(),
@@ -568648,6 +570776,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/brown_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const GREEN_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1065u16).unwrap(),
@@ -568666,6 +570796,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/green_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RED_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1066u16).unwrap(),
@@ -568684,6 +570816,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/red_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BLACK_CANDLE_CAKE: Self = Block {
         id: BlockId::new(1067u16).unwrap(),
@@ -568702,6 +570836,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/black_candle_cake"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const AMETHYST_BLOCK: Self = Block {
         id: BlockId::new(1068u16).unwrap(),
@@ -568720,6 +570856,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/amethyst_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BUDDING_AMETHYST: Self = Block {
         id: BlockId::new(1069u16).unwrap(),
@@ -568738,6 +570876,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/budding_amethyst"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const AMETHYST_CLUSTER: Self = Block {
         id: BlockId::new(1070u16).unwrap(),
@@ -568756,6 +570896,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/amethyst_cluster"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LARGE_AMETHYST_BUD: Self = Block {
         id: BlockId::new(1071u16).unwrap(),
@@ -568774,6 +570916,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/large_amethyst_bud"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MEDIUM_AMETHYST_BUD: Self = Block {
         id: BlockId::new(1072u16).unwrap(),
@@ -568792,6 +570936,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/medium_amethyst_bud"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMALL_AMETHYST_BUD: Self = Block {
         id: BlockId::new(1073u16).unwrap(),
@@ -568810,6 +570956,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/small_amethyst_bud"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUFF: Self = Block {
         id: BlockId::new(1074u16).unwrap(),
@@ -568828,6 +570976,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tuff"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUFF_SLAB: Self = Block {
         id: BlockId::new(1075u16).unwrap(),
@@ -568846,6 +570996,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tuff_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUFF_STAIRS: Self = Block {
         id: BlockId::new(1076u16).unwrap(),
@@ -568864,6 +571016,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tuff_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUFF_WALL: Self = Block {
         id: BlockId::new(1077u16).unwrap(),
@@ -568882,6 +571036,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tuff_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_TUFF: Self = Block {
         id: BlockId::new(1078u16).unwrap(),
@@ -568900,6 +571056,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_tuff"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_TUFF_SLAB: Self = Block {
         id: BlockId::new(1079u16).unwrap(),
@@ -568918,6 +571076,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_tuff_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_TUFF_STAIRS: Self = Block {
         id: BlockId::new(1080u16).unwrap(),
@@ -568936,6 +571096,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_tuff_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_TUFF_WALL: Self = Block {
         id: BlockId::new(1081u16).unwrap(),
@@ -568954,6 +571116,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_tuff_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_TUFF: Self = Block {
         id: BlockId::new(1082u16).unwrap(),
@@ -568972,6 +571136,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_tuff"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUFF_BRICKS: Self = Block {
         id: BlockId::new(1083u16).unwrap(),
@@ -568990,6 +571156,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tuff_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUFF_BRICK_SLAB: Self = Block {
         id: BlockId::new(1084u16).unwrap(),
@@ -569008,6 +571176,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tuff_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUFF_BRICK_STAIRS: Self = Block {
         id: BlockId::new(1085u16).unwrap(),
@@ -569026,6 +571196,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tuff_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TUFF_BRICK_WALL: Self = Block {
         id: BlockId::new(1086u16).unwrap(),
@@ -569044,6 +571216,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tuff_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_TUFF_BRICKS: Self = Block {
         id: BlockId::new(1087u16).unwrap(),
@@ -569062,6 +571236,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_tuff_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SULFUR: Self = Block {
         id: BlockId::new(1088u16).unwrap(),
@@ -569080,6 +571256,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sulfur"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTENT_SULFUR: Self = Block {
         id: BlockId::new(1089u16).unwrap(),
@@ -569098,6 +571276,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potent_sulfur"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SULFUR_SLAB: Self = Block {
         id: BlockId::new(1090u16).unwrap(),
@@ -569116,6 +571296,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sulfur_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SULFUR_STAIRS: Self = Block {
         id: BlockId::new(1091u16).unwrap(),
@@ -569134,6 +571316,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sulfur_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SULFUR_WALL: Self = Block {
         id: BlockId::new(1092u16).unwrap(),
@@ -569152,6 +571336,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sulfur_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_SULFUR: Self = Block {
         id: BlockId::new(1093u16).unwrap(),
@@ -569170,6 +571356,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_sulfur"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_SULFUR_SLAB: Self = Block {
         id: BlockId::new(1094u16).unwrap(),
@@ -569188,6 +571376,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_sulfur_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_SULFUR_STAIRS: Self = Block {
         id: BlockId::new(1095u16).unwrap(),
@@ -569206,6 +571396,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_sulfur_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_SULFUR_WALL: Self = Block {
         id: BlockId::new(1096u16).unwrap(),
@@ -569224,6 +571416,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_sulfur_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SULFUR_BRICKS: Self = Block {
         id: BlockId::new(1097u16).unwrap(),
@@ -569242,6 +571436,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sulfur_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SULFUR_BRICK_SLAB: Self = Block {
         id: BlockId::new(1098u16).unwrap(),
@@ -569260,6 +571456,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sulfur_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SULFUR_BRICK_STAIRS: Self = Block {
         id: BlockId::new(1099u16).unwrap(),
@@ -569278,6 +571476,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sulfur_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SULFUR_BRICK_WALL: Self = Block {
         id: BlockId::new(1100u16).unwrap(),
@@ -569296,6 +571496,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sulfur_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_SULFUR: Self = Block {
         id: BlockId::new(1101u16).unwrap(),
@@ -569314,6 +571516,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_sulfur"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CINNABAR: Self = Block {
         id: BlockId::new(1102u16).unwrap(),
@@ -569332,6 +571536,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cinnabar"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CINNABAR_SLAB: Self = Block {
         id: BlockId::new(1103u16).unwrap(),
@@ -569350,6 +571556,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cinnabar_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CINNABAR_STAIRS: Self = Block {
         id: BlockId::new(1104u16).unwrap(),
@@ -569368,6 +571576,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cinnabar_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CINNABAR_WALL: Self = Block {
         id: BlockId::new(1105u16).unwrap(),
@@ -569386,6 +571596,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cinnabar_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_CINNABAR: Self = Block {
         id: BlockId::new(1106u16).unwrap(),
@@ -569404,6 +571616,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_cinnabar"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_CINNABAR_SLAB: Self = Block {
         id: BlockId::new(1107u16).unwrap(),
@@ -569422,6 +571636,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_cinnabar_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_CINNABAR_STAIRS: Self = Block {
         id: BlockId::new(1108u16).unwrap(),
@@ -569440,6 +571656,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_cinnabar_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_CINNABAR_WALL: Self = Block {
         id: BlockId::new(1109u16).unwrap(),
@@ -569458,6 +571676,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_cinnabar_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CINNABAR_BRICKS: Self = Block {
         id: BlockId::new(1110u16).unwrap(),
@@ -569476,6 +571696,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cinnabar_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CINNABAR_BRICK_SLAB: Self = Block {
         id: BlockId::new(1111u16).unwrap(),
@@ -569494,6 +571716,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cinnabar_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CINNABAR_BRICK_STAIRS: Self = Block {
         id: BlockId::new(1112u16).unwrap(),
@@ -569512,6 +571736,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cinnabar_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CINNABAR_BRICK_WALL: Self = Block {
         id: BlockId::new(1113u16).unwrap(),
@@ -569530,6 +571756,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cinnabar_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_CINNABAR: Self = Block {
         id: BlockId::new(1114u16).unwrap(),
@@ -569548,6 +571776,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_cinnabar"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CALCITE: Self = Block {
         id: BlockId::new(1115u16).unwrap(),
@@ -569566,6 +571796,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/calcite"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TINTED_GLASS: Self = Block {
         id: BlockId::new(1116u16).unwrap(),
@@ -569584,6 +571816,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/tinted_glass"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POWDER_SNOW: Self = Block {
         id: BlockId::new(1117u16).unwrap(),
@@ -569602,6 +571836,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/powder_snow"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SCULK_SENSOR: Self = Block {
         id: BlockId::new(1118u16).unwrap(),
@@ -569620,6 +571856,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sculk_sensor"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CALIBRATED_SCULK_SENSOR: Self = Block {
         id: BlockId::new(1119u16).unwrap(),
@@ -569638,6 +571876,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/calibrated_sculk_sensor"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SCULK: Self = Block {
         id: BlockId::new(1120u16).unwrap(),
@@ -569658,6 +571898,8 @@ impl Block {
             experience: IntProvider::Constant(1i32),
         }),
         loot_table: Some("minecraft:blocks/sculk"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SCULK_VEIN: Self = Block {
         id: BlockId::new(1121u16).unwrap(),
@@ -569676,6 +571918,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sculk_vein"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SCULK_CATALYST: Self = Block {
         id: BlockId::new(1122u16).unwrap(),
@@ -569694,6 +571938,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sculk_catalyst"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SCULK_SHRIEKER: Self = Block {
         id: BlockId::new(1123u16).unwrap(),
@@ -569712,6 +571958,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sculk_shrieker"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COPPER_BLOCK: Self = Block {
         id: BlockId::new(1124u16).unwrap(),
@@ -569730,6 +571978,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_COPPER: Self = Block {
         id: BlockId::new(1125u16).unwrap(),
@@ -569748,6 +571998,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_COPPER: Self = Block {
         id: BlockId::new(1126u16).unwrap(),
@@ -569766,6 +572018,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_COPPER: Self = Block {
         id: BlockId::new(1127u16).unwrap(),
@@ -569784,6 +572038,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_COPPER_BLOCK: Self = Block {
         id: BlockId::new(1128u16).unwrap(),
@@ -569802,6 +572058,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_copper_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_COPPER: Self = Block {
         id: BlockId::new(1129u16).unwrap(),
@@ -569820,6 +572078,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_COPPER: Self = Block {
         id: BlockId::new(1130u16).unwrap(),
@@ -569838,6 +572098,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_COPPER: Self = Block {
         id: BlockId::new(1131u16).unwrap(),
@@ -569856,6 +572118,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COPPER_ORE: Self = Block {
         id: BlockId::new(1132u16).unwrap(),
@@ -569876,6 +572140,8 @@ impl Block {
             experience: IntProvider::Constant(0i32),
         }),
         loot_table: Some("minecraft:blocks/copper_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_COPPER_ORE: Self = Block {
         id: BlockId::new(1133u16).unwrap(),
@@ -569896,6 +572162,8 @@ impl Block {
             experience: IntProvider::Constant(0i32),
         }),
         loot_table: Some("minecraft:blocks/deepslate_copper_ore"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CUT_COPPER: Self = Block {
         id: BlockId::new(1134u16).unwrap(),
@@ -569914,6 +572182,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cut_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_CUT_COPPER: Self = Block {
         id: BlockId::new(1135u16).unwrap(),
@@ -569932,6 +572202,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_cut_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_CUT_COPPER: Self = Block {
         id: BlockId::new(1136u16).unwrap(),
@@ -569950,6 +572222,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_cut_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_CUT_COPPER: Self = Block {
         id: BlockId::new(1137u16).unwrap(),
@@ -569968,6 +572242,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_cut_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_CUT_COPPER: Self = Block {
         id: BlockId::new(1138u16).unwrap(),
@@ -569986,6 +572262,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_cut_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_CUT_COPPER: Self = Block {
         id: BlockId::new(1139u16).unwrap(),
@@ -570004,6 +572282,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_cut_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_CUT_COPPER: Self = Block {
         id: BlockId::new(1140u16).unwrap(),
@@ -570022,6 +572302,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_cut_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_CUT_COPPER: Self = Block {
         id: BlockId::new(1141u16).unwrap(),
@@ -570040,6 +572322,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_cut_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_COPPER: Self = Block {
         id: BlockId::new(1142u16).unwrap(),
@@ -570058,6 +572342,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_CHISELED_COPPER: Self = Block {
         id: BlockId::new(1143u16).unwrap(),
@@ -570076,6 +572362,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_chiseled_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_CHISELED_COPPER: Self = Block {
         id: BlockId::new(1144u16).unwrap(),
@@ -570094,6 +572382,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_chiseled_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_CHISELED_COPPER: Self = Block {
         id: BlockId::new(1145u16).unwrap(),
@@ -570112,6 +572402,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_chiseled_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_CHISELED_COPPER: Self = Block {
         id: BlockId::new(1146u16).unwrap(),
@@ -570130,6 +572422,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_chiseled_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_CHISELED_COPPER: Self = Block {
         id: BlockId::new(1147u16).unwrap(),
@@ -570148,6 +572442,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_chiseled_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_CHISELED_COPPER: Self = Block {
         id: BlockId::new(1148u16).unwrap(),
@@ -570166,6 +572462,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_chiseled_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_CHISELED_COPPER: Self = Block {
         id: BlockId::new(1149u16).unwrap(),
@@ -570184,6 +572482,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_chiseled_copper"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CUT_COPPER_STAIRS: Self = Block {
         id: BlockId::new(1150u16).unwrap(),
@@ -570202,6 +572502,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cut_copper_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_CUT_COPPER_STAIRS: Self = Block {
         id: BlockId::new(1151u16).unwrap(),
@@ -570220,6 +572522,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_cut_copper_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_CUT_COPPER_STAIRS: Self = Block {
         id: BlockId::new(1152u16).unwrap(),
@@ -570238,6 +572542,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_cut_copper_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_CUT_COPPER_STAIRS: Self = Block {
         id: BlockId::new(1153u16).unwrap(),
@@ -570256,6 +572562,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_cut_copper_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_CUT_COPPER_STAIRS: Self = Block {
         id: BlockId::new(1154u16).unwrap(),
@@ -570274,6 +572582,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_cut_copper_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_CUT_COPPER_STAIRS: Self = Block {
         id: BlockId::new(1155u16).unwrap(),
@@ -570292,6 +572602,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_cut_copper_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_CUT_COPPER_STAIRS: Self = Block {
         id: BlockId::new(1156u16).unwrap(),
@@ -570310,6 +572622,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_cut_copper_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_CUT_COPPER_STAIRS: Self = Block {
         id: BlockId::new(1157u16).unwrap(),
@@ -570328,6 +572642,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_cut_copper_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CUT_COPPER_SLAB: Self = Block {
         id: BlockId::new(1158u16).unwrap(),
@@ -570346,6 +572662,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cut_copper_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_CUT_COPPER_SLAB: Self = Block {
         id: BlockId::new(1159u16).unwrap(),
@@ -570364,6 +572682,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_cut_copper_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_CUT_COPPER_SLAB: Self = Block {
         id: BlockId::new(1160u16).unwrap(),
@@ -570382,6 +572702,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_cut_copper_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_CUT_COPPER_SLAB: Self = Block {
         id: BlockId::new(1161u16).unwrap(),
@@ -570400,6 +572722,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_cut_copper_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_CUT_COPPER_SLAB: Self = Block {
         id: BlockId::new(1162u16).unwrap(),
@@ -570418,6 +572742,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_cut_copper_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_CUT_COPPER_SLAB: Self = Block {
         id: BlockId::new(1163u16).unwrap(),
@@ -570436,6 +572762,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_cut_copper_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_CUT_COPPER_SLAB: Self = Block {
         id: BlockId::new(1164u16).unwrap(),
@@ -570454,6 +572782,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_cut_copper_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_CUT_COPPER_SLAB: Self = Block {
         id: BlockId::new(1165u16).unwrap(),
@@ -570472,6 +572802,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_cut_copper_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COPPER_DOOR: Self = Block {
         id: BlockId::new(1166u16).unwrap(),
@@ -570490,6 +572822,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const EXPOSED_COPPER_DOOR: Self = Block {
         id: BlockId::new(1167u16).unwrap(),
@@ -570508,6 +572842,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_copper_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const WEATHERED_COPPER_DOOR: Self = Block {
         id: BlockId::new(1168u16).unwrap(),
@@ -570526,6 +572862,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_copper_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const OXIDIZED_COPPER_DOOR: Self = Block {
         id: BlockId::new(1169u16).unwrap(),
@@ -570544,6 +572882,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_copper_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const WAXED_COPPER_DOOR: Self = Block {
         id: BlockId::new(1170u16).unwrap(),
@@ -570562,6 +572902,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_copper_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_COPPER_DOOR: Self = Block {
         id: BlockId::new(1171u16).unwrap(),
@@ -570580,6 +572922,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_copper_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_COPPER_DOOR: Self = Block {
         id: BlockId::new(1172u16).unwrap(),
@@ -570598,6 +572942,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_copper_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_COPPER_DOOR: Self = Block {
         id: BlockId::new(1173u16).unwrap(),
@@ -570616,6 +572962,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_copper_door"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const COPPER_TRAPDOOR: Self = Block {
         id: BlockId::new(1174u16).unwrap(),
@@ -570634,6 +572982,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const EXPOSED_COPPER_TRAPDOOR: Self = Block {
         id: BlockId::new(1175u16).unwrap(),
@@ -570652,6 +573002,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_copper_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const WEATHERED_COPPER_TRAPDOOR: Self = Block {
         id: BlockId::new(1176u16).unwrap(),
@@ -570670,6 +573022,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_copper_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const OXIDIZED_COPPER_TRAPDOOR: Self = Block {
         id: BlockId::new(1177u16).unwrap(),
@@ -570688,6 +573042,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_copper_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const WAXED_COPPER_TRAPDOOR: Self = Block {
         id: BlockId::new(1178u16).unwrap(),
@@ -570706,6 +573062,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_copper_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_COPPER_TRAPDOOR: Self = Block {
         id: BlockId::new(1179u16).unwrap(),
@@ -570724,6 +573082,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_copper_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_COPPER_TRAPDOOR: Self = Block {
         id: BlockId::new(1180u16).unwrap(),
@@ -570742,6 +573102,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_copper_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_COPPER_TRAPDOOR: Self = Block {
         id: BlockId::new(1181u16).unwrap(),
@@ -570760,6 +573122,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_copper_trapdoor"),
+        block_set_type: Some(&crate::block_set_type::BlockSetType::COPPER),
+        wood_type: None,
     };
     pub const COPPER_GRATE: Self = Block {
         id: BlockId::new(1182u16).unwrap(),
@@ -570778,6 +573142,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_grate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_COPPER_GRATE: Self = Block {
         id: BlockId::new(1183u16).unwrap(),
@@ -570796,6 +573162,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_copper_grate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_COPPER_GRATE: Self = Block {
         id: BlockId::new(1184u16).unwrap(),
@@ -570814,6 +573182,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_copper_grate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_COPPER_GRATE: Self = Block {
         id: BlockId::new(1185u16).unwrap(),
@@ -570832,6 +573202,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_copper_grate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_COPPER_GRATE: Self = Block {
         id: BlockId::new(1186u16).unwrap(),
@@ -570850,6 +573222,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_copper_grate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_COPPER_GRATE: Self = Block {
         id: BlockId::new(1187u16).unwrap(),
@@ -570868,6 +573242,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_copper_grate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_COPPER_GRATE: Self = Block {
         id: BlockId::new(1188u16).unwrap(),
@@ -570886,6 +573262,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_copper_grate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_COPPER_GRATE: Self = Block {
         id: BlockId::new(1189u16).unwrap(),
@@ -570904,6 +573282,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_copper_grate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COPPER_BULB: Self = Block {
         id: BlockId::new(1190u16).unwrap(),
@@ -570922,6 +573302,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_bulb"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_COPPER_BULB: Self = Block {
         id: BlockId::new(1191u16).unwrap(),
@@ -570940,6 +573322,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_copper_bulb"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_COPPER_BULB: Self = Block {
         id: BlockId::new(1192u16).unwrap(),
@@ -570958,6 +573342,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_copper_bulb"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_COPPER_BULB: Self = Block {
         id: BlockId::new(1193u16).unwrap(),
@@ -570976,6 +573362,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_copper_bulb"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_COPPER_BULB: Self = Block {
         id: BlockId::new(1194u16).unwrap(),
@@ -570994,6 +573382,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_copper_bulb"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_COPPER_BULB: Self = Block {
         id: BlockId::new(1195u16).unwrap(),
@@ -571012,6 +573402,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_copper_bulb"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_COPPER_BULB: Self = Block {
         id: BlockId::new(1196u16).unwrap(),
@@ -571030,6 +573422,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_copper_bulb"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_COPPER_BULB: Self = Block {
         id: BlockId::new(1197u16).unwrap(),
@@ -571048,6 +573442,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_copper_bulb"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COPPER_CHEST: Self = Block {
         id: BlockId::new(1198u16).unwrap(),
@@ -571066,6 +573462,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_chest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_COPPER_CHEST: Self = Block {
         id: BlockId::new(1199u16).unwrap(),
@@ -571084,6 +573482,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_copper_chest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_COPPER_CHEST: Self = Block {
         id: BlockId::new(1200u16).unwrap(),
@@ -571102,6 +573502,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_copper_chest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_COPPER_CHEST: Self = Block {
         id: BlockId::new(1201u16).unwrap(),
@@ -571120,6 +573522,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_copper_chest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_COPPER_CHEST: Self = Block {
         id: BlockId::new(1202u16).unwrap(),
@@ -571138,6 +573542,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_copper_chest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_COPPER_CHEST: Self = Block {
         id: BlockId::new(1203u16).unwrap(),
@@ -571156,6 +573562,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_copper_chest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_COPPER_CHEST: Self = Block {
         id: BlockId::new(1204u16).unwrap(),
@@ -571174,6 +573582,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_copper_chest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_COPPER_CHEST: Self = Block {
         id: BlockId::new(1205u16).unwrap(),
@@ -571192,6 +573602,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_copper_chest"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COPPER_GOLEM_STATUE: Self = Block {
         id: BlockId::new(1206u16).unwrap(),
@@ -571210,6 +573622,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/copper_golem_statue"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_COPPER_GOLEM_STATUE: Self = Block {
         id: BlockId::new(1207u16).unwrap(),
@@ -571228,6 +573642,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_copper_golem_statue"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_COPPER_GOLEM_STATUE: Self = Block {
         id: BlockId::new(1208u16).unwrap(),
@@ -571246,6 +573662,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_copper_golem_statue"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_COPPER_GOLEM_STATUE: Self = Block {
         id: BlockId::new(1209u16).unwrap(),
@@ -571264,6 +573682,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_copper_golem_statue"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_COPPER_GOLEM_STATUE: Self = Block {
         id: BlockId::new(1210u16).unwrap(),
@@ -571282,6 +573702,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_copper_golem_statue"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_COPPER_GOLEM_STATUE: Self = Block {
         id: BlockId::new(1211u16).unwrap(),
@@ -571300,6 +573722,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_copper_golem_statue"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_COPPER_GOLEM_STATUE: Self = Block {
         id: BlockId::new(1212u16).unwrap(),
@@ -571318,6 +573742,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_copper_golem_statue"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_COPPER_GOLEM_STATUE: Self = Block {
         id: BlockId::new(1213u16).unwrap(),
@@ -571336,6 +573762,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_copper_golem_statue"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LIGHTNING_ROD: Self = Block {
         id: BlockId::new(1214u16).unwrap(),
@@ -571354,6 +573782,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/lightning_rod"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const EXPOSED_LIGHTNING_ROD: Self = Block {
         id: BlockId::new(1215u16).unwrap(),
@@ -571372,6 +573802,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/exposed_lightning_rod"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WEATHERED_LIGHTNING_ROD: Self = Block {
         id: BlockId::new(1216u16).unwrap(),
@@ -571390,6 +573822,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/weathered_lightning_rod"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OXIDIZED_LIGHTNING_ROD: Self = Block {
         id: BlockId::new(1217u16).unwrap(),
@@ -571408,6 +573842,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/oxidized_lightning_rod"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_LIGHTNING_ROD: Self = Block {
         id: BlockId::new(1218u16).unwrap(),
@@ -571426,6 +573862,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_lightning_rod"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_EXPOSED_LIGHTNING_ROD: Self = Block {
         id: BlockId::new(1219u16).unwrap(),
@@ -571444,6 +573882,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_exposed_lightning_rod"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_WEATHERED_LIGHTNING_ROD: Self = Block {
         id: BlockId::new(1220u16).unwrap(),
@@ -571462,6 +573902,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_weathered_lightning_rod"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WAXED_OXIDIZED_LIGHTNING_ROD: Self = Block {
         id: BlockId::new(1221u16).unwrap(),
@@ -571480,6 +573922,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/waxed_oxidized_lightning_rod"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DRIPSTONE_BLOCK: Self = Block {
         id: BlockId::new(1222u16).unwrap(),
@@ -571498,6 +573942,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/dripstone_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POINTED_DRIPSTONE: Self = Block {
         id: BlockId::new(1223u16).unwrap(),
@@ -571516,6 +573962,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pointed_dripstone"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SULFUR_SPIKE: Self = Block {
         id: BlockId::new(1224u16).unwrap(),
@@ -571534,6 +573982,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/sulfur_spike"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CAVE_VINES: Self = Block {
         id: BlockId::new(1225u16).unwrap(),
@@ -571555,6 +574005,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cave_vines"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CAVE_VINES_PLANT: Self = Block {
         id: BlockId::new(1226u16).unwrap(),
@@ -571576,6 +574028,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/cave_vines_plant"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SPORE_BLOSSOM: Self = Block {
         id: BlockId::new(1227u16).unwrap(),
@@ -571597,6 +574051,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/spore_blossom"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const AZALEA: Self = Block {
         id: BlockId::new(1228u16).unwrap(),
@@ -571618,6 +574074,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/azalea"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FLOWERING_AZALEA: Self = Block {
         id: BlockId::new(1229u16).unwrap(),
@@ -571639,6 +574097,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/flowering_azalea"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MOSS_CARPET: Self = Block {
         id: BlockId::new(1230u16).unwrap(),
@@ -571657,6 +574117,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/moss_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PINK_PETALS: Self = Block {
         id: BlockId::new(1231u16).unwrap(),
@@ -571678,6 +574140,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pink_petals"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const WILDFLOWERS: Self = Block {
         id: BlockId::new(1232u16).unwrap(),
@@ -571699,6 +574163,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/wildflowers"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const LEAF_LITTER: Self = Block {
         id: BlockId::new(1233u16).unwrap(),
@@ -571720,6 +574186,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/leaf_litter"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MOSS_BLOCK: Self = Block {
         id: BlockId::new(1234u16).unwrap(),
@@ -571738,6 +574206,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/moss_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BIG_DRIPLEAF: Self = Block {
         id: BlockId::new(1235u16).unwrap(),
@@ -571759,6 +574229,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/big_dripleaf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const BIG_DRIPLEAF_STEM: Self = Block {
         id: BlockId::new(1236u16).unwrap(),
@@ -571780,6 +574252,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/big_dripleaf_stem"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMALL_DRIPLEAF: Self = Block {
         id: BlockId::new(1237u16).unwrap(),
@@ -571801,6 +574275,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/small_dripleaf"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const HANGING_ROOTS: Self = Block {
         id: BlockId::new(1238u16).unwrap(),
@@ -571822,6 +574298,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/hanging_roots"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const ROOTED_DIRT: Self = Block {
         id: BlockId::new(1239u16).unwrap(),
@@ -571840,6 +574318,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/rooted_dirt"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const MUD: Self = Block {
         id: BlockId::new(1240u16).unwrap(),
@@ -571858,6 +574338,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/mud"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE: Self = Block {
         id: BlockId::new(1241u16).unwrap(),
@@ -571876,6 +574358,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/deepslate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COBBLED_DEEPSLATE: Self = Block {
         id: BlockId::new(1242u16).unwrap(),
@@ -571894,6 +574378,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cobbled_deepslate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COBBLED_DEEPSLATE_STAIRS: Self = Block {
         id: BlockId::new(1243u16).unwrap(),
@@ -571912,6 +574398,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cobbled_deepslate_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COBBLED_DEEPSLATE_SLAB: Self = Block {
         id: BlockId::new(1244u16).unwrap(),
@@ -571930,6 +574418,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cobbled_deepslate_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const COBBLED_DEEPSLATE_WALL: Self = Block {
         id: BlockId::new(1245u16).unwrap(),
@@ -571948,6 +574438,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cobbled_deepslate_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_DEEPSLATE: Self = Block {
         id: BlockId::new(1246u16).unwrap(),
@@ -571966,6 +574458,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_deepslate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_DEEPSLATE_STAIRS: Self = Block {
         id: BlockId::new(1247u16).unwrap(),
@@ -571984,6 +574478,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_deepslate_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_DEEPSLATE_SLAB: Self = Block {
         id: BlockId::new(1248u16).unwrap(),
@@ -572002,6 +574498,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_deepslate_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POLISHED_DEEPSLATE_WALL: Self = Block {
         id: BlockId::new(1249u16).unwrap(),
@@ -572020,6 +574518,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/polished_deepslate_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_TILES: Self = Block {
         id: BlockId::new(1250u16).unwrap(),
@@ -572038,6 +574538,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/deepslate_tiles"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_TILE_STAIRS: Self = Block {
         id: BlockId::new(1251u16).unwrap(),
@@ -572056,6 +574558,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/deepslate_tile_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_TILE_SLAB: Self = Block {
         id: BlockId::new(1252u16).unwrap(),
@@ -572074,6 +574578,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/deepslate_tile_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_TILE_WALL: Self = Block {
         id: BlockId::new(1253u16).unwrap(),
@@ -572092,6 +574598,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/deepslate_tile_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_BRICKS: Self = Block {
         id: BlockId::new(1254u16).unwrap(),
@@ -572110,6 +574618,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/deepslate_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_BRICK_STAIRS: Self = Block {
         id: BlockId::new(1255u16).unwrap(),
@@ -572128,6 +574638,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/deepslate_brick_stairs"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_BRICK_SLAB: Self = Block {
         id: BlockId::new(1256u16).unwrap(),
@@ -572146,6 +574658,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/deepslate_brick_slab"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DEEPSLATE_BRICK_WALL: Self = Block {
         id: BlockId::new(1257u16).unwrap(),
@@ -572164,6 +574678,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/deepslate_brick_wall"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CHISELED_DEEPSLATE: Self = Block {
         id: BlockId::new(1258u16).unwrap(),
@@ -572182,6 +574698,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/chiseled_deepslate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRACKED_DEEPSLATE_BRICKS: Self = Block {
         id: BlockId::new(1259u16).unwrap(),
@@ -572200,6 +574718,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cracked_deepslate_bricks"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRACKED_DEEPSLATE_TILES: Self = Block {
         id: BlockId::new(1260u16).unwrap(),
@@ -572218,6 +574738,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/cracked_deepslate_tiles"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const INFESTED_DEEPSLATE: Self = Block {
         id: BlockId::new(1261u16).unwrap(),
@@ -572236,6 +574758,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/infested_deepslate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const SMOOTH_BASALT: Self = Block {
         id: BlockId::new(1262u16).unwrap(),
@@ -572254,6 +574778,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/smooth_basalt"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RAW_IRON_BLOCK: Self = Block {
         id: BlockId::new(1263u16).unwrap(),
@@ -572272,6 +574798,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/raw_iron_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RAW_COPPER_BLOCK: Self = Block {
         id: BlockId::new(1264u16).unwrap(),
@@ -572290,6 +574818,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/raw_copper_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const RAW_GOLD_BLOCK: Self = Block {
         id: BlockId::new(1265u16).unwrap(),
@@ -572308,6 +574838,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/raw_gold_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_AZALEA_BUSH: Self = Block {
         id: BlockId::new(1266u16).unwrap(),
@@ -572326,6 +574858,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_azalea_bush"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_FLOWERING_AZALEA_BUSH: Self = Block {
         id: BlockId::new(1267u16).unwrap(),
@@ -572344,6 +574878,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_flowering_azalea_bush"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OCHRE_FROGLIGHT: Self = Block {
         id: BlockId::new(1268u16).unwrap(),
@@ -572362,6 +574898,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/ochre_froglight"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const VERDANT_FROGLIGHT: Self = Block {
         id: BlockId::new(1269u16).unwrap(),
@@ -572380,6 +574918,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/verdant_froglight"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PEARLESCENT_FROGLIGHT: Self = Block {
         id: BlockId::new(1270u16).unwrap(),
@@ -572398,6 +574938,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/pearlescent_froglight"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FROGSPAWN: Self = Block {
         id: BlockId::new(1271u16).unwrap(),
@@ -572416,6 +574958,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/frogspawn"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const REINFORCED_DEEPSLATE: Self = Block {
         id: BlockId::new(1272u16).unwrap(),
@@ -572434,6 +574978,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/reinforced_deepslate"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const DECORATED_POT: Self = Block {
         id: BlockId::new(1273u16).unwrap(),
@@ -572452,6 +574998,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/decorated_pot"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CRAFTER: Self = Block {
         id: BlockId::new(1274u16).unwrap(),
@@ -572470,6 +575018,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/crafter"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const TRIAL_SPAWNER: Self = Block {
         id: BlockId::new(1275u16).unwrap(),
@@ -572488,6 +575038,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/trial_spawner"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const VAULT: Self = Block {
         id: BlockId::new(1276u16).unwrap(),
@@ -572506,6 +575058,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/vault"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const HEAVY_CORE: Self = Block {
         id: BlockId::new(1277u16).unwrap(),
@@ -572524,6 +575078,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/heavy_core"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_MOSS_BLOCK: Self = Block {
         id: BlockId::new(1278u16).unwrap(),
@@ -572545,6 +575101,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_moss_block"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_MOSS_CARPET: Self = Block {
         id: BlockId::new(1279u16).unwrap(),
@@ -572566,6 +575124,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_moss_carpet"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const PALE_HANGING_MOSS: Self = Block {
         id: BlockId::new(1280u16).unwrap(),
@@ -572587,6 +575147,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/pale_hanging_moss"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const OPEN_EYEBLOSSOM: Self = Block {
         id: BlockId::new(1281u16).unwrap(),
@@ -572608,6 +575170,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/open_eyeblossom"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const CLOSED_EYEBLOSSOM: Self = Block {
         id: BlockId::new(1282u16).unwrap(),
@@ -572629,6 +575193,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/closed_eyeblossom"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_OPEN_EYEBLOSSOM: Self = Block {
         id: BlockId::new(1283u16).unwrap(),
@@ -572647,6 +575213,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_open_eyeblossom"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const POTTED_CLOSED_EYEBLOSSOM: Self = Block {
         id: BlockId::new(1284u16).unwrap(),
@@ -572665,6 +575233,8 @@ impl Block {
         flammable: None,
         experience: None,
         loot_table: Some("minecraft:blocks/potted_closed_eyeblossom"),
+        block_set_type: None,
+        wood_type: None,
     };
     pub const FIREFLY_BUSH: Self = Block {
         id: BlockId::new(1285u16).unwrap(),
@@ -572686,6 +575256,8 @@ impl Block {
         }),
         experience: None,
         loot_table: Some("minecraft:blocks/firefly_bush"),
+        block_set_type: None,
+        wood_type: None,
     };
     #[must_use]
     pub const fn spawn_floor_predicate(&self) -> SpawnFloorPredicate {
