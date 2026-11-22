@@ -132,10 +132,13 @@ impl BlockBehaviour for CreakingHeartBlock {
         }
         // Vanilla `CreakingHeartBlockEntity#getAnalogOutputSignal`: no bound creaking reads 0,
         // and the block entity caches it so comparator neighbours update when it changes.
+        let Some(entity) = args.world.get_block_entity(args.position) else {
+            return Some(0);
+        };
         Some(
-            args.world
-                .get_block_entity(args.position)
-                .and_then(|entity| entity.as_any().downcast_ref::<CreakingHeartBlockEntity>())
+            entity
+                .as_any()
+                .downcast_ref::<CreakingHeartBlockEntity>()
                 .map_or(0, CreakingHeartBlockEntity::output_signal),
         )
     }
