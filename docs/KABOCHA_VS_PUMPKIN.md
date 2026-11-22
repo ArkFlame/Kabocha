@@ -55,7 +55,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 
 | Issue | Title | Status |
 |---|---|---|
-| [#4603](https://github.com/Pumpkin-MC/Pumpkin/issues/4603) | TRACKER: Parity Integration Test | PENDING |
+| [#4603](https://github.com/Pumpkin-MC/Pumpkin/issues/4603) | TRACKER: Parity Integration Test | LANDED (64df933d7, 2 proof tests) |
 | [#4623](https://github.com/Pumpkin-MC/Pumpkin/issues/4623) | Player Locator Bar does not show other players with locator_bar enabled | ALREADY-FIXED |
 | [#4629](https://github.com/Pumpkin-MC/Pumpkin/issues/4629) | Cannot place a regular rail on top of a hopper | LANDED (e8a812cbb, proof test) |
 | [#4640](https://github.com/Pumpkin-MC/Pumpkin/issues/4640) | wardem cannot attack any entity | LANDED (6c953b6e9, proof test) |
