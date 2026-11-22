@@ -37,7 +37,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4635](https://github.com/Pumpkin-MC/Pumpkin/pull/4635) | fix(entity): close remaining panda, dolphin, mooshroom and bee parity gaps | LANDED (bb4624ae5, partial: panda only) |
 | [#4636](https://github.com/Pumpkin-MC/Pumpkin/pull/4636) | feat(entity): full vanilla parity for shulker | BLOCKED (stale-base redesign, needs build) |
 | [#4638](https://github.com/Pumpkin-MC/Pumpkin/pull/4638) | perf(world): batch packets per tick and send movement from the entity tracker | LANDED (18ed0b039, partial: stages 1-2) |
-| [#4639](https://github.com/Pumpkin-MC/Pumpkin/pull/4639) | fix(entity): despawn ineligible mobs on peaceful | PENDING |
+| [#4639](https://github.com/Pumpkin-MC/Pumpkin/pull/4639) | fix(entity): despawn ineligible mobs on peaceful | ALREADY-FIXED core; remainder BLOCKED-DATA (codegen) |
 | [#4641](https://github.com/Pumpkin-MC/Pumpkin/pull/4641) | Avoid double deletion of guest-owned resources | LANDED (f033a0d53) |
 | [#4642](https://github.com/Pumpkin-MC/Pumpkin/pull/4642) | Expose transport latency through the v0.2 plugin API | LANDED (b9b41f8e4) |
 | [#4643](https://github.com/Pumpkin-MC/Pumpkin/pull/4643) | fix(minecart) | BLOCKED (core fixes present, remainder needs generated APIs) |

@@ -318,3 +318,4 @@ issue	4657	needs-runtime	failed	seed 1796878023370415311 wrong-height portal: ne
 pr	4636	stale-base	failed	real shulker gap but 2352-line redesign authored 3327 commits behind master; rewrites Entity.velocity, teleport reservations, passenger/dimension APIs; needs rewrite plus a build	n4636
 pr	4609	already-fixed	skipped	event is already a resource in WIT v0.2 with host and SDK implementation; PR diff is rebase churn from older base	n4609
 pr	4622	already-fixed	skipped	master covers all named boat/minecart physics behaviours; PR only adds superseded movement-snapshot/named-constant refactors	p4622
+pr	4639	blocked-data	skipped	master already despawns monster-class mobs on peaceful via check_despawn; PR remainder needs generated allowed_in_peaceful field (codegen over assets/entities.json)	p4639
