@@ -88,7 +88,7 @@ pub use explosion::{
     BlockInteraction, DefaultExplosionDamageCalculator, Explosion, ExplosionDamageCalculator,
     ExplosionInteraction, SimpleExplosionDamageCalculator,
 };
-use pumpkin_config::BasicConfiguration;
+use pumpkin_config::{BasicConfiguration, EntityTrackingConfig};
 use pumpkin_data::block_properties::{blocks_movement, is_air};
 use pumpkin_data::block_rotation::{Mirror, Rotation};
 use pumpkin_data::data_component_impl::EquipmentSlot;
@@ -776,7 +776,13 @@ impl World {
             custom_data: std::sync::Mutex::new(custom_data),
             custom_block_entity_data: DashMap::new(),
             encoded_chunk_cache: DashMap::new(),
-            entity_tracker: entity_tracker::EntityTracker::new(),
+            entity_tracker: entity_tracker::EntityTracker::new(
+                server
+                    .upgrade()
+                    .map_or_else(EntityTrackingConfig::default, |server| {
+                        server.advanced_config.entity_tracking
+                    }),
+            ),
         }
     }
 

@@ -6,15 +6,16 @@ use std::sync::{Arc, RwLock};
 
 use crossbeam::atomic::AtomicCell;
 use dashmap::DashMap;
+use pumpkin_config::EntityTrackingConfig;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::packet::CURRENT_MC_VERSION;
-use pumpkin_protocol::bedrock::client::CSetActorMotion;
 use pumpkin_protocol::bedrock::client::move_actor_delta::{
     CMoveActorDelta, MOVE_ACTOR_DELTA_FLAG_HAS_HEAD_YAW, MOVE_ACTOR_DELTA_FLAG_HAS_PITCH,
     MOVE_ACTOR_DELTA_FLAG_HAS_X, MOVE_ACTOR_DELTA_FLAG_HAS_Y, MOVE_ACTOR_DELTA_FLAG_HAS_YAW,
     MOVE_ACTOR_DELTA_FLAG_HAS_Z, MOVE_ACTOR_DELTA_FLAG_ON_GROUND,
 };
 use pumpkin_protocol::bedrock::client::remove_actor::CRemoveActor;
+use pumpkin_protocol::bedrock::client::{CMovePlayer, CSetActorMotion};
 use pumpkin_protocol::codec::item_stack_seralizer::ItemStackSerializer;
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::codec::var_long::VarLong;
@@ -37,7 +38,7 @@ use uuid::Uuid;
 use crate::entity::player::Player;
 use crate::entity::{Entity, EntityBase};
 use crate::net::ClientPlatform;
-use crate::net::java::JavaClient;
+use crate::net::java::{JavaClient, PacketSink};
 use crate::world::World;
 use crate::world::chunker::get_view_distance;
 
@@ -52,13 +53,29 @@ fn within_tracking_range(dx: f64, dz: f64, range: f64) -> bool {
     dx >= -range && dx <= range && dz >= -range && dz <= range
 }
 
+/// Vanilla `ServerEntity.TOLERANCE_LEVEL_POSITION`.
+const POSITION_TOLERANCE: f64 = 7.629_394_531_25e-6;
+
+/// Blocks past the far distance before a watcher changes rhythm, so one walking along the
+/// line does not keep switching.
+const FAR_RHYTHM_HYSTERESIS: f64 = 4.0;
+
+/// The Java movement packet of a `MoveSync`, shared by near and far watchers.
+enum MovePacket<'a> {
+    Pos(&'a CUpdateEntityPos),
+    Rot(&'a CUpdateEntityRot),
+    PosRot(&'a CUpdateEntityPosRot),
+    Sync(&'a CEntityPositionSync),
+}
+
 /// Vanilla `ServerEntity.sendChanges` packet choice.
 #[derive(Clone, Copy)]
 enum MoveSync {
     Pos(Vector3<i16>),
     Rot,
     PosRot(Vector3<i16>),
-    Absolute,
+    /// The absolute position, which is also the next delta base.
+    Absolute(Vector3<f64>),
 }
 
 impl MoveSync {
@@ -80,6 +97,126 @@ struct PlayerViewSnapshot<'a> {
     view_distance: i32,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FarState {
+    /// Waits for the next far update, which establishes its delta base.
+    Joining,
+    Following,
+    /// Follows until the next near update re-establishes the near delta base.
+    Leaving,
+}
+
+impl FarState {
+    fn is_joining(self) -> bool {
+        self == Self::Joining
+    }
+
+    fn is_joined(self) -> bool {
+        self != Self::Joining
+    }
+
+    fn is_following(self) -> bool {
+        self == Self::Following
+    }
+}
+
+/// Watchers far from a player. They get its movement every `interval` ticks as deltas from
+/// a base of their own; one shared base would make them miss the deltas in between.
+struct FarWatchers {
+    states: RwLock<FxHashMap<Uuid, FarState>>,
+    distance_sq: f64,
+    interval: u32,
+    last_sent_pos: AtomicCell<Vector3<f64>>,
+    /// Packed yaw, pitch, head yaw.
+    last_sent_rot: AtomicCell<[u8; 3]>,
+    was_on_ground: AtomicBool,
+    was_riding: AtomicBool,
+}
+
+impl FarWatchers {
+    fn new(distance: u32, interval: u32, entity: &Entity) -> Self {
+        Self {
+            states: RwLock::default(),
+            distance_sq: f64::from(distance) * f64::from(distance),
+            interval,
+            last_sent_pos: AtomicCell::new(entity.pos.load()),
+            last_sent_rot: AtomicCell::new([0; 3]),
+            was_on_ground: AtomicBool::new(entity.on_ground.load(Relaxed)),
+            was_riding: AtomicBool::new(false),
+        }
+    }
+
+    fn read(&self) -> std::sync::RwLockReadGuard<'_, FxHashMap<Uuid, FarState>> {
+        self.states
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn write(&self) -> std::sync::RwLockWriteGuard<'_, FxHashMap<Uuid, FarState>> {
+        self.states
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn state(&self, uuid: &Uuid) -> Option<FarState> {
+        self.read().get(uuid).copied()
+    }
+
+    fn set_state(&self, uuid: &Uuid, state: FarState) {
+        if let Some(current) = self.write().get_mut(uuid) {
+            *current = state;
+        }
+    }
+
+    fn promote_joining(&self) {
+        for state in self.write().values_mut() {
+            if *state == FarState::Joining {
+                *state = FarState::Following;
+            }
+        }
+    }
+
+    fn forget(&self, uuid: &Uuid) {
+        self.write().remove(uuid);
+    }
+
+    fn forget_all(&self, uuids: &[Uuid]) {
+        let mut states = self.write();
+        for uuid in uuids {
+            states.remove(uuid);
+        }
+    }
+
+    /// The state a viewer in `state` changes to at this distance from `target`, if any.
+    fn next_state(
+        &self,
+        state: Option<FarState>,
+        viewer: &Player,
+        target: &Player,
+        dist_sq: f64,
+    ) -> Option<FarState> {
+        let enter = self.distance_sq.sqrt() + FAR_RHYTHM_HYSTERESIS;
+        let limit_sq = match state {
+            Some(FarState::Joining | FarState::Following) => self.distance_sq,
+            Some(FarState::Leaving) | None => enter * enter,
+        };
+        // Whoever fights the player or watches through its eyes follows it at full rate.
+        let hurt_by = |victim: &Player, attacker: &Player| {
+            victim.living_entity.last_hurt_by_player.load() == Some(attacker.gameprofile.id)
+        };
+        let far = dist_sq > limit_sq
+            && !hurt_by(viewer, target)
+            && !hurt_by(target, viewer)
+            && viewer.camera_target_id.load() != Some(target.get_entity().entity_id);
+        match (far, state) {
+            // A watcher that was leaving got no far delta meanwhile, so it starts over.
+            (true, None | Some(FarState::Leaving)) => Some(FarState::Joining),
+            (false, Some(FarState::Joining | FarState::Following)) => Some(FarState::Leaving),
+            _ => None,
+        }
+    }
+}
+
 pub struct TrackedEntity {
     pub entity: Arc<dyn EntityBase>,
     pub entity_id: i32,
@@ -87,6 +224,8 @@ pub struct TrackedEntity {
     pub update_interval: u32,
     pub track_deltas: bool,
     seen_by: RwLock<FxHashMap<Uuid, Arc<Player>>>,
+    /// Set for a player whose distant watchers follow a slower update rhythm.
+    far: Option<FarWatchers>,
     /// Bedrock players in `seen_by`.
     bedrock_watchers: AtomicU32,
     pub last_section_pos: AtomicCell<Vector3<i32>>,
@@ -98,6 +237,8 @@ pub struct TrackedEntity {
     bedrock_pos: AtomicCell<Vector3<f64>>,
     /// Packed pitch, yaw, head yaw.
     bedrock_rot: AtomicCell<[u8; 3]>,
+    /// Unpacked player rotation: Bedrock `MovePlayer` carries the exact angles.
+    bedrock_player_rot: AtomicCell<[u32; 3]>,
 }
 
 impl TrackedEntity {
@@ -132,6 +273,7 @@ impl TrackedEntity {
             update_interval,
             track_deltas,
             seen_by: RwLock::default(),
+            far: None,
             bedrock_watchers: AtomicU32::new(0),
             last_section_pos: AtomicCell::new(last_section_pos),
             pos_dirty: AtomicBool::new(false),
@@ -141,6 +283,9 @@ impl TrackedEntity {
             was_riding: AtomicBool::new(false),
             bedrock_pos: AtomicCell::new(bedrock_pos),
             bedrock_rot: AtomicCell::new(rot),
+            bedrock_player_rot: AtomicCell::new(
+                [base.pitch.load(), base.yaw.load(), base.head_yaw.load()].map(f32::to_bits),
+            ),
         }
     }
 
@@ -166,7 +311,157 @@ impl TrackedEntity {
             .contains_key(uuid)
     }
 
-    /// Vanilla `ServerEntity.sendChanges`. Non-player entities only.
+    fn all_watchers(&self) -> Vec<Arc<Player>> {
+        self.seen_by
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .values()
+            .cloned()
+            .collect()
+    }
+
+    /// Watchers on the normal rhythm: the far ones get their own packets below.
+    fn near_watchers(&self) -> Vec<Arc<Player>> {
+        let seen_by = self
+            .seen_by
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(far) = &self.far {
+            let states = far.read();
+            seen_by
+                .iter()
+                .filter(|(uuid, _)| !states.contains_key(*uuid))
+                .map(|(_, player)| player.clone())
+                .collect()
+        } else {
+            seen_by.values().cloned().collect()
+        }
+    }
+
+    fn send_to_watchers<P: ClientPacket>(&self, packet: &P, near_only: bool) {
+        let recipients = if near_only {
+            self.near_watchers()
+        } else {
+            self.all_watchers()
+        };
+        if !recipients.is_empty() {
+            World::broadcast_java_players(packet, recipients.iter());
+        }
+    }
+
+    /// Sends to watchers on the far rhythm whose state `gets` accepts. The watcher and
+    /// far-state locks are both dropped before a packet is queued.
+    fn send_to_far<P: ClientPacket>(
+        &self,
+        far: &FarWatchers,
+        packet: &P,
+        gets: fn(FarState) -> bool,
+    ) {
+        let states = far.read();
+        let uuids: Vec<Uuid> = states
+            .iter()
+            .filter(|(_, state)| gets(**state))
+            .map(|(uuid, _)| *uuid)
+            .collect();
+        drop(states);
+        if uuids.is_empty() {
+            return;
+        }
+        let seen_by = self
+            .seen_by
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let recipients: Vec<Arc<Player>> = uuids
+            .iter()
+            .filter_map(|uuid| seen_by.get(uuid).cloned())
+            .collect();
+        drop(seen_by);
+        if !recipients.is_empty() {
+            World::broadcast_java_players(packet, recipients.iter());
+        }
+    }
+
+    /// Puts each watcher of a player on the near or the far rhythm by its distance.
+    fn classify_far_watchers(&self, entity: &Entity) {
+        let (Some(far), Some(target)) = (&self.far, self.entity.get_player()) else {
+            return;
+        };
+        let pos = entity.pos.load();
+        let watchers: Vec<(Uuid, Arc<Player>, f64)> = self
+            .seen_by
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .values()
+            .map(|viewer| {
+                let viewer_pos = viewer.get_entity().pos.load();
+                let dx = viewer_pos.x - pos.x;
+                let dz = viewer_pos.z - pos.z;
+                (
+                    viewer.gameprofile.id,
+                    viewer.clone(),
+                    dx.mul_add(dx, dz * dz),
+                )
+            })
+            .collect();
+        for (uuid, viewer, dist_sq) in watchers {
+            let state = far.state(&uuid);
+            if let Some(next) = far.next_state(state, &viewer, target, dist_sq) {
+                far.set_state(&uuid, next);
+            }
+        }
+    }
+
+    fn forget_far(&self, player: &Player) {
+        if let Some(far) = &self.far {
+            far.forget(&player.gameprofile.id);
+        }
+    }
+
+    /// A watcher that came back near gets an absolute move on the near delta base.
+    fn release_leaving(&self, far: &FarWatchers, entity: &Entity) {
+        let leaving: Vec<Uuid> = far
+            .read()
+            .iter()
+            .filter(|(_, state)| **state == FarState::Leaving)
+            .map(|(uuid, _)| *uuid)
+            .collect();
+        if leaving.is_empty() {
+            return;
+        }
+        far.forget_all(&leaving);
+        let seen_by = self
+            .seen_by
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let players: Vec<Arc<Player>> = leaving
+            .iter()
+            .filter_map(|uuid| seen_by.get(uuid).cloned())
+            .collect();
+        drop(seen_by);
+        for player in players {
+            self.with_move_packet(
+                entity,
+                MoveSync::Absolute(entity.last_sent_pos.load()),
+                0,
+                0,
+                |packet| {
+                    if let MovePacket::Sync(packet) = packet {
+                        World::broadcast_java_players(
+                            packet,
+                            std::slice::from_ref(&player).iter().copied(),
+                        );
+                    }
+                },
+            );
+            let head = CHeadRot::new(
+                VarInt(self.entity_id),
+                entity.last_sent_head_yaw.load(Relaxed),
+            );
+            World::broadcast_java_players(&head, std::slice::from_ref(&player).iter().copied());
+        }
+    }
+
+    /// Vanilla `ServerEntity.sendChanges`, for every tracked entity including players.
     pub fn send_changes(&self, world: &World) {
         let entity = self.entity.get_entity();
         self.send_bedrock_move(entity, world);
@@ -186,9 +481,10 @@ impl TrackedEntity {
 
             if self.entity.is_passenger() {
                 if rot_changed {
-                    self.send_move(entity, MoveSync::Rot, yaw, pitch, world);
-                    entity.last_sent_yaw.store(yaw, Relaxed);
-                    entity.last_sent_pitch.store(pitch, Relaxed);
+                    self.send_move(entity, MoveSync::Rot, yaw, pitch, || {
+                        entity.last_sent_yaw.store(yaw, Relaxed);
+                        entity.last_sent_pitch.store(pitch, Relaxed);
+                    });
                 }
                 entity.last_sent_pos.store(entity.pos.load());
                 entity.send_dirty_entity_data();
@@ -200,36 +496,38 @@ impl TrackedEntity {
                     self.send_motion(entity, world);
                 }
                 if let Some(sync) = sync {
-                    self.send_move(entity, sync, yaw, pitch, world);
+                    self.send_move(entity, sync, yaw, pitch, || {
+                        if sync.sends_position() {
+                            entity.last_sent_pos.store(pos);
+                        }
+                        if sync.sends_rotation() {
+                            entity.last_sent_yaw.store(yaw, Relaxed);
+                            entity.last_sent_pitch.store(pitch, Relaxed);
+                        }
+                    });
                 }
                 entity.send_dirty_entity_data();
-                if let Some(sync) = sync {
-                    if sync.sends_position() {
-                        entity.last_sent_pos.store(pos);
-                    }
-                    if sync.sends_rotation() {
-                        entity.last_sent_yaw.store(yaw, Relaxed);
-                        entity.last_sent_pitch.store(pitch, Relaxed);
-                    }
-                }
                 self.was_riding.store(false, Relaxed);
             }
 
-            // Java `CHeadRot` (`ClientboundRotateHeadPacket`) is emitted inside the
-            // throttled block in vanilla `ServerEntity.sendChanges`, not every tick.
-            // Bedrock watchers get head yaw from `send_bedrock_move` (`MoveActorDelta`).
+            // Java `CHeadRot`: far watchers get it with their own movement below.
             let head_yaw = pack_degrees(entity.head_yaw.load());
             if head_yaw != entity.last_sent_head_yaw.load(Relaxed) {
-                self.send_to_tracking_players(
+                self.send_to_watchers(
                     &CHeadRot::new(VarInt(self.entity_id), head_yaw),
-                    world,
+                    self.far.is_some(),
                 );
                 entity.last_sent_head_yaw.store(head_yaw, Relaxed);
             }
         }
 
-        // Vanilla `ServerEntity.sendChanges`: after the needsSync block, `syncVelocity`
-        // (`hurtMarked`) sends motion to tracking players (and self, for players).
+        if let Some(far) = &self.far {
+            self.classify_far_watchers(entity);
+            self.release_leaving(far, entity);
+            self.send_far_changes(far, entity, tick);
+        }
+
+        // Vanilla `ServerEntity.sendChanges`: after the needsSync block, `syncVelocity`.
         if entity.sync_velocity.swap(false, Ordering::SeqCst) {
             self.send_motion(entity, world);
         }
@@ -244,16 +542,9 @@ impl TrackedEntity {
     ) -> Option<MoveSync> {
         let teleport_delay = self.teleport_delay.fetch_add(1, Relaxed) + 1;
         let base = entity.last_sent_pos.load();
-        let send_pos = (pos - base).length_squared() >= f64::from(7.629_394_5e-6f32)
-            || tick.is_multiple_of(60);
-        let delta = match (
-            i16::try_from(encode_pos(pos.x) - encode_pos(base.x)),
-            i16::try_from(encode_pos(pos.y) - encode_pos(base.y)),
-            i16::try_from(encode_pos(pos.z) - encode_pos(base.z)),
-        ) {
-            (Ok(x), Ok(y), Ok(z)) => Some(Vector3::new(x, y, z)),
-            _ => None,
-        };
+        let send_pos =
+            (pos - base).length_squared() >= POSITION_TOLERANCE || tick.is_multiple_of(60);
+        let delta = Self::delta(base, pos);
         let on_ground = entity.on_ground.load(Relaxed);
         let is_arrow = [
             &EntityType::ARROW,
@@ -281,7 +572,7 @@ impl TrackedEntity {
             _ => {
                 self.was_on_ground.store(on_ground, Relaxed);
                 self.teleport_delay.store(0, Relaxed);
-                Some(MoveSync::Absolute)
+                Some(MoveSync::Absolute(pos))
             }
         }
     }
@@ -302,39 +593,143 @@ impl TrackedEntity {
         }
     }
 
-    /// Java only -> Bedrock uses [`Self::send_bedrock_move`].
-    fn send_move(&self, entity: &Entity, sync: MoveSync, yaw: u8, pitch: u8, world: &World) {
+    /// Builds the packet of a `MoveSync` and hands it to `send`.
+    fn with_move_packet(
+        &self,
+        entity: &Entity,
+        sync: MoveSync,
+        yaw: u8,
+        pitch: u8,
+        send: impl FnOnce(MovePacket<'_>),
+    ) {
         let on_ground = entity.on_ground.load(Relaxed);
         let id = VarInt(self.entity_id);
         match sync {
             MoveSync::Pos(delta) => {
-                self.send_to_tracking_players(&CUpdateEntityPos::new(id, delta, on_ground), world);
+                send(MovePacket::Pos(&CUpdateEntityPos::new(
+                    id, delta, on_ground,
+                )));
             }
-            MoveSync::Rot => {
-                self.send_to_tracking_players(
-                    &CUpdateEntityRot::new(id, yaw, pitch, on_ground),
-                    world,
-                );
-            }
-            MoveSync::PosRot(delta) => self.send_to_tracking_players(
-                &CUpdateEntityPosRot::new(id, delta, yaw, pitch, on_ground),
-                world,
-            ),
-            MoveSync::Absolute => self.send_to_tracking_players(
-                &CEntityPositionSync::new(
-                    id,
-                    entity.pos.load(),
-                    entity.velocity.load(),
-                    entity.yaw.load(),
-                    entity.pitch.load(),
-                    on_ground,
-                ),
-                world,
-            ),
+            MoveSync::Rot => send(MovePacket::Rot(&CUpdateEntityRot::new(
+                id, yaw, pitch, on_ground,
+            ))),
+            MoveSync::PosRot(delta) => send(MovePacket::PosRot(&CUpdateEntityPosRot::new(
+                id, delta, yaw, pitch, on_ground,
+            ))),
+            MoveSync::Absolute(pos) => send(MovePacket::Sync(&CEntityPositionSync::new(
+                id,
+                pos,
+                entity.velocity.load(),
+                entity.yaw.load(),
+                entity.pitch.load(),
+                on_ground,
+            ))),
         }
     }
 
-    /// Bedrock -> every tick, only changed fields.
+    /// Java only -> Bedrock uses `Self::send_bedrock_move`. `sent` moves the delta
+    /// baselines before another watcher can be paired with the entity.
+    fn send_move(&self, entity: &Entity, sync: MoveSync, yaw: u8, pitch: u8, sent: impl FnOnce()) {
+        let near_only = self.far.is_some();
+        self.with_move_packet(entity, sync, yaw, pitch, |packet| {
+            match packet {
+                MovePacket::Pos(packet) => self.send_to_watchers(packet, near_only),
+                MovePacket::Rot(packet) => self.send_to_watchers(packet, near_only),
+                MovePacket::PosRot(packet) => self.send_to_watchers(packet, near_only),
+                MovePacket::Sync(packet) => self.send_to_watchers(packet, near_only),
+            }
+            sent();
+        });
+    }
+
+    /// The move from `base` to `pos` in 1/4096 of a block, if it fits a delta packet.
+    fn delta(base: Vector3<f64>, pos: Vector3<f64>) -> Option<Vector3<i16>> {
+        match (
+            i16::try_from(encode_pos(pos.x) - encode_pos(base.x)),
+            i16::try_from(encode_pos(pos.y) - encode_pos(base.y)),
+            i16::try_from(encode_pos(pos.z) - encode_pos(base.z)),
+        ) {
+            (Ok(x), Ok(y), Ok(z)) => Some(Vector3::new(x, y, z)),
+            _ => None,
+        }
+    }
+
+    /// `send_changes` for the far watchers: the same packets, every `far.interval` ticks.
+    fn send_far_changes(&self, far: &FarWatchers, entity: &Entity, tick: u32) {
+        if far.read().is_empty() {
+            return;
+        }
+        let joining = FarState::is_joining;
+        let joined = FarState::is_joined;
+        let following = FarState::is_following;
+        let pos = entity.pos.load();
+        let base = far.last_sent_pos.load();
+        let delta = Self::delta(base, pos);
+        // A jump too long for a delta, like a teleport, does not wait for the rhythm.
+        if !tick.is_multiple_of(far.interval) && delta.is_some() {
+            return;
+        }
+        let on_ground = entity.on_ground.load(Relaxed);
+        let rot = [
+            pack_degrees(entity.yaw.load()),
+            pack_degrees(entity.pitch.load()),
+            pack_degrees(entity.head_yaw.load()),
+        ];
+        let last_rot = far.last_sent_rot.load();
+        let rot_changed = rot[0] != last_rot[0] || rot[1] != last_rot[1];
+        let riding = self.entity.is_passenger();
+        let sync = if riding {
+            rot_changed.then_some(MoveSync::Rot)
+        } else {
+            match delta {
+                Some(delta)
+                    if !far.was_riding.load(Relaxed)
+                        && far.was_on_ground.load(Relaxed) == on_ground =>
+                {
+                    let moved = (pos - base).length_squared() >= POSITION_TOLERANCE;
+                    match (moved, rot_changed) {
+                        (true, true) => Some(MoveSync::PosRot(delta)),
+                        (true, false) => Some(MoveSync::Pos(delta)),
+                        (false, true) => Some(MoveSync::Rot),
+                        (false, false) => None,
+                    }
+                }
+                _ => Some(MoveSync::Absolute(pos)),
+            }
+        };
+        if let Some(sync) = sync {
+            // A delta is only for who has the far base. A watcher that is leaving may have
+            // come back before it got one; the next near update places it for that watcher.
+            self.with_move_packet(entity, sync, rot[0], rot[1], |packet| match packet {
+                MovePacket::Pos(packet) => self.send_to_far(far, packet, following),
+                MovePacket::Rot(packet) => self.send_to_far(far, packet, joined),
+                MovePacket::PosRot(packet) => self.send_to_far(far, packet, following),
+                MovePacket::Sync(packet) => self.send_to_far(far, packet, joined),
+            });
+        }
+        let base = if riding || sync.is_some_and(MoveSync::sends_position) {
+            pos
+        } else {
+            base
+        };
+        // Whoever joined this rhythm starts from its base, like the others.
+        self.with_move_packet(entity, MoveSync::Absolute(base), 0, 0, |packet| {
+            if let MovePacket::Sync(packet) = packet {
+                self.send_to_far(far, packet, joining);
+            }
+        });
+        let head = CHeadRot::new(VarInt(self.entity_id), rot[2]);
+        self.send_to_far(far, &head, joining);
+        if rot[2] != last_rot[2] {
+            self.send_to_far(far, &head, joined);
+        }
+        far.promote_joining();
+        far.last_sent_pos.store(base);
+        far.last_sent_rot.store(rot);
+        far.was_on_ground.store(on_ground, Relaxed);
+        far.was_riding.store(riding, Relaxed);
+    }
+
     fn send_bedrock_move(&self, entity: &Entity, world: &World) {
         let pos = self.entity.bedrock_pos();
         let rot = [
@@ -344,6 +739,38 @@ impl TrackedEntity {
         ];
         let last_pos = self.bedrock_pos.load();
         let last_rot = self.bedrock_rot.load();
+        if let Some(player) = self.entity.get_player() {
+            let rot_bits = [
+                entity.pitch.load(),
+                entity.yaw.load(),
+                entity.head_yaw.load(),
+            ]
+            .map(f32::to_bits);
+            let turned = rot_bits != self.bedrock_player_rot.load();
+            let moved = pos != last_pos;
+            if moved || turned {
+                self.bedrock_pos.store(pos);
+                self.bedrock_rot.store(rot);
+                self.bedrock_player_rot.store(rot_bits);
+                if self.has_bedrock_watchers() {
+                    let on_ground = entity.on_ground.load(Relaxed);
+                    // Bedrock moves remote players with `MovePlayer`, a jump of 8 blocks as
+                    // a teleport.
+                    if (pos - last_pos).length_squared() >= 64.0 {
+                        self.send_to_tracking_players_bedrock(
+                            &player.bedrock_move_packet(CMovePlayer::MODE_TELEPORT, on_ground, 0),
+                            world,
+                        );
+                    }
+                    // Bedrock ignores head yaw on teleport, so a normal move re-asserts it.
+                    self.send_to_tracking_players_bedrock(
+                        &player.bedrock_move_packet(CMovePlayer::MODE_NORMAL, on_ground, 0),
+                        world,
+                    );
+                }
+            }
+            return;
+        }
 
         let mut flags = 0;
         if !self.entity.is_passenger() {
@@ -928,6 +1355,9 @@ impl TrackedEntity {
     }
 
     pub fn broadcast_removed(&self, _world: &World) {
+        if let Some(far) = &self.far {
+            far.write().clear();
+        }
         let had_bedrock = self.bedrock_watchers.swap(0, Relaxed) > 0;
         let seen_by = {
             let mut guard = self
@@ -956,6 +1386,7 @@ impl TrackedEntity {
 
     /// Vanilla `TrackedEntity.removePlayer`: despawn on the client, only if it was paired.
     pub fn remove_player(&self, player: &Player) {
+        self.forget_far(player);
         if !self
             .seen_by
             .read()
@@ -980,6 +1411,7 @@ impl TrackedEntity {
 
     /// Forgets the player as a viewer without a removal packet; the client already dropped it.
     pub fn forget_player(&self, player: &Player) {
+        self.forget_far(player);
         if !self
             .seen_by
             .read()
@@ -1135,19 +1567,29 @@ impl TrackedEntity {
 
 pub struct EntityTracker {
     pub entity_map: DashMap<i32, Arc<TrackedEntity>>,
+    /// Blocks from which a watcher follows a player on the far rhythm, `0` for never.
+    far_player_distance: u32,
+    /// Ticks between two movement updates of a player for its far watchers.
+    far_player_update_interval: u32,
 }
 
 impl Default for EntityTracker {
     fn default() -> Self {
-        Self::new()
+        Self::new(EntityTrackingConfig::default())
     }
 }
 
 impl EntityTracker {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(config: EntityTrackingConfig) -> Self {
         Self {
             entity_map: DashMap::new(),
+            far_player_distance: if config.far_players_enabled() {
+                config.far_player_distance
+            } else {
+                0
+            },
+            far_player_update_interval: config.far_player_update_interval.max(2),
         }
     }
 
@@ -1190,12 +1632,15 @@ impl EntityTracker {
         let track_deltas = entity_type.track_deltas;
         let entity_id = entity.get_entity().entity_id;
 
-        let tracked = Arc::new(TrackedEntity::new(
-            entity.clone(),
-            range,
-            update_interval,
-            track_deltas,
-        ));
+        let mut tracked = TrackedEntity::new(entity.clone(), range, update_interval, track_deltas);
+        if entity_type == &EntityType::PLAYER && self.far_player_distance > 0 {
+            tracked.far = Some(FarWatchers::new(
+                self.far_player_distance,
+                self.far_player_update_interval,
+                entity.get_entity(),
+            ));
+        }
+        let tracked = Arc::new(tracked);
         self.entity_map.insert(entity_id, tracked.clone());
 
         let players = world.players.load();
@@ -1342,12 +1787,10 @@ impl EntityTracker {
                 });
         }
 
-        tracked_entities.par_iter().for_each(|tracked| {
-            if tracked.entity.get_player().is_none() {
-                tracked.send_changes(world);
-            } else if tracked.entity.get_entity().synched_data.is_dirty() {
-                tracked.entity.get_entity().send_dirty_entity_data();
-            }
+        // One pass over the map with a sink, so a watcher is queued once for all the
+        // movement packets of this tick and no map guard is held while they are queued.
+        PacketSink::for_each(&players, &tracked_entities, |tracked| {
+            tracked.send_changes(world);
         });
     }
 }
@@ -1481,6 +1924,48 @@ mod tests {
         assert_eq!(entity.last_sent_velocity.load(), last_motion);
         assert!(!entity.needs_sync.load(Relaxed));
         assert!(!entity.velocity_dirty.load(Relaxed));
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    /// Distant watchers follow the configured interval while near ones keep vanilla's.
+    #[tokio::test]
+    async fn far_player_watchers_use_the_configured_interval()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let entity = Arc::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 90.0, 0.0),
+            &EntityType::PLAYER,
+        ));
+        let mut tracked = TrackedEntity::new(entity.clone(), 0, 2, false);
+        let far = FarWatchers::new(8, 6, entity.get_entity());
+        far.write().insert(Uuid::new_v4(), FarState::Following);
+        tracked.far = Some(far);
+        // Tick 0 establishes both delta bases.
+        tracked.send_changes(&world);
+        let far = tracked
+            .far
+            .as_ref()
+            .ok_or_else(|| std::io::Error::other("far watchers were not installed"))?;
+        let far_base = far.last_sent_pos.load();
+        let mut near_base = entity.last_sent_pos.load();
+        let mut near_updates = 0;
+        for i in 1..=6u32 {
+            entity.set_pos(Vector3::new(f64::from(i) * 0.25, 90.0, 0.0));
+            tracked.send_changes(&world);
+            if i < 6 {
+                assert_eq!(far.last_sent_pos.load(), far_base);
+            }
+            if i.is_multiple_of(2) {
+                assert_ne!(entity.last_sent_pos.load(), near_base);
+                near_base = entity.last_sent_pos.load();
+                near_updates += 1;
+            }
+        }
+        assert_eq!(near_updates, 3);
+        assert_ne!(far.last_sent_pos.load(), far_base);
         world.level.shutdown().await;
         Ok(())
     }
