@@ -6536,7 +6536,7 @@ pub const fn blocks_movement(block_state: &BlockState, id: BlockId) -> bool {
     block_state.is_solid() && !matches!(id, BlockId::COBWEB | BlockId::BAMBOO_SAPLING)
 }
 impl BlockState {
-    /// Bedrock has no tables for the states of blocks that plugins register, they show as stone.
+    #[doc = r" Bedrock has no tables for the states of blocks that plugins register, they show as stone."]
     const BEDROCK_PLACEHOLDER: BlockStateId = Block::STONE.default_state.id;
     const STATE_ID_TO_BEDROCK: &[u32] = &[
         3690217760, 2150698529, 3385275638, 118998978, 2538477610, 1362605798, 1683032592,

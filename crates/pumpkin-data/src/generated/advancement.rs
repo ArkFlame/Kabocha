@@ -559,6 +559,7 @@ impl Advancement {
                 looking_at: None,
                 feet_item: None,
                 safe_armor_disallowed: None,
+                components: None,
             }),
         }],
     };
@@ -825,6 +826,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                     item: Some(ItemCondition {
                         items: &[],
@@ -855,6 +857,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                     item: Some(ItemCondition {
                         items: &[],
@@ -1033,6 +1036,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:wolf/variant",
+                        value: "minecraft:ashen",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -1051,6 +1058,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:wolf/variant",
+                        value: "minecraft:black",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -1069,6 +1080,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:wolf/variant",
+                        value: "minecraft:chestnut",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -1087,6 +1102,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:wolf/variant",
+                        value: "minecraft:pale",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -1105,6 +1124,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:wolf/variant",
+                        value: "minecraft:rusty",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -1123,6 +1146,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:wolf/variant",
+                        value: "minecraft:snowy",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -1141,6 +1168,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:wolf/variant",
+                        value: "minecraft:spotted",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -1159,6 +1190,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:wolf/variant",
+                        value: "minecraft:striped",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -1177,6 +1212,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:wolf/variant",
+                        value: "minecraft:woods",
+                    }]),
                 }),
             },
         ],
@@ -5288,6 +5327,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
                 item: Some(ItemCondition {
                     items: &["minecraft:brush"],
@@ -5630,6 +5670,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5648,6 +5689,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5666,6 +5708,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5684,6 +5727,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5702,6 +5746,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5720,6 +5765,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5738,6 +5784,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5756,6 +5803,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5774,6 +5822,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5792,6 +5841,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5810,6 +5860,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5828,6 +5879,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5846,6 +5898,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5864,6 +5917,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5882,6 +5936,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5900,6 +5955,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5918,6 +5974,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5936,6 +5993,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5954,6 +6012,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5972,6 +6031,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -5990,6 +6050,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6008,6 +6069,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6026,6 +6088,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6044,6 +6107,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6062,6 +6126,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6080,6 +6145,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6098,6 +6164,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6116,6 +6183,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6134,6 +6202,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6152,6 +6221,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6170,6 +6240,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6188,6 +6259,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6206,6 +6278,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6224,6 +6297,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6242,6 +6316,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6260,6 +6335,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6278,6 +6354,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6296,6 +6373,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6314,6 +6392,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6332,6 +6411,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6350,6 +6430,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
         ],
@@ -6477,6 +6558,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6495,6 +6577,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6513,6 +6596,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6531,6 +6615,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6549,6 +6634,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6567,6 +6653,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6585,6 +6672,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6603,6 +6691,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6621,6 +6710,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6639,6 +6729,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6657,6 +6748,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6675,6 +6767,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6693,6 +6786,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6711,6 +6805,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6729,6 +6824,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6747,6 +6843,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6765,6 +6862,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6783,6 +6881,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6801,6 +6900,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6819,6 +6919,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6837,6 +6938,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6855,6 +6957,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6873,6 +6976,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6891,6 +6995,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6909,6 +7014,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6927,6 +7033,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6945,6 +7052,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6963,6 +7071,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6981,6 +7090,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -6999,6 +7109,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -7017,6 +7128,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -7035,6 +7147,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -7053,6 +7166,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -7071,6 +7185,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -7089,6 +7204,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -7107,6 +7223,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -7125,6 +7242,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -7143,6 +7261,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -7161,6 +7280,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -7179,6 +7299,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
             AdvancementCriterion {
@@ -7197,6 +7318,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
         ],
@@ -7529,6 +7651,7 @@ impl Advancement {
                 looking_at: None,
                 feet_item: None,
                 safe_armor_disallowed: None,
+                components: None,
             }),
         }],
     };
@@ -7640,6 +7763,7 @@ impl Advancement {
                 looking_at: None,
                 feet_item: None,
                 safe_armor_disallowed: None,
+                components: None,
             }),
         }],
     };
@@ -8017,6 +8141,7 @@ impl Advancement {
                 looking_at: None,
                 feet_item: None,
                 safe_armor_disallowed: None,
+                components: None,
             }),
         }],
     };
@@ -8058,6 +8183,7 @@ impl Advancement {
                 looking_at: None,
                 feet_item: None,
                 safe_armor_disallowed: None,
+                components: None,
             }),
         }],
     };
@@ -8099,6 +8225,7 @@ impl Advancement {
                 looking_at: None,
                 feet_item: None,
                 safe_armor_disallowed: None,
+                components: None,
             }),
         }],
     };
@@ -8196,6 +8323,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:cat/variant",
+                        value: "minecraft:all_black",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -8214,6 +8345,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:cat/variant",
+                        value: "minecraft:black",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -8232,6 +8367,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:cat/variant",
+                        value: "minecraft:british_shorthair",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -8250,6 +8389,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:cat/variant",
+                        value: "minecraft:calico",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -8268,6 +8411,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:cat/variant",
+                        value: "minecraft:jellie",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -8286,6 +8433,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:cat/variant",
+                        value: "minecraft:persian",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -8304,6 +8455,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:cat/variant",
+                        value: "minecraft:ragdoll",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -8322,6 +8477,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:cat/variant",
+                        value: "minecraft:red",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -8340,6 +8499,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:cat/variant",
+                        value: "minecraft:siamese",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -8358,6 +8521,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:cat/variant",
+                        value: "minecraft:tabby",
+                    }]),
                 }),
             },
             AdvancementCriterion {
@@ -8376,6 +8543,10 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: Some(&[EntityComponentCondition {
+                        component: "minecraft:cat/variant",
+                        value: "minecraft:white",
+                    }]),
                 }),
             },
         ],
@@ -8504,6 +8675,10 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: Some(&[EntityComponentCondition {
+                            component: "minecraft:frog/variant",
+                            value: "minecraft:cold",
+                        }]),
                     }),
                     item: Some(ItemCondition {
                         items: &["minecraft:lead"],
@@ -8534,6 +8709,10 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: Some(&[EntityComponentCondition {
+                            component: "minecraft:frog/variant",
+                            value: "minecraft:temperate",
+                        }]),
                     }),
                     item: Some(ItemCondition {
                         items: &["minecraft:lead"],
@@ -8564,6 +8743,10 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: Some(&[EntityComponentCondition {
+                            component: "minecraft:frog/variant",
+                            value: "minecraft:warm",
+                        }]),
                     }),
                     item: Some(ItemCondition {
                         items: &["minecraft:lead"],
@@ -8825,6 +9008,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
                 item: Some(ItemCondition {
                     items: &["minecraft:wolf_armor"],
@@ -8880,6 +9064,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
                 item: Some(ItemCondition {
                     items: &["minecraft:armadillo_scute"],
@@ -8932,6 +9117,7 @@ impl Advancement {
                 looking_at: None,
                 feet_item: None,
                 safe_armor_disallowed: None,
+                components: None,
             })),
         }],
     };
@@ -9139,6 +9325,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                     item: Some(ItemCondition {
                         items: &[],
@@ -9162,6 +9349,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: Some(true),
+                        components: None,
                     }),
                 },
             },
@@ -9182,6 +9370,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                     item: Some(ItemCondition {
                         items: &["minecraft:gold_ingot"],
@@ -9205,6 +9394,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: Some(true),
+                        components: None,
                     }),
                 },
             },
@@ -9571,6 +9761,7 @@ impl Advancement {
                 looking_at: None,
                 feet_item: None,
                 safe_armor_disallowed: None,
+                components: None,
             }),
         }],
     };
@@ -9686,6 +9877,7 @@ impl Advancement {
                 looking_at: None,
                 feet_item: None,
                 safe_armor_disallowed: None,
+                components: None,
             }),
         }],
     };
@@ -9730,6 +9922,7 @@ impl Advancement {
                 looking_at: None,
                 feet_item: None,
                 safe_armor_disallowed: None,
+                components: None,
             }),
         }],
     };
@@ -70684,6 +70877,7 @@ impl Advancement {
                 looking_at: None,
                 feet_item: None,
                 safe_armor_disallowed: None,
+                components: None,
             }),
         }],
     };
@@ -71831,6 +72025,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -71853,6 +72048,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -71875,6 +72071,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -71897,6 +72094,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -71919,6 +72117,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -71941,6 +72140,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -71963,6 +72163,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -71985,6 +72186,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72007,6 +72209,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72027,6 +72230,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                     partner: Some(EntityCondition {
                         entity_type: Some("minecraft:frog"),
@@ -72041,6 +72245,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                     child: None,
                 }),
@@ -72064,6 +72269,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72086,6 +72292,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72108,6 +72315,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72130,6 +72338,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72152,6 +72361,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72174,6 +72384,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72196,6 +72407,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72218,6 +72430,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72240,6 +72453,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72262,6 +72476,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72284,6 +72499,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72306,6 +72522,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72326,6 +72543,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                     partner: Some(EntityCondition {
                         entity_type: Some("minecraft:sniffer"),
@@ -72340,6 +72558,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                     child: None,
                 }),
@@ -72363,6 +72582,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72383,6 +72603,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                     partner: Some(EntityCondition {
                         entity_type: Some("minecraft:turtle"),
@@ -72397,6 +72618,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                     child: None,
                 }),
@@ -72420,6 +72642,7 @@ impl Advancement {
                         looking_at: None,
                         feet_item: None,
                         safe_armor_disallowed: None,
+                        components: None,
                     }),
                 }),
             },
@@ -72467,6 +72690,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
                 item: Some(ItemCondition {
                     items: &[],
@@ -72587,6 +72811,7 @@ impl Advancement {
                     looking_at: None,
                     feet_item: None,
                     safe_armor_disallowed: None,
+                    components: None,
                 }),
             },
         }],

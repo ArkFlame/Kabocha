@@ -18055,7 +18055,7 @@ pub static BLOCKS_BEEHIVE: LootTable = LootTable {
                             exclude: None,
                         },
                         enchantment: None,
-                        condition: LootCondition::SilkTouch,
+                        condition: LootCondition::None,
                     }],
                 },
                 LootEntry {

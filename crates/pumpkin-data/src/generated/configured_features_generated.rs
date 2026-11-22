@@ -172,12 +172,10 @@ fn build_configured_features()
                     max_inclusive: 4i32,
                 },
             )),
-            point_offset: IntProvider::Object(NormalIntProvider::Uniform(
-                UniformIntProvider {
-                    min_inclusive: 1i32,
-                    max_inclusive: 2i32,
-                },
-            )),
+            point_offset: IntProvider::Object(NormalIntProvider::Uniform(UniformIntProvider {
+                min_inclusive: 1i32,
+                max_inclusive: 2i32,
+            })),
             min_gen_offset: -16i32,
             max_gen_offset: 16i32,
             noise_multiplier: 0.05f64,
@@ -3783,36 +3781,11 @@ fn build_configured_features()
     );
     map.insert(
         pumpkin_data::configured_feature::ConfiguredFeature::SculkPatchAncientCity,
-        ConfiguredFeature::SculkPatch(
-            crate::generation::feature::features::sculk_patch::SculkPatchFeature {
-                charge_count: 10i32,
-                amount_per_charge: 32i32,
-                spread_attempts: 64i32,
-                growth_rounds: 0i32,
-                spread_rounds: 1i32,
-                extra_rare_growths: IntProvider::Object(NormalIntProvider::Uniform(
-                    UniformIntProvider {
-                        min_inclusive: 1i32,
-                        max_inclusive: 3i32,
-                    },
-                )),
-                catalyst_chance: 0.5f32,
-            },
-        ),
+        ConfiguredFeature::NoOp,
     );
     map.insert(
         pumpkin_data::configured_feature::ConfiguredFeature::SculkPatchDeepDark,
-        ConfiguredFeature::SculkPatch(
-            crate::generation::feature::features::sculk_patch::SculkPatchFeature {
-                charge_count: 10i32,
-                amount_per_charge: 32i32,
-                spread_attempts: 64i32,
-                growth_rounds: 0i32,
-                spread_rounds: 1i32,
-                extra_rare_growths: IntProvider::Constant(0i32),
-                catalyst_chance: 0.5f32,
-            },
-        ),
+        ConfiguredFeature::NoOp,
     );
     map.insert(
         pumpkin_data::configured_feature::ConfiguredFeature::SculkVein,

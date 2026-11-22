@@ -245,6 +245,18 @@ impl EnchantmentProvider {
             "minecraft:raid/vindicator_post_wave_5",
         ]
     }
+    #[doc = r" Inclusive cost bounds vanilla scales by difficulty before sampling a random cost."]
+    #[must_use]
+    const fn difficulty_cost_bounds(
+        min_cost: i32,
+        max_cost_span: i32,
+        special_multiplier: f32,
+    ) -> (i32, i32) {
+        (
+            min_cost,
+            min_cost + (special_multiplier * max_cost_span as f32) as i32,
+        )
+    }
     #[doc = r" Evaluates the provider for the given item and difficulty multiplier, returning"]
     #[doc = r" the selected enchantments and their levels."]
     #[must_use]
@@ -262,7 +274,9 @@ impl EnchantmentProvider {
                 min_cost,
                 max_cost_span,
             } => {
-                let cost = *min_cost + (special_multiplier * *max_cost_span as f32).round() as i32;
+                let (min, max) =
+                    Self::difficulty_cost_bounds(*min_cost, *max_cost_span, special_multiplier);
+                let cost = rand::rng().random_range(min..=max);
                 Self::select_by_cost(item, enchantments, cost)
             }
             EnchantmentProviderKind::ByCost { enchantments, cost } => {
@@ -376,6 +390,21 @@ mod tests {
         assert!(EnchantmentProvider::get_raw_json("mob_spawn_equipment").is_some());
         assert!(EnchantmentProvider::get_raw_json("minecraft:enderman_loot_drop").is_some());
         assert!(EnchantmentProvider::get_raw_json("nonexistent").is_none());
+    }
+    #[test]
+    fn difficulty_cost_bounds_truncate_and_scale() {
+        assert_eq!(
+            EnchantmentProvider::difficulty_cost_bounds(5, 17, 0.0),
+            (5, 5)
+        );
+        assert_eq!(
+            EnchantmentProvider::difficulty_cost_bounds(5, 17, 0.5),
+            (5, 13)
+        );
+        assert_eq!(
+            EnchantmentProvider::difficulty_cost_bounds(5, 17, 1.0),
+            (5, 22)
+        );
     }
     #[test]
     fn single_enchantment_provider() {

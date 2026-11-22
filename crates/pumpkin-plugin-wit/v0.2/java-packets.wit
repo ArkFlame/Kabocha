@@ -1,6 +1,5 @@
 package pumpkin:plugin@0.2.0;
 
-/// @since 0.1.0
 interface java-packets {
   use common.{ inexpressible-host-type, nbt-tree };
   use uuid.{ uuid };
@@ -537,8 +536,7 @@ interface java-packets {
   enum test-instance-block-status {
     cleared,
     running,
-    success,
-    failed,
+    finished,
   }
   record s-update-sign {
     location: tuple<s32, s32, s32>,
@@ -581,6 +579,8 @@ interface java-packets {
     code-of-conduct: string,
   }
   record config-c-config-disconnect {
+    /// The message shown to the player. A full text component: colour, style and
+    /// translation keys survive, like vanilla's `ClientboundDisconnectPacket(Component)`.
     reason: string,
   }
   /// Requests a cookie that was previously stored.
@@ -637,6 +637,9 @@ interface java-packets {
   record config-c-update-tags {
     /// WARNING: Could not fully translate type `& 'a [pumpkin_data :: tag :: RegistryKey]` to WIT
     tags: list<inexpressible-host-type>,
+    /// Block tags from datapacks, already resolved to block ids. An entry with the
+    /// same name as a built-in tag replaces it.
+    block-tags: list<tuple<string, list<s32>>>,
   }
   /// Sent by the server to retrieve a previously stored cookie from the client.
   /// 
@@ -672,17 +675,6 @@ interface java-packets {
     /// A JSON-encoded chat component explaining why the player was disconnected.
     json-reason: string,
   }
-  /// A GameProfile property, as sent by the Mojang authentication servers.
-  ///
-  /// This is distinct from `property`, which describes entity attributes.
-  record profile-property {
-    /// The property name, such as `textures`.
-    name: string,
-    /// The property value, usually base64-encoded.
-    value: string,
-    /// The Mojang signature for `value`, when the property is signed.
-    signature: option<string>,
-  }
   /// Sent by the server to signal a successful login and transition to the configuration phase
   /// 
   /// This packet provides the client with its official UUID and username as
@@ -694,7 +686,7 @@ interface java-packets {
     username: string,
     /// A list of properties for the player's profile, such as skin data and signatures.
     /// This is typically retrieved from the Mojang authentication servers.
-    properties: list<profile-property>,
+    properties: list<property>,
     /// (<1.21.2) Whether strict error handling should be enabled.
     strict-error-handling: bool,
     /// Added in 26.2
@@ -1377,6 +1369,9 @@ interface java-packets {
     sound: inexpressible-host-type,
     /// The size of the block particles pool, used for debris visuals in 1.21.9+.
     block-particles-pool-size: s32,
+    /// Whether the client plays the explosion sound, added in 26.3. Vanilla derives this from
+    /// `source == null || !source.isSilent()`.
+    play-sound: bool,
   }
   /// Updates the game state or triggers specific environmental changes.
   /// 
@@ -1686,6 +1681,36 @@ interface java-packets {
     /// `block` particles or RGB values for `dust`).
     data: list<u8>,
   }
+  /// Generated; extracted from variant arm. See `particle-options.trail` for details.
+  record particle-options-trail {
+    /// The position the trail travels towards.
+    target: tuple<f64, f64, f64>,
+    /// The trail color, encoded as `0xRRGGBB`. The top bits are ignored.
+    color: s32,
+    /// Life time in ticks.
+    duration: s32,
+  }
+  /// Generated; extracted from variant arm. See `particle-options.spell` for details.
+  record particle-options-spell {
+    /// The particle colour, encoded as `0xRRGGBB`. `-1` renders white.
+    color: s32,
+    /// The swirl power, vanilla `SpellParticleOption.create(type, color, 1.0)`.
+    power: f32,
+  }
+  /// The payload that follows the particle ID for particle types whose vanilla
+  /// `ParticleOptions` is not a plain `SimpleParticleType`.
+  /// 
+  /// The particle ID is taken from [`Self::particle`] rather than passed
+  /// alongside, so a payload can never be paired with the wrong particle.
+  /// Particles that take no options are spawned through [`CParticle`] directly
+  /// with an empty `data`.
+  variant particle-options {
+    /// `minecraft:trail`, vanilla's `TrailParticleOption`.
+    trail(particle-options-trail),
+    /// `minecraft:effect`, vanilla's `SpellParticleOption`: the potion colour
+    /// (encoded as `0xRRGGBB`, `-1` for the default white) and the swirl power.
+    spell(particle-options-spell),
+  }
   record c-play-ping {
     id: s32,
   }
@@ -1721,7 +1746,7 @@ interface java-packets {
   /// Generated; extracted from variant arm. See `player-action.add-player` for details.
   record player-action-add-player {
     name: string,
-    properties: list<profile-property>,
+    properties: list<property>,
   }
   variant player-action {
     add-player(player-action-add-player),
@@ -2065,6 +2090,10 @@ interface java-packets {
     game-time: s64,
     /// (`clock_registry_id`, `total_ticks`, `partial_tick`, rate)
     clock-updates: list<tuple<s32, s64, f32, f32>>,
+    /// Day time and `doDaylightCycle` for clients before 26.1, which have no
+    /// clock map and read both from dedicated fields. `None` falls back to the
+    /// first clock update, then to day 0.
+    legacy-day-time: option<tuple<s64, bool>>,
   }
   record c-title-text {
     title: string,
@@ -2153,9 +2182,8 @@ interface java-packets {
     on-ground: bool,
   }
   record c-test-instance-block-status {
-    pos: tuple<s32, s32, s32>,
-    status: s32,
-    message: option<string>,
+    status: string,
+    size: option<list<s32>>,
   }
   record c-ticking-state {
     tick-rate: f32,
@@ -2270,24 +2298,22 @@ interface java-packets {
     untrack,
     update,
   }
-  /// Generated; extracted from variant arm. See `waypoint-target.chunk` for details.
-  record waypoint-target-chunk {
-    x: s32,
-    z: s32,
-  }
+  /// Where the waypoint points. Variant order is the wire id (vanilla `TrackedWaypoint.Type`).
   variant waypoint-target {
-    position(tuple<s32, s32, s32>),
-    chunk(waypoint-target-chunk),
-    azimuth(f32),
     empty,
+    position(tuple<s32, s32, s32>),
+    chunk(tuple<f64, f64>),
+    azimuth(f32),
   }
+  /// Vanilla `Waypoint.Icon`: a style asset key plus an optional RGB color.
   record waypoint-icon {
-    style: option<string>,
-    color: s32,
+    style: string,
+    /// WARNING: Could not fully translate type `Option < RGBColor >` to WIT
+    color: option<inexpressible-host-type>,
   }
   record tracked-waypoint {
     identifier: uuid,
-    icon: option<waypoint-icon>,
+    icon: waypoint-icon,
     target: waypoint-target,
   }
   /// Syncs tracked waypoints (`ClientboundTrackedWaypointPacket`) to client.

@@ -1,6 +1,5 @@
 package pumpkin:plugin@0.2.0;
 
-/// @since 0.1.0
 interface bedrock-packets {
   use common.{ inexpressible-host-type, nbt-tree };
   use uuid.{ uuid };
@@ -129,7 +128,7 @@ interface bedrock-packets {
     position: tuple<s32, s32, s32>,
     /// Whether block entity data / NBT should be copied into the picked item stack.
     with-data: bool,
-    /// Maximum hotbar slots available for placing the picked item.
+    /// Number of hotbar slots the server may use for the picked item (not a slot index).
     max-slots: u8,
   }
   /// Sent by the client to report cache hits and misses for chunk blobs requested by the server.
@@ -157,13 +156,13 @@ interface bedrock-packets {
   }
   /// Metadata describing the origin and sender of an executed command.
   record command-origin-data {
-    /// Origin type string (e.g. `player`, `command_block`, `server`).
-    r-type: string,
+    /// `CommandOriginType` enum value, encoded as a varuint.
+    origin-type: s32,
     /// UUID uniquely identifying the sender instance.
     uuid: uuid,
     /// Request identifier string for correlating command outputs.
     request-id: string,
-    /// Entity unique ID of the player executing the command, if applicable.
+    /// Player unique id. Only present on the wire for dev console and test origins, else `-1`.
     player-id: s64,
   }
   /// Sent by either client or server to close an open container inventory window.
@@ -312,6 +311,12 @@ interface bedrock-packets {
     block-runtime-id: s32,
     extra-data: list<u8>,
   }
+  /// One ingredient slot sent by the client with `CraftRecipeAuto`.
+  record autocraft-ingredient {
+    /// Item identifier for item descriptors, `None` for empty or tag descriptors.
+    identifier: option<string>,
+    count: s32,
+  }
   /// Generated; extracted from variant arm. See `item-stack-request-action.take` for details.
   record item-stack-request-action-take {
     count: u8,
@@ -369,6 +374,7 @@ interface bedrock-packets {
   record item-stack-request-action-craft-recipe-auto {
     recipe-id: s32,
     repetitions: u8,
+    ingredients: list<autocraft-ingredient>,
   }
   /// Generated; extracted from variant arm. See `item-stack-request-action.craft-creative` for details.
   record item-stack-request-action-craft-creative {
@@ -662,6 +668,20 @@ interface bedrock-packets {
     camera-orientation: tuple<f64, f64, f64>,
     /// Unclamped raw movement input vector.
     raw-move: tuple<f64, f64>,
+    /// Teleport acknowledgement echoed by the client, when present.
+    teleport: option<player-auth-input-teleport-data>,
+  }
+  /// Teleport acknowledgement echoed by a Bedrock client in `PlayerAuthInput`.
+  /// 
+  /// Bedrock has no transaction id here: the client repeats the server position and tick it
+  /// received in the teleport packet, which stands in for vanilla's id-based confirmation.
+  record player-auth-input-teleport-data {
+    /// Server position the client was teleported to.
+    server-position: tuple<f64, f64, f64>,
+    /// Tick the server stamped on the teleport packet.
+    tick: s64,
+    /// Why the teleport was issued.
+    reason: u8,
   }
   record player-inventory-action {
     legacy-request-id: s32,
@@ -1362,9 +1382,9 @@ interface bedrock-packets {
   }
   /// Sent by the server to send all crafting and smelting recipes available in the world.
   record c-crafting-data {
-    /// List of shaped and shapeless crafting recipes.
+    /// Additional shaped and shapeless recipes (or incremental recipes when `clean_recipes` is false).
     recipes: list<bedrock-recipe>,
-    /// Whether previous recipe entries should be cleared on the client.
+    /// Whether previous recipe entries should be cleared and replaced with the full static + dynamic set.
     clean-recipes: bool,
   }
   /// Sent by the server to populate the creative inventory menu with item categories, groups, and items.
@@ -1511,6 +1531,14 @@ interface bedrock-packets {
   enum level-event {
     /// Emits block break particles at the target position.
     particles-destroy-block,
+    /// Starts rain; `data` is the intensity from 0 to 65535.
+    start-raining,
+    /// Starts a thunderstorm; `data` is the intensity from 0 to 65535.
+    start-thunderstorm,
+    /// Stops rain.
+    stop-raining,
+    /// Stops a thunderstorm.
+    stop-thunderstorm,
     /// Initiates a block cracking animation.
     block-start-break,
     /// Cancels or completes a block cracking animation.
@@ -1820,6 +1848,13 @@ interface bedrock-packets {
   record piece-tint-color {
     piece-type: string,
     colors: list<s32>,
+  }
+  /// Tells a client that a player in its tab list changed their skin.
+  record c-player-skin {
+    uuid: uuid,
+    skin: skin,
+    new-skin-name: string,
+    old-skin-name: string,
   }
   /// Sent by the server to despawn an entity from the client's world.
   record c-remove-actor {
@@ -2729,6 +2764,8 @@ interface bedrock-packets {
     c-player-hotbar(c-player-hotbar),
     /// Sent by the server to add or remove players from the in-game pause screen player list.
     c-player-list(c-player-list),
+    /// Tells a client that a player in its tab list changed their skin.
+    c-player-skin(c-player-skin),
     /// Sent by the server to despawn an entity from the client's world.
     c-remove-actor(c-remove-actor),
     /// Removes a scoreboard objective, hiding it from the player's screen.
@@ -2785,7 +2822,7 @@ interface bedrock-packets {
     c-update-equip(c-update-equip),
     /// Opens or refreshes a Bedrock merchant screen with its complete offer list.
     c-update-trade(c-update-trade),
-    /// Sends custom collision and selection voxel shapes to the client.
+    /// Sends collision and selection voxel shapes to the client before `CStartGame`.
     c-voxel-shapes,
     unknown,
   }

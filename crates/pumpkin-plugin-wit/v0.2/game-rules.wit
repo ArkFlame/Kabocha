@@ -1,6 +1,5 @@
 package pumpkin:plugin@0.2.0;
 
-/// @since 0.1.0
 interface game-rules {
   enum game-rule {
     advance-time,
@@ -23,6 +22,7 @@ interface game-rules {
     immediate-respawn,
     keep-inventory,
     lava-source-conversion,
+    legacy-combat,
     limited-crafting,
     locator-bar,
     log-admin-commands,
