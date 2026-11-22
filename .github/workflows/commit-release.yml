@@ -1,6 +1,6 @@
 name: Commit Release
 
-# Kabocha publishes a prerelease for every commit pushed to master: a linux x86_64
+# Kabocha publishes a release for every commit pushed to master: a linux x86_64
 # release binary, SHA256SUMS and COMMIT. Tags are created through the API with the
 # job token, which does not trigger the tag-based Release workflow.
 on:
@@ -46,12 +46,12 @@ jobs:
             echo "Built: $(date -u +'%Y-%m-%d %H:%M') UTC"
           } > dist/RELEASE.md
           echo "SHORT=$SHORT" >> "$GITHUB_ENV"
-      - name: Publish prerelease build-${{ env.SHORT }}
+      - name: Publish release build-${{ env.SHORT }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "build-$SHORT" dist/pumpkin-X64-Linux dist/SHA256SUMS dist/COMMIT \
-            --target "$GITHUB_SHA" --prerelease \
+            --target "$GITHUB_SHA" \
             --title "Build $SHORT" --notes-file dist/RELEASE.md
       - name: Prune old commit releases
         env:

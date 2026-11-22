@@ -796,7 +796,7 @@ impl World {
         reason = "chunk activation bookkeeping is one sequential pass"
     )]
     pub fn update_active_chunks(&self) {
-        let sim_dist = self.server.upgrade().map_or(10, |s| {
+        let sim_dist = self.server.upgrade().map_or(16, |s| {
             s.advanced_config.networking.java.simulation_distance.get()
         }) as i32;
         let players = self.players.load();
