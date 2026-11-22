@@ -319,3 +319,4 @@ pr	4636	stale-base	failed	real shulker gap but 2352-line redesign authored 3327 
 pr	4609	already-fixed	skipped	event is already a resource in WIT v0.2 with host and SDK implementation; PR diff is rebase churn from older base	n4609
 pr	4622	already-fixed	skipped	master covers all named boat/minecart physics behaviours; PR only adds superseded movement-snapshot/named-constant refactors	p4622
 pr	4639	blocked-data	skipped	master already despawns monster-class mobs on peaceful via check_despawn; PR remainder needs generated allowed_in_peaceful field (codegen over assets/entities.json)	p4639
+issue	4657	fixed	done	vanilla PortalForcer.java:139-140 accepts deltaY<=0 or >=3 while Pumpkin nether.rs:647 required air_height>=3; fixed with proof test surface_air_gap_selects_ground_level_portal_base	f4657
