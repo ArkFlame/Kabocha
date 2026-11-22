@@ -28,7 +28,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4620](https://github.com/Pumpkin-MC/Pumpkin/pull/4620) | perf(world): send chunk level changes instead of the whole level map | PENDING |
 | [#4622](https://github.com/Pumpkin-MC/Pumpkin/pull/4622) | fix(entity): align boat physics and minecart behavior with vanilla | PENDING |
 | [#4625](https://github.com/Pumpkin-MC/Pumpkin/pull/4625) | fix: show players on the locator bar | PENDING |
-| [#4626](https://github.com/Pumpkin-MC/Pumpkin/pull/4626) | fix(block): prevent opening a blocked shulker box | PENDING |
+| [#4626](https://github.com/Pumpkin-MC/Pumpkin/pull/4626) | fix(block): prevent opening a blocked shulker box | ALREADY-FIXED (shulker_box.rs:151) |
 | [#4627](https://github.com/Pumpkin-MC/Pumpkin/pull/4627) | perf(world): compress chunks with zrip instead of ruzstd | PENDING |
 | [#4628](https://github.com/Pumpkin-MC/Pumpkin/pull/4628) | feat(entity): vanilla parity for Breeze | BLOCKED (stale base, needs rewrite + codegen) |
 | [#4630](https://github.com/Pumpkin-MC/Pumpkin/pull/4630) | feat(entity): vanilla parity for Creaking | PENDING |
