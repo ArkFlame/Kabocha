@@ -1,7 +1,8 @@
 mod ai;
+mod home;
 
 use std::sync::{
-    Arc,
+    Arc, Mutex,
     atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
@@ -22,12 +23,19 @@ use crate::block::entities::creaking_heart::CreakingHeartBlockEntity;
 use crate::entity::{
     Entity, EntityBase,
     ai::{
-        brain::{Brain, BrainTick, memory::PackedMemories},
+        brain::{
+            Brain, BrainTick,
+            memory::{
+                PackedMemories,
+                codec::{block_pos_from_tag, block_pos_to_tag},
+            },
+        },
         pathfinder::{node::PathType, walk_node_evaluator::HomeRestriction},
     },
     mob::{Mob, MobEntity},
     player::Player,
 };
+use crate::world::{BlockEntityLookup, World};
 
 pub const ATTACK_ANIMATION_DURATION: i32 = 15;
 pub const MAX_HEALTH: f32 = 1.0;
@@ -50,6 +58,28 @@ const MAX_GAZE_RANGE: f64 = 128.0;
 const GAZE_MIN_DISTANCE: f64 = 1.0e-5;
 /// Vanilla `CreakingAi` adds two idle ticks per tick in bright light so it despawns faster.
 const BRIGHTNESS_FOR_FASTER_DESPAWN: f32 = 0.5;
+
+/// Which NBT shape the heart home was written in. A legacy compound home keeps its
+/// format until the heart chunk loads and the heart can adopt the binding.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum HeartHome {
+    Current(BlockPos),
+    Legacy(BlockPos),
+}
+
+impl HeartHome {
+    const fn pos(self) -> BlockPos {
+        match self {
+            Self::Current(pos) | Self::Legacy(pos) => pos,
+        }
+    }
+}
+
+/// A melee hit reserved during the brain tick and resolved on the following tick,
+/// after plugin damage callbacks can no longer re-enter the held brain lock.
+struct PendingMeleeAttack {
+    target_id: i32,
+}
 
 const fn gaze_distance_in_range(distance: f64) -> bool {
     distance >= GAZE_MIN_DISTANCE && distance <= MAX_GAZE_RANGE
@@ -95,6 +125,10 @@ pub struct CreakingEntity {
     is_active: AtomicBool,
     is_tearing_down: AtomicBool,
     home_pos: HomeRestriction,
+    home_binding: AtomicCell<Option<HeartHome>>,
+    home_chunk_ticket: Mutex<Option<home::HeartChunkTicket>>,
+    pending_home_feedback: AtomicCell<Option<(BlockPos, bool)>>,
+    pending_melee_attack: Mutex<Option<PendingMeleeAttack>>,
     attack_animation_remaining_ticks: AtomicI32,
     invulnerability_animation_remaining_ticks: AtomicI32,
     player_stuck_counter: AtomicI32,
@@ -128,6 +162,10 @@ impl CreakingEntity {
             is_active: AtomicBool::new(false),
             is_tearing_down: AtomicBool::new(false),
             home_pos,
+            home_binding: AtomicCell::new(None),
+            home_chunk_ticket: Mutex::new(None),
+            pending_home_feedback: AtomicCell::new(None),
+            pending_melee_attack: Mutex::new(None),
             attack_animation_remaining_ticks: AtomicI32::new(0),
             invulnerability_animation_remaining_ticks: AtomicI32::new(0),
             player_stuck_counter: AtomicI32::new(0),
@@ -170,7 +208,7 @@ impl CreakingEntity {
     }
 
     pub fn set_transient(&self, pos: BlockPos) {
-        self.set_home_pos(Some(pos));
+        self.set_heart_home(Some(HeartHome::Current(pos)));
     }
 
     pub fn is_heart_bound(&self) -> bool {
@@ -218,6 +256,15 @@ impl CreakingEntity {
     }
 
     pub fn set_home_pos(&self, pos: Option<BlockPos>) {
+        self.set_heart_home(pos.map(HeartHome::Current));
+    }
+
+    fn set_heart_home(&self, home: Option<HeartHome>) {
+        let pos = home.map(HeartHome::pos);
+        if self.home_binding.swap(home).map(HeartHome::pos) != pos {
+            self.release_home_ticket();
+            self.pending_home_feedback.store(None);
+        }
         self.home_pos.store(pos);
         if let Some(p) = pos {
             self.mob_entity.position_target.store(p);
@@ -233,6 +280,92 @@ impl CreakingEntity {
             .living_entity
             .entity
             .set_synced_data(pumpkin_data::tracked_data::creaking::HOME_POS, pos);
+    }
+
+    fn release_home_ticket(&self) {
+        self.home_chunk_ticket
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+    }
+
+    fn request_home_chunk(&self, world: &World, home: BlockPos) {
+        let chunk = home.chunk_position();
+        let mut ticket = self
+            .home_chunk_ticket
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if self.get_entity().is_removed() || self.get_home_pos() != Some(home) {
+            return;
+        }
+        if ticket
+            .as_ref()
+            .is_none_or(|ticket| ticket.chunk != chunk || !Arc::ptr_eq(&ticket.level, &world.level))
+        {
+            *ticket = Some(home::HeartChunkTicket::new(world.level.clone(), chunk));
+        }
+    }
+
+    fn migrate_legacy_home(&self, home: BlockPos) {
+        if self.home_binding.load() == Some(HeartHome::Legacy(home)) {
+            self.set_heart_home(Some(HeartHome::Current(home)));
+        }
+    }
+
+    fn apply_pending_heart_feedback(&self, world: &Arc<World>, home: BlockPos) {
+        let Some((pending_home, hit_by_player)) = self.pending_home_feedback.load() else {
+            return;
+        };
+        if pending_home != home
+            || self
+                .pending_home_feedback
+                .compare_exchange(Some((pending_home, hit_by_player)), None)
+                .is_err()
+        {
+            return;
+        }
+        let Some(block_entity) = world.get_block_entity(&home) else {
+            return;
+        };
+        let Some(heart) = block_entity
+            .as_deref()
+            .and_then(|be| be.as_any().downcast_ref::<CreakingHeartBlockEntity>())
+        else {
+            return;
+        };
+        if !heart.is_protector(self.get_entity().entity_uuid) {
+            return;
+        }
+        if hit_by_player {
+            heart.creaking_hurt(world);
+        }
+        self.play_sound(Sound::EntityCreakingSway);
+    }
+
+    fn apply_pending_melee_attack(&self) {
+        let Some(pending) = self
+            .pending_melee_attack
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+        else {
+            return;
+        };
+        let entity = self.get_entity();
+        if entity.is_removed() {
+            return;
+        }
+        let world = entity.world.load_full();
+        let Some(target) = world.get_entity_by_id(pending.target_id) else {
+            return;
+        };
+        if target.get_entity().is_removed() {
+            return;
+        }
+        self.mob_entity.living_entity.swing_hand();
+        if self.mob_entity.try_attack(entity, target.as_ref()) {
+            self.on_attack(target.as_ref());
+        }
     }
 
     pub fn stop_in_place(&self) {
@@ -462,11 +595,19 @@ impl Mob for CreakingEntity {
                 &CEntityStatus::new(entity.entity_id, 4),
             );
         };
-        let damaged = self.get_mob_entity().try_attack(entity, target);
-        if damaged {
-            self.play_attack_sound();
-        }
-        damaged
+        // Vanilla lets damage callbacks run outside the brain lock. Reserve the hit
+        // here and resolve it at the start of the next tick, after the brain tick ends.
+        *self
+            .pending_melee_attack
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(PendingMeleeAttack {
+            target_id: target.get_entity().entity_id,
+        });
+        false
+    }
+
+    fn on_attack(&self, _target: &dyn EntityBase) {
+        self.play_attack_sound();
     }
 
     /// Vanilla `Creaking.playAttackSound`.
@@ -531,22 +672,31 @@ impl Mob for CreakingEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
-        if let Some(pos) = self.get_home_pos() {
-            let mut sub = NbtCompound::new();
-            sub.put_int("x", pos.0.x);
-            sub.put_int("y", pos.0.y);
-            sub.put_int("z", pos.0.z);
-            nbt.put_compound("home_pos", sub);
+        match self.home_binding.load() {
+            Some(HeartHome::Current(pos)) => nbt.put("home_pos", block_pos_to_tag(pos)),
+            Some(HeartHome::Legacy(pos)) => {
+                // A save before the home chunk loads must retain its migration eligibility.
+                let mut legacy = NbtCompound::new();
+                legacy.put_int("x", pos.0.x);
+                legacy.put_int("y", pos.0.y);
+                legacy.put_int("z", pos.0.z);
+                nbt.put_compound("home_pos", legacy);
+            }
+            None => {}
         }
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
-        if let Some(sub) = nbt.get_compound("home_pos")
-            && let (Some(x), Some(y), Some(z)) =
-                (sub.get_int("x"), sub.get_int("y"), sub.get_int("z"))
+        if let Some(pos) = nbt.get("home_pos").and_then(block_pos_from_tag) {
+            self.set_heart_home(Some(HeartHome::Current(pos)));
+        } else if let Some(legacy) = nbt.get_compound("home_pos")
+            && let (Some(x), Some(y), Some(z)) = (
+                legacy.get_int("x"),
+                legacy.get_int("y"),
+                legacy.get_int("z"),
+            )
         {
-            let pos = BlockPos::new(x, y, z);
-            self.set_transient(pos);
+            self.set_heart_home(Some(HeartHome::Legacy(BlockPos::new(x, y, z))));
         }
     }
 
@@ -595,6 +745,9 @@ impl Mob for CreakingEntity {
             return;
         }
 
+        // The melee hit reserved by the brain tick resolves here, before the next AI step.
+        self.apply_pending_melee_attack();
+
         if self
             .invulnerability_animation_remaining_ticks
             .load(Ordering::Relaxed)
@@ -640,16 +793,23 @@ impl Mob for CreakingEntity {
             self.set_can_move(now_can_move);
         }
 
-        // Home Creaking Heart check
-        if let Some(home_pos) = self.get_home_pos() {
-            let world = entity.world.load();
-            let has_protection = world.get_block_entity(&home_pos).is_some_and(|be| {
-                be.as_any()
-                    .downcast_ref::<CreakingHeartBlockEntity>()
-                    .is_some_and(|heart_be| heart_be.is_protector(entity.entity_uuid))
-            });
-
-            if !has_protection {
+        // Home Creaking Heart check: an unloaded heart chunk is requested, not punished.
+        if let Some(home) = self.get_home_pos() {
+            let world = entity.world.load_full();
+            let BlockEntityLookup::Loaded(block_entity) =
+                world.get_block_entity_if_chunk_loaded(&home)
+            else {
+                self.request_home_chunk(&world, home);
+                return;
+            };
+            let linked = block_entity
+                .as_deref()
+                .and_then(|be| be.as_any().downcast_ref::<CreakingHeartBlockEntity>())
+                .is_some_and(|heart| heart.is_protector(entity.entity_uuid));
+            if linked {
+                self.migrate_legacy_home(home);
+                self.apply_pending_heart_feedback(&world, home);
+            } else {
                 // Vanilla: losing the heart protection starts the tear-down twitch
                 // instead of a regular death animation.
                 self.mob_entity.living_entity.health.store(0.0);
@@ -658,6 +818,11 @@ impl Mob for CreakingEntity {
                 }
             }
         }
+    }
+
+    fn on_removed(&self) {
+        self.pending_home_feedback.store(None);
+        self.release_home_ticket();
     }
 
     fn on_die(&self, _source: Option<&dyn EntityBase>) {
@@ -700,23 +865,38 @@ impl Mob for CreakingEntity {
                 self.invulnerability_animation_remaining_ticks
                     .store(8, Ordering::Relaxed);
 
-                let world = entity.world.load();
+                let world = entity.world.load_full();
                 world.emit_game_event(GameEvent::EntityAction.name(), entity.pos.load());
                 world.broadcast_to_chunk(
                     entity.chunk_pos.load(),
                     &CEntityStatus::new(entity.entity_id, 66),
                 );
 
-                if let Some(home_pos) = self.get_home_pos()
-                    && let Some(be) = world.get_block_entity(&home_pos)
-                    && let Some(heart_be) = be.as_any().downcast_ref::<CreakingHeartBlockEntity>()
-                    && heart_be.is_protector(entity.entity_uuid)
-                {
-                    // Vanilla: only a player-responsible hit counts toward the heart.
-                    if has_responsible_player {
-                        heart_be.creaking_hurt(&world);
+                if let Some(home) = self.get_home_pos() {
+                    match world.get_block_entity_if_chunk_loaded(&home) {
+                        BlockEntityLookup::Unloaded => {
+                            // Vanilla: the hit feedback waits for the home chunk instead
+                            // of running inside the damage callback / brain lock.
+                            self.pending_home_feedback
+                                .store(Some((home, has_responsible_player)));
+                            self.request_home_chunk(&world, home);
+                        }
+                        BlockEntityLookup::Loaded(block_entity) => {
+                            let heart = block_entity
+                                .as_deref()
+                                .and_then(|be| {
+                                    be.as_any().downcast_ref::<CreakingHeartBlockEntity>()
+                                })
+                                .filter(|heart| heart.is_protector(entity.entity_uuid));
+                            // Vanilla: only a player-responsible hit counts toward the heart.
+                            if let Some(heart) = heart {
+                                if has_responsible_player {
+                                    heart.creaking_hurt(&world);
+                                }
+                                self.play_sound(Sound::EntityCreakingSway);
+                            }
+                        }
                     }
-                    self.play_sound(Sound::EntityCreakingSway);
                 }
             }
             // Return false so heart-bound Creaking does not lose health from normal damage
@@ -728,10 +908,18 @@ impl Mob for CreakingEntity {
 
 #[cfg(test)]
 mod tests {
-    use pumpkin_data::entity::EntityType;
+    use pumpkin_data::{Block, entity::EntityType};
+    use pumpkin_nbt::compound::NbtCompound;
+    use pumpkin_world::{chunk::ChunkData, world::BlockFlags};
 
     use super::*;
-    use crate::entity::ai::test_support::world;
+    use crate::{
+        block::entities::BlockEntity,
+        entity::{
+            ai::brain::memory::codec::block_pos_from_tag, ai::test_support::world,
+            passive::cow::CowEntity,
+        },
+    };
 
     #[test]
     fn gaze_range_excludes_too_close_and_too_far_targets() {
@@ -746,6 +934,109 @@ mod tests {
         assert!(!heart_shake_allowed(false, false));
         assert!(heart_shake_allowed(true, false));
         assert!(heart_shake_allowed(false, true));
+    }
+
+    #[tokio::test]
+    async fn legacy_heart_home_migrates_once_the_heart_chunk_loads()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let creaking = CreakingEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::CREAKING,
+        ));
+        let home = BlockPos::new(32, 64, 0);
+
+        let mut coords = NbtCompound::new();
+        coords.put_int("x", home.0.x);
+        coords.put_int("y", home.0.y);
+        coords.put_int("z", home.0.z);
+        let mut legacy = NbtCompound::new();
+        legacy.put_compound("home_pos", coords);
+        Mob::mob_read_nbt(creaking.as_ref(), &legacy);
+        assert_eq!(creaking.get_home_pos(), Some(home));
+
+        // Before the heart chunk loads, saving keeps the legacy compound shape.
+        let mut before = NbtCompound::new();
+        Mob::mob_write_nbt(creaking.as_ref(), &mut before);
+        assert!(before.get_compound("home_pos").is_some());
+        assert!(
+            before
+                .get("home_pos")
+                .and_then(block_pos_from_tag)
+                .is_none()
+        );
+
+        let chunk_pos = home.chunk_position();
+        world
+            .level
+            .loaded_chunks
+            .insert(chunk_pos, ChunkData::empty_sync(chunk_pos.x, chunk_pos.y));
+        world.set_block_state(
+            &home,
+            Block::CREAKING_HEART.default_state.id,
+            BlockFlags::NOTIFY_ALL,
+        );
+        let mut heart_nbt = NbtCompound::new();
+        heart_nbt.put_uuid("creaking", creaking.get_entity().entity_uuid);
+        world.add_block_entity(Arc::new(CreakingHeartBlockEntity::from_nbt(
+            &heart_nbt, home,
+        )));
+
+        creaking.mob_tick(creaking.as_ref());
+        assert!(creaking.mob_entity.living_entity.is_alive());
+
+        let mut migrated = NbtCompound::new();
+        Mob::mob_write_nbt(creaking.as_ref(), &mut migrated);
+        assert_eq!(
+            migrated.get("home_pos").and_then(block_pos_from_tag),
+            Some(home),
+        );
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn melee_hit_is_resolved_on_the_next_tick() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let creaking = CreakingEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::CREAKING,
+        ));
+        let prey = CowEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(1.5, 64.0, 0.0),
+            &EntityType::COW,
+        ));
+        world.add_entity_silent(creaking.clone());
+        world.add_entity_silent(prey.clone());
+        let health = prey.get_mob_entity().living_entity.health.load();
+
+        // The brain tick only reserves the hit; damage callbacks run outside its lock.
+        assert!(!Mob::do_hurt_target(creaking.as_ref(), prey.as_ref()));
+        assert!(
+            creaking
+                .pending_melee_attack
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_some()
+        );
+        assert_eq!(prey.get_mob_entity().living_entity.health.load(), health);
+
+        creaking.apply_pending_melee_attack();
+        assert!(
+            creaking
+                .pending_melee_attack
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_none()
+        );
+        assert!(prey.get_mob_entity().living_entity.health.load() < health);
+        world.level.shutdown().await;
+        Ok(())
     }
 
     #[tokio::test]

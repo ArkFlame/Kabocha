@@ -469,6 +469,12 @@ impl Eq for World {}
 /// a burst of concurrent searches can overshoot by their own durations.
 const PATHFINDING_TIME_BUDGET_PER_TICK: u64 = 2_000_000;
 
+/// Distinguishes a chunk that has not loaded yet from a loaded chunk with no block entity.
+pub(crate) enum BlockEntityLookup {
+    Loaded(Option<Arc<dyn BlockEntity>>),
+    Unloaded,
+}
+
 impl World {
     /// Reads the shared path-type cache. Entries carry the block state id the
     /// classification consumed and are validated against the live state on
@@ -8504,6 +8510,18 @@ impl World {
             .or_default()
             .insert(*block_pos, entity.clone());
         Some(entity)
+    }
+
+    /// Looks up a block entity without triggering a chunk load. Used by the Creaking's
+    /// heart binding: an unloaded heart chunk must be requested, not treated as a lost heart.
+    pub(crate) fn get_block_entity_if_chunk_loaded(
+        &self,
+        block_pos: &BlockPos,
+    ) -> BlockEntityLookup {
+        if !self.level.is_chunk_loaded(&block_pos.chunk_position()) {
+            return BlockEntityLookup::Unloaded;
+        }
+        BlockEntityLookup::Loaded(self.get_block_entity(block_pos))
     }
 
     fn bedrock_block_entity_data(
