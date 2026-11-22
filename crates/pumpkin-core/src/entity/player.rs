@@ -1035,7 +1035,6 @@ impl Player {
     pub fn defer_login_admission(&self) -> Option<PendingLoginAdmission> {
         self.login_admission.defer()
     }
-    }
 
     /// Downloads the Java skin from the profile's `textures` property and converts it
     /// into a Bedrock skin.
