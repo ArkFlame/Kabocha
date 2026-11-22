@@ -633,18 +633,13 @@ impl NetherPortal {
                     let state = world.get_block_state(&pos);
 
                     if Self::is_valid_portal_air(state) {
-                        let mut bottom_y = y;
-                        while bottom_y > min_y {
-                            let below = BlockPos(Vector3::new(check_x, bottom_y - 1, check_z));
-                            let below_state = world.get_block_state(&below);
-                            if !Self::is_valid_portal_air(below_state) {
-                                break;
-                            }
-                            bottom_y -= 1;
-                        }
-
-                        let air_height = y - bottom_y;
-                        if air_height >= 3 && bottom_y + 4 <= top_y_limit {
+                        let (bottom_y, placeable) =
+                            Self::air_run_bottom(y, min_y, top_y_limit, |below_y| {
+                                Self::is_valid_portal_air(world.get_block_state(&BlockPos(
+                                    Vector3::new(check_x, below_y, check_z),
+                                )))
+                            });
+                        if placeable {
                             let floor_pos = BlockPos(Vector3::new(check_x, bottom_y, check_z));
 
                             for check_axis in [HorizontalAxis::X, HorizontalAxis::Z] {
@@ -715,6 +710,27 @@ impl NetherPortal {
             return None;
         }
         Some(target_y.clamp(lower, upper))
+    }
+
+    /// Mirrors the per-column downward scan of vanilla `PortalForcer#createPortal`.
+    ///
+    /// Returns the bottom of the contiguous replaceable run starting at `start_y`
+    /// and whether that run can host a portal base. Vanilla skips two- and
+    /// three-block gaps (`deltaY == 1 || deltaY == 2`) but accepts a single
+    /// block (`deltaY <= 0`, the normal surface case) and four or more.
+    fn air_run_bottom(
+        start_y: i32,
+        min_y: i32,
+        top_y_limit: i32,
+        is_free: impl Fn(i32) -> bool,
+    ) -> (i32, bool) {
+        let mut bottom_y = start_y;
+        while bottom_y > min_y && is_free(bottom_y - 1) {
+            bottom_y -= 1;
+        }
+        let air_height = start_y - bottom_y;
+        let placeable = (air_height <= 0 || air_height >= 3) && bottom_y + 4 <= top_y_limit;
+        (bottom_y, placeable)
     }
 
     /// Mirrors vanilla `PortalForcer#canPortalReplaceBlock`: any replaceable
@@ -968,6 +984,32 @@ mod tests {
         assert_eq!(
             x_portal.calculate_teleport_yaw(45.0, Some(HorizontalAxis::Z)),
             135.0
+        );
+    }
+
+    #[test]
+    fn surface_air_gap_selects_ground_level_portal_base() {
+        // Constructed column: ground at y=64, one replaceable block at the
+        // heightmap top (y=65), open space above. Vanilla accepts this
+        // `deltaY == 0` case; the old `air_height >= 3` gate rejected it and
+        // pushed the portal into the fixed-Y fallback inside the hill (#4657).
+        let surface = |y: i32| y == 65;
+        assert_eq!(
+            NetherPortal::air_run_bottom(65, -64, 319, surface),
+            (65, true)
+        );
+
+        // Vanilla deliberately skips two- and three-block gaps.
+        let two_gap = |y: i32| y == 64 || y == 65;
+        assert!(!NetherPortal::air_run_bottom(65, -64, 319, two_gap).1);
+        let three_gap = |y: i32| (63..=65).contains(&y);
+        assert!(!NetherPortal::air_run_bottom(65, -64, 319, three_gap).1);
+
+        // Four-block gaps are accepted, with the base at the bottom of the run.
+        let four_gap = |y: i32| (62..=65).contains(&y);
+        assert_eq!(
+            NetherPortal::air_run_bottom(65, -64, 319, four_gap),
+            (62, true)
         );
     }
 
