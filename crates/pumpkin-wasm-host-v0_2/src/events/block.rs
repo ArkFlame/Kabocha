@@ -1,6 +1,7 @@
-use pumpkin_data::BlockStateId;
+use pumpkin_data::{BlockStateId, item_stack::ItemStack};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use wasmtime::component::Resource;
 
 use crate::{
     events::{
@@ -818,6 +819,24 @@ impl ToFromWasmEvent for BlockDispenseLootEvent {
     }
 }
 
+/// Reads back the item stacks a plugin edited through their WIT resource handles.
+fn item_stacks_from_wasm(
+    state: &PluginHostState,
+    resources: &[Resource<crate::pumpkin::plugin::item_stack::ItemStack>],
+) -> Vec<ItemStack> {
+    resources
+        .iter()
+        .map(|res| {
+            state
+                .get::<crate::pumpkin::plugin::item_stack::ItemStack>(res)
+                .expect("valid item stack resource")
+                .try_lock()
+                .expect("lock item stack")
+                .clone()
+        })
+        .collect()
+}
+
 impl ToFromWasmEvent for BlockDropItemEvent {
     type Wit = BlockDropItemEventData;
 
@@ -848,8 +867,11 @@ impl ToFromWasmEvent for BlockDropItemEvent {
     }
 
     fn apply_wasm_event(&mut self, data: Self::Wit, state: &mut PluginHostState) {
+        // Plugin edits live on the resource handles; copy them back before cleanup drops them.
+        let items = item_stacks_from_wasm(state, &data.items);
         data.cleanup_event(state);
         self.cancelled = data.cancelled;
+        self.items = items;
     }
 
     fn from_wasm_event(_data: Self::Wit, _state: &mut PluginHostState) -> Self {
@@ -1356,5 +1378,30 @@ impl ToFromWasmEvent for VaultDisplayItemEvent {
 
     fn from_wasm_event(_data: Self::Wit, _state: &mut PluginHostState) -> Self {
         panic!("Cannot construct VaultDisplayItemEvent from WASM");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pumpkin::plugin::item_stack::ItemStack as WitItemStack;
+    use pumpkin_data::item::Item;
+
+    #[test]
+    fn plugin_item_stack_edits_are_read_back() {
+        let mut state = PluginHostState::new();
+        let resource = state
+            .add(Arc::new(Mutex::new(ItemStack::new(1, &Item::DIRT))))
+            .expect("add item stack resource");
+        *state
+            .get_mut::<WitItemStack>(&resource)
+            .expect("get item stack resource")
+            .try_lock()
+            .expect("lock item stack") = ItemStack::new(7, &Item::DIAMOND);
+
+        let stacks = item_stacks_from_wasm(&state, std::slice::from_ref(&resource));
+        assert_eq!(stacks.len(), 1);
+        assert_eq!(stacks[0].item.id, Item::DIAMOND.id);
+        assert_eq!(stacks[0].item_count, 7);
     }
 }
