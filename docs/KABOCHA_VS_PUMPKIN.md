@@ -27,7 +27,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4619](https://github.com/Pumpkin-MC/Pumpkin/pull/4619) | perf(world): batch dependency GC after level changes | LANDED (e8bcc51e1) |
 | [#4620](https://github.com/Pumpkin-MC/Pumpkin/pull/4620) | perf(world): send chunk level changes instead of the whole level map | LANDED (fdcb8bd87) |
 | [#4622](https://github.com/Pumpkin-MC/Pumpkin/pull/4622) | fix(entity): align boat physics and minecart behavior with vanilla | PENDING |
-| [#4625](https://github.com/Pumpkin-MC/Pumpkin/pull/4625) | fix: show players on the locator bar | PENDING |
+| [#4625](https://github.com/Pumpkin-MC/Pumpkin/pull/4625) | fix: show players on the locator bar | ALREADY-FIXED (commit 2b1bc82b4) |
 | [#4626](https://github.com/Pumpkin-MC/Pumpkin/pull/4626) | fix(block): prevent opening a blocked shulker box | ALREADY-FIXED (shulker_box.rs:151) |
 | [#4627](https://github.com/Pumpkin-MC/Pumpkin/pull/4627) | perf(world): compress chunks with zrip instead of ruzstd | LANDED (b908e11a6) |
 | [#4628](https://github.com/Pumpkin-MC/Pumpkin/pull/4628) | feat(entity): vanilla parity for Breeze | BLOCKED (stale base, needs rewrite + codegen) |
@@ -43,7 +43,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4643](https://github.com/Pumpkin-MC/Pumpkin/pull/4643) | fix(minecart) | BLOCKED (core fixes present, remainder needs generated APIs) |
 | [#4644](https://github.com/Pumpkin-MC/Pumpkin/pull/4644) | fix(respawn_anchor): notify clients and neighbors when breaking anchor on explosion | LANDED |
 | [#4647](https://github.com/Pumpkin-MC/Pumpkin/pull/4647) | fix(entity): bring leads closer to vanilla parity | PENDING |
-| [#4648](https://github.com/Pumpkin-MC/Pumpkin/pull/4648) | fix(entity): stop resistance from overflowing past level five | PENDING |
+| [#4648](https://github.com/Pumpkin-MC/Pumpkin/pull/4648) | fix(entity): stop resistance from overflowing past level five | LANDED with issue #4649 (e7fea647f) |
 | [#4650](https://github.com/Pumpkin-MC/Pumpkin/pull/4650) | fix(block): preserve drop flags when breaking multi-part blocks | LANDED |
 | [#4652](https://github.com/Pumpkin-MC/Pumpkin/pull/4652) | feat(entity): sniffer vanilla parity | ALREADY-FIXED (#4535) |
 | [#4655](https://github.com/Pumpkin-MC/Pumpkin/pull/4655) | feat(entity): implement happy ghast vanilla parity | ALREADY-FIXED (#4206) |
@@ -59,7 +59,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4623](https://github.com/Pumpkin-MC/Pumpkin/issues/4623) | Player Locator Bar does not show other players with locator_bar enabled | ALREADY-FIXED |
 | [#4629](https://github.com/Pumpkin-MC/Pumpkin/issues/4629) | Cannot place a regular rail on top of a hopper | LANDED (e8a812cbb, proof test) |
 | [#4640](https://github.com/Pumpkin-MC/Pumpkin/issues/4640) | wardem cannot attack any entity | LANDED (6c953b6e9, proof test) |
-| [#4646](https://github.com/Pumpkin-MC/Pumpkin/issues/4646) | Bed despawn without dropping anything | PENDING |
+| [#4646](https://github.com/Pumpkin-MC/Pumpkin/issues/4646) | Bed despawn without dropping anything | ALREADY-FIXED (PR #4650 tests) |
 | [#4649](https://github.com/Pumpkin-MC/Pumpkin/issues/4649) | Resistance 255 overflow crash on mob hit | LANDED (e7fea647f, proof test) |
 | [#4651](https://github.com/Pumpkin-MC/Pumpkin/issues/4651) | 1.8.9 client Unable to locate sign via Velocity/ViaRewind | SKIPPED (ViaRewind proxy artifact) |
 | [#4653](https://github.com/Pumpkin-MC/Pumpkin/issues/4653) | Firework rocket flight_duration ignored with Elytra | ALREADY-FIXED (firework_rocket.rs:37-42) |
