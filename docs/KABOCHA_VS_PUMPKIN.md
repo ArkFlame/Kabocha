@@ -33,7 +33,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4628](https://github.com/Pumpkin-MC/Pumpkin/pull/4628) | feat(entity): vanilla parity for Breeze | BLOCKED (stale base, needs rewrite + codegen) |
 | [#4630](https://github.com/Pumpkin-MC/Pumpkin/pull/4630) | feat(entity): vanilla parity for Creaking | LANDED (8413bfd89, partial: gaze/comparator) |
 | [#4632](https://github.com/Pumpkin-MC/Pumpkin/pull/4632) | fix(world): preserve imported structure data when saving chunks | LANDED (b3fe50c73) |
-| [#4634](https://github.com/Pumpkin-MC/Pumpkin/pull/4634) | Support deferred login admission | LANDED (4593f9f5a) |
+| [#4634](https://github.com/Pumpkin-MC/Pumpkin/pull/4634) | Support deferred login admission | LANDED (2317cf6bb) |
 | [#4635](https://github.com/Pumpkin-MC/Pumpkin/pull/4635) | fix(entity): close remaining panda, dolphin, mooshroom and bee parity gaps | LANDED (bb4624ae5, partial: panda only) |
 | [#4636](https://github.com/Pumpkin-MC/Pumpkin/pull/4636) | feat(entity): full vanilla parity for shulker | BLOCKED (stale-base redesign, needs build) |
 | [#4638](https://github.com/Pumpkin-MC/Pumpkin/pull/4638) | perf(world): batch packets per tick and send movement from the entity tracker | LANDED (18ed0b039, partial: stages 1-2) |
