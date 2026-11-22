@@ -164,6 +164,7 @@ pub fn split_raw_packet(packet_data: &Bytes) -> Option<(u16, Bytes)> {
 pub struct BedrockClient {
     pub id: u64,
     session: Arc<NetherNetSession>,
+    pub(crate) latency: AtomicCell<Option<u32>>,
     /// The client's IP address.
     pub address: SocketAddr,
     pub player: ArcSwap<std::sync::Weak<Player>>,
@@ -243,6 +244,7 @@ impl BedrockClient {
         Self {
             id,
             session,
+            latency: AtomicCell::new(None),
             player: ArcSwap::from_pointee(std::sync::Weak::new()),
             address,
             protocol_version: AtomicU32::new(0),
@@ -297,6 +299,21 @@ impl BedrockClient {
     )]
     pub fn start_outgoing_packet_task(self: &Arc<Self>) {
         const MAX_BATCH_SIZE: usize = 64;
+
+        let client = self.clone();
+        self.spawn_task(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                tokio::select! {
+                    biased;
+                    () = client.close_token.cancelled() => break,
+                    _ = interval.tick() => {
+                        client.latency.store(client.session.latency().await);
+                    }
+                }
+            }
+        });
 
         let client = self.clone();
         self.spawn_task(async move {

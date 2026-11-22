@@ -21,11 +21,7 @@ impl JavaClient {
         if is_oldest_challenge(&pending, keep_alive.keep_alive_id) {
             let (_, send_time) = pending.remove(0);
             let ping = send_time.elapsed().as_millis() as u32;
-            // Vanilla logic
-            player.ping.store(
-                (player.ping.load(Ordering::Relaxed) * 3 + ping) / 4,
-                Ordering::Relaxed,
-            );
+            player.update_ping(ping);
             self.wait_for_keep_alive.store(false, Ordering::Relaxed);
         } else {
             // Vanilla `ServerGamePacketListenerImpl#handleKeepAlive` disconnects on an
