@@ -4360,7 +4360,7 @@ impl World {
                 skin: (**player.bedrock_skin.load()).clone(),
                 is_teacher: false,
                 is_host: false,
-                is_sub_client: false,
+                is_sub_client: player.client.bedrock().is_some_and(|c| c.is_sub_client()),
                 player_color: [0, 0, 0, 0],
             }],
         };
@@ -4568,7 +4568,7 @@ impl World {
                 skin: (**player.bedrock_skin.load()).clone(),
                 is_teacher: false,
                 is_host: false,
-                is_sub_client: false,
+                is_sub_client: player.client.bedrock().is_some_and(|c| c.is_sub_client()),
                 player_color: [0, 0, 0, 0],
             }],
         };
@@ -6447,7 +6447,7 @@ impl World {
                     skin: Skin::steve(),
                     is_teacher: false,
                     is_host: false,
-                    is_sub_client: false,
+                    is_sub_client: player.client.bedrock().is_some_and(|c| c.is_sub_client()),
                     player_color: [0, 0, 0, 0],
                 }],
             };
