@@ -1,23 +1,32 @@
-use crate::entity::EntityBase;
-use crate::entity::ai::pathfinder::node::PathType;
-use crate::entity::projectile_deflection::{ProjectileDeflection, default_deflection};
-use pumpkin_data::damage::DamageType;
-use pumpkin_data::sound::Sound;
+mod ai;
+mod movement;
+
 use std::sync::atomic::{AtomicI32, Ordering};
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Mutex, Weak};
 
-use pumpkin_data::entity::EntityType;
+use arc_swap::ArcSwapOption;
+use pumpkin_data::damage::DamageType;
+use pumpkin_data::entity::{EntityPose, EntityType};
+use pumpkin_data::sound::Sound;
+use pumpkin_util::math::vector3::Vector3;
+use pumpkin_util::random::{get_seed, legacy_rand::LegacyRand};
 
+use crate::entity::EntityBase;
+use crate::entity::ai::brain::memory::types;
+use crate::entity::ai::brain::{Brain, BrainTick, memory::PackedMemories};
+use crate::entity::ai::pathfinder::node::PathType;
 use crate::entity::ai::target_match::TargetMatch;
+use crate::entity::projectile_deflection::{ProjectileDeflection, default_deflection};
 use crate::entity::{
     Entity,
     ai::goal::{
         active_target::ActiveTargetGoal, breeze_shoot::BreezeShootGoal,
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, revenge::RevengeGoal,
-        swim::SwimGoal, wander_around::WanderAroundGoal,
+        swim::SwimGoal,
     },
     mob::{Mob, MobEntity},
 };
+use crate::plugin::api::events::entity::entity_pose_change::EntityPoseChangeEvent;
 
 /// Vanilla `Breeze` `NearestAttackableSensor` filter: `canAttack` accepts players and iron golems.
 const BREEZE_TARGET_TYPES: TargetMatch =
@@ -35,9 +44,23 @@ fn advance_whirl_countdown(ticks: i32, roll: impl FnOnce() -> i32) -> (i32, bool
     (next, next == 0)
 }
 
+pub(super) fn look_from_eyes(entity: &Entity, target: Vector3<f64>) {
+    entity.look_at(target.add_raw(0.0, -entity.get_eye_height(), 0.0));
+    let yaw = entity.yaw.load();
+    entity.head_yaw.store(yaw);
+    entity.body_yaw.store(yaw);
+}
+
+struct PoseCleanup {
+    previous: EntityPose,
+    target: Option<Weak<dyn EntityBase>>,
+}
+
 pub struct BreezeEntity {
     pub mob_entity: MobEntity,
     whirl_countdown: AtomicI32,
+    pose_cleanup: ArcSwapOption<PoseCleanup>,
+    movement_random: Mutex<LegacyRand>,
 }
 
 impl BreezeEntity {
@@ -46,6 +69,8 @@ impl BreezeEntity {
         let breeze = Self {
             mob_entity,
             whirl_countdown: AtomicI32::new(0),
+            pose_cleanup: ArcSwapOption::empty(),
+            movement_random: Mutex::new(LegacyRand::from_seed(get_seed())),
         };
         let mob_arc = Arc::new(breeze);
         let mob_weak: Weak<dyn Mob> = {
@@ -59,7 +84,6 @@ impl BreezeEntity {
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             // Vanilla Breeze ranged attack: inhale, fire a wind charge, recover.
             goal_selector.add_goal(4, Box::new(BreezeShootGoal::new(Arc::downgrade(&mob_arc))));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(
                 6,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
@@ -87,9 +111,139 @@ impl BreezeEntity {
 
         mob_arc
     }
+
+    fn with_movement_random<T>(&self, sample: impl FnOnce(&mut LegacyRand) -> T) -> T {
+        let mut random = self
+            .movement_random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        sample(&mut random)
+    }
+
+    /// Queues the return to `Standing`, keeping the cleanup alive if a plugin vetoes it.
+    fn finish_pose(
+        tick: &mut BrainTick<'_>,
+        previous: EntityPose,
+        target: Option<Weak<dyn EntityBase>>,
+    ) {
+        tick.defer_pose_change(EntityPose::Standing, move |mob| {
+            let Some(breeze) = mob.cast_any().downcast_ref::<Self>() else {
+                return;
+            };
+            let pose = breeze.get_entity().pose.load();
+            if pose != previous && pose != EntityPose::Standing {
+                return;
+            }
+            let cleanup = Arc::new(PoseCleanup { previous, target });
+            breeze.pose_cleanup.store(Some(cleanup.clone()));
+            breeze.restore_standing(&cleanup, true);
+        });
+    }
+
+    fn clear_pose_cleanup(&self, cleanup: &Arc<PoseCleanup>) -> bool {
+        let active = self.pose_cleanup.load_full();
+        if active
+            .as_ref()
+            .is_some_and(|active| Arc::ptr_eq(active, cleanup))
+        {
+            self.pose_cleanup.store(None);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn restore_standing(&self, cleanup: &Arc<PoseCleanup>, allow_standing: bool) {
+        let entity = self.get_entity();
+        let living = &self.mob_entity.living_entity;
+        let previous = entity.pose.load();
+        if !living.is_alive()
+            || !(previous == cleanup.previous || allow_standing && previous == EntityPose::Standing)
+        {
+            self.clear_pose_cleanup(cleanup);
+            return;
+        }
+        let restored = entity.set_pose_if(
+            EntityPose::Standing,
+            || {
+                living.is_alive()
+                    && entity.pose.load() == previous
+                    && self
+                        .pose_cleanup
+                        .load()
+                        .as_ref()
+                        .is_some_and(|active| Arc::ptr_eq(active, cleanup))
+            },
+            || {},
+        );
+        if restored
+            && self.clear_pose_cleanup(cleanup)
+            && living.is_alive()
+            && entity.pose.load() == EntityPose::Standing
+            && let Some(target) = cleanup.target.as_ref().and_then(Weak::upgrade)
+            && self
+                .mob_entity
+                .stored_target()
+                .is_some_and(|current| Arc::ptr_eq(&current, &target))
+        {
+            self.mob_entity.with_brain(self, |brain| {
+                if brain
+                    .get(types::ATTACK_TARGET)
+                    .is_some_and(|current| Arc::ptr_eq(current, &target))
+                {
+                    brain.set_with_expiry(types::BREEZE_SHOOT, (), 60);
+                }
+            });
+        }
+    }
 }
 
 impl Mob for BreezeEntity {
+    fn make_brain(&self, packed: &PackedMemories) -> Brain {
+        ai::make_brain(self, packed)
+    }
+
+    fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
+        // A veto leaves the old pose in place. Retry before the next Brain tick.
+        if let Some(cleanup) = self.pose_cleanup.load_full() {
+            self.restore_standing(&cleanup, false);
+            if !self.mob_entity.living_entity.is_alive() {
+                return;
+            }
+        }
+
+        // Plugins can set the mob's target between Brain ticks.
+        let current = self.mob_entity.get_target();
+        let target_id = |target: &Arc<dyn EntityBase>| target.get_entity().entity_id;
+        self.mob_entity.with_brain(self, |brain| {
+            if brain.get(types::ATTACK_TARGET).map(target_id) != current.as_ref().map(target_id) {
+                brain.set_optional(types::ATTACK_TARGET, current.clone());
+            }
+        });
+        self.mob_entity.tick_brain(self);
+        self.mob_entity
+            .with_brain(self, |brain| ai::update_activity(brain));
+    }
+
+    /// Vanilla Breeze long jumps add extra vertical speed scaled by follow range.
+    fn additional_tick_movement(&self) -> f64 {
+        movement::max_jump_speed(&self.mob_entity.living_entity)
+    }
+
+    /// Landing blocks and overhead sight rays can lie beyond the normal follow range.
+    fn conservative_block_read_radius(&self) -> f64 {
+        movement::block_read_radius(&self.mob_entity.living_entity)
+    }
+
+    fn has_global_tick_reach(&self) -> bool {
+        let Some(server) = self.get_entity().world.load().server.upgrade() else {
+            return false;
+        };
+        server
+            .plugin_manager
+            .has_handlers::<EntityPoseChangeEvent>()
+    }
+
     /// Vanilla `Breeze.isInvulnerableTo`: damage from another breeze is ignored.
     fn pre_damage_with_context(
         &self,
@@ -150,25 +304,6 @@ impl Mob for BreezeEntity {
         25.0
     }
 
-    /// Vanilla Breeze long jumps add extra vertical speed scaled by follow range.
-    fn additional_tick_movement(&self) -> f64 {
-        let follow_range = self
-            .mob_entity
-            .living_entity
-            .get_attribute_value(&pumpkin_data::attributes::Attributes::FOLLOW_RANGE);
-        f64::from(0.058_333_334f32 * follow_range as f32)
-            + f64::from(self.mob_entity.living_entity.get_jump_boost_power())
-    }
-
-    /// Landing blocks and overhead sight rays can lie beyond the normal follow range.
-    fn conservative_block_read_radius(&self) -> f64 {
-        let follow_range = self
-            .mob_entity
-            .living_entity
-            .get_attribute_value(&pumpkin_data::attributes::Attributes::FOLLOW_RANGE);
-        50.0f64.max(follow_range + 9.0)
-    }
-
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
     }
@@ -224,7 +359,6 @@ impl Mob for BreezeEntity {
 mod tests {
     use super::*;
     use crate::entity::ai::test_support::world;
-    use pumpkin_util::math::vector3::Vector3;
     use std::cell::Cell;
 
     #[test]

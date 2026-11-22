@@ -846,6 +846,7 @@ impl MobEntity {
             brain.stop_all(&world, mob, time);
             let packed = brain.pack();
             *brain = mob.make_brain(&packed);
+            let _ = brain.take_effects();
         });
     }
 
@@ -854,10 +855,10 @@ impl MobEntity {
     }
 
     pub fn tick_brain(&self, mob: &dyn Mob) {
-        let world = self.living_entity.entity.world.load_full();
-        let time = world.get_world_age();
-        let messages = self.take_brain_messages();
-        self.with_brain(mob, |brain| {
+        let effects = self.with_brain(mob, |brain| {
+            let world = self.living_entity.entity.world.load_full();
+            let time = world.get_world_age();
+            let messages = self.take_brain_messages();
             {
                 let mut tick = BrainTick {
                     state: brain,
@@ -875,9 +876,14 @@ impl MobEntity {
                 time,
             };
             mob.after_brain_tick(&mut tick);
+            brain.take_effects()
         });
         if self.brain_refresh_requested.swap(false, Ordering::AcqRel) {
             self.refresh_brain(mob);
+            return;
+        }
+        for effect in effects {
+            effect(mob);
         }
     }
 
@@ -980,6 +986,15 @@ impl MobEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         *t = target.as_ref().map(Arc::downgrade);
+    }
+
+    /// The stored target without the `get_target` validity filter.
+    pub(crate) fn stored_target(&self) -> Option<Arc<dyn EntityBase>> {
+        self.target
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .and_then(Weak::upgrade)
     }
 
     /// The target, checked again on every read so a player who turns creative is dropped.
