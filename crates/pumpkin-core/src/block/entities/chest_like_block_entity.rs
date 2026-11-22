@@ -188,6 +188,7 @@ macro_rules! impl_block_entity_for_chest {
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner) =
                         Some(loot.loot_table.clone());
+                    self.loot_table_seed = loot.seed;
                 }
                 let mut items = self
                     .items
@@ -198,6 +199,22 @@ macro_rules! impl_block_entity_for_chest {
 
             fn collect_item_components(&self, stack: &mut ItemStack) {
                 self.metadata.collect_name_only(stack);
+                // Vanilla `RandomizableContainerBlockEntity.collectImplicitComponents`: an unopened
+                // loot chest keeps its table and seed on the dropped item so loot is rolled when
+                // the placed chest is first opened, not when it is broken.
+                let loot_table_key = self
+                    .loot_table
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone();
+                if let Some(loot_table) = loot_table_key {
+                    stack.set_data_component(
+                        pumpkin_data::data_component_impl::ContainerLootImpl {
+                            loot_table,
+                            seed: self.loot_table_seed,
+                        },
+                    );
+                }
             }
 
             fn collect_pick_item_components(&self, stack: &mut ItemStack) {
@@ -601,5 +618,50 @@ mod tests {
             (0..ChestBlockEntity::INVENTORY_SIZE)
                 .all(|slot| chest.get_stack(slot).item.id != Item::GOLD_INGOT.id)
         );
+    }
+
+    #[test]
+    fn broken_unopened_loot_chest_drop_retains_table_and_seed() {
+        use crate::block::entities::BlockEntity;
+        use crate::block::entities::chest::ChestBlockEntity;
+        use pumpkin_data::data_component_impl::ContainerLootImpl;
+        use pumpkin_data::item::Item;
+        use pumpkin_inventory::Inventory;
+
+        const KEY: &str = "minecraft:chests/nether_bridge";
+        const SEED: i64 = 987654321;
+
+        let chest = ChestBlockEntity::new(BlockPos::new(1, 64, 1));
+        *chest
+            .loot_table
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(KEY.to_string());
+        chest.loot_table_seed = SEED;
+
+        let mut dropped = ItemStack::new(1, &Item::CHEST);
+        chest.collect_item_components(&mut dropped);
+        assert!(
+            dropped
+                .get_data_component::<ContainerLootImpl>()
+                .is_some_and(|loot| loot.loot_table == KEY && loot.seed == SEED)
+        );
+
+        let placed = ChestBlockEntity::new(BlockPos::new(2, 64, 2));
+        placed.apply_item_components(&dropped);
+        assert_eq!(
+            *placed
+                .loot_table
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+            Some(KEY.to_string())
+        );
+        assert_eq!(placed.loot_table_seed, SEED);
+
+        placed.unpack_loot_table_with(&mut |key, seed| {
+            assert_eq!(key, KEY);
+            assert_eq!(seed, SEED);
+            vec![ItemStack::new(1, &Item::GOLD_INGOT)]
+        });
+        assert_eq!(placed.get_stack(0).item.id, Item::GOLD_INGOT.id);
     }
 }
