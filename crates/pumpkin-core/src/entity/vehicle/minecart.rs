@@ -204,6 +204,14 @@ const GRAVITY: f64 = 0.04;
 const RAIL_HEIGHT_OFFSET: f64 = 0.0625;
 const STOPPED_RAIL_NUDGE: f64 = 0.02;
 
+/// Vanilla `AbstractMinecart.moveOffTrack` adds gravity whenever a cart is off the rails.
+/// `on_ground` is deliberately ignored: a stationary cart resting on a rail caches
+/// `on_ground = true` (no `move_entity` runs while velocity is zero), so gating the drop on
+/// that stale flag leaves the cart floating after its rail is broken.
+const fn off_rail_gravity(_on_ground: bool) -> f64 {
+    -GRAVITY
+}
+
 /// Vanilla `AbstractMinecart` display block default offset (`getDefaultDisplayOffset`).
 const DEFAULT_DISPLAY_OFFSET: i32 = 6;
 
@@ -716,8 +724,9 @@ impl EntityBase for MinecartEntity {
 
             velocity.y = 0.0;
             self.vehicle.entity.velocity.store(velocity);
-        } else if !self.vehicle.entity.on_ground.load(Ordering::Relaxed) {
-            velocity.y -= GRAVITY;
+        } else {
+            let on_ground = self.vehicle.entity.on_ground.load(Ordering::Relaxed);
+            velocity.y += off_rail_gravity(on_ground);
             self.vehicle.entity.velocity.store(velocity);
         }
 
@@ -1320,6 +1329,14 @@ mod tests {
         assert!((rail_slowdown_factor_for(true, true) - 0.997).abs() < f64::EPSILON);
         assert!((rail_slowdown_factor_for(false, false) - 0.96).abs() < f64::EPSILON);
         assert!((rail_slowdown_factor_for(true, false) - 0.997).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn off_rail_cart_gets_gravity_even_with_stale_on_ground() {
+        // A cart resting on a rail caches `on_ground = true`; after the rail is broken no
+        // `move_entity` refreshes it before gravity, so both states must apply the drop.
+        assert_eq!(off_rail_gravity(true), -GRAVITY);
+        assert_eq!(off_rail_gravity(false), -GRAVITY);
     }
 
     #[test]
