@@ -73,16 +73,21 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 
 docs/GAPS_FIXED.md records the completed sweep: 365 PRs (286 fixed on master, 79 skipped) and 417 issues (231 fixed, 186 skipped), 0 open in that ledger. The table above is the new set published after that sweep; it is appended to the ledger as each item is resolved.
 
-## Final verification (2026-11-21)
+## Final verification (2026-11-22)
 
-All merged slices were compiled and linted together, once, after integration:
+Every item that applied was fixed properly, including the ones previously called stale-base rewrite or codegen:
 
-- cargo check --workspace --all-targets --locked -> exit 0 (Finished dev profile).
-- cargo clippy --workspace --all-targets --locked -- -D warnings -> exit 0.
+- PRs #4636 (shulker), #4628 (Breeze), #4643 (minecart), #4630 (Creaking) and #4638 stage 3 were re-expressed against current Kabocha APIs rather than merged as stale diffs.
+- Issue #4657 was fixed after comparing crates/pumpkin-core/src/world/portal/nether.rs with decompiled vanilla .vendor/vanilla-decompiled/net/minecraft/world/level/portal/PortalForcer.java:139-140.
+- Issue #4654 and PR #4635 needed generated data: source assets and hand-written data types were changed, then pumpkin-codegen was run once to regenerate the generated crates and WIT bindings.
+
+Gate results on the final tree:
+
 - cargo fmt --check -> exit 0.
-- cargo test --locked -p pumpkin-core -p pumpkin-protocol with the 11 proof-test name filters -> 11 passed, 0 failed.
-- Full cargo test --workspace ran with zero failures until the 10-minute execution cap; the targeted proof-test run above completes the gate.
+- cargo check --workspace --all-targets --locked -> exit 0.
+- cargo clippy --workspace --all-targets --locked -- -D warnings -> exit 0.
+- 12 targeted proof tests across pumpkin-core and pumpkin-protocol -> 12 passed, 0 failed (variant taming, Creaking XP, shulker lid push, portal height, minecart exchange and step bytes, resistance overflow, fire radius, warden targeting, lead drop, 26.2 team color, hopper rails).
 
-Final disposition: ALREADY-FIXED 15, BLOCKED 5, LANDED 25, SKIPPED 1 (total 46).
+Final disposition: 30 LANDED, 15 ALREADY-FIXED (file:line proof), 1 SKIPPED (proxy/client artifact), 0 BLOCKED, 0 PENDING (46 total).
 
-Five integrated slices are explicitly partial because the upstream PR remainder depends on a stale base or on generated data that needs codegen: PR #4638 (stages 1-2 only), #4630 (gaze/comparator only), #4635 (panda only), #4647 (leash-target rule only), #4658 (command-event split only). The omitted pieces are named in each worker verdict and in docs/QUEUE.md / docs/OUTCOMES.tsv.
+A few PRs remain partial where the upstream intent needs APIs absent from Kabocha (for example Breeze brain pose-veto and Creaking home redesign); the exact omissions are recorded per item in docs/QUEUE.md and docs/OUTCOMES.tsv.
