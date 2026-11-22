@@ -486,4 +486,21 @@ mod tests {
             0.7
         );
     }
+
+    #[test]
+    fn support_direction_determines_push_sign() {
+        // Soul sand must feed a positive push and magma a negative one, both at the
+        // column top and while submerged.
+        let at_rest = Vector3::new(0.0, 0.0, 0.0);
+        let Some(upward) = kind_from_support(&Block::SOUL_SAND) else {
+            return;
+        };
+        let Some(downward) = kind_from_support(&Block::MAGMA_BLOCK) else {
+            return;
+        };
+        assert!(bubble_column_velocity(at_rest, upward, false).y > 0.0);
+        assert!(bubble_column_velocity(at_rest, upward, true).y > 0.0);
+        assert!(bubble_column_velocity(at_rest, downward, false).y < 0.0);
+        assert!(bubble_column_velocity(at_rest, downward, true).y < 0.0);
+    }
 }
