@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use pumpkin_data::{
-    Block, BlockDirection, BlockStateId,
+    Block, BlockState, BlockStateId,
     block_properties::{HorizontalFacing, RailShape, RailShapeStraight},
 };
 use pumpkin_util::math::position::BlockPos;
@@ -36,8 +36,13 @@ pub(super) fn rail_placement_is_valid(world: &World, block: &Block, pos: &BlockP
 }
 
 pub(super) fn can_place_rail_at(world: &dyn BlockAccessor, pos: &BlockPos) -> bool {
-    let state = world.get_block_state(&pos.down());
-    state.is_side_solid(BlockDirection::Up)
+    can_support_rail(world.get_block_state(&pos.down()))
+}
+
+/// Vanilla `AbstractRailBlock.canPlaceRails` checks `isSolid` on the supporting state.
+/// That is true for hoppers even though their top is not a face-sturdy surface.
+fn can_support_rail(state: &BlockState) -> bool {
+    state.is_solid()
 }
 
 pub(super) fn compute_placed_rail_shape(
@@ -200,4 +205,16 @@ fn compute_flanking_rail_new_shape(
     }
 
     rail.get_new_rail_shape(new_neighbor_directions[0], new_neighbor_directions[1])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::can_support_rail;
+    use pumpkin_data::Block;
+
+    #[test]
+    fn hopper_supports_rails_even_without_a_sturdy_top_face() {
+        assert!(can_support_rail(Block::HOPPER.default_state));
+        assert!(!can_support_rail(Block::AIR.default_state));
+    }
 }
