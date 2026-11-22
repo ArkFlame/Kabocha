@@ -97,3 +97,17 @@ Final gate: cargo fmt --check 0, cargo check --workspace --all-targets --locked 
 Remaining upstream differences are equivalent implementations rather than missing behaviour (for example the Creaking deferral is per-entity instead of a global brain queue); where a PR intent truly cannot map to Kabocha APIs it is recorded in docs/QUEUE.md with the reason.
 
 Updated PR #4647 (squashed head b4137ff94): the full lead/leash parity rewrite was ported, including Mega review fixes - knot removal plays the untie sound and lets mobs handle lead drops per entity_drops; a single shared ItemSpawnEvent helper now serves all spawn_at_location callers; leash attach checks get_vehicle() after a possibly cancelled dismount. Proof tests: dead_knot_without_entity_drops_drops_no_lead, drop_leash_drops_when_the_holder_is_gone, cancelled dismount and ItemSpawnEvent cancellation. 19 leash tests passed, fmt/check/clippy green.
+
+## Upstream sync and final issue sweep (2026-11-22, second pass)
+
+Merged upstream commits a49be4bee (#4682 spider parity) and 8154bdbbb (#4683 pig parity) as 5cb3325a5, keeping Kabochas existing equivalents. Result: 0 commits behind upstream.
+
+Full audit of the 25 issues in the reported open list against docs/LEDGER.tsv: 19 already DONE/SKIPPED with file:line evidence. Six remained and are now dispositioned:
+- #4676 DONE: vanilla Piglin.java:196,295-298 / PiglinBrute.java:69-70 / ZombifiedPiglin.java:234-235 spawn weapons ported via one pumpkin-data helper; proof piglin_family_spawn_weapons_match_vanilla.
+- #4677 DONE: vanilla RandomizableContainerBlockEntity.java:108-113 puts CONTAINER_LOOT(table,seed) on a broken unopened chest; Kabocha now preserves and restores it (chest_like_block_entity.rs) with proof broken_unopened_loot_chest_drop_retains_table_and_seed.
+- #4657 DONE: vanilla PortalForcer.java:125 starts the scan at exclusive getHeight(MOTION_BLOCKING); Kabocha nether.rs create_portal_start_y adds the missing +1; proof portal_scan_starts_at_surface_air_not_solid_block.
+- #4646 SKIPPED: already fixed (bed.rs:175 / straw_bed.rs:161 preserve SKIP_DROPS; tests bed.rs:724,764).
+- #4623 SKIPPED: already fixed by 2b1bc82b4 (world/waypoint.rs with vanilla-byte codec tests).
+- #4654 SKIPPED: already fixed by 402c0436a (advancement components codegen + predicate proof test).
+
+Final gate: cargo fmt --check 0, cargo check --workspace --all-targets --locked 0, cargo clippy --workspace --all-targets --locked -- -D warnings 0, 76 targeted proof tests passed 0 failed.
