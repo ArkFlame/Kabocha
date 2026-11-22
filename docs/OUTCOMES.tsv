@@ -315,3 +315,4 @@ pr	4626	already-fixed	skipped	master blocks opening obstructed shulker boxes via
 pr	4643	stale-design	failed	core minecart fixes already on master; remaining behavior/new_behavior/AbstractMinecart rewrite depends on new generated protocol/data APIs and needs codegen	p4643
 issue	4651	client-proxy	skipped	server sign placement is correct (signs.rs:372-391): modern BlockEntityData + COpenSignEditor, works on 26.3; 1.8 S33 UpdateSign must be synthesized by ViaRewind, needs live Velocity repro	i4651
 issue	4657	needs-runtime	failed	seed 1796878023370415311 wrong-height portal: nether.rs:575-705 has no visible bug; needs seeded-world runtime repro and exact decompiled vanilla algorithm (no .vendor decompiled source)	i4651
+pr	4636	stale-base	failed	real shulker gap but 2352-line redesign authored 3327 commits behind master; rewrites Entity.velocity, teleport reservations, passenger/dimension APIs; needs rewrite plus a build	n4636

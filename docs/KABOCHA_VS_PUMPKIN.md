@@ -35,7 +35,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4632](https://github.com/Pumpkin-MC/Pumpkin/pull/4632) | fix(world): preserve imported structure data when saving chunks | LANDED (b3fe50c73) |
 | [#4634](https://github.com/Pumpkin-MC/Pumpkin/pull/4634) | Support deferred login admission | PENDING |
 | [#4635](https://github.com/Pumpkin-MC/Pumpkin/pull/4635) | fix(entity): close remaining panda, dolphin, mooshroom and bee parity gaps | LANDED (bb4624ae5, partial: panda only) |
-| [#4636](https://github.com/Pumpkin-MC/Pumpkin/pull/4636) | feat(entity): full vanilla parity for shulker | PENDING |
+| [#4636](https://github.com/Pumpkin-MC/Pumpkin/pull/4636) | feat(entity): full vanilla parity for shulker | BLOCKED (stale-base redesign, needs build) |
 | [#4638](https://github.com/Pumpkin-MC/Pumpkin/pull/4638) | perf(world): batch packets per tick and send movement from the entity tracker | LANDED (18ed0b039, partial: stages 1-2) |
 | [#4639](https://github.com/Pumpkin-MC/Pumpkin/pull/4639) | fix(entity): despawn ineligible mobs on peaceful | PENDING |
 | [#4641](https://github.com/Pumpkin-MC/Pumpkin/pull/4641) | Avoid double deletion of guest-owned resources | LANDED (f033a0d53) |
@@ -46,9 +46,9 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4648](https://github.com/Pumpkin-MC/Pumpkin/pull/4648) | fix(entity): stop resistance from overflowing past level five | PENDING |
 | [#4650](https://github.com/Pumpkin-MC/Pumpkin/pull/4650) | fix(block): preserve drop flags when breaking multi-part blocks | LANDED |
 | [#4652](https://github.com/Pumpkin-MC/Pumpkin/pull/4652) | feat(entity): sniffer vanilla parity | ALREADY-FIXED (#4535) |
-| [#4655](https://github.com/Pumpkin-MC/Pumpkin/pull/4655) | feat(entity): implement happy ghast vanilla parity | PENDING |
+| [#4655](https://github.com/Pumpkin-MC/Pumpkin/pull/4655) | feat(entity): implement happy ghast vanilla parity | ALREADY-FIXED (#4206) |
 | [#4658](https://github.com/Pumpkin-MC/Pumpkin/pull/4658) | fix(plugin): separate PlayerCommandPreprocessEvent from PlayerCommandSendEvent | PENDING |
-| [#4661](https://github.com/Pumpkin-MC/Pumpkin/pull/4661) | feat(entity): vanilla parity for armadillo | PENDING |
+| [#4661](https://github.com/Pumpkin-MC/Pumpkin/pull/4661) | feat(entity): vanilla parity for armadillo | ALREADY-FIXED (armadillo.rs inline) |
 | [#4663](https://github.com/Pumpkin-MC/Pumpkin/pull/4663) | feat(entity): port copper golem behavior and item transport | ALREADY-FIXED |
 
 ### Issues
