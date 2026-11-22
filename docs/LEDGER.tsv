@@ -850,3 +850,4 @@ pr	4682	https://github.com/Pumpkin-MC/Pumpkin/pull/4682	feat(entity): finish spi
 issue	4678	https://github.com/Pumpkin-MC/Pumpkin/issues/4678	Sculk Sensors do not detect vibrations	SKIPPED			already fixed: world/game_event.rs:101-132 dispatches to block entities; sculk_sensor.rs:88-191 detection/redstone with tests at :432-511	2026-11-22
 pr	4681	https://github.com/Pumpkin-MC/Pumpkin/pull/4681	fix(bedrock): support split-screen sub-client login and routing	DONE		cf1b8af93	fix(bedrock): sub-client login and routing (#4681)	2026-11-22
 pr	4683	https://github.com/Pumpkin-MC/Pumpkin/pull/4683	feat(entity): finish pig parity	DONE		da3d90e6f	feat(entity): finish pig parity (#4683) - structure spawn variants	2026-11-22
+issue	4646	https://github.com/Pumpkin-MC/Pumpkin/issues/4646	Bed despawn without dropping anything	SKIPPED			already fixed: bed.rs:175/straw_bed.rs:161 preserve SKIP_DROPS flags so head half drops; proof tests bed.rs:723-840 (d26c8ebb8)	2026-11-22
