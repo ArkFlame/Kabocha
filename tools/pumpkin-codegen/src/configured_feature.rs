@@ -36,6 +36,31 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn sculk_patch_sequence_emits_sculk_patch() {
+        let sequence: Value = serde_json::from_str(
+            r#"{
+                "type": "minecraft:sequence",
+                "features": [
+                    {"feature": {"type": "minecraft:sculk_patch", "charge_count": 10,
+                     "amount_per_charge": 32, "spread_attempts": 64, "growth_rounds": 0,
+                     "spread_rounds": 1}, "placement": []},
+                    {"feature": {"type": "minecraft:simple_block",
+                     "to_place": {"id": "minecraft:sculk_catalyst"}}, "placement": []}
+                ]
+            }"#,
+        )
+        .unwrap();
+        let tokens = value_to_configured_feature(&sequence)
+            .to_string()
+            .replace(' ', "");
+        assert!(
+            tokens.contains("ConfiguredFeature::SculkPatch"),
+            "sculk patch sequence must not become a no-op: {tokens}"
+        );
+        assert!(!tokens.contains("ConfiguredFeature::NoOp"), "{tokens}");
+    }
 }
 
 fn load_configured_features() -> BTreeMap<String, Value> {
@@ -1046,9 +1071,20 @@ pub fn value_to_configured_feature(v: &Value) -> TokenStream {
         "minecraft:dripstone_cluster" | "minecraft:speleothem_cluster" => {
             quote! { ConfiguredFeature::DripstoneCluster(crate::generation::feature::features::drip_stone::cluster::DripstoneClusterFeature {}) }
         }
-        "minecraft:sequence" => {
-            quote! { ConfiguredFeature::NoOp }
-        }
+        "minecraft:sequence" => config["features"]
+            .as_array()
+            .and_then(|features| {
+                features.iter().find_map(|entry| {
+                    let feature = if entry.get("feature").is_some() {
+                        &entry["feature"]
+                    } else {
+                        entry
+                    };
+                    (feature["type"].as_str() == Some("minecraft:sculk_patch"))
+                        .then(|| value_to_configured_feature(feature))
+                })
+            })
+            .unwrap_or_else(|| quote! { ConfiguredFeature::NoOp }),
         "minecraft:stepped_column_cluster" => {
             let block = value_to_block_state_provider(&config["block"]);
             let can_replace = value_to_block_predicate(&config["can_replace"]);
@@ -1084,13 +1120,17 @@ pub fn value_to_configured_feature(v: &Value) -> TokenStream {
             quote! { ConfiguredFeature::LargeDripstone(crate::generation::feature::features::drip_stone::large::LargeDripstoneFeature {}) }
         }
         "minecraft:sculk_patch" => {
-            let charge_count = config["charge_count"].as_u64().unwrap() as i32;
-            let amount_per_charge = config["amount_per_charge"].as_u64().unwrap() as i32;
-            let spread_attempts = config["spread_attempts"].as_u64().unwrap() as i32;
-            let growth_rounds = config["growth_rounds"].as_u64().unwrap() as i32;
-            let spread_rounds = config["spread_rounds"].as_u64().unwrap() as i32;
-            let extra_rare_growths = value_to_int_provider(&config["extra_rare_growths"]);
-            let catalyst_chance = config["catalyst_chance"].as_f64().unwrap() as f32;
+            let charge_count = config["charge_count"].as_u64().unwrap_or(10) as i32;
+            let amount_per_charge = config["amount_per_charge"].as_u64().unwrap_or(32) as i32;
+            let spread_attempts = config["spread_attempts"].as_u64().unwrap_or(64) as i32;
+            let growth_rounds = config["growth_rounds"].as_u64().unwrap_or(0) as i32;
+            let spread_rounds = config["spread_rounds"].as_u64().unwrap_or(1) as i32;
+            let extra_rare_growths = if config.get("extra_rare_growths").is_some() {
+                value_to_int_provider(&config["extra_rare_growths"])
+            } else {
+                quote! { IntProvider::Constant(1) }
+            };
+            let catalyst_chance = config["catalyst_chance"].as_f64().unwrap_or(0.5) as f32;
             quote! {
                 ConfiguredFeature::SculkPatch(crate::generation::feature::features::sculk_patch::SculkPatchFeature {
                     charge_count: #charge_count,
