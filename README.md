@@ -32,6 +32,8 @@ parity gap, driven by AI agents (Claude as orchestrator, DeepSeek as implementer
 > Kabocha is under heavy development, like the Pumpkin project it builds on.
 >
 > The checklist below is the upstream Pumpkin feature list. [Upstream release plan](https://github.com/Pumpkin-MC/Pumpkin/issues/449)
+>
+> [See what needs to be done on Kabocha's tracker](TRACKER.md)
 
 ## Quick Start
 
