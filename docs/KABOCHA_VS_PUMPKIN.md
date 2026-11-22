@@ -63,7 +63,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4649](https://github.com/Pumpkin-MC/Pumpkin/issues/4649) | Resistance 255 overflow crash on mob hit | LANDED (e7fea647f, proof test) |
 | [#4651](https://github.com/Pumpkin-MC/Pumpkin/issues/4651) | 1.8.9 client Unable to locate sign via Velocity/ViaRewind | SKIPPED (ViaRewind proxy artifact) |
 | [#4653](https://github.com/Pumpkin-MC/Pumpkin/issues/4653) | Firework rocket flight_duration ignored with Elytra | ALREADY-FIXED (firework_rocket.rs:37-42) |
-| [#4654](https://github.com/Pumpkin-MC/Pumpkin/issues/4654) | Taming a horse grants unrelated advancements | BLOCKED-DATA (needs EntityCondition variant fields + codegen) |
+| [#4654](https://github.com/Pumpkin-MC/Pumpkin/issues/4654) | Taming a horse grants unrelated advancements | LANDED (402c0436a, proof test; codegen pending) |
 | [#4657](https://github.com/Pumpkin-MC/Pumpkin/issues/4657) | Nether Portal generates at wrong height | LANDED (eb638011c, proof test, vanilla-cited) |
 | [#4662](https://github.com/Pumpkin-MC/Pumpkin/issues/4662) | Explosion Player Knockback | ALREADY-FIXED (b45b906cc) |
 | [#4664](https://github.com/Pumpkin-MC/Pumpkin/issues/4664) | Burnable blocks catch fire when fire_spread_radius_around_player is 0 | LANDED (86e47eb98, proof test) |

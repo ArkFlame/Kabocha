@@ -825,3 +825,4 @@ pr	4639	https://github.com/Pumpkin-MC/Pumpkin/pull/4639	fix(entity): despawn ine
 pr	4634	https://github.com/Pumpkin-MC/Pumpkin/pull/4634	Support deferred login admission	DONE		cdcbdaca9	feat(plugin): support deferred login admission (#4634)	2026-11-21
 issue	4657	https://github.com/Pumpkin-MC/Pumpkin/issues/4657	Nether Portal generates at wrong height	DONE		eb638011c	fix(worldgen): align nether portal placement height with vanilla (#4657)	2026-11-22
 pr	4643	https://github.com/Pumpkin-MC/Pumpkin/pull/4643	fix(minecart)	DONE		9c0ecf0b9	fix(entity): minecart velocity exchange and step packet parity (#4643)	2026-11-22
+issue	4654	https://github.com/Pumpkin-MC/Pumpkin/issues/4654	Taming a horse grants unrelated advancements	DONE		402c0436a	fix(advancement): gate variant taming advancements on components (#4654) - codegen pending	2026-11-22
