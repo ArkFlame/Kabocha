@@ -301,3 +301,5 @@ issue	4070	already-fixed	skipped	already fixed in HEAD: surface rules skip neigh
 pr	3396	needs-runtime	failed	multi-bug Bedrock-client report against PR #2993, no reproducible single defect; needs a Bedrock client session	i4034
 issue	3844	already-fixed	skipped	already fixed: charged projectiles are now encoded as real item-stack templates (`crates/pumpkin-protocol/src/codec/data_component.rs:2578-2591`, commit 5d3e9ce9a "fix(codec): improve serialization and deserialization of charged projectiles (#3897)"), replacing the bogus 4-varint payload that made t	i3124
 issue	3468	other	failed	explicit tracking epic (dozens of per-mob goal units plus blocked foundation/brain work), cannot be a single pass	i3060
+issue	4623	already-fixed	skipped	waypoint/locator bar already sends players: commit 2b1bc82b4 fix(waypoint): show players on the locator bar (#4625)	i4623
+issue	4646	already-fixed	skipped	bed breaking drops the item: PR #4650 added bed_break_foot_drops_bed and bed_break_head_drops_bed in crates/pumpkin-core/src/block/blocks/bed.rs (commit d26c8ebb8)	i4646
