@@ -518,6 +518,14 @@ fn new_team_uses_reset_colour_and_stores_death_message_visibility() {
 }
 
 #[test]
+fn new_team_defaults_enable_vanilla_friendly_fire_flags() {
+    let mut team = plain_team("red");
+    team.options = Team::NEW_TEAM_OPTIONS;
+    assert!(team.is_allow_friendly_fire());
+    assert!(team.can_see_friendly_invisibles());
+}
+
+#[test]
 fn resolve_criterion_matches_vanilla_custom_and_stat_names() {
     assert_eq!(
         resolve_criterion("health"),

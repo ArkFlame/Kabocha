@@ -7499,6 +7499,57 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn leashed_mob_death_drops_the_lead_and_detaches_it()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use crate::entity::{ai::test_support::world, passive::snow_golem::SnowGolemEntity};
+        use pumpkin_data::damage::DamageType;
+
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let golem = SnowGolemEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::SNOW_GOLEM,
+        ));
+        let holder: Arc<dyn EntityBase> = SnowGolemEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(4.5, 64.0, 0.5),
+            &EntityType::SNOW_GOLEM,
+        ));
+        world.add_entity_silent(golem.clone());
+        golem.get_entity().attach_leash(&holder);
+        assert!(golem.get_entity().is_leashed());
+
+        golem
+            .mob_entity
+            .living_entity
+            .on_death(DamageType::GENERIC, None, None);
+
+        assert!(!golem.get_entity().is_leashed());
+        assert!(golem.get_entity().get_leash_holder().is_none());
+        let leads: usize = world
+            .entities
+            .load()
+            .iter()
+            .filter_map(|entity| entity.cast_any().downcast_ref::<item::ItemEntity>())
+            .map(|item| {
+                let stack = item
+                    .get_item_stack()
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                if stack.item == &pumpkin_data::item::Item::LEAD {
+                    usize::from(stack.item_count)
+                } else {
+                    0
+                }
+            })
+            .sum();
+        assert_eq!(leads, 1);
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn baby_dolphin_passenger_attachment_scales_with_age()
     -> Result<(), Box<dyn std::error::Error>> {
         use crate::entity::{

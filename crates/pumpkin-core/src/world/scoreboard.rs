@@ -1297,6 +1297,9 @@ impl Team {
     /// Wire id for vanilla `ChatFormatting.RESET`; the packet encoder maps it to 21.
     pub(crate) const RESET_COLOR_ID: i32 = -1;
     pub(crate) const SEE_FRIENDLY_INVISIBLES: i8 = 0x02;
+    /// Vanilla team defaults: both friendly fire options start enabled.
+    pub(crate) const NEW_TEAM_OPTIONS: i8 =
+        Self::ALLOW_FRIENDLY_FIRE | Self::SEE_FRIENDLY_INVISIBLES;
 
     #[must_use]
     pub const fn is_allow_friendly_fire(&self) -> bool {

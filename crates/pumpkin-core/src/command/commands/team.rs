@@ -114,7 +114,7 @@ impl CommandExecutor for TeamAddExecutor {
             name: team_name_owned,
             display_name: display_name_clone.clone(),
             // Vanilla PlayerTeam starts with allowFriendlyFire and seeFriendlyInvisibles enabled.
-            options: Team::ALLOW_FRIENDLY_FIRE | Team::SEE_FRIENDLY_INVISIBLES,
+            options: Team::NEW_TEAM_OPTIONS,
             nametag_visibility: NameTagVisibility::Always,
             collision_rule: CollisionRule::Always,
             color: None,
