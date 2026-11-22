@@ -1,5 +1,5 @@
 use rustc_hash::FxHashMap;
-use std::io::{ErrorKind, Read};
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -7,12 +7,10 @@ use crate::chunk::io::{RegionFile, sync_file, write_file_atomically};
 use crate::chunk::{ChunkReadingError, ChunkWritingError};
 use bytes::{Buf, BufMut, Bytes};
 use pumpkin_util::math::vector2::Vector2;
-use ruzstd::decoding::StreamingDecoder;
-use ruzstd::encoding::{CompressionLevel, compress_to_vec};
 use tracing::{error, warn};
 use xxhash_rust::xxh64::xxh64;
 
-use super::anvil::CHUNK_COUNT;
+use super::{anvil::CHUNK_COUNT, zstd};
 
 /// The signature used as both header and footer.
 /// <https://gist.github.com/Aaron2550/5701519671253d4c6190bde6706f9f98>
@@ -355,19 +353,9 @@ impl LinearV2File {
         let max = super::MAX_DECOMPRESSED_CHUNK_SIZE
             .saturating_mul(Self::chunks_per_bucket(grid_size))
             .min(*region_budget);
-        let decoder =
-            StreamingDecoder::new(compressed).map_err(|_| ChunkReadingError::RegionIsInvalid)?;
-        let mut decompressed = Vec::new();
-        let read = decoder
-            .take(max as u64 + 1)
-            .read_to_end(&mut decompressed)
-            .map_err(ChunkReadingError::IoError)?;
-        if read > max {
-            return Err(ChunkReadingError::IoError(std::io::Error::other(
-                "bucket exceeds the maximum decompressed size",
-            )));
-        }
-        *region_budget -= read;
+        let decompressed = zrip::decompress_with_limit(compressed, max)
+            .map_err(|_| ChunkReadingError::RegionIsInvalid)?;
+        *region_budget -= decompressed.len();
         Ok(decompressed)
     }
 
@@ -604,8 +592,9 @@ impl RegionFile for LinearV2File {
         for bucket_idx in 0..self.buckets.len() {
             if self.buckets[bucket_idx].is_none() {
                 let raw = self.serialise_bucket(bucket_idx);
-                let data =
-                    compress_to_vec(raw.as_slice(), CompressionLevel::Fastest).into_boxed_slice();
+                let mut data = Vec::new();
+                zstd::compress_append(&raw, &mut data).map_err(std::io::Error::other)?;
+                let data = data.into_boxed_slice();
                 let xxhash = xxh64(&data, 0);
                 self.buckets[bucket_idx] = Some(CompressedBucket {
                     data,

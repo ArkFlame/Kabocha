@@ -33,6 +33,7 @@ use super::{
 pub mod anvil;
 pub mod linear;
 pub mod pump;
+mod zstd;
 
 /// Upper bound on a decompressed chunk, far above anything the game writes.
 pub const MAX_DECOMPRESSED_CHUNK_SIZE: usize = 32 * 1024 * 1024;
