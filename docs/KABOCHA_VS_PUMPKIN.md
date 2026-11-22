@@ -42,7 +42,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4642](https://github.com/Pumpkin-MC/Pumpkin/pull/4642) | Expose transport latency through the v0.2 plugin API | LANDED (b9b41f8e4) |
 | [#4643](https://github.com/Pumpkin-MC/Pumpkin/pull/4643) | fix(minecart) | LANDED (+f31a674c8: experimental lerp steps) |
 | [#4644](https://github.com/Pumpkin-MC/Pumpkin/pull/4644) | fix(respawn_anchor): notify clients and neighbors when breaking anchor on explosion | LANDED |
-| [#4647](https://github.com/Pumpkin-MC/Pumpkin/pull/4647) | fix(entity): bring leads closer to vanilla parity | LANDED (6ca8d115a, partial: leash targets) |
+| [#4647](https://github.com/Pumpkin-MC/Pumpkin/pull/4647) | fix(entity): bring leads closer to vanilla parity | LANDED (d66681602, full update + Mega review fixes) |
 | [#4648](https://github.com/Pumpkin-MC/Pumpkin/pull/4648) | fix(entity): stop resistance from overflowing past level five | LANDED with issue #4649 (e7fea647f) |
 | [#4650](https://github.com/Pumpkin-MC/Pumpkin/pull/4650) | fix(block): preserve drop flags when breaking multi-part blocks | LANDED |
 | [#4652](https://github.com/Pumpkin-MC/Pumpkin/pull/4652) | feat(entity): sniffer vanilla parity | ALREADY-FIXED (#4535) |
@@ -95,3 +95,5 @@ Follow-up pass (2026-11-22): the behaviours omitted from the earlier partial por
 Final gate: cargo fmt --check 0, cargo check --workspace --all-targets --locked 0, cargo clippy --workspace --all-targets --locked -- -D warnings 0, 20 targeted proof tests passed 0 failed.
 
 Remaining upstream differences are equivalent implementations rather than missing behaviour (for example the Creaking deferral is per-entity instead of a global brain queue); where a PR intent truly cannot map to Kabocha APIs it is recorded in docs/QUEUE.md with the reason.
+
+Updated PR #4647 (squashed head b4137ff94): the full lead/leash parity rewrite was ported, including Mega review fixes - knot removal plays the untie sound and lets mobs handle lead drops per entity_drops; a single shared ItemSpawnEvent helper now serves all spawn_at_location callers; leash attach checks get_vehicle() after a possibly cancelled dismount. Proof tests: dead_knot_without_entity_drops_drops_no_lead, drop_leash_drops_when_the_holder_is_gone, cancelled dismount and ItemSpawnEvent cancellation. 19 leash tests passed, fmt/check/clippy green.

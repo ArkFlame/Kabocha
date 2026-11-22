@@ -836,3 +836,4 @@ pr	4630	https://github.com/Pumpkin-MC/Pumpkin/pull/4630	feat(entity): vanilla pa
 pr	4628	https://github.com/Pumpkin-MC/Pumpkin/pull/4628	feat(entity): vanilla parity for Breeze	DONE		769cb8ebf	feat(entity): Breeze long-jump, slide and pose veto (#4628)	2026-11-22
 pr	4630	https://github.com/Pumpkin-MC/Pumpkin/pull/4630	feat(entity): vanilla parity for Creaking	DONE		c010bf7a2	feat(entity): Creaking legacy heart binding and deferred melee (#4630)	2026-11-22
 pr	4643	https://github.com/Pumpkin-MC/Pumpkin/pull/4643	fix(minecart)	DONE		d570e0e04	fix(entity): minecart experimental rail slowdown and known movement (#4643)	2026-11-22
+pr	4647	https://github.com/Pumpkin-MC/Pumpkin/pull/4647	fix(entity): bring leads closer to vanilla parity	DONE		d66681602	fix(entity): bring leads to vanilla parity with review fixes (#4647)	2026-11-22
