@@ -60,7 +60,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4629](https://github.com/Pumpkin-MC/Pumpkin/issues/4629) | Cannot place a regular rail on top of a hopper | IN FLIGHT |
 | [#4640](https://github.com/Pumpkin-MC/Pumpkin/issues/4640) | wardem cannot attack any entity | IN FLIGHT |
 | [#4646](https://github.com/Pumpkin-MC/Pumpkin/issues/4646) | Bed despawn without dropping anything | PENDING |
-| [#4649](https://github.com/Pumpkin-MC/Pumpkin/issues/4649) | Resistance 255 overflow crash on mob hit | IN FLIGHT |
+| [#4649](https://github.com/Pumpkin-MC/Pumpkin/issues/4649) | Resistance 255 overflow crash on mob hit | LANDED (e7fea647f, proof test) |
 | [#4651](https://github.com/Pumpkin-MC/Pumpkin/issues/4651) | 1.8.9 client Unable to locate sign via Velocity/ViaRewind | PENDING |
 | [#4653](https://github.com/Pumpkin-MC/Pumpkin/issues/4653) | Firework rocket flight_duration ignored with Elytra | ALREADY-FIXED (firework_rocket.rs:37-42) |
 | [#4654](https://github.com/Pumpkin-MC/Pumpkin/issues/4654) | Taming a horse grants unrelated advancements | IN FLIGHT |
