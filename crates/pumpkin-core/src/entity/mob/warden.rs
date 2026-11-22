@@ -21,6 +21,9 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::{GameMode, math::vector3::Vector3};
 use uuid::Uuid;
 
+use crate::entity::ai::behavior::hunting::{self, Hunt};
+use crate::entity::ai::target_match::TargetMatch;
+use crate::entity::living::LivingEntity;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
@@ -48,10 +51,21 @@ const ON_HURT_ANGER_BOOST: i32 = 20;
 const TOUCH_COOLDOWN_TICKS: i32 = 20;
 /// Vanilla `Warden#nextStep` adds a fixed offset to the move distance.
 const NEXT_STEP_DISTANCE: f32 = 0.55;
+
+// Vanilla `Warden.registerGoals`: NearestAttackableTargetGoal(Mob, canTargetEntity) at priority 1.
+const WARDEN_HUNTS: &[Hunt] = &[Hunt::new(1, TargetMatch::Mob, false).matching(warden_can_target)];
+
 /// Vanilla `Warden.VibrationUser.getListenerRadius`.
 const VIBRATION_LISTENER_RADIUS: i32 = 16;
 /// Vanilla `Warden.VibrationUser.onReceiveVibration` cooldown expiry.
 const VIBRATION_COOLDOWN_TICKS: i32 = 40;
+
+fn warden_can_target(hunter: &dyn Mob, target: &LivingEntity, _world: &World) -> bool {
+    hunter
+        .cast_any()
+        .downcast_ref::<WardenEntity>()
+        .is_some_and(|warden| warden.can_target_entity(&target.entity))
+}
 
 pub struct WardenEntity {
     pub mob_entity: MobEntity,
@@ -209,6 +223,12 @@ impl WardenEntity {
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
             );
             goal_selector.add_goal(7, Box::new(RandomLookAroundGoal::default()));
+
+            hunting::apply(
+                &mob_arc.mob_entity.target_selector,
+                &mob_arc.mob_entity,
+                WARDEN_HUNTS,
+            );
         };
 
         mob_arc
@@ -567,5 +587,30 @@ impl Mob for WardenEntity {
         !world.contains_any_liquid(bounding_box)
             && world.get_entities_at_box(&bounding_box).is_empty()
             && world.is_space_empty(bounding_box)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_data::entity::EntityType;
+    use pumpkin_util::math::vector3::Vector3;
+
+    use crate::entity::Entity;
+    use crate::entity::ai::goal::active_target::ActiveTargetGoal;
+    use crate::entity::ai::test_support::world;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn warden_registers_a_target_goal() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let warden = WardenEntity::new(Entity::new(
+            world,
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::WARDEN,
+        ));
+        assert!(warden.mob_entity.target_selector.has_goal::<ActiveTargetGoal>());
+        Ok(())
     }
 }
