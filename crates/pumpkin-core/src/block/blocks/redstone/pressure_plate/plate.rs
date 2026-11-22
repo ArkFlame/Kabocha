@@ -1,3 +1,4 @@
+use pumpkin_data::tag;
 use pumpkin_data::block_set_type::PressurePlateSensitivity;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::{Block, BlockDirection, BlockId, BlockState, BlockStateId};
