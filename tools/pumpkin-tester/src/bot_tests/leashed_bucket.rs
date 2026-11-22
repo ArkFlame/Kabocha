@@ -301,7 +301,7 @@ fn check_cancelled_dismount_blocks_leash(
     result
 }
 
-/// Every item drop goes through the shared helper and honours ItemSpawnEvent cancellation.
+/// Every item drop goes through the shared helper and honours `ItemSpawnEvent` cancellation.
 fn check_item_spawn_cancellation(
     server: &Arc<Server>,
     player: &Arc<Player>,
