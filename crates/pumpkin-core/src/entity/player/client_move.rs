@@ -353,7 +353,9 @@ impl Player {
             self.living_entity.try_reset_current_impulse_context();
         }
 
-        if delta.length_squared() > 0.0 && let Some(player) = self.world().get_player_by_uuid(self.gameprofile.id) {
+        if delta.length_squared() > 0.0
+            && let Some(player) = self.world().get_player_by_uuid(self.gameprofile.id)
+        {
             chunker::update_position(&player);
         }
         if delta.length_squared() > 1.0E-5 {

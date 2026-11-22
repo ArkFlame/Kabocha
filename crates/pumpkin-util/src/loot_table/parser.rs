@@ -612,7 +612,6 @@ impl<R: Fn(&str) -> Option<Value>> Parser<'_, R> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
