@@ -41,7 +41,7 @@ pub(super) fn can_place_rail_at(world: &dyn BlockAccessor, pos: &BlockPos) -> bo
 
 /// Vanilla `AbstractRailBlock.canPlaceRails` checks `isSolid` on the supporting state.
 /// That is true for hoppers even though their top is not a face-sturdy surface.
-fn can_support_rail(state: &BlockState) -> bool {
+const fn can_support_rail(state: &BlockState) -> bool {
     state.is_solid()
 }
 
