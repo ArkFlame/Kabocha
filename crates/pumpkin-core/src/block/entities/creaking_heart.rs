@@ -1,6 +1,6 @@
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 
 use crossbeam::atomic::AtomicCell;
 use pumpkin_data::block_properties::{
@@ -50,6 +50,8 @@ pub struct CreakingHeartBlockEntity {
     pub position: BlockPos,
     pub creaking_uuid: AtomicCell<Option<Uuid>>,
     ticks_existed: AtomicU64,
+    output_signal: AtomicU8,
+    comparator_dirty: AtomicBool,
 }
 
 impl BlockEntity for CreakingHeartBlockEntity {
@@ -79,6 +81,8 @@ impl BlockEntity for CreakingHeartBlockEntity {
             position,
             creaking_uuid: AtomicCell::new(creaking_uuid),
             ticks_existed: AtomicU64::new(0),
+            output_signal: AtomicU8::new(0),
+            comparator_dirty: AtomicBool::new(false),
         }
     }
 
@@ -99,6 +103,7 @@ impl BlockEntity for CreakingHeartBlockEntity {
     fn tick(&self, world: &Arc<World>) {
         // Vanilla increments `ticksExisted` on every server tick, before its timer gate.
         self.ticks_existed.fetch_add(1, Ordering::Relaxed);
+        self.update_output_signal(world);
         // Vanilla `CreakingHeartBlockEntity#serverTick` runs its state/spawn logic on a
         // 20-24 tick timer, spawning only when unbound and despawning only when bound.
         if world.get_world_age() % 20 != 0 {
@@ -118,6 +123,14 @@ impl BlockEntity for CreakingHeartBlockEntity {
         self.remove_protector(world);
     }
 
+    fn is_comparator_dirty(&self) -> bool {
+        self.comparator_dirty.load(Ordering::Relaxed)
+    }
+
+    fn clear_comparator_dirty(&self) {
+        self.comparator_dirty.store(false, Ordering::Relaxed);
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -132,6 +145,8 @@ impl CreakingHeartBlockEntity {
             position,
             creaking_uuid: AtomicCell::new(None),
             ticks_existed: AtomicU64::new(0),
+            output_signal: AtomicU8::new(0),
+            comparator_dirty: AtomicBool::new(false),
         }
     }
 
@@ -141,6 +156,37 @@ impl CreakingHeartBlockEntity {
         if self.ticks_existed.load(Ordering::Relaxed) >= CREAKING_BINDING_GRACE_TICKS {
             self.set_creaking_uuid(None);
         }
+    }
+
+    /// Vanilla `CreakingHeartBlockEntity#getAnalogOutputSignal`: a bound protector makes the
+    /// heart a comparator source whose strength falls off over 32 blocks.
+    #[must_use]
+    pub fn output_signal(&self) -> u8 {
+        self.output_signal.load(Ordering::Relaxed)
+    }
+
+    fn update_output_signal(&self, world: &World) {
+        let signal = self.compute_output_signal(world);
+        if self.output_signal.swap(signal, Ordering::Relaxed) != signal {
+            // Vanilla `setChanged` schedules a comparator update when the signal changes.
+            self.comparator_dirty.store(true, Ordering::Relaxed);
+        }
+    }
+
+    fn compute_output_signal(&self, world: &World) -> u8 {
+        let Some(uuid) = self.creaking_uuid.load() else {
+            return 0;
+        };
+        let Some(creaking) = world.get_entity_by_uuid(uuid) else {
+            return 0;
+        };
+        let pos = creaking.get_entity().pos.load();
+        // Vanilla measures from `Vec3.atBottomCenterOf` (x + 0.5, y, z + 0.5).
+        let dx = pos.x - (f64::from(self.position.0.x) + 0.5);
+        let dy = pos.y - f64::from(self.position.0.y);
+        let dz = pos.z - (f64::from(self.position.0.z) + 0.5);
+        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+        (15.0 - (distance * 15.0 / 32.0).floor()).clamp(0.0, 15.0) as u8
     }
 
     pub fn is_protector(&self, creaking_uuid: Uuid) -> bool {

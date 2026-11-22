@@ -47,6 +47,14 @@ pub const CREAKING_GRAY: i32 = 6250335;
 pub const INVULNERABILITY_ANIMATION_DURATION: i32 = 8;
 pub const TWITCH_DEATH_DURATION: i32 = 45;
 pub const MAX_PLAYER_STUCK_COUNTER: i32 = 4;
+/// Vanilla `LivingEntity.MAX_GAZE_RANGE`: a player farther than this cannot activate a Creaking.
+const MAX_GAZE_RANGE: f64 = 128.0;
+/// Vanilla `LivingEntity.isLookingAtMe` ignores gaze targets closer than this epsilon.
+const GAZE_MIN_DISTANCE: f64 = 1.0e-5;
+
+const fn gaze_distance_in_range(distance: f64) -> bool {
+    distance >= GAZE_MIN_DISTANCE && distance <= MAX_GAZE_RANGE
+}
 
 /// Vanilla `Creaking.hurtServer`: a heart-bound creaking only starts its shake for a
 /// living or projectile attacker, or for a player who is responsible for the damage.
@@ -348,7 +356,7 @@ impl CreakingEntity {
             let target = Vector3::new(creaking_pos.x, target_y, creaking_pos.z);
             let dir = target - player_eye_pos;
             let distance = (dir.x * dir.x + dir.y * dir.y + dir.z * dir.z).sqrt();
-            if distance > 0.001 {
+            if gaze_distance_in_range(distance) {
                 let norm_dir = Vector3::new(dir.x / distance, dir.y / distance, dir.z / distance);
                 let dot = look_dir.dot(&norm_dir);
                 // Vanilla `isLookingAtMe` divides the cone size by distance only when
@@ -706,6 +714,14 @@ impl Mob for CreakingEntity {
 mod tests {
     use super::*;
     use crate::entity::ai::test_support::world;
+
+    #[test]
+    fn gaze_range_excludes_too_close_and_too_far_targets() {
+        assert!(gaze_distance_in_range(1.0));
+        assert!(gaze_distance_in_range(MAX_GAZE_RANGE));
+        assert!(!gaze_distance_in_range(0.0));
+        assert!(!gaze_distance_in_range(MAX_GAZE_RANGE + 1.0));
+    }
 
     #[test]
     fn environmental_damage_does_not_start_heart_shake() {
