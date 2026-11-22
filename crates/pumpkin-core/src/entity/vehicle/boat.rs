@@ -248,6 +248,87 @@ pub struct BoatEntity {
 }
 
 impl BoatEntity {
+
+    /// Boards nearby mobs and pushes others, matching vanilla AbstractBoat.tick.
+    fn tick_pickup(&self) {
+        let entity = &self.vehicle.entity;
+        // Vanilla AbstractBoat.tick: boarding is checked even for stationary, empty boats.
+        let world = entity.world.load();
+        let bounds = entity
+            .bounding_box
+            .load()
+            .expand(PICKUP_RANGE, -PICKUP_Y_INSET, PICKUP_RANGE);
+        let add_new_passengers = self
+            .get_controlling_passenger()
+            .is_none_or(|passenger| passenger.get_player().is_none());
+        let own_team = self.get_team();
+        for other in world.get_all_at_box(&bounds) {
+            let passenger = other.get_entity();
+            if passenger.entity_id == entity.entity_id
+                || other.is_spectator()
+                || !other.is_pushable()
+                || !is_allowed_by_team_rules(own_team.as_ref(), other.get_team().as_ref())
+                || other.has_passenger(self)
+            {
+                continue;
+            }
+
+            let has_room = entity
+                .passengers
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .len()
+                < max_passengers(entity.entity_type);
+            if add_new_passengers
+                && has_room
+                && !other.is_passenger()
+                && self.has_enough_space_for(passenger)
+                && other.get_living_entity().is_some()
+                && !passenger
+                    .entity_type
+                    .has_tag(&tag::EntityType::MINECRAFT_CANNOT_BE_PUSHED_ONTO_BOATS)
+            {
+                // The remaining Entity.startRiding checks may reject boarding without a push.
+                if !other.can_ride(self)
+                    || entity.is_submerged_in_water()
+                    || self.is_passenger_of_same_vehicle(other.as_ref())
+                {
+                    // Shulker.startRiding resets its attachment even when vanilla checks fail.
+                    if let Some(mob) = other.get_mob() {
+                        mob.on_start_riding();
+                    }
+                    continue;
+                }
+                let Some(vehicle) = world.get_entity_by_id(entity.entity_id) else {
+                    continue;
+                };
+                entity.add_passenger(vehicle, other.clone());
+                if entity.has_passenger(passenger.entity_id) {
+                    passenger.set_pose(EntityPose::Standing);
+                    world.emit_game_event_with_context(
+                        GameEvent::EntityMount.name(),
+                        entity.pos.load(),
+                        &GameEventContext {
+                            source_entity: Some(other.as_ref()),
+                        },
+                    );
+                    if other.get_mob().is_some() && passenger.is_leashed() {
+                        passenger.drop_leash();
+                    }
+                }
+            } else {
+                let other_bounds = passenger.bounding_box.load();
+                let boat_bounds = entity.bounding_box.load();
+                let can_push = if passenger.entity_type.boat.is_some() {
+                    other_bounds.min.y < boat_bounds.max.y
+                } else {
+                    other_bounds.min.y <= boat_bounds.min.y
+                };
+                if can_push {
+                    self.push(other.as_ref());
+                }
+            }
+        }    }
     #[must_use]
     pub fn new(mut entity: Entity) -> Self {
         entity.blocks_building = true;
@@ -652,83 +733,7 @@ impl EntityBase for BoatEntity {
         self.play_paddle_sounds();
         entity.tick_block_collisions(caller);
 
-        // Vanilla AbstractBoat.tick: boarding is checked even for stationary, empty boats.
-        let world = entity.world.load();
-        let bounds = entity
-            .bounding_box
-            .load()
-            .expand(PICKUP_RANGE, -PICKUP_Y_INSET, PICKUP_RANGE);
-        let add_new_passengers = self
-            .get_controlling_passenger()
-            .is_none_or(|passenger| passenger.get_player().is_none());
-        let own_team = self.get_team();
-        for other in world.get_all_at_box(&bounds) {
-            let passenger = other.get_entity();
-            if passenger.entity_id == entity.entity_id
-                || other.is_spectator()
-                || !other.is_pushable()
-                || !is_allowed_by_team_rules(own_team.as_ref(), other.get_team().as_ref())
-                || other.has_passenger(self)
-            {
-                continue;
-            }
-
-            let has_room = entity
-                .passengers
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .len()
-                < max_passengers(entity.entity_type);
-            if add_new_passengers
-                && has_room
-                && !other.is_passenger()
-                && self.has_enough_space_for(passenger)
-                && other.get_living_entity().is_some()
-                && !passenger
-                    .entity_type
-                    .has_tag(&tag::EntityType::MINECRAFT_CANNOT_BE_PUSHED_ONTO_BOATS)
-            {
-                // The remaining Entity.startRiding checks may reject boarding without a push.
-                if !other.can_ride(self)
-                    || entity.is_submerged_in_water()
-                    || self.is_passenger_of_same_vehicle(other.as_ref())
-                {
-                    // Shulker.startRiding resets its attachment even when vanilla checks fail.
-                    if let Some(mob) = other.get_mob() {
-                        mob.on_start_riding();
-                    }
-                    continue;
-                }
-                let Some(vehicle) = world.get_entity_by_id(entity.entity_id) else {
-                    continue;
-                };
-                entity.add_passenger(vehicle, other.clone());
-                if entity.has_passenger(passenger.entity_id) {
-                    passenger.set_pose(EntityPose::Standing);
-                    world.emit_game_event_with_context(
-                        GameEvent::EntityMount.name(),
-                        entity.pos.load(),
-                        &GameEventContext {
-                            source_entity: Some(other.as_ref()),
-                        },
-                    );
-                    if other.get_mob().is_some() && passenger.is_leashed() {
-                        passenger.drop_leash();
-                    }
-                }
-            } else {
-                let other_bounds = passenger.bounding_box.load();
-                let boat_bounds = entity.bounding_box.load();
-                let can_push = if passenger.entity_type.boat.is_some() {
-                    other_bounds.min.y < boat_bounds.max.y
-                } else {
-                    other_bounds.min.y <= boat_bounds.min.y
-                };
-                if can_push {
-                    self.push(other.as_ref());
-                }
-            }
-        }
+        self.tick_pickup();
     }
 
     fn init_data_tracker(&self) {
