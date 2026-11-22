@@ -40,7 +40,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4639](https://github.com/Pumpkin-MC/Pumpkin/pull/4639) | fix(entity): despawn ineligible mobs on peaceful | ALREADY-FIXED core; remainder BLOCKED-DATA (codegen) |
 | [#4641](https://github.com/Pumpkin-MC/Pumpkin/pull/4641) | Avoid double deletion of guest-owned resources | LANDED (f033a0d53) |
 | [#4642](https://github.com/Pumpkin-MC/Pumpkin/pull/4642) | Expose transport latency through the v0.2 plugin API | LANDED (b9b41f8e4) |
-| [#4643](https://github.com/Pumpkin-MC/Pumpkin/pull/4643) | fix(minecart) | BLOCKED (core fixes present, remainder needs generated APIs) |
+| [#4643](https://github.com/Pumpkin-MC/Pumpkin/pull/4643) | fix(minecart) | LANDED (9c0ecf0b9, partial: velocity/step) |
 | [#4644](https://github.com/Pumpkin-MC/Pumpkin/pull/4644) | fix(respawn_anchor): notify clients and neighbors when breaking anchor on explosion | LANDED |
 | [#4647](https://github.com/Pumpkin-MC/Pumpkin/pull/4647) | fix(entity): bring leads closer to vanilla parity | LANDED (6ca8d115a, partial: leash targets) |
 | [#4648](https://github.com/Pumpkin-MC/Pumpkin/pull/4648) | fix(entity): stop resistance from overflowing past level five | LANDED with issue #4649 (e7fea647f) |
