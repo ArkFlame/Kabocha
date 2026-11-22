@@ -358,7 +358,7 @@ fn minecart_exchange_allowed(
     direction
         .dot(&Vector3::new(yaw.cos(), 0.0, yaw.sin()))
         .abs()
-        >= 0.8
+        >= 0.8 * direction.length()
 }
 
 /// Vanilla `OldMinecartBehavior`: a powered rail adds 0.06 to the horizontal
