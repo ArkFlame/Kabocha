@@ -304,3 +304,4 @@ issue	3468	other	failed	explicit tracking epic (dozens of per-mob goal units plu
 issue	4623	already-fixed	skipped	waypoint/locator bar already sends players: commit 2b1bc82b4 fix(waypoint): show players on the locator bar (#4625)	i4623
 issue	4646	already-fixed	skipped	bed breaking drops the item: PR #4650 added bed_break_foot_drops_bed and bed_break_head_drops_bed in crates/pumpkin-core/src/block/blocks/bed.rs (commit d26c8ebb8)	i4646
 pr	4605	already-fixed	skipped	players already returned by get_nearby_entities: v0_1/src/entity.rs:428 and v0_2/src/entity.rs:388 call world.get_players_at_box (added by #4294)	p4605
+issue	4653	already-fixed	skipped	compute_lifetime at crates/pumpkin-core/src/entity/projectile/firework_rocket.rs:37-42 reads FireworksImpl.flight_duration and scales 10*(flight_duration+1); Elytra path uses new_shot_with_stack (:83,:97)	i4653
