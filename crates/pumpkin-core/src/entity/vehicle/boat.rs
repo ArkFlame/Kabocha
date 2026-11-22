@@ -21,8 +21,6 @@ use crate::world::game_event::GameEventContext;
 
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::CustomNameImpl;
-use pumpkin_data::damage::DamageType;
-use pumpkin_data::data_component_impl::CustomNameImpl;
 use pumpkin_data::entity::{EntityPose, EntityStatus, EntityType};
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
