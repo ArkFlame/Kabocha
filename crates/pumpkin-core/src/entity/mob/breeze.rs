@@ -12,9 +12,9 @@ use crate::entity::ai::target_match::TargetMatch;
 use crate::entity::{
     Entity,
     ai::goal::{
-        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, revenge::RevengeGoal, swim::SwimGoal,
-        wander_around::WanderAroundGoal,
+        active_target::ActiveTargetGoal, breeze_shoot::BreezeShootGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, revenge::RevengeGoal,
+        swim::SwimGoal, wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
 };
@@ -57,6 +57,8 @@ impl BreezeEntity {
             let goal_selector = &mob_arc.mob_entity.goals_selector;
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // Vanilla Breeze ranged attack: inhale, fire a wind charge, recover.
+            goal_selector.add_goal(4, Box::new(BreezeShootGoal::new(Arc::downgrade(&mob_arc))));
             goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(
                 6,
@@ -92,10 +94,12 @@ impl Mob for BreezeEntity {
     fn pre_damage_with_context(
         &self,
         _damage_type: DamageType,
-        _source: Option<&dyn EntityBase>,
+        source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
     ) -> bool {
-        !cause.is_some_and(|entity| entity.get_entity().entity_type == &EntityType::BREEZE)
+        !cause
+            .or(source)
+            .is_some_and(|entity| entity.get_entity().entity_type == &EntityType::BREEZE)
     }
 
     fn cause_fall_damage(
@@ -144,6 +148,25 @@ impl Mob for BreezeEntity {
     /// Vanilla `Breeze.getHeadRotSpeed`: the head turns toward a target at 25 degrees per tick.
     fn get_max_look_yaw_change(&self) -> f32 {
         25.0
+    }
+
+    /// Vanilla Breeze long jumps add extra vertical speed scaled by follow range.
+    fn additional_tick_movement(&self) -> f64 {
+        let follow_range = self
+            .mob_entity
+            .living_entity
+            .get_attribute_value(&pumpkin_data::attributes::Attributes::FOLLOW_RANGE);
+        f64::from(0.058_333_334f32 * follow_range as f32)
+            + f64::from(self.mob_entity.living_entity.get_jump_boost_power())
+    }
+
+    /// Landing blocks and overhead sight rays can lie beyond the normal follow range.
+    fn conservative_block_read_radius(&self) -> f64 {
+        let follow_range = self
+            .mob_entity
+            .living_entity
+            .get_attribute_value(&pumpkin_data::attributes::Attributes::FOLLOW_RANGE);
+        50.0f64.max(follow_range + 9.0)
     }
 
     fn get_mob_entity(&self) -> &MobEntity {
