@@ -22,7 +22,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4609](https://github.com/Pumpkin-MC/Pumpkin/pull/4609) | feat(wit): Redesign event to be a resource instead of a variant | PENDING |
 | [#4611](https://github.com/Pumpkin-MC/Pumpkin/pull/4611) | fix(entity): let boats pick up nearby mobs | PENDING |
 | [#4612](https://github.com/Pumpkin-MC/Pumpkin/pull/4612) | fix(util): always enable serde_json preserve_order | LANDED |
-| [#4613](https://github.com/Pumpkin-MC/Pumpkin/pull/4613) | fix(server): save whitelist on and off to pumpkin.toml | PENDING |
+| [#4613](https://github.com/Pumpkin-MC/Pumpkin/pull/4613) | fix(server): save whitelist on and off to pumpkin.toml | LANDED (1f84bbc37) |
 | [#4615](https://github.com/Pumpkin-MC/Pumpkin/pull/4615) | fix: keep text colors in bedrock translated system messages | LANDED |
 | [#4619](https://github.com/Pumpkin-MC/Pumpkin/pull/4619) | perf(world): batch dependency GC after level changes | LANDED (e8bcc51e1) |
 | [#4620](https://github.com/Pumpkin-MC/Pumpkin/pull/4620) | perf(world): send chunk level changes instead of the whole level map | LANDED (fdcb8bd87) |
