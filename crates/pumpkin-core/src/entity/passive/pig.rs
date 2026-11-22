@@ -4,6 +4,7 @@ use std::sync::{
 };
 
 use pumpkin_data::BlockState;
+use pumpkin_data::chunk::Biome;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::pig_sound_variant::PigSoundVariant;
@@ -112,6 +113,14 @@ impl PigEntity {
             VarInt(sound_variant as u8 as i32),
         );
     }
+
+    fn select_spawn_variants(&self, biome: &'static Biome) {
+        self.set_variant(PigVariant::select_for_biome(biome.registry_id));
+        let sound_variants = PigSoundVariant::ALL;
+        self.set_sound_variant(
+            sound_variants[self.get_random().random_range(0..sound_variants.len())],
+        );
+    }
 }
 
 impl CustomSound for PigEntity {
@@ -175,12 +184,12 @@ impl Mob for PigEntity {
         group_data: Option<SpawnGroupData>,
     ) -> Option<SpawnGroupData> {
         let biome = world.get_biome(&self.get_entity().block_pos.load());
-        self.set_variant(PigVariant::select_for_biome(biome.registry_id));
-        let sound_variants = PigSoundVariant::ALL;
-        self.set_sound_variant(
-            sound_variants[self.get_random().random_range(0..sound_variants.len())],
-        );
+        self.select_spawn_variants(biome);
         self.finalize_spawn_super(group_data)
+    }
+
+    fn finalize_spawn_in_biome(&self, biome: &'static Biome) {
+        self.select_spawn_variants(biome);
     }
 
     fn can_dispenser_equip_into_slot(&self, slot: &EquipmentSlot) -> bool {
@@ -341,5 +350,36 @@ impl ItemSteerable for PigEntity {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_util::math::vector3::Vector3;
+    use uuid::Uuid;
+
+    use crate::entity::r#type::from_type;
+
+    #[tokio::test]
+    async fn structure_spawn_selects_biome_variant() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = crate::entity::ai::test_support::world(&folder);
+        let pig = from_type(
+            &EntityType::PIG,
+            Vector3::new(0.0, 64.0, 0.0),
+            &world,
+            Uuid::new_v4(),
+        );
+        let biome: &'static Biome = &Biome::SNOWY_PLAINS;
+        pig.get_mob()
+            .ok_or("expected a pig mob")?
+            .finalize_spawn_in_biome(biome);
+        let pig = pig
+            .cast_any()
+            .downcast_ref::<PigEntity>()
+            .ok_or("expected a pig entity")?;
+        assert_eq!(pig.variant.load(Ordering::Relaxed), PigVariant::Cold.id());
+        Ok(())
     }
 }
