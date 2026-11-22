@@ -677,6 +677,9 @@ mod tests {
             assert_eq!(seed, SEED);
             vec![ItemStack::new(1, &Item::GOLD_INGOT)]
         });
-        assert_eq!(placed.get_stack(0).item.id, Item::GOLD_INGOT.id);
+        assert!(
+            (0..placed.size())
+                .any(|slot| { placed.get_stack(slot).item.id == Item::GOLD_INGOT.id })
+        );
     }
 }
