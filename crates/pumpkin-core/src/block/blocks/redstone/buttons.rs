@@ -41,40 +41,20 @@ fn is_stone_button(block: &Block) -> bool {
     block == &Block::STONE_BUTTON || block == &Block::POLISHED_BLACKSTONE_BUTTON
 }
 
-/// Vanilla `BlockSetType` click sounds: cherry, bamboo and nether buttons do not use
-/// the default wooden sounds.
-fn click_sounds(block: &Block) -> (Sound, Sound) {
-    if is_stone_button(block) {
-        (
-            Sound::BlockStoneButtonClickOff,
-            Sound::BlockStoneButtonClickOn,
-        )
-    } else if block == &Block::CHERRY_BUTTON {
-        (
-            Sound::BlockCherryWoodButtonClickOff,
-            Sound::BlockCherryWoodButtonClickOn,
-        )
-    } else if block == &Block::BAMBOO_BUTTON {
-        (
-            Sound::BlockBambooWoodButtonClickOff,
-            Sound::BlockBambooWoodButtonClickOn,
-        )
-    } else if block == &Block::CRIMSON_BUTTON || block == &Block::WARPED_BUTTON {
-        (
-            Sound::BlockNetherWoodButtonClickOff,
-            Sound::BlockNetherWoodButtonClickOn,
-        )
-    } else {
-        (
-            Sound::BlockWoodenButtonClickOff,
-            Sound::BlockWoodenButtonClickOn,
-        )
-    }
+fn can_be_activated_by_arrows(block: &Block) -> bool {
+    block
+        .block_set_type
+        .is_some_and(|set_type| set_type.can_button_be_activated_by_arrows)
 }
 
-fn get_sound(block: &Block, on: bool) -> Sound {
-    let (off, pressed) = click_sounds(block);
-    if on { pressed } else { off }
+fn get_sound(block: &Block, on: bool) -> Option<Sound> {
+    block.block_set_type.map(|set_type| {
+        if on {
+            set_type.button_click_on
+        } else {
+            set_type.button_click_off
+        }
+    })
 }
 
 #[pumpkin_block_from_tag("minecraft:buttons")]
@@ -109,7 +89,7 @@ impl BlockBehaviour for ButtonBlock {
     }
 
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
-        if !is_stone_button(args.block) {
+        if can_be_activated_by_arrows(args.block) {
             let entity_type = args.entity.get_entity().entity_type;
             if is_abstract_arrow(entity_type) {
                 // Vanilla checkPressed fires EntityInteractEvent only on the rising edge
@@ -136,9 +116,7 @@ impl BlockBehaviour for ButtonBlock {
         let state = args.world.get_block_state(args.position);
         let mut props = ButtonLikeProperties::from_state_id(state.id);
         if props.powered {
-            let stay_pressed = if is_stone_button(args.block) {
-                false
-            } else {
+            let stay_pressed = if can_be_activated_by_arrows(args.block) {
                 // Vanilla `checkPressed` searches `state.getShape(level, pos).bounds().move(pos)`,
                 // the thin button shape, not the whole block cube. Union every outline box to
                 // reproduce `VoxelShape.bounds()`.
@@ -166,6 +144,8 @@ impl BlockBehaviour for ButtonBlock {
                         .iter()
                         .any(|e| is_abstract_arrow(e.get_entity().entity_type))
                 })
+            } else {
+                false
             };
 
             if stay_pressed {
@@ -203,11 +183,10 @@ impl BlockBehaviour for ButtonBlock {
                     BlockFlags::NOTIFY_ALL,
                 );
                 Self::update_neighbors(args.world, args.position, props);
-                args.world.play_block_sound(
-                    get_sound(args.block, false),
-                    SoundCategory::Blocks,
-                    *args.position,
-                );
+                if let Some(sound) = get_sound(args.block, false) {
+                    args.world
+                        .play_block_sound(sound, SoundCategory::Blocks, *args.position);
+                }
                 args.world.emit_game_event(
                     GameEvent::BlockDeactivate.name(),
                     args.position.to_centered_f64(),
@@ -320,14 +299,15 @@ impl ButtonBlock {
         );
         match player {
             // The client predicts the press sound, so exclude the pressing player.
-            Some(player) => world.play_block_sound_expect(
-                player,
-                get_sound(block, true),
-                SoundCategory::Blocks,
-                *block_pos,
-            ),
+            Some(player) => {
+                if let Some(sound) = get_sound(block, true) {
+                    world.play_block_sound_expect(player, sound, SoundCategory::Blocks, *block_pos);
+                }
+            }
             None => {
-                world.play_block_sound(get_sound(block, true), SoundCategory::Blocks, *block_pos);
+                if let Some(sound) = get_sound(block, true) {
+                    world.play_block_sound(sound, SoundCategory::Blocks, *block_pos);
+                }
             }
         }
         world.emit_game_event_with_context(
@@ -356,35 +336,35 @@ mod tests {
     fn button_click_sounds_match_block_set_types() {
         assert_eq!(
             get_sound(&Block::STONE_BUTTON, true),
-            Sound::BlockStoneButtonClickOn
+            Some(Sound::BlockStoneButtonClickOn)
         );
         assert_eq!(
             get_sound(&Block::POLISHED_BLACKSTONE_BUTTON, false),
-            Sound::BlockStoneButtonClickOff
+            Some(Sound::BlockStoneButtonClickOff)
         );
         assert_eq!(
             get_sound(&Block::CHERRY_BUTTON, true),
-            Sound::BlockCherryWoodButtonClickOn
+            Some(Sound::BlockCherryWoodButtonClickOn)
         );
         assert_eq!(
             get_sound(&Block::BAMBOO_BUTTON, false),
-            Sound::BlockBambooWoodButtonClickOff
+            Some(Sound::BlockBambooWoodButtonClickOff)
         );
         assert_eq!(
             get_sound(&Block::CRIMSON_BUTTON, true),
-            Sound::BlockNetherWoodButtonClickOn
+            Some(Sound::BlockNetherWoodButtonClickOn)
         );
         assert_eq!(
             get_sound(&Block::WARPED_BUTTON, false),
-            Sound::BlockNetherWoodButtonClickOff
+            Some(Sound::BlockNetherWoodButtonClickOff)
         );
         assert_eq!(
             get_sound(&Block::OAK_BUTTON, true),
-            Sound::BlockWoodenButtonClickOn
+            Some(Sound::BlockWoodenButtonClickOn)
         );
         assert_eq!(
             get_sound(&Block::PALE_OAK_BUTTON, false),
-            Sound::BlockWoodenButtonClickOff
+            Some(Sound::BlockWoodenButtonClickOff)
         );
     }
 
@@ -405,5 +385,18 @@ mod tests {
         assert!(!is_stone_button(&Block::WARPED_BUTTON));
         assert!(!is_stone_button(&Block::PALE_OAK_BUTTON));
         assert!(!is_stone_button(&Block::POPLAR_BUTTON));
+    }
+
+    #[test]
+    fn arrow_activation_comes_from_the_block_set_type() {
+        assert!(!can_be_activated_by_arrows(&Block::STONE_BUTTON));
+        assert!(!can_be_activated_by_arrows(
+            &Block::POLISHED_BLACKSTONE_BUTTON
+        ));
+        assert!(can_be_activated_by_arrows(&Block::OAK_BUTTON));
+        assert!(can_be_activated_by_arrows(&Block::CHERRY_BUTTON));
+        assert!(can_be_activated_by_arrows(&Block::BAMBOO_BUTTON));
+        assert!(can_be_activated_by_arrows(&Block::CRIMSON_BUTTON));
+        assert!(can_be_activated_by_arrows(&Block::WARPED_BUTTON));
     }
 }
