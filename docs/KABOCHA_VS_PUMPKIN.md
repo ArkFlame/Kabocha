@@ -26,7 +26,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4615](https://github.com/Pumpkin-MC/Pumpkin/pull/4615) | fix: keep text colors in bedrock translated system messages | LANDED |
 | [#4619](https://github.com/Pumpkin-MC/Pumpkin/pull/4619) | perf(world): batch dependency GC after level changes | LANDED (e8bcc51e1) |
 | [#4620](https://github.com/Pumpkin-MC/Pumpkin/pull/4620) | perf(world): send chunk level changes instead of the whole level map | LANDED (fdcb8bd87) |
-| [#4622](https://github.com/Pumpkin-MC/Pumpkin/pull/4622) | fix(entity): align boat physics and minecart behavior with vanilla | PENDING |
+| [#4622](https://github.com/Pumpkin-MC/Pumpkin/pull/4622) | fix(entity): align boat physics and minecart behavior with vanilla | ALREADY-FIXED (boat/minecart APIs) |
 | [#4625](https://github.com/Pumpkin-MC/Pumpkin/pull/4625) | fix: show players on the locator bar | ALREADY-FIXED (commit 2b1bc82b4) |
 | [#4626](https://github.com/Pumpkin-MC/Pumpkin/pull/4626) | fix(block): prevent opening a blocked shulker box | ALREADY-FIXED (shulker_box.rs:151) |
 | [#4627](https://github.com/Pumpkin-MC/Pumpkin/pull/4627) | perf(world): compress chunks with zrip instead of ruzstd | LANDED (b908e11a6) |
