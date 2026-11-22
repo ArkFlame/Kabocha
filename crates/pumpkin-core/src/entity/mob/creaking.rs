@@ -328,8 +328,8 @@ impl CreakingEntity {
             return;
         };
         let Some(heart) = block_entity
-            .as_ref()
-            .and_then(|be| be.as_any().downcast_ref::<CreakingHeartBlockEntity>())
+            .as_any()
+            .downcast_ref::<CreakingHeartBlockEntity>()
         else {
             return;
         };
