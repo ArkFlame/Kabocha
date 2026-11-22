@@ -323,3 +323,4 @@ issue	4657	fixed	done	vanilla PortalForcer.java:139-140 accepts deltaY<=0 or >=3
 pr	4669	already-fixed	skipped	effect give/clear already target living non-player entities via de429cf11 (#4362), effect.rs:350,365 and :90,185,239	p4669
 pr	4670	already-fixed	skipped	client_suggestions.rs:111-121 already filters non-root children by requirements().evaluate(source); root arm preserved	p4670
 issue	4668	already-fixed	skipped	snow stacking works: registry.rs:671 uses face.opposite(), snow.rs:28-31 increments and clamps layers 1-8	i4668
+pr	4667	already-fixed	skipped	1.8 combat already implemented via legacy_combat game rule and combat.rs full-charge/no-cooldown paths; PR only adds Bedrock cooldown action bar contrary to documented design	p4667
