@@ -1794,7 +1794,7 @@ pub trait Mob: EntityBase + Send + Sync {
     }
 
     fn can_be_leashed(&self) -> bool {
-        true
+        !crate::entity::ai::target_match::TargetMatch::Enemy.matches(self.get_entity().entity_type)
     }
 
     fn should_stay_close_to_leash_holder(&self) -> bool {

@@ -123,6 +123,10 @@ impl ZoglinEntity {
 }
 
 impl Mob for ZoglinEntity {
+    fn can_be_leashed(&self) -> bool {
+        true
+    }
+
     /// Vanilla `Zoglin.getAmbientSound`: angry while it has an attack target.
     fn get_ambient_sound(&self) -> Option<Sound> {
         if self.mob_entity.get_target().is_some() {
