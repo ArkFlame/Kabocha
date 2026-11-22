@@ -15,18 +15,9 @@ impl JavaClient {
         // Keep a leading slash: a client typing `//wand` (WorldEdit style) sends `/wand`, and the
         // dispatcher decides itself whether that slash belongs to the command name or is a prefix.
         let command_str = command.command;
-        let mut preprocess = crate::plugin::api::events::player::player_command_preprocess::PlayerCommandPreprocessEvent {
-            player: player.clone(),
-            command: command_str.to_string(),
-            cancelled: false,
-        };
-        server.plugin_manager.fire(server, &mut preprocess).await;
-        if preprocess.cancelled {
-            return;
-        }
         send_cancellable! {{
             server;
-            PlayerCommandSendEvent {
+            PlayerCommandPreprocessEvent {
                 player: player.clone(),
                 command: command_str.to_string(),
                 cancelled: false

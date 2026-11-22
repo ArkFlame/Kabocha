@@ -390,16 +390,14 @@ impl ToFromWasmEvent for PlayerCommandSendEvent {
 
         Self::Wit {
             player,
-            command: self.command.clone(),
-            cancelled: self.cancelled,
+            commands: self.commands.clone(),
         }
     }
 
     fn from_wasm_event(data: Self::Wit, state: &mut PluginHostState) -> Self {
         Self {
             player: consume_player(state, &data.player),
-            command: data.command,
-            cancelled: data.cancelled,
+            commands: data.commands,
         }
     }
 }

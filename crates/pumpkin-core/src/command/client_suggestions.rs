@@ -7,17 +7,53 @@ use pumpkin_protocol::{
 };
 use std::sync::Arc;
 
+use rustc_hash::FxHashSet;
+
 use crate::command::node::{
     attached::{AttachedNode, NodeId},
     dispatcher::CommandDispatcher,
     tree::ROOT_NODE_ID,
 };
 use crate::entity::player::Player;
+use crate::plugin::player::player_command_send::PlayerCommandSendEvent;
 use crate::server::Server;
 use pumpkin_protocol::bedrock::client::available_commands::{
     CAvailableCommands, CommandData, EnumData, OverloadData, ParamData, arg_flags, arg_types,
 };
 use pumpkin_protocol::java::client::play::SuggestionProviders;
+
+fn filter_sent_commands<'a>(
+    player: &Arc<Player>,
+    server: &Arc<Server>,
+    names: impl Iterator<Item = &'a str>,
+) -> Option<FxHashSet<String>> {
+    if !server
+        .plugin_manager
+        .has_handlers::<PlayerCommandSendEvent>()
+    {
+        return None;
+    }
+    let mut event = PlayerCommandSendEvent::new(player.clone(), names.map(str::to_owned).collect());
+    server.plugin_manager.fire_blocking(server, &mut event);
+    Some(event.commands.into_iter().collect())
+}
+
+fn wire_literal_name(literal: &str) -> &str {
+    if literal.starts_with("//") {
+        &literal[1..]
+    } else {
+        literal
+    }
+}
+
+fn is_enabled_unshadowed_root_literal(
+    dispatcher: &CommandDispatcher,
+    lowercase: &str,
+    literal: &str,
+) -> bool {
+    !dispatcher.is_disabled(lowercase)
+        && (!literal.starts_with("//") || dispatcher.tree.get(&literal[1..]).is_none())
+}
 
 #[allow(clippy::too_many_lines)]
 pub fn send_c_commands_packet(
@@ -30,32 +66,46 @@ pub fn send_c_commands_packet(
     for node in &dispatcher.tree {
         let children: Box<[VarInt]> = match node {
             AttachedNode::Root(_) => {
-                // Drop disabled commands from the root's child list so they
-                // disappear from the client's command graph (and tab-completion)
-                // entirely.
-                node.children_ref()
+                // Drop disabled, unpermitted, and plugin-filtered commands from the
+                // root's child list so they disappear from the client's command graph
+                // (and tab-completion) entirely.
+                let usable: Vec<(NodeId, Option<&str>)> = node
+                    .children_ref()
                     .values()
                     .copied()
-                    .filter(|id| {
-                        let (disabled, requirement, name) = match &dispatcher.tree[*id] {
+                    .filter_map(|id| {
+                        let (lowercase, requirement, literal) = match &dispatcher.tree[id] {
                             AttachedNode::Literal(child) => (
-                                dispatcher.is_disabled(&child.meta.literal_lowercase),
+                                child.meta.literal_lowercase.as_str(),
                                 child.owned.requirements.evaluate(source),
                                 child.meta.literal.as_ref(),
                             ),
                             AttachedNode::Command(child) => (
-                                dispatcher.is_disabled(&child.meta.literal_lowercase),
+                                child.meta.literal_lowercase.as_str(),
                                 child.owned.requirements.evaluate(source),
                                 child.meta.literal.as_ref(),
                             ),
-                            _ => (false, true, ""),
+                            _ => return Some((id, None)),
                         };
-                        !disabled
-                            && requirement
-                            && (!name.starts_with("//")
-                                || dispatcher.tree.get(&name[1..]).is_none())
+                        (requirement
+                            && is_enabled_unshadowed_root_literal(dispatcher, lowercase, literal))
+                        .then(|| (id, Some(wire_literal_name(literal))))
                     })
-                    .map(|id| VarInt((id.0.get() - 1) as i32))
+                    .collect();
+
+                let allowed = filter_sent_commands(
+                    player,
+                    server,
+                    usable.iter().filter_map(|(_, name)| *name),
+                );
+
+                usable
+                    .into_iter()
+                    .filter(|(_, name)| match (&allowed, name) {
+                        (Some(allowed), Some(name)) => allowed.contains(*name),
+                        _ => true,
+                    })
+                    .map(|(id, _)| VarInt((id.0.get() - 1) as i32))
                     .collect()
             }
             _ => {
@@ -86,11 +136,7 @@ pub fn send_c_commands_packet(
                 });
             }
             AttachedNode::Literal(literal_attached_node) => {
-                let name = if literal_attached_node.meta.literal.starts_with("//") {
-                    &literal_attached_node.meta.literal[1..]
-                } else {
-                    &literal_attached_node.meta.literal
-                };
+                let name = wire_literal_name(&literal_attached_node.meta.literal);
                 let node = ProtoNode {
                     children,
                     node_type: ProtoNodeType::Literal {
@@ -103,11 +149,7 @@ pub fn send_c_commands_packet(
                 proto_nodes.push(node);
             }
             AttachedNode::Command(command_attached_node) => {
-                let name = if command_attached_node.meta.literal.starts_with("//") {
-                    &command_attached_node.meta.literal[1..]
-                } else {
-                    &command_attached_node.meta.literal
-                };
+                let name = wire_literal_name(&command_attached_node.meta.literal);
                 let node = ProtoNode {
                     children,
                     node_type: ProtoNodeType::Literal {
@@ -158,7 +200,7 @@ struct BuilderContext<'a> {
 
 pub fn send_bedrock_commands_packet(
     player: &Arc<Player>,
-    _server: &Server,
+    server: &Arc<Server>,
     dispatcher: &CommandDispatcher,
 ) {
     let mut enum_values: Vec<String> = Vec::new();
@@ -178,31 +220,44 @@ pub fn send_bedrock_commands_packet(
         })
         .unwrap_or_default();
 
+    let mut usable_commands = Vec::with_capacity(root_child_ids.len());
     for child_id in root_child_ids {
         let idx = child_id.0.get() - 1;
         let Some(node) = tree_nodes.get(idx) else {
             continue;
         };
 
-        let (name, is_executable, child_ids) = match node {
+        let (name, lowercase, is_executable, child_ids) = match node {
             AttachedNode::Literal(lit) => (
-                lit.meta.literal.to_string(),
+                lit.meta.literal.as_ref(),
+                lit.meta.literal_lowercase.as_str(),
                 lit.owned.command.is_some(),
                 node.children_ref().values().copied().collect::<Vec<_>>(),
             ),
             AttachedNode::Command(cmd) => (
-                cmd.meta.literal.to_string(),
+                cmd.meta.literal.as_ref(),
+                cmd.meta.literal_lowercase.as_str(),
                 cmd.owned.command.is_some(),
                 node.children_ref().values().copied().collect::<Vec<_>>(),
             ),
             _ => continue,
         };
 
-        if dispatcher.is_disabled(&name.to_ascii_lowercase()) {
+        if !is_enabled_unshadowed_root_literal(dispatcher, lowercase, name) {
             continue;
         }
 
-        if name.starts_with("//") && dispatcher.tree.get(&name[1..]).is_some() {
+        usable_commands.push((name, is_executable, child_ids));
+    }
+
+    let allowed = filter_sent_commands(
+        player,
+        server,
+        usable_commands.iter().map(|(name, _, _)| *name),
+    );
+
+    for (name, is_executable, child_ids) in usable_commands {
+        if allowed.as_ref().is_some_and(|set| !set.contains(name)) {
             continue;
         }
 
@@ -215,7 +270,7 @@ pub fn send_bedrock_commands_packet(
             build_overloads_from_attached_nodes(&tree_nodes, &child_ids, is_executable, &mut ctx);
 
         commands.push(CommandData {
-            name,
+            name: name.to_string(),
             description: String::new(),
             flags: 0,
             permission_level: CommandPermissionLevel::Any.into(),

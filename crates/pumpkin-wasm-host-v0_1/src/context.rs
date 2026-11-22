@@ -45,8 +45,7 @@ fn register_player_event(
         exp_change::PlayerExpChangeEvent, fish::PlayerFishEvent,
         inventory_close::InventoryCloseEvent, inventory_interact::InventoryClickEvent,
         item_held::PlayerItemHeldEvent, player_change_world::PlayerChangeWorldEvent,
-        player_chat::PlayerChatEvent, player_command_send::PlayerCommandSendEvent,
-        player_custom_payload::PlayerCustomPayloadEvent,
+        player_chat::PlayerChatEvent, player_custom_payload::PlayerCustomPayloadEvent,
         player_gamemode_change::PlayerGamemodeChangeEvent,
         player_interact_entity_event::PlayerInteractEntityEvent,
         player_interact_event::PlayerInteractEvent,
@@ -73,7 +72,17 @@ fn register_player_event(
             register_typed_event::<PlayerChatEvent>(ctx, handler, priority, blocking);
         }
         EventType::PlayerCommandSendEvent => {
-            register_typed_event::<PlayerCommandSendEvent>(ctx, handler, priority, blocking);
+            ctx.register_event_with_id::<
+                pumpkin_core::plugin::player::player_command_preprocess::PlayerCommandPreprocessEvent,
+                _,
+            >(
+                Arc::new(crate::events::player::LegacyCommandSendHandler(Arc::clone(
+                    handler,
+                ))),
+                priority,
+                blocking,
+                handler.registration_id,
+            );
         }
         EventType::PlayerPermissionCheckEvent => {
             register_typed_event::<PlayerPermissionCheckEvent>(ctx, handler, priority, blocking);
