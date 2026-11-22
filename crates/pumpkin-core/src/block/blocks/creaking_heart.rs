@@ -101,7 +101,7 @@ impl CreakingHeartBlock {
 
     /// Vanilla `CreakingHeartBlock.tryAwardExperience`: only natural (world-gen) hearts drop
     /// XP, skipped for creative/spectator players or when block drops are disabled.
-    fn should_award_experience(natural: bool, block_drops: bool, gamemode: GameMode) -> bool {
+    const fn should_award_experience(natural: bool, block_drops: bool, gamemode: GameMode) -> bool {
         natural && block_drops && !matches!(gamemode, GameMode::Creative | GameMode::Spectator)
     }
 

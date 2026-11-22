@@ -34,8 +34,10 @@ enum Phase {
 }
 
 /// Vanilla breeze ranged attack: inhale into the shooting pose, launch a breeze wind
-/// charge, then recover and cool down. Goals are the current Kabocha equivalent of the
-/// upstream brain behavior; aim, timing, pose and sound values are kept from vanilla.
+/// charge, then recover and cool down.
+///
+/// Goals are the current Kabocha equivalent of the upstream brain behavior; aim, timing,
+/// pose and sound values are kept from vanilla.
 pub struct BreezeShootGoal {
     breeze: Weak<BreezeEntity>,
     phase: Phase,

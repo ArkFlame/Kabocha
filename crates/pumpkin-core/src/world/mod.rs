@@ -720,6 +720,11 @@ impl World {
         } else {
             Weather::default()
         };
+        let entity_tracking_config = server
+            .upgrade()
+            .map_or_else(EntityTrackingConfig::default, |server| {
+                server.advanced_config.entity_tracking
+            });
         Self {
             uuid: Uuid::new_v4(),
             level,
@@ -767,7 +772,7 @@ impl World {
             active_chunk_tracker: std::sync::Mutex::new(ActiveChunkTracker::default()),
             forced_chunks: std::sync::Mutex::new(FxHashSet::default()),
             force_change_task: std::sync::Mutex::new(None),
-            server: server.clone(),
+            server,
             block_entities: DashMap::new(),
             path_type_cache: DashMap::new(),
             floor_level_cache: DashMap::new(),
@@ -776,13 +781,7 @@ impl World {
             custom_data: std::sync::Mutex::new(custom_data),
             custom_block_entity_data: DashMap::new(),
             encoded_chunk_cache: DashMap::new(),
-            entity_tracker: entity_tracker::EntityTracker::new(
-                server
-                    .upgrade()
-                    .map_or_else(EntityTrackingConfig::default, |server| {
-                        server.advanced_config.entity_tracking
-                    }),
-            ),
+            entity_tracker: entity_tracker::EntityTracker::new(entity_tracking_config),
         }
     }
 

@@ -297,7 +297,7 @@ impl ShulkerEntity {
             if !other.is_spectator()
                 && other.get_entity().entity_type != &EntityType::SHULKER
                 && !other.get_entity().no_physics.load(Ordering::Relaxed)
-                && !entity.is_passenger_of_same_vehicle(&other.get_entity())
+                && !entity.is_passenger_of_same_vehicle(other.get_entity())
             {
                 other.move_by_shulker(other.as_ref(), motion);
             }

@@ -326,16 +326,17 @@ impl TrackedEntity {
             .seen_by
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(far) = &self.far {
-            let states = far.read();
-            seen_by
-                .iter()
-                .filter(|(uuid, _)| !states.contains_key(*uuid))
-                .map(|(_, player)| player.clone())
-                .collect()
-        } else {
-            seen_by.values().cloned().collect()
-        }
+        self.far.as_ref().map_or_else(
+            || seen_by.values().cloned().collect(),
+            |far| {
+                let states = far.read();
+                seen_by
+                    .iter()
+                    .filter(|(uuid, _)| !states.contains_key(*uuid))
+                    .map(|(_, player)| player.clone())
+                    .collect()
+            },
+        )
     }
 
     fn send_to_watchers<P: ClientPacket>(&self, packet: &P, near_only: bool) {

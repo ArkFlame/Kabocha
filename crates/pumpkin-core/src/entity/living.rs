@@ -1716,10 +1716,6 @@ impl LivingEntity {
         }
     }
 
-    #[expect(
-        clippy::needless_pass_by_value,
-        reason = "callers across crates pass an owned Effect"
-    )]
     pub fn add_effect(&self, effect: Effect) {
         self.add_effect_with_source(effect, None);
     }
