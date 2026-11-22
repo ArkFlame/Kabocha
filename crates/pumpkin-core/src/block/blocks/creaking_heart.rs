@@ -13,11 +13,11 @@ use pumpkin_world::world::BlockFlags;
 
 use crate::block::entities::creaking_heart::CreakingHeartBlockEntity;
 use crate::block::{
-    BlockBehaviour, BrokenArgs, GetComparatorOutputArgs, OnNeighborUpdateArgs, OnPlaceArgs,
-    PlacedArgs,
+    BlockBehaviour, BrokenArgs, ExplodeArgs, GetComparatorOutputArgs, OnNeighborUpdateArgs,
+    OnPlaceArgs, PlacedArgs,
 };
-
-use crate::entity::experience_orb::ExperienceOrbEntity;
+use crate::entity::{EntityBase, experience_orb::ExperienceOrbEntity, player::Player};
+use crate::world::World;
 
 #[pumpkin_block("minecraft:creaking_heart")]
 pub struct CreakingHeartBlock;
@@ -98,6 +98,44 @@ impl CreakingHeartBlock {
     const fn should_uproot(has_logs: bool, bound: bool) -> bool {
         !has_logs && !bound
     }
+
+    /// Vanilla `CreakingHeartBlock.tryAwardExperience`: only natural (world-gen) hearts drop
+    /// XP, skipped for creative/spectator players or when block drops are disabled.
+    fn should_award_experience(natural: bool, block_drops: bool, gamemode: GameMode) -> bool {
+        natural && block_drops && !matches!(gamemode, GameMode::Creative | GameMode::Spectator)
+    }
+
+    fn try_award_experience(
+        world: &Arc<World>,
+        pos: &pumpkin_util::math::position::BlockPos,
+        state_id: BlockStateId,
+        player: &Player,
+    ) {
+        if !Self::should_award_experience(
+            CreakingHeartLikeProperties::from_state_id(state_id).natural,
+            world.level_info.load().game_rules.block_drops,
+            player.gamemode.load(),
+        ) {
+            return;
+        }
+        let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(get_seed()));
+        // Vanilla `nextIntBetweenInclusive(20, 24)`.
+        let amount = 20 + random.next_bounded_i32(5) as u32;
+        ExperienceOrbEntity::spawn(world, pos.to_centered_f64(), amount);
+    }
+
+    /// Vanilla resolves an explosion's player credit from the indirect source (TNT, minecart,
+    /// crystal or a direct blast) so a player-caused blast awards the heart's XP.
+    fn award_explosion_experience(
+        world: &Arc<World>,
+        pos: &pumpkin_util::math::position::BlockPos,
+        state_id: BlockStateId,
+        source: &dyn EntityBase,
+    ) {
+        if let Some(player) = source.get_player() {
+            Self::try_award_experience(world, pos, state_id, player);
+        }
+    }
 }
 
 impl BlockBehaviour for CreakingHeartBlock {
@@ -144,25 +182,23 @@ impl BlockBehaviour for CreakingHeartBlock {
     }
 
     fn broken(&self, args: BrokenArgs<'_>) {
-        // Vanilla CreakingHeartBlock#tryAwardExperience: only natural (world-gen) hearts drop
-        // 20-24 experience, skipped for creative and spectator players. Silk Touch does not
-        // block it, since the heart is not `dropExperienceWhenMined`.
-        let props = CreakingHeartLikeProperties::from_state_id(args.state.id);
-        // Vanilla `Block#popExperience` is gated on the `block_drops` gamerule and spawns at the
-        // block center (`Vec3.atCenterOf`), not the block corner.
-        if !props.natural
-            || !args.world.level_info.load().game_rules.block_drops
-            || matches!(
-                args.player.gamemode.load(),
-                GameMode::Creative | GameMode::Spectator
-            )
-        {
+        // Vanilla CreakingHeartBlock#tryAwardExperience: Silk Touch does not block the drop,
+        // since the heart is not `dropExperienceWhenMined`.
+        Self::try_award_experience(args.world, args.position, args.state.id, args.player);
+    }
+
+    fn explode(&self, args: ExplodeArgs<'_>) {
+        // Vanilla awards a natural heart's XP when an explosion credits a player, even through
+        // TNT, a minecart or an end crystal. The block is still placed when this hook runs.
+        let Some(source) = args
+            .explosion
+            .indirect_source()
+            .or_else(|| args.explosion.source())
+        else {
             return;
-        }
-        let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(get_seed()));
-        // Vanilla `nextIntBetweenInclusive(20, 24)`.
-        let amount = 20 + random.next_bounded_i32(5) as u32;
-        ExperienceOrbEntity::spawn(args.world, args.position.to_centered_f64(), amount);
+        };
+        let (_, state) = args.world.get_block_and_state(args.position);
+        Self::award_explosion_experience(args.world, args.position, state.id, source);
     }
 }
 
@@ -176,5 +212,35 @@ mod tests {
         assert!(!CreakingHeartBlock::should_uproot(false, true));
         assert!(!CreakingHeartBlock::should_uproot(true, false));
         assert!(!CreakingHeartBlock::should_uproot(true, true));
+    }
+
+    #[test]
+    fn explosion_xp_respects_natural_gamerule_and_gamemode() {
+        use pumpkin_util::GameMode;
+        assert!(CreakingHeartBlock::should_award_experience(
+            true,
+            true,
+            GameMode::Survival
+        ));
+        assert!(!CreakingHeartBlock::should_award_experience(
+            false,
+            true,
+            GameMode::Survival
+        ));
+        assert!(!CreakingHeartBlock::should_award_experience(
+            true,
+            false,
+            GameMode::Survival
+        ));
+        assert!(!CreakingHeartBlock::should_award_experience(
+            true,
+            true,
+            GameMode::Creative
+        ));
+        assert!(!CreakingHeartBlock::should_award_experience(
+            true,
+            true,
+            GameMode::Spectator
+        ));
     }
 }

@@ -51,6 +51,8 @@ pub const MAX_PLAYER_STUCK_COUNTER: i32 = 4;
 const MAX_GAZE_RANGE: f64 = 128.0;
 /// Vanilla `LivingEntity.isLookingAtMe` ignores gaze targets closer than this epsilon.
 const GAZE_MIN_DISTANCE: f64 = 1.0e-5;
+/// Vanilla `CreakingAi` adds two idle ticks per tick in bright light so it despawns faster.
+const BRIGHTNESS_FOR_FASTER_DESPAWN: f32 = 0.5;
 
 const fn gaze_distance_in_range(distance: f64) -> bool {
     distance >= GAZE_MIN_DISTANCE && distance <= MAX_GAZE_RANGE
@@ -513,6 +515,40 @@ impl Mob for CreakingEntity {
     /// Vanilla `Creaking.playAttackSound`.
     fn play_attack_sound(&self) {
         self.play_entity_sound(Sound::EntityCreakingAttack, 1.0, 1.0);
+    }
+
+    /// Vanilla gates navigation, look and body rotation on `canMove`; a frozen Creaking keeps
+    /// its pose and never steers, even while goals such as swimming are still selected.
+    fn ticks_navigation(&self) -> bool {
+        self.can_move()
+    }
+
+    fn ticks_look_control(&self) -> bool {
+        self.can_move()
+    }
+
+    fn ticks_body_rotation(&self) -> bool {
+        self.can_move()
+    }
+
+    /// Vanilla `Creaking.canBeLeashed` is false; the mob is bound to its heart instead.
+    fn can_be_leashed(&self) -> bool {
+        false
+    }
+
+    fn before_mob_ai_step(&self) {
+        let entity = &self.mob_entity.living_entity.entity;
+        if entity
+            .world
+            .load()
+            .get_light_level_dependent_magic_value(&entity.get_eye_pos().to_block_pos())
+            > BRIGHTNESS_FOR_FASTER_DESPAWN
+        {
+            self.mob_entity
+                .living_entity
+                .no_action_time
+                .fetch_add(2, Ordering::Relaxed);
+        }
     }
 
     fn mob_is_pushable(&self) -> bool {
