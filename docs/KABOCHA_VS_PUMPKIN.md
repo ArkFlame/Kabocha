@@ -45,7 +45,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4647](https://github.com/Pumpkin-MC/Pumpkin/pull/4647) | fix(entity): bring leads closer to vanilla parity | PENDING |
 | [#4648](https://github.com/Pumpkin-MC/Pumpkin/pull/4648) | fix(entity): stop resistance from overflowing past level five | PENDING |
 | [#4650](https://github.com/Pumpkin-MC/Pumpkin/pull/4650) | fix(block): preserve drop flags when breaking multi-part blocks | LANDED |
-| [#4652](https://github.com/Pumpkin-MC/Pumpkin/pull/4652) | feat(entity): sniffer vanilla parity | PENDING |
+| [#4652](https://github.com/Pumpkin-MC/Pumpkin/pull/4652) | feat(entity): sniffer vanilla parity | ALREADY-FIXED (#4535) |
 | [#4655](https://github.com/Pumpkin-MC/Pumpkin/pull/4655) | feat(entity): implement happy ghast vanilla parity | PENDING |
 | [#4658](https://github.com/Pumpkin-MC/Pumpkin/pull/4658) | fix(plugin): separate PlayerCommandPreprocessEvent from PlayerCommandSendEvent | PENDING |
 | [#4661](https://github.com/Pumpkin-MC/Pumpkin/pull/4661) | feat(entity): vanilla parity for armadillo | PENDING |
@@ -58,7 +58,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4603](https://github.com/Pumpkin-MC/Pumpkin/issues/4603) | TRACKER: Parity Integration Test | PENDING |
 | [#4623](https://github.com/Pumpkin-MC/Pumpkin/issues/4623) | Player Locator Bar does not show other players with locator_bar enabled | ALREADY-FIXED |
 | [#4629](https://github.com/Pumpkin-MC/Pumpkin/issues/4629) | Cannot place a regular rail on top of a hopper | LANDED (e8a812cbb, proof test) |
-| [#4640](https://github.com/Pumpkin-MC/Pumpkin/issues/4640) | wardem cannot attack any entity | IN FLIGHT |
+| [#4640](https://github.com/Pumpkin-MC/Pumpkin/issues/4640) | wardem cannot attack any entity | LANDED (6c953b6e9, proof test) |
 | [#4646](https://github.com/Pumpkin-MC/Pumpkin/issues/4646) | Bed despawn without dropping anything | PENDING |
 | [#4649](https://github.com/Pumpkin-MC/Pumpkin/issues/4649) | Resistance 255 overflow crash on mob hit | LANDED (e7fea647f, proof test) |
 | [#4651](https://github.com/Pumpkin-MC/Pumpkin/issues/4651) | 1.8.9 client Unable to locate sign via Velocity/ViaRewind | PENDING |
