@@ -723,12 +723,11 @@ impl EntityBase for MinecartEntity {
             }
 
             velocity.y = 0.0;
-            self.vehicle.entity.velocity.store(velocity);
         } else {
             let on_ground = self.vehicle.entity.on_ground.load(Ordering::Relaxed);
             velocity.y += off_rail_gravity(on_ground);
-            self.vehicle.entity.velocity.store(velocity);
         }
+        self.vehicle.entity.velocity.store(velocity);
 
         if velocity.length() > 0.001 {
             let move_velocity = if is_on_rails {
