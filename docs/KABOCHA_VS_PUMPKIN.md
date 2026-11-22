@@ -20,7 +20,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4605](https://github.com/Pumpkin-MC/Pumpkin/pull/4605) | fix(plugin): include players in get_nearby_entities | ALREADY-FIXED (#4294; v0_1 entity.rs:428, v0_2 entity.rs:388) |
 | [#4606](https://github.com/Pumpkin-MC/Pumpkin/pull/4606) | feat(plugin): add v0.2 guest SDK | ALREADY-FIXED (plugin-api-v0_2) |
 | [#4609](https://github.com/Pumpkin-MC/Pumpkin/pull/4609) | feat(wit): Redesign event to be a resource instead of a variant | PENDING |
-| [#4611](https://github.com/Pumpkin-MC/Pumpkin/pull/4611) | fix(entity): let boats pick up nearby mobs | PENDING |
+| [#4611](https://github.com/Pumpkin-MC/Pumpkin/pull/4611) | fix(entity): let boats pick up nearby mobs | LANDED (4a9ab77b9) |
 | [#4612](https://github.com/Pumpkin-MC/Pumpkin/pull/4612) | fix(util): always enable serde_json preserve_order | LANDED |
 | [#4613](https://github.com/Pumpkin-MC/Pumpkin/pull/4613) | fix(server): save whitelist on and off to pumpkin.toml | LANDED (1f84bbc37) |
 | [#4615](https://github.com/Pumpkin-MC/Pumpkin/pull/4615) | fix: keep text colors in bedrock translated system messages | LANDED |
@@ -29,12 +29,12 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4622](https://github.com/Pumpkin-MC/Pumpkin/pull/4622) | fix(entity): align boat physics and minecart behavior with vanilla | PENDING |
 | [#4625](https://github.com/Pumpkin-MC/Pumpkin/pull/4625) | fix: show players on the locator bar | PENDING |
 | [#4626](https://github.com/Pumpkin-MC/Pumpkin/pull/4626) | fix(block): prevent opening a blocked shulker box | ALREADY-FIXED (shulker_box.rs:151) |
-| [#4627](https://github.com/Pumpkin-MC/Pumpkin/pull/4627) | perf(world): compress chunks with zrip instead of ruzstd | PENDING |
+| [#4627](https://github.com/Pumpkin-MC/Pumpkin/pull/4627) | perf(world): compress chunks with zrip instead of ruzstd | LANDED (b908e11a6) |
 | [#4628](https://github.com/Pumpkin-MC/Pumpkin/pull/4628) | feat(entity): vanilla parity for Breeze | BLOCKED (stale base, needs rewrite + codegen) |
 | [#4630](https://github.com/Pumpkin-MC/Pumpkin/pull/4630) | feat(entity): vanilla parity for Creaking | LANDED (8413bfd89, partial: gaze/comparator) |
 | [#4632](https://github.com/Pumpkin-MC/Pumpkin/pull/4632) | fix(world): preserve imported structure data when saving chunks | LANDED (b3fe50c73) |
 | [#4634](https://github.com/Pumpkin-MC/Pumpkin/pull/4634) | Support deferred login admission | PENDING |
-| [#4635](https://github.com/Pumpkin-MC/Pumpkin/pull/4635) | fix(entity): close remaining panda, dolphin, mooshroom and bee parity gaps | PENDING |
+| [#4635](https://github.com/Pumpkin-MC/Pumpkin/pull/4635) | fix(entity): close remaining panda, dolphin, mooshroom and bee parity gaps | LANDED (bb4624ae5, partial: panda only) |
 | [#4636](https://github.com/Pumpkin-MC/Pumpkin/pull/4636) | feat(entity): full vanilla parity for shulker | PENDING |
 | [#4638](https://github.com/Pumpkin-MC/Pumpkin/pull/4638) | perf(world): batch packets per tick and send movement from the entity tracker | LANDED (18ed0b039, partial: stages 1-2) |
 | [#4639](https://github.com/Pumpkin-MC/Pumpkin/pull/4639) | fix(entity): despawn ineligible mobs on peaceful | PENDING |
