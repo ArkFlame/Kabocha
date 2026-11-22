@@ -30,33 +30,6 @@ impl FluidMetadata for FlowingLava {
 }
 
 impl FlowingLava {
-    fn can_spread_fire_around(world: &Arc<World>, pos: &BlockPos) -> bool {
-        let spread_radius = world
-            .level_info
-            .load()
-            .game_rules
-            .fire_spread_radius_around_player;
-
-        if spread_radius == -1 {
-            return true;
-        }
-        if spread_radius <= 0 {
-            return false;
-        }
-
-        let target = Vector3::new(f64::from(pos.0.x), f64::from(pos.0.y), f64::from(pos.0.z));
-        let max_distance_sq = (spread_radius as f64).powi(2);
-        world.players.load().iter().any(|player| {
-            !player.is_spectator()
-                && player
-                    .get_entity()
-                    .pos
-                    .load()
-                    .squared_distance_to_vec(&target)
-                    < max_distance_sq
-        })
-    }
-
     fn is_flammable(world: &Arc<World>, pos: &BlockPos) -> bool {
         world
             .get_block_state_if_loaded(pos)
@@ -198,7 +171,7 @@ impl FluidBehaviour for FlowingLava {
     }
 
     fn random_tick(&self, _fluid: &Fluid, world: &Arc<World>, block_pos: &BlockPos) {
-        if !Self::can_spread_fire_around(world, block_pos) {
+        if !FireBlock::can_spread_fire_around(world, block_pos) {
             return;
         }
 

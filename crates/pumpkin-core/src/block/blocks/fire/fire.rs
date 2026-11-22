@@ -151,6 +151,20 @@ impl FireBlock {
             .get_value_bool(EnvironmentAttribute::GameplayIncreasedFireBurnout, pos)
     }
 
+    /// Pure radius gate shared by every fire-ignition path.
+    ///
+    /// `-1` is unlimited, non-positive radii disable spread, and a positive
+    /// radius only allows it when a player is inside the radius.
+    const fn can_spread_with_radius(radius: i64, player_within_radius: bool) -> bool {
+        if radius == -1 {
+            return true;
+        }
+        if radius <= 0 {
+            return false;
+        }
+        player_within_radius
+    }
+
     /// Mirrors vanilla `ServerLevel.canSpreadFireAround`.
     ///
     /// Gates the whole fire tick, not only the spread loop: with a radius set and no
@@ -161,24 +175,24 @@ impl FireBlock {
             .load()
             .game_rules
             .fire_spread_radius_around_player;
-        if radius == -1 {
-            return true;
-        }
-        if radius <= 0 {
-            return false;
-        }
-        // Vanilla measures from the block corner, not its centre.
-        let target = Vector3::new(f64::from(pos.0.x), f64::from(pos.0.y), f64::from(pos.0.z));
-        let max_distance_sq = (radius as f64).powi(2);
-        world.players.load().iter().any(|player| {
-            !player.is_spectator()
-                && player
-                    .get_entity()
-                    .pos
-                    .load()
-                    .squared_distance_to_vec(&target)
-                    < max_distance_sq
-        })
+        // A non-positive radius must not even search for ignition candidates.
+        let player_within_radius = if radius > 0 {
+            // Vanilla measures from the block corner, not its centre.
+            let target = Vector3::new(f64::from(pos.0.x), f64::from(pos.0.y), f64::from(pos.0.z));
+            let max_distance_sq = (radius as f64).powi(2);
+            world.players.load().iter().any(|player| {
+                !player.is_spectator()
+                    && player
+                        .get_entity()
+                        .pos
+                        .load()
+                        .squared_distance_to_vec(&target)
+                        < max_distance_sq
+            })
+        } else {
+            false
+        };
+        Self::can_spread_with_radius(radius, player_within_radius)
     }
 
     fn try_spreading_fire(&self, world: &Arc<World>, pos: &BlockPos, chance: i32, age: u8) {
@@ -504,5 +518,17 @@ mod tests {
             assert!(FireBlock::get_ignite_odds(dry) > 0);
             assert_eq!(FireBlock::get_ignite_odds(wet), 0);
         }
+    }
+
+    #[test]
+    fn zero_spread_radius_disables_fire_ignition() {
+        // Radius 0 yields no ignition candidates even with a player nearby.
+        assert!(!FireBlock::can_spread_with_radius(0, true));
+        assert!(!FireBlock::can_spread_with_radius(0, false));
+        assert!(!FireBlock::can_spread_with_radius(-2, true));
+        // `-1` is unlimited; a positive radius still ignites inside player range.
+        assert!(FireBlock::can_spread_with_radius(-1, false));
+        assert!(FireBlock::can_spread_with_radius(8, true));
+        assert!(!FireBlock::can_spread_with_radius(8, false));
     }
 }
