@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex as StdMutex, RwLock, atomic::AtomicBool};
+use std::sync::{Arc, Mutex as StdMutex, RwLock, atomic::{AtomicBool, AtomicI64}};
 
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_util::math::position::BlockPos;
@@ -22,7 +22,7 @@ pub struct ChestBlockEntity {
     /// Set during world generation; cleared when items are generated on first open.
     pub loot_table: StdMutex<Option<String>>,
     /// Seed used for deterministic loot generation, paired with `loot_table`.
-    pub loot_table_seed: i64,
+    pub loot_table_seed: AtomicI64,
     pub metadata: crate::block::entities::ContainerMetadata,
 }
 

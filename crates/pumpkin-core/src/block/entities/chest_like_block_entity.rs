@@ -32,7 +32,7 @@ macro_rules! impl_block_entity_for_chest {
                     golem_reserved: std::sync::atomic::AtomicBool::new(false),
                     viewers: $crate::block::viewer::ViewerCountTracker::new(),
                     loot_table: StdMutex::new(loot_table_key),
-                    loot_table_seed,
+                    loot_table_seed: std::sync::atomic::AtomicI64::new(loot_table_seed),
                     metadata: $crate::block::entities::ContainerMetadata::from_nbt(nbt),
                 };
 
@@ -69,8 +69,9 @@ macro_rules! impl_block_entity_for_chest {
                 if let Some(key) = loot_table_key {
                     // Persist deferred loot: write the key and seed; skip items.
                     nbt.put_string("LootTable", key);
-                    if self.loot_table_seed != 0 {
-                        nbt.put_long("LootTableSeed", self.loot_table_seed);
+                    let loot_table_seed = self.loot_table_seed.load(std::sync::atomic::Ordering::Relaxed);
+                    if loot_table_seed != 0 {
+                        nbt.put_long("LootTableSeed", loot_table_seed);
                     }
                 } else {
                     // Loot has already been generated, so persist the actual items.
@@ -154,7 +155,7 @@ macro_rules! impl_block_entity_for_chest {
             ) {
                 if $crate::world::loot::unpack_loot_into_slots(
                     &self.loot_table,
-                    self.loot_table_seed,
+                    self.loot_table_seed.load(std::sync::atomic::Ordering::Relaxed),
                     &self.items,
                     |key, seed| generate(key, seed),
                 )
@@ -188,7 +189,7 @@ macro_rules! impl_block_entity_for_chest {
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner) =
                         Some(loot.loot_table.clone());
-                    self.loot_table_seed = loot.seed;
+                    self.loot_table_seed.store(loot.seed, std::sync::atomic::Ordering::Relaxed);
                 }
                 let mut items = self
                     .items
@@ -211,7 +212,7 @@ macro_rules! impl_block_entity_for_chest {
                     stack.set_data_component(
                         pumpkin_data::data_component_impl::ContainerLootImpl {
                             loot_table,
-                            seed: self.loot_table_seed,
+                            seed: self.loot_table_seed.load(std::sync::atomic::Ordering::Relaxed),
                         },
                     );
                 }
@@ -429,7 +430,7 @@ macro_rules! impl_chest_helper_methods {
                     golem_reserved: AtomicBool::new(false),
                     viewers: $crate::block::viewer::ViewerCountTracker::new(),
                     loot_table: StdMutex::new(None),
-                    loot_table_seed: 0,
+                    loot_table_seed: std::sync::atomic::AtomicI64::new(0),
                     metadata: $crate::block::entities::ContainerMetadata::default(),
                 }
             }
@@ -559,6 +560,7 @@ pub fn build_chest_actor(
 mod tests {
     use super::*;
     use pumpkin_data::Block;
+    use pumpkin_data::item_stack::ItemStack;
     use pumpkin_util::math::position::BlockPos;
 
     #[test]
@@ -636,7 +638,7 @@ mod tests {
             .loot_table
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(KEY.to_string());
-        chest.loot_table_seed = SEED;
+        chest.loot_table_seed.store(SEED, std::sync::atomic::Ordering::Relaxed);
 
         let mut dropped = ItemStack::new(1, &Item::CHEST);
         chest.collect_item_components(&mut dropped);
@@ -655,7 +657,7 @@ mod tests {
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
             Some(KEY.to_string())
         );
-        assert_eq!(placed.loot_table_seed, SEED);
+        assert_eq!(placed.loot_table_seed.load(std::sync::atomic::Ordering::Relaxed), SEED);
 
         placed.unpack_loot_table_with(&mut |key, seed| {
             assert_eq!(key, KEY);
