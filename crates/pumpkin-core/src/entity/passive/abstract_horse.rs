@@ -1210,6 +1210,7 @@ macro_rules! impl_abstract_horse {
 
             fn age_boundary_reached(&self) {
                 $crate::entity::passive::abstract_horse::AbstractHorse::refresh_age_dimensions(self);
+                self.age_boundary_reached_super();
             }
 
             $($ageable)*
