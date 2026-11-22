@@ -67,6 +67,7 @@ mod connection_cache;
 pub(crate) mod debug_profiler;
 pub mod enchantment;
 mod key_store;
+pub mod login_admission;
 pub mod perf_profiler;
 #[cfg(profiler)]
 pub(crate) mod profiler;
@@ -1266,7 +1267,7 @@ impl Server {
         clippy::too_many_lines,
         reason = "the join sequence is kept in one ordered pass"
     )]
-    pub fn add_player(
+    pub async fn add_player(
         self: &Arc<Self>,
         client: Arc<ClientPlatform>,
         profile: GameProfile,
@@ -1274,13 +1275,15 @@ impl Server {
     ) -> Option<(Arc<Player>, Arc<World>)> {
         // The login handlers check this too, but long before the insertion
         // and not on every path (proxies, no encryption, Bedrock).
-        let _join_guard = self
-            .player_join_lock
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(reason) = self.join_rejection(&client, &profile) {
-            client.try_kick(DisconnectReason::Kicked, &reason);
-            return None;
+        {
+            let _join_guard = self
+                .player_join_lock
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(reason) = self.join_rejection(&client, &profile) {
+                client.try_kick(DisconnectReason::Kicked, &reason);
+                return None;
+            }
         }
 
         let default_gamemode = self
@@ -1358,61 +1361,98 @@ impl Server {
             advancements.player = Arc::downgrade(&player);
         };
 
-        send_cancellable_blocking! {{
-            self;
-            &mut PlayerLoginEvent::new(player.clone(), TextComponent::text("You have been kicked from the server"));
-            'after: {
-                player.screen_handler_sync_handler.store_player(&(player.clone() as Arc<dyn pumpkin_inventory::screen_handler::InventoryPlayer>));
-                if !self.admit_player(&world, &player) {
-                    player.kick(
-                        DisconnectReason::Shutdown,
-                        &TextComponent::translate(
-                            pumpkin_data::translation::java::MULTIPLAYER_DISCONNECT_SERVER_SHUTDOWN,
-                            [],
-                        ),
-                    );
-                    player.client.clear_player();
-                    return None;
+        if self.check_login_admission(&player).await.is_none() {
+            player.client.clear_player();
+            return None;
+        }
+        player
+            .screen_handler_sync_handler
+            .store_player(&(player.clone() as Arc<dyn pumpkin_inventory::screen_handler::InventoryPlayer>));
+        if !self.admit_player(&world, &player) {
+            player.kick(
+                DisconnectReason::Shutdown,
+                &TextComponent::translate(
+                    pumpkin_data::translation::java::MULTIPLAYER_DISCONNECT_SERVER_SHUTDOWN,
+                    [],
+                ),
+            );
+            player.client.clear_player();
+            return None;
+        }
+        Some({
+            {
+                let mut user_cache = self
+                    .data
+                    .user_cache
+                    .write()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                user_cache.upsert(player.gameprofile.id, player.gameprofile.name.clone());
+            };
+
+            // Vanilla counts every player in the status response; only the
+            // sample lists players that allow server listing.
+            let allows_listing = config.is_some_and(|config| config.server_listing);
+            let listed = self
+                .listing
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .add_player(&player, allows_listing);
+            player.listed_in_sample.store(listed, Ordering::Relaxed);
+
+            let player_dto = crate::net::management::dto::PlayerDto::new(
+                Some(player.gameprofile.id),
+                Some(player.gameprofile.name.clone()),
+            );
+            self.management_hub.broadcast_player_joined(&player_dto);
+            if self.telemetry_config.enabled {
+                self.telemetry_sessions.record_join(player.gameprofile.id);
+            }
+
+            (player, world)
+        })
+    }
+
+    async fn check_login_admission(self: &Arc<Self>, player: &Arc<Player>) -> Option<()> {
+        let admission = player.login_admission.open();
+        let mut event = PlayerLoginEvent::new(
+            Arc::clone(player),
+            TextComponent::text("You have been kicked from the server"),
+        );
+        self.plugin_manager.fire(self, &mut event).await;
+        let deferred = admission.finish();
+        if event.cancelled {
+            drop(deferred);
+            player
+                .client
+                .kick(DisconnectReason::Kicked, event.kick_message)
+                .await;
+            return None;
+        }
+        if let Some(deferred) = deferred {
+            let wait = async {
+                tokio::select! {
+                    biased;
+                    () = self.stop_token.cancelled() => Err((DisconnectReason::Shutdown, TextComponent::text("Server stopped"))),
+                    verdict = deferred.verdict() => verdict.map_err(|message| (DisconnectReason::Kicked, message)),
                 }
-                Some({
-                    {
-                        let mut user_cache = self
-                            .data
-                            .user_cache
-                            .write()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner);
-                        user_cache.upsert(player.gameprofile.id, player.gameprofile.name.clone());
-                    };
-
-                    // Vanilla counts every player in the status response; only the
-                    // sample lists players that allow server listing.
-                    let allows_listing = config.is_some_and(|config| config.server_listing);
-                    let listed = self
-                        .listing
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .add_player(&player, allows_listing);
-                    player.listed_in_sample.store(listed, Ordering::Relaxed);
-
-                    let player_dto = crate::net::management::dto::PlayerDto::new(
-                        Some(player.gameprofile.id),
-                        Some(player.gameprofile.name.clone()),
-                    );
-                    self.management_hub.broadcast_player_joined(&player_dto);
-                    if self.telemetry_config.enabled {
-                        self.telemetry_sessions.record_join(player.gameprofile.id);
-                    }
-
-                    (player, world)
-                })
+            };
+            let verdict = match player.client.as_ref() {
+                ClientPlatform::Java(client) => client.wait_for_login_admission(wait).await,
+                ClientPlatform::Bedrock(client) => tokio::select! {
+                    biased;
+                    () = client.await_close_interrupt() => None,
+                    verdict = wait => Some(verdict),
+                },
+            }?;
+            if let Err((reason, message)) = verdict {
+                player.client.kick(reason, message).await;
+                return None;
             }
-
-            'cancelled: {
-                player.kick(DisconnectReason::Kicked, &event.kick_message);
-                player.client.clear_player();
-                None
-            }
-        }}
+        }
+        if player.client.closed() {
+            return None;
+        }
+        Some(())
     }
 
     /// Why `profile` can't join right now, if anything. Call with the join lock held.

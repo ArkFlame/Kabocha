@@ -345,6 +345,7 @@ use crate::plugin::player::player_teleport::{PlayerTeleportEvent, TeleportCause}
 use crate::plugin::server::packet::PacketSentEvent;
 use crate::plugin::world::chunk_send::ChunkSend;
 use crate::server::Server;
+use crate::server::login_admission::{LoginAdmission, PendingLoginAdmission};
 use crate::world::{BlockBreakingProgress, World};
 use bytes::Bytes;
 
@@ -744,6 +745,7 @@ pub struct Player {
     transfer_requested: AtomicBool,
     /// Set when this session was kicked, so the leave event can report the reason.
     kicked: AtomicBool,
+    pub(crate) login_admission: LoginAdmission,
     /// The player's inventory.
     pub inventory: Arc<PlayerInventory>,
     /// The player's `EnderChest` inventory.
@@ -1028,6 +1030,13 @@ impl Player {
         );
     }
 
+    /// Defers this player's admission once while their login event is being dispatched.
+    #[must_use]
+    pub fn defer_login_admission(&self) -> Option<PendingLoginAdmission> {
+        self.login_admission.defer()
+    }
+    }
+
     /// Downloads the Java skin from the profile's `textures` property and converts it
     /// into a Bedrock skin.
     pub async fn fetch_skin(
@@ -1256,6 +1265,7 @@ impl Player {
             using_item: AtomicBool::new(false),
             transfer_requested: AtomicBool::new(false),
             kicked: AtomicBool::new(false),
+            login_admission: LoginAdmission::default(),
             item_use_start_time: AtomicI32::new(0),
             using_hand: AtomicCell::new(None),
             // Minecraft has no way to change the default permission level of new players.
