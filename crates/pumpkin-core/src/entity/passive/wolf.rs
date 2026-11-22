@@ -237,6 +237,14 @@ impl TamableAnimal for WolfEntity {
     fn get_tamable_data(&self) -> &TamableData {
         &self.tamable_data
     }
+
+    fn taming_variant_component(&self) -> Option<(String, String)> {
+        let id = usize::from(self.variant.load(Ordering::Relaxed));
+        let value = WolfVariant::all()
+            .get(id)
+            .map_or("minecraft:pale", WolfVariant::asset_id);
+        Some(("minecraft:wolf/variant".to_string(), value.to_string()))
+    }
 }
 
 impl NeutralMob for WolfEntity {

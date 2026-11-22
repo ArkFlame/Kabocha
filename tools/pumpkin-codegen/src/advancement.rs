@@ -1038,6 +1038,29 @@ fn generate_entity_condition_tokens(val: &serde_json::Value) -> TokenStream {
         .and_then(|f| f.get("items"))
         .and_then(|i| i.as_str());
 
+    // Vanilla gates variant-specific advancement criteria (wolf/cat variants) on data
+    // components carried by the entity predicate. Collect each component/value pair.
+    let components_obj = entity_pred
+        .get("minecraft:components")
+        .or_else(|| entity_pred.get("components"))
+        .or_else(|| {
+            val.get("entity")
+                .and_then(|e| e.as_array().and_then(|arr| arr.first()).or(Some(e)))
+                .and_then(|e| e.get("predicate").or(Some(e)))
+                .and_then(|pred| {
+                    pred.get("minecraft:components")
+                        .or_else(|| pred.get("components"))
+                })
+        });
+    let components: Vec<(&str, &str)> = components_obj
+        .and_then(|c| c.as_object())
+        .map(|obj| {
+            obj.iter()
+                .filter_map(|(key, value)| value.as_str().map(|s| (key.as_str(), s)))
+                .collect()
+        })
+        .unwrap_or_default();
+
     let val_str = val.to_string();
     let safe_armor_disallowed = (val_str.contains("piglin_safe_armor")
         && (val_str.contains("inverted") || val_str.contains("minecraft:inverted")))
@@ -1055,6 +1078,14 @@ fn generate_entity_condition_tokens(val: &serde_json::Value) -> TokenStream {
     let look_tok = opt_str_tokens(looking_at);
     let feet_tok = opt_str_tokens(feet_item);
     let safe_arm_tok = opt_bool_tokens(safe_armor_disallowed);
+    let components_tok = if components.is_empty() {
+        quote! { None }
+    } else {
+        let entries = components.iter().map(|(component, value)| {
+            quote! { EntityComponentCondition { component: #component, value: #value } }
+        });
+        quote! { Some(&[#(#entries),*]) }
+    };
 
     quote! {
         EntityCondition {
@@ -1070,6 +1101,7 @@ fn generate_entity_condition_tokens(val: &serde_json::Value) -> TokenStream {
             looking_at: #look_tok,
             feet_item: #feet_tok,
             safe_armor_disallowed: #safe_arm_tok,
+            components: #components_tok,
         }
     }
 }

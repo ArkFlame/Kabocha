@@ -364,6 +364,14 @@ impl TamableAnimal for CatEntity {
     fn get_tamable_data(&self) -> &TamableData {
         &self.tamable_data
     }
+
+    fn taming_variant_component(&self) -> Option<(String, String)> {
+        let id = usize::from(self.variant.load(Ordering::Relaxed));
+        let value = CatVariant::all()
+            .get(id)
+            .map_or("minecraft:tabby", CatVariant::asset_id);
+        Some(("minecraft:cat/variant".to_string(), value.to_string()))
+    }
 }
 
 impl Mob for CatEntity {

@@ -91,6 +91,8 @@ pub enum AdvancementTrigger {
         entity_type: String,
         /// Player-to-animal distance, checked against the entity's `distance` predicate.
         distance: Option<EntityDistance>,
+        /// Data component values of the tamed entity (e.g. its wolf/cat variant).
+        components: Vec<(String, String)>,
     },
     FilledBucket {
         item_id: String,
@@ -610,10 +612,12 @@ impl Player {
             AdvancementTrigger::TameAnimal {
                 entity_type,
                 distance,
+                components,
             } => {
                 self.trigger_criterion_event("minecraft:tame_animal", |cond| match cond {
                     CriterionConditions::TameAnimal(pred) => {
                         pred.matches(&entity_type, distance, None)
+                            && pred.matches_components(&components)
                     }
                     CriterionConditions::Custom { .. } => true,
                     _ => false,

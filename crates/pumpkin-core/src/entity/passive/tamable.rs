@@ -44,6 +44,11 @@ impl Default for TamableData {
 pub trait TamableAnimal: Animal {
     fn get_tamable_data(&self) -> &TamableData;
 
+    /// Data component values used by vanilla's variant-specific taming advancements.
+    fn taming_variant_component(&self) -> Option<(String, String)> {
+        None
+    }
+
     fn is_tame(&self) -> bool {
         self.get_tamable_data().is_tame.load(Relaxed)
     }
@@ -167,6 +172,7 @@ pub trait TamableAnimal: Animal {
                             entity.pos.load(),
                         ),
                     ),
+                    components: self.taming_variant_component().into_iter().collect(),
                 },
             );
         }

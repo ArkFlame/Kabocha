@@ -372,6 +372,13 @@ pub struct LocationCondition {
     pub feet_item: Option<&'static str>,
 }
 
+/// One required data-component value of a vanilla entity predicate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EntityComponentCondition {
+    pub component: &'static str,
+    pub value: &'static str,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct EntityCondition {
     pub entity_type: Option<&'static str>,
@@ -386,6 +393,8 @@ pub struct EntityCondition {
     pub looking_at: Option<&'static str>,
     pub feet_item: Option<&'static str>,
     pub safe_armor_disallowed: Option<bool>,
+    /// Required data component values, e.g. a wolf or cat variant.
+    pub components: Option<&'static [EntityComponentCondition]>,
 }
 
 /// One entry of vanilla's `MobEffectsPredicate` map with its `MobEffectInstancePredicate`.

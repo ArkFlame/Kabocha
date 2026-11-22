@@ -622,6 +622,7 @@ pub trait AbstractHorse: Animal + AgeableMob {
                     entity.pos.load(),
                 ),
             ),
+            components: Vec::new(),
         });
         entity.world.load().send_entity_status(
             entity,

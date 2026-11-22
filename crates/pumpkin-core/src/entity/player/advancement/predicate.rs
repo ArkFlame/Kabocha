@@ -1098,6 +1098,8 @@ pub struct EntityPredicate {
     pub nbt: Option<String>,
     /// Vanilla `EntitySlotsPredicate`: one entry per slot range, keyed by its raw name.
     pub slots: Vec<(String, ItemPredicate)>,
+    /// Required data component values, e.g. a wolf or cat variant.
+    pub components: Vec<(String, String)>,
 }
 
 /// Parses an SNBT compound from an advancement `nbt` predicate; `None` when it is not one.
@@ -1241,6 +1243,16 @@ impl EntityPredicate {
             return false;
         }
         true
+    }
+
+    /// Every required data component value must be present on the actual entity.
+    #[must_use]
+    pub fn matches_components(&self, actual: &[(String, String)]) -> bool {
+        self.components.iter().all(|(component, value)| {
+            actual.iter().any(|(actual_component, actual_value)| {
+                actual_component == component && actual_value == value
+            })
+        })
     }
 
     /// Checks the `x`/`y`/`z` distance bounds; a bound fails when the per-axis delta is unknown.
@@ -1496,6 +1508,17 @@ impl EntityPredicate {
             || safe_armor_predicate_is_inverted(pred_val))
         .then_some(true);
 
+        let components = map
+            .get("minecraft:components")
+            .or_else(|| map.get("components"))
+            .and_then(Value::as_object)
+            .map(|obj| {
+                obj.iter()
+                    .filter_map(|(key, value)| value.as_str().map(|s| (key.clone(), s.to_string())))
+                    .collect()
+            })
+            .unwrap_or_default();
+
         Self {
             entity_type,
             distance_horizontal,
@@ -1514,6 +1537,7 @@ impl EntityPredicate {
             equipment,
             nbt,
             slots,
+            components,
         }
     }
 }
@@ -2619,6 +2643,12 @@ fn from_entity_condition(e: &pumpkin_data::advancement_data::EntityCondition) ->
         // Generated `EntityCondition` data carries no NBT or slot predicates.
         nbt: None,
         slots: Vec::new(),
+        components: e.components.map_or_else(Vec::new, |components| {
+            components
+                .iter()
+                .map(|c| (c.component.to_string(), c.value.to_string()))
+                .collect()
+        }),
     }
 }
 
@@ -4396,5 +4426,47 @@ mod tests {
         assert!(pred.matches_entity("minecraft:zombie", &state));
         state.equipment = vec![("head".to_string(), "minecraft:diamond_boots".to_string())];
         assert!(!pred.matches_entity("minecraft:zombie", &state));
+    }
+
+    #[test]
+    fn variant_taming_advancements_require_matching_entity_components() {
+        // Whole Pack and A Complete Catalogue must not be granted by taming a horse:
+        // every criterion carries the wolf/cat variant as an entity data component.
+        for (advancement, component) in [
+            (Advancement::HUSBANDRY_WHOLE_PACK, "minecraft:wolf/variant"),
+            (
+                Advancement::HUSBANDRY_COMPLETE_CATALOGUE,
+                "minecraft:cat/variant",
+            ),
+        ] {
+            for def in advancement.criteria_definitions {
+                let CriterionConditions::TameAnimal(pred) =
+                    CriterionConditions::from(def.conditions)
+                else {
+                    panic!("expected a TameAnimal criterion");
+                };
+                // A horse has no variant component, so it must satisfy no criterion.
+                assert!(
+                    !pred.matches_components(&[]),
+                    "taming a horse must not satisfy {}",
+                    def.name
+                );
+                // The named variant, when carried by the entity, must satisfy the criterion.
+                let (name, value) = pred
+                    .components
+                    .first()
+                    .unwrap_or_else(|| panic!("{} must require a variant", def.name));
+                assert_eq!(name.as_str(), component);
+                let expected = [((*name).clone(), (*value).clone())];
+                assert!(
+                    pred.matches_components(&expected),
+                    "{} must match its variant",
+                    def.name
+                );
+                // A different variant must not satisfy it.
+                let other = [((*name).clone(), "minecraft:__other__".to_string())];
+                assert!(!pred.matches_components(&other));
+            }
+        }
     }
 }
