@@ -21,7 +21,7 @@ use std::mem::swap;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::{Arc, LazyLock, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tracing::{debug, error, info, trace, warn};
 
 /// The chunk generation pool shared by every level, like vanilla's `Util.backgroundExecutor()`.
@@ -38,6 +38,10 @@ static GENERATION_POOL: LazyLock<Arc<rayon::ThreadPool>> = LazyLock::new(|| {
             .expect("Failed to build Chunk Generation ThreadPool"),
     )
 });
+
+/// Minimum time between the dependency garbage collections that level changes cause. Level
+/// changes arrive per ticket change, so this batches them to one tick.
+const DEPENDENCY_GC_INTERVAL: Duration = Duration::from_millis(50);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct TaskPriority {
@@ -95,6 +99,9 @@ pub struct GenerationSchedule {
     running_gen_count: u16,
     max_in_flight: u16,
     queue_dirty: bool,
+    /// A level change lowered a target stage, so some dependencies may no longer be needed.
+    dependency_gc_pending: bool,
+    last_dependency_gc: Instant,
     recv_chunk: crossbeam::channel::Receiver<(ChunkPos, RecvChunk)>,
     io_read: tokio::sync::mpsc::Sender<Vec<ChunkPos>>,
     io_write: tokio::sync::mpsc::Sender<Vec<(ChunkPos, Chunk)>>,
@@ -188,6 +195,8 @@ impl GenerationSchedule {
                     running_gen_count: 0,
                     max_in_flight,
                     queue_dirty: false,
+                    dependency_gc_pending: false,
+                    last_dependency_gc: Instant::now(),
                     recv_chunk,
                     io_read: send_read_io,
                     io_write: send_write_io,
@@ -628,6 +637,9 @@ impl GenerationSchedule {
             );
             let mut holder = self.chunk_map.remove(&pos).unwrap_or_default();
             debug_assert_eq!(holder.target_stage, old_stage);
+            if new_stage < old_stage {
+                self.dependency_gc_pending = true;
+            }
             holder.target_stage = new_stage;
 
             // Effective target is what we actually need to schedule tasks up to.
@@ -882,6 +894,8 @@ impl GenerationSchedule {
     }
 
     fn garbage_collect_dependencies(&mut self) {
+        self.dependency_gc_pending = false;
+        self.last_dependency_gc = Instant::now();
         self.recompute_dependency_stages();
 
         // Garbage collect stranded dependencies and empty holders
@@ -1386,6 +1400,11 @@ impl GenerationSchedule {
 
             // 1. Get latest world state (player moves, etc)
             if self.resort_work(self.send_level.get()) {
+                self.check_waiting_tasks();
+            }
+            if self.dependency_gc_pending
+                && self.last_dependency_gc.elapsed() >= DEPENDENCY_GC_INTERVAL
+            {
                 self.garbage_collect_dependencies();
                 self.check_waiting_tasks();
             }
@@ -1420,7 +1439,6 @@ impl GenerationSchedule {
                 while let Ok((pos, data)) = self.recv_chunk.try_recv() {
                     self.receive_chunk(pos, data);
                     if self.resort_work(self.send_level.get()) {
-                        self.garbage_collect_dependencies();
                         self.check_waiting_tasks();
                         self.queue_dirty = true;
                         break 'out2;
@@ -1691,14 +1709,12 @@ impl GenerationSchedule {
                         Ok((pos, data)) => {
                             self.receive_chunk(pos, data);
                             if self.resort_work(self.send_level.get()) {
-                                self.garbage_collect_dependencies();
                                 self.check_waiting_tasks();
                             }
                         }
                         Err(crossbeam::channel::RecvTimeoutError::Timeout) => {
                             // Periodically check LevelChannel for new requests
                             if self.resort_work(self.send_level.get()) {
-                                self.garbage_collect_dependencies();
                                 self.check_waiting_tasks();
                             }
                         }
@@ -1706,6 +1722,9 @@ impl GenerationSchedule {
                     }
                 } else {
                     // No tasks in flight, check for any unblocked waiting tasks or stranded ready tasks
+                    if self.dependency_gc_pending {
+                        self.garbage_collect_dependencies();
+                    }
                     self.check_waiting_tasks();
                     let restored = if self.queue.is_empty() {
                         Self::restore_ready_tasks(
@@ -1735,7 +1754,6 @@ impl GenerationSchedule {
                     self.debug_check();
                     debug_assert_eq!(self.running_task_count, 0);
                     if self.resort_work(self.send_level.wait_and_get(level)) {
-                        self.garbage_collect_dependencies();
                         self.check_waiting_tasks();
                     }
                 }
@@ -1752,13 +1770,11 @@ impl GenerationSchedule {
                     Ok((pos, data)) => {
                         self.receive_chunk(pos, data);
                         if self.resort_work(self.send_level.get()) {
-                            self.garbage_collect_dependencies();
                             self.check_waiting_tasks();
                         }
                     }
                     Err(crossbeam::channel::RecvTimeoutError::Timeout) => {
                         if self.resort_work(self.send_level.get()) {
-                            self.garbage_collect_dependencies();
                             self.check_waiting_tasks();
                         }
                     }
