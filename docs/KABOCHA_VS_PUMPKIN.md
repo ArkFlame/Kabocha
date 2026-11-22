@@ -17,7 +17,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 
 | PR | Title | Status |
 |---|---|---|
-| [#4605](https://github.com/Pumpkin-MC/Pumpkin/pull/4605) | fix(plugin): include players in get_nearby_entities | IN FLIGHT |
+| [#4605](https://github.com/Pumpkin-MC/Pumpkin/pull/4605) | fix(plugin): include players in get_nearby_entities | ALREADY-FIXED (#4294; v0_1 entity.rs:428, v0_2 entity.rs:388) |
 | [#4606](https://github.com/Pumpkin-MC/Pumpkin/pull/4606) | feat(plugin): add v0.2 guest SDK | PENDING |
 | [#4609](https://github.com/Pumpkin-MC/Pumpkin/pull/4609) | feat(wit): Redesign event to be a resource instead of a variant | PENDING |
 | [#4611](https://github.com/Pumpkin-MC/Pumpkin/pull/4611) | fix(entity): let boats pick up nearby mobs | PENDING |
