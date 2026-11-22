@@ -620,12 +620,15 @@ impl NetherPortal {
                     continue;
                 }
 
-                let heightmap_y = world.get_heightmap_height(
+                // Vanilla `PortalForcer#createPortal` starts at the exclusive
+                // `Level#getHeight(MOTION_BLOCKING, ...)` value; Kabocha's heightmap
+                // stores the top solid block y, so start one higher (#4657).
+                let surface_y = world.get_heightmap_height(
                     ChunkHeightmapType::MotionBlocking,
                     check_x,
                     check_z,
                 );
-                let start_y = heightmap_y.min(top_y_limit);
+                let start_y = Self::create_portal_start_y(surface_y, top_y_limit);
 
                 let mut y = start_y;
                 while y >= min_y {
@@ -710,6 +713,15 @@ impl NetherPortal {
             return None;
         }
         Some(target_y.clamp(lower, upper))
+    }
+
+    /// First y of the vanilla `PortalForcer#createPortal` column scan.
+    ///
+    /// `Level#getHeight(MOTION_BLOCKING, ...)` is exclusive (the first air above
+    /// the top solid block), while Kabocha's heightmap stores the solid block y,
+    /// so the scan must start one block higher.
+    const fn create_portal_start_y(inclusive_surface_y: i32, top_y_limit: i32) -> i32 {
+        (inclusive_surface_y + 1).min(top_y_limit)
     }
 
     /// Mirrors the per-column downward scan of vanilla `PortalForcer#createPortal`.
@@ -1010,6 +1022,23 @@ mod tests {
         assert_eq!(
             NetherPortal::air_run_bottom(65, -64, 319, four_gap),
             (62, true)
+        );
+    }
+
+    #[test]
+    fn portal_scan_starts_at_surface_air_not_solid_block() {
+        // Netherrack hill: top solid block at y=92, the only replaceable surface
+        // block at y=93 (#4657). Vanilla `PortalForcer#createPortal` starts its
+        // downward scan at 93; starting at the inclusive 92 saw solid rock and
+        // fell through to the fixed-Y fallback, burying the frame in the hill.
+        let surface_air = |y: i32| y == 93;
+        assert!(!surface_air(92));
+        let start_y = NetherPortal::create_portal_start_y(92, 319);
+        assert_eq!(start_y, 93);
+        assert!(surface_air(start_y));
+        assert_eq!(
+            NetherPortal::air_run_bottom(start_y, -64, 319, surface_air),
+            (93, true)
         );
     }
 
