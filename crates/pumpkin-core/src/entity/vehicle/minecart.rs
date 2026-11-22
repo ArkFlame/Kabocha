@@ -339,6 +339,28 @@ fn minecart_improvements_enabled(world: &crate::world::World) -> bool {
     )
 }
 
+/// Vanilla `pushOtherMinecart`: old carts exchange velocity only on a head-on hit, while
+/// experimental carts exchange it on every hit.
+fn minecart_exchange_allowed(
+    experimental: bool,
+    this_yaw: f32,
+    this_pos: Vector3<f64>,
+    other_pos: Vector3<f64>,
+) -> bool {
+    if experimental {
+        return true;
+    }
+    let direction = Vector3::new(other_pos.x - this_pos.x, 0.0, other_pos.z - this_pos.z);
+    if direction.length_squared() < f64::from(1.0e-4f32) {
+        return false;
+    }
+    let yaw = f64::from(this_yaw).to_radians();
+    direction
+        .dot(&Vector3::new(yaw.cos(), 0.0, yaw.sin()))
+        .abs()
+        >= 0.8
+}
+
 /// Vanilla `OldMinecartBehavior`: a powered rail adds 0.06 to the horizontal
 /// speed along the current horizontal direction and leaves Y untouched.
 fn powered_rail_boost(velocity: Vector3<f64>, max_speed: f64) -> Vector3<f64> {
@@ -890,21 +912,14 @@ impl EntityBase for MinecartEntity {
             if is_other_minecart {
                 // Vanilla: the direction from this cart to the other one, not its motion.
                 // A standing cart has no motion, so the old check never transferred velocity.
-                let dir = Vector3::new(
-                    other_entity.pos.load().x - self_entity.pos.load().x,
-                    0.0,
-                    other_entity.pos.load().z - self_entity.pos.load().z,
-                )
-                .normalize();
-                let facing = Vector3::new(
-                    f64::from(self_entity.yaw.load().to_radians().cos()),
-                    0.0,
-                    f64::from(self_entity.yaw.load().to_radians().sin()),
-                )
-                .normalize();
-
-                let dot = dir.dot(&facing).abs();
-                if dot >= 0.8 {
+                // The experimental behaviour drops the head-on requirement.
+                let experimental = minecart_improvements_enabled(&self.vehicle.entity.world.load());
+                if minecart_exchange_allowed(
+                    experimental,
+                    self_entity.yaw.load(),
+                    self_entity.pos.load(),
+                    other_entity.pos.load(),
+                ) {
                     let vel = self_entity.velocity.load();
                     let ovel = other_entity.velocity.load();
 
@@ -1492,5 +1507,15 @@ mod tests {
 
         world.level.shutdown().await;
         Ok(())
+    }
+    #[test]
+    fn experimental_minecarts_exchange_velocity_side_on() {
+        let this_pos = Vector3::new(0.0, 64.0, 0.0);
+        let side = Vector3::new(0.0, 64.0, 0.5);
+        let ahead = Vector3::new(0.5, 64.0, 0.0);
+        // Yaw zero faces +X.
+        assert!(!minecart_exchange_allowed(false, 0.0, this_pos, side));
+        assert!(minecart_exchange_allowed(false, 0.0, this_pos, ahead));
+        assert!(minecart_exchange_allowed(true, 0.0, this_pos, side));
     }
 }
