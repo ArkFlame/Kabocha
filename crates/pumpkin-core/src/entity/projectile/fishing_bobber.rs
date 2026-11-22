@@ -281,8 +281,6 @@ impl FishingBobberEntity {
                     delta.z * 0.1,
                 );
 
-                let entity = Entity::new(world.clone(), bobber_pos, &EntityType::ITEM);
-
                 // Bukkit `PlayerFishEvent`: each caught item is a `CAUGHT_FISH` outcome.
                 let Some(xp) = self.fire_fish_event(
                     &world,
@@ -295,18 +293,7 @@ impl FishingBobberEntity {
                     return None;
                 };
 
-                let mut item_event =
-                    crate::plugin::api::events::entity::item_spawn::ItemSpawnEvent::new(
-                        entity.entity_id,
-                        bobber_pos,
-                        item_stack.item.registry_key.to_string(),
-                    );
-                if let Some(server) = world.server.upgrade() {
-                    server
-                        .plugin_manager
-                        .fire_blocking(&server, &mut item_event);
-                }
-                if !item_event.cancelled {
+                if let Some(entity) = world.new_item_entity(bobber_pos, &item_stack) {
                     // Vanilla `FishingHook.retrieve` builds the catch with `new ItemEntity(...)`
                     // and never calls `setDefaultPickUpDelay`, so the pickup delay stays 0.
                     let item_entity =

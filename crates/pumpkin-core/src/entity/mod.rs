@@ -663,6 +663,16 @@ pub trait EntityBase: Send + Sync + std::any::Any {
     /// Called on the old holder after an entity leashed to it was unleashed.
     fn notify_leashee_removed(&self) {}
 
+    /// Vanilla leash snap distance for this entity.
+    fn leash_snap_distance(&self) -> f64 {
+        Entity::LEASH_SNAP_DISTANCE
+    }
+
+    /// Vanilla leash elastic distance for this entity.
+    fn leash_elastic_distance(&self) -> f64 {
+        Entity::LEASH_ELASTIC_DISTANCE
+    }
+
     /// Called on the holder each tick while another entity is leashed to it (vanilla
     /// `Leashable.whenLeashedTo` -> `leashHolder.notifyLeashHolder(this)`).
     fn notify_leash_holder(&self, _leashee: &dyn EntityBase) {}
@@ -1627,6 +1637,41 @@ fn y_rot(vector: Vector3<f64>, angle: f32) -> Vector3<f64> {
         vector.y,
         vector.z * cos - vector.x * sin,
     )
+}
+
+const LEASHABLE_SCAN_SIZE: f64 = 32.0;
+
+/// Vanilla leash attachment gate: a leash may only bind a different, leashable entity within the
+/// holder snap distance.
+pub fn can_have_a_leash_attached_to(leashee: &dyn EntityBase, holder: &dyn EntityBase) -> bool {
+    let entity = leashee.get_entity();
+    let holder = holder.get_entity();
+    entity.entity_id != holder.entity_id
+        && entity.leash_distance_to(holder) <= leashee.leash_snap_distance()
+        && leashee.get_mob().is_none_or(mob::Mob::can_be_leashed)
+}
+
+/// Vanilla leashable-in-area: entities in the 32 block cube around `center` leashed to `holder_id`.
+pub fn leashable_in_area(
+    world: &World,
+    center: Vector3<f64>,
+    holder_id: i32,
+) -> Vec<Arc<dyn EntityBase>> {
+    let half = Vector3::new(
+        LEASHABLE_SCAN_SIZE / 2.0,
+        LEASHABLE_SCAN_SIZE / 2.0,
+        LEASHABLE_SCAN_SIZE / 2.0,
+    );
+    world
+        .get_entities_at_box(&BoundingBox::new(center - half, center + half))
+        .into_iter()
+        .filter(|other| {
+            other
+                .get_entity()
+                .get_leash_holder()
+                .is_some_and(|holder| holder.get_entity().entity_id == holder_id)
+        })
+        .collect()
 }
 
 /// Attachment points for the entity's current pose and age, and the scale they grow with.
@@ -5653,7 +5698,7 @@ impl Entity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         );
-        if !held || !self.fire_leash_event(holder) {
+        if !held || !self.ensure_dismounted_before_leash() || !self.fire_leash_event(holder) {
             return false;
         }
         let mut leashed_to = self
@@ -5690,14 +5735,53 @@ impl Entity {
         true
     }
 
-    pub fn attach_leash(&self, holder: &Arc<dyn EntityBase>) {
-        *self
-            .leashed_to
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Arc::downgrade(holder));
-        self.send_leash_attached(holder);
+    /// Ejects the current vehicle before leashing. A cancelled dismount leaves the entity riding,
+    /// in which case no leash may be attached (PR #4647 review).
+    fn ensure_dismounted_before_leash(&self) -> bool {
         if let Some(vehicle) = self.get_vehicle() {
             vehicle.get_entity().remove_passenger(self.entity_id);
+        }
+        self.get_vehicle().is_none()
+    }
+
+    /// Attaches only when this entity currently has no leash and is not still riding.
+    pub(crate) fn attach_leash_if_free(&self, holder: &Arc<dyn EntityBase>) -> bool {
+        if self
+            .leashed_to
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_some()
+            || !self.ensure_dismounted_before_leash()
+        {
+            return false;
+        }
+        let mut leashed_to = self
+            .leashed_to
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if leashed_to.is_some() {
+            return false;
+        }
+        *leashed_to = Some(Arc::downgrade(holder));
+        drop(leashed_to);
+        self.send_leash_attached(holder);
+        true
+    }
+
+    pub fn attach_leash(&self, holder: &Arc<dyn EntityBase>) {
+        if !self.ensure_dismounted_before_leash() {
+            return;
+        }
+        let old_holder = self
+            .leashed_to
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .replace(Arc::downgrade(holder));
+        self.send_leash_attached(holder);
+        if let Some(old_holder) = old_holder.as_ref().and_then(Weak::upgrade)
+            && old_holder.get_entity().entity_id != holder.get_entity().entity_id
+        {
+            old_holder.notify_leashee_removed();
         }
     }
 
@@ -5884,14 +5968,31 @@ impl Entity {
     }
 
     pub fn drop_leash(&self) -> bool {
-        if !self.is_leashed() {
+        if !self.has_leash_data() {
             return false;
         }
-        self.unleash();
-        if self.is_leashed() {
+        if !self.take_expired_leash() && !self.unleash() {
             return false;
         }
         self.spawn_at_location(ItemStack::new(1, &pumpkin_data::item::Item::LEAD));
+        true
+    }
+
+    /// Clears a leash whose holder can no longer be upgraded (vanilla removeLeash).
+    fn take_expired_leash(&self) -> bool {
+        let mut leashed_to = self
+            .leashed_to
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if leashed_to
+            .as_ref()
+            .is_none_or(|holder| holder.strong_count() > 0)
+        {
+            return false;
+        }
+        *leashed_to = None;
+        drop(leashed_to);
+        self.send_leash_removed();
         true
     }
 
@@ -6094,7 +6195,7 @@ impl Entity {
         holder.notify_leash_holder(caller);
 
         let distance = self.leash_distance_to(holder_entity);
-        if distance > Self::LEASH_SNAP_DISTANCE {
+        if distance > caller.leash_snap_distance() {
             if !self.unleash() {
                 return LeashTick::NotLeashed;
             }
@@ -6109,7 +6210,7 @@ impl Entity {
                 .drop_stack(&self.block_pos.load(), lead_item);
             return LeashTick::Snapped;
         }
-        let elastic_threshold = Self::LEASH_ELASTIC_DISTANCE
+        let elastic_threshold = caller.leash_elastic_distance()
             - f64::from(holder_entity.width())
             - f64::from(self.width());
         let result = if distance > elastic_threshold
@@ -6130,6 +6231,7 @@ impl Entity {
     /// Pulls the entity back with a damped spring on each attachment point beyond the slack.
     fn check_elastic_interactions(&self, caller: &dyn EntityBase, holder: &dyn EntityBase) -> bool {
         let quad_connection = holder.support_quad_leash_as_holder() && caller.support_quad_leash();
+        let slack_distance = caller.leash_elastic_distance();
         let (entity_points, holder_points): (&[Vector3<f64>], &[Vector3<f64>]) = if quad_connection
         {
             (
@@ -6180,11 +6282,11 @@ impl Entity {
                     -holder_yaw,
                 );
             let attach_distance = (holder_attach - entity_attach).length();
-            if attach_distance < Self::LEASH_ELASTIC_DISTANCE {
+            if attach_distance < slack_distance {
                 continue;
             }
-            let mut displacement = (holder_attach - entity_attach).normalize()
-                * (attach_distance - Self::LEASH_ELASTIC_DISTANCE);
+            let mut displacement =
+                (holder_attach - entity_attach).normalize() * (attach_distance - slack_distance);
             torque += lever_arm.z * displacement.x - lever_arm.x * displacement.z;
             if entity_movement.dot(&displacement) >= 0.0 {
                 displacement = displacement * f64::from(0.3f32);
@@ -6248,11 +6350,11 @@ impl Entity {
             return;
         }
         let world = self.world.load();
-        let item_entity = ItemEntity::new(
-            Self::new(world.clone(), self.pos.load() + offset, &EntityType::ITEM),
-            stack,
-        );
-        world.spawn_entity(Arc::new(item_entity));
+        let pos = self.pos.load() + offset;
+        let Some(entity) = world.new_item_entity(pos, &stack) else {
+            return;
+        };
+        world.spawn_entity(Arc::new(ItemEntity::new(entity, stack)));
     }
 
     pub fn has_passengers(&self) -> bool {
@@ -6310,9 +6412,12 @@ impl Entity {
             .is_some_and(|h| h.strong_count() > 0)
     }
 
-    /// Whether a leash is attached or awaiting restoration from saved data.
+    /// Whether a leash connection still exists, including one whose holder is gone.
     pub(crate) fn has_leash_data(&self) -> bool {
-        self.is_leashed()
+        self.leashed_to
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_some()
             || self
                 .delayed_leash
                 .lock()
@@ -7972,9 +8077,12 @@ mod dimension_tests {
 mod velocity_sync_tests {
     use pumpkin_data::entity::EntityType;
     use pumpkin_util::math::vector3::Vector3;
+    use std::sync::Arc;
 
     use super::Entity;
+    use crate::entity::EntityBase;
     use crate::entity::ai::test_support::world;
+    use crate::entity::decoration::leash_knot::LeashKnotEntity;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -8008,6 +8116,93 @@ mod velocity_sync_tests {
         player.velocity.store(Vector3::default());
         assert!(player.velocity_changed_since_sent());
 
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    /// Knot removal with entity drops off must not refund a lead; each mob cleans up on its tick.
+    #[tokio::test]
+    async fn dead_knot_without_entity_drops_drops_no_lead() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let folder = tempfile::tempdir()?;
+        let world = crate::entity::ai::test_support::world(&folder);
+        let mut data = (*world.level_info.load_full()).clone();
+        data.game_rules.entity_drops = false;
+        world.level_info.store(Arc::new(data));
+        let pos = Vector3::new(0.0, 64.0, 0.0);
+        let cow = Entity::new(world.clone(), pos, &EntityType::COW);
+        let knot: Arc<dyn EntityBase> = Arc::new(LeashKnotEntity::new(Entity::new(
+            world.clone(),
+            pos,
+            &EntityType::LEASH_KNOT,
+        )));
+        cow.attach_leash(&knot);
+        drop(knot);
+        cow.tick_leash(&cow);
+        assert!(!cow.has_leash_data());
+        let leads = world
+            .entities
+            .load()
+            .iter()
+            .filter(|entity| {
+                entity
+                    .cast_any()
+                    .downcast_ref::<crate::entity::item::ItemEntity>()
+                    .is_some_and(|item| {
+                        item.get_item_stack()
+                            .lock()
+                            .is_ok_and(|stack| stack.item == &pumpkin_data::item::Item::LEAD)
+                    })
+            })
+            .count();
+        assert_eq!(leads, 0);
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn drop_leash_drops_when_the_holder_is_gone() -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = crate::entity::ai::test_support::world(&folder);
+        let pos = Vector3::new(0.0, 64.0, 0.0);
+        let cow = Entity::new(world.clone(), pos, &EntityType::COW);
+        let knot: Arc<dyn EntityBase> = Arc::new(LeashKnotEntity::new(Entity::new(
+            world.clone(),
+            pos,
+            &EntityType::LEASH_KNOT,
+        )));
+        cow.attach_leash(&knot);
+        drop(knot);
+        assert!(cow.drop_leash());
+        assert!(!cow.has_leash_data());
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn taking_by_old_holder_keeps_a_leash_moved_elsewhere()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = crate::entity::ai::test_support::world(&folder);
+        let pos = Vector3::new(0.0, 64.0, 0.0);
+        let knot = |pos: Vector3<f64>| -> Arc<dyn EntityBase> {
+            Arc::new(LeashKnotEntity::new(Entity::new(
+                world.clone(),
+                pos,
+                &EntityType::LEASH_KNOT,
+            )))
+        };
+        let old_knot = knot(pos);
+        let new_holder = knot(pos.add_raw(1.0, 0.0, 0.0));
+        let cow = Entity::new(world.clone(), pos, &EntityType::COW);
+        cow.attach_leash(&old_knot);
+        cow.attach_leash(&new_holder);
+        assert!(!cow.take_leash(Some(old_knot.get_entity().entity_id)));
+        assert_eq!(
+            cow.get_leash_holder()
+                .map(|holder| holder.get_entity().entity_id),
+            Some(new_holder.get_entity().entity_id)
+        );
         world.level.shutdown().await;
         Ok(())
     }

@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::{VaultLikeProperties, VaultState};
-use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
@@ -15,8 +14,8 @@ use pumpkin_world::world::BlockFlags;
 use crate::block::entities::vault::VaultBlockEntity;
 use crate::block::registry::BlockActionResult;
 use crate::block::{BlockBehaviour, OnPlaceArgs, OnScheduledTickArgs, PlacedArgs, UseWithItemArgs};
+use crate::entity::EntityBase;
 use crate::entity::item::ItemEntity;
-use crate::entity::{Entity, EntityBase};
 use crate::world::loot::{LootContextParameters, generate_loot_from_handle};
 
 /// Vanilla `VaultBlockEntity.Server#UNLOCKING_DELAY_TICKS`.
@@ -252,20 +251,8 @@ impl BlockBehaviour for VaultBlock {
                 };
 
                 let spawn_pos = ejection_spawn_position(args.position);
-                let entity = Entity::new(args.world.clone(), spawn_pos, &EntityType::ITEM);
-                let mut item_event =
-                    crate::plugin::api::events::entity::item_spawn::ItemSpawnEvent::new(
-                        entity.entity_id,
-                        spawn_pos,
-                        stack.item.registry_key.to_string(),
-                    );
-                if let Some(server) = args.world.server.upgrade() {
-                    server
-                        .plugin_manager
-                        .fire_blocking(&server, &mut item_event);
-                }
-                // Vanilla `ejectResultItem`: `DefaultDispenseItemBehavior#spawnItem`, speed 2, Direction.UP.
-                if !item_event.cancelled {
+                if let Some(entity) = args.world.new_item_entity(spawn_pos, &stack) {
+                    // Vanilla `ejectResultItem`: `DefaultDispenseItemBehavior#spawnItem`, speed 2, Direction.UP.
                     let velocity = Vector3::new(
                         rand::random::<f64>().mul_add(0.015, -0.0075),
                         0.6 + rand::random::<f64>().mul_add(0.015, -0.0075),

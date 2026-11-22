@@ -35,6 +35,10 @@ const STILL_TIMEOUT_GRACE: i32 = 60;
 const FAST_HEAL_TICKS: i32 = 20;
 /// Per-nudge velocity toward a random float target (matches `Ghast`'s float goal).
 const FLOAT_ACCELERATION: f64 = 0.1;
+/// Vanilla Happy Ghast leash snap distance.
+const LEASH_SNAP_DISTANCE: f64 = 16.0;
+/// Vanilla Happy Ghast leash elastic distance.
+const LEASH_ELASTIC_DISTANCE: f64 = 10.0;
 
 /// Represents a Happy Ghast, a passive flying mob.
 ///
@@ -310,6 +314,14 @@ impl Mob for HappyGhastEntity {
 
     fn mob_support_quad_leash_as_holder(&self) -> bool {
         true
+    }
+
+    fn mob_leash_snap_distance(&self) -> f64 {
+        LEASH_SNAP_DISTANCE
+    }
+
+    fn mob_leash_elastic_distance(&self) -> f64 {
+        LEASH_ELASTIC_DISTANCE
     }
 
     /// Vanilla HappyGhast.getControllingPassenger: the first player steers only

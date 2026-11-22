@@ -7627,6 +7627,27 @@ impl World {
         }
     }
 
+    /// Creates an item entity and fires the shared item spawn event. Returns `None` when a plugin
+    /// cancelled the spawn.
+    pub(crate) fn new_item_entity(
+        self: &Arc<Self>,
+        position: Vector3<f64>,
+        stack: &ItemStack,
+    ) -> Option<Entity> {
+        let entity = Entity::new(self.clone(), position, &EntityType::ITEM);
+        let mut item_event = crate::plugin::api::events::entity::item_spawn::ItemSpawnEvent::new(
+            entity.entity_id,
+            position,
+            stack.item.registry_key.to_string(),
+        );
+        if let Some(server) = self.server.upgrade() {
+            server
+                .plugin_manager
+                .fire_blocking(&server, &mut item_event);
+        }
+        (!item_event.cancelled).then_some(entity)
+    }
+
     pub fn drop_stack(self: &Arc<Self>, pos: &BlockPos, stack: ItemStack) {
         self.drop_stack_at(
             Vector3::new(
@@ -7655,21 +7676,9 @@ impl World {
             )
         };
 
-        let entity = Entity::new(self.clone(), spawn_pos, &EntityType::ITEM);
-        let mut item_event = crate::plugin::api::events::entity::item_spawn::ItemSpawnEvent::new(
-            entity.entity_id,
-            spawn_pos,
-            stack.item.registry_key.to_string(),
-        );
-        if let Some(server) = self.server.upgrade() {
-            server
-                .plugin_manager
-                .fire_blocking(&server, &mut item_event);
-        }
-        if item_event.cancelled {
+        let Some(entity) = self.new_item_entity(spawn_pos, &stack) else {
             return;
-        }
-
+        };
         let item_entity = Arc::new(ItemEntity::new(entity, stack));
         self.spawn_entity(item_entity);
     }
@@ -7739,21 +7748,9 @@ impl World {
             )
         };
 
-        let entity = Entity::new(self.clone(), spawn_pos, &EntityType::ITEM);
-        let mut item_event = crate::plugin::api::events::entity::item_spawn::ItemSpawnEvent::new(
-            entity.entity_id,
-            spawn_pos,
-            stack.item.registry_key.to_string(),
-        );
-        if let Some(server) = self.server.upgrade() {
-            server
-                .plugin_manager
-                .fire_blocking(&server, &mut item_event);
-        }
-        if item_event.cancelled {
+        let Some(entity) = self.new_item_entity(spawn_pos, &stack) else {
             return;
-        }
-
+        };
         let item_entity = Arc::new(ItemEntity::new_with_velocity(entity, stack, velocity, 10));
         self.spawn_entity(item_entity);
     }

@@ -345,12 +345,12 @@ impl MobEntity {
             LeashTick::NotLeashed => {}
             LeashTick::Snapped => self.goals_selector.disable_control(Controls::MOVE),
             LeashTick::Elastic(holder) => {
-                self.when_leashed_to(&*holder);
+                self.when_leashed_to(mob, &*holder);
                 entity.check_fall_distance_accumulation(&self.living_entity);
                 mob.on_elastic_leash_pull();
             }
             LeashTick::CloseRange(holder) => {
-                self.when_leashed_to(&*holder);
+                self.when_leashed_to(mob, &*holder);
                 self.close_range_leash_behaviour(mob, &*holder);
             }
         }
@@ -359,11 +359,11 @@ impl MobEntity {
         }
     }
 
-    fn when_leashed_to(&self, holder: &dyn EntityBase) {
+    fn when_leashed_to(&self, mob: &dyn Mob, holder: &dyn EntityBase) {
         self.was_leashed.store(true, Relaxed);
         self.set_home_to(
             holder.get_entity().block_pos.load(),
-            Entity::LEASH_ELASTIC_DISTANCE as i32 - 1,
+            mob.mob_leash_elastic_distance() as i32 - 1,
         );
     }
 
@@ -1299,6 +1299,48 @@ impl MobEntity {
             .unwrap_or(false)
     }
 
+    /// Vanilla sneaking leash transfer: move nearby mobs leashed to the player onto this mob.
+    fn transfer_player_leashes(&self, player: &Arc<Player>, can_be_leashed: bool) -> bool {
+        let entity = &self.living_entity.entity;
+        let player_entity = player.get_entity();
+        if !player_entity.is_sneaking() || !can_be_leashed || self.living_entity.is_baby() {
+            return false;
+        }
+        let world = entity.world.load();
+        let Some(this) = world.get_entity_by_id(entity.entity_id) else {
+            return false;
+        };
+        let mut any_leashed = false;
+        for mob in crate::entity::leashable_in_area(
+            &world,
+            entity.bounding_box.load().get_center(),
+            player_entity.entity_id,
+        ) {
+            if crate::entity::can_have_a_leash_attached_to(mob.as_ref(), this.as_ref())
+                && mob
+                    .get_entity()
+                    .leash_to_if_held_by(player_entity.entity_id, &this)
+            {
+                any_leashed = true;
+            }
+        }
+        if any_leashed {
+            world.emit_game_event_with_context(
+                GameEvent::EntityAction.name(),
+                entity.pos.load(),
+                &crate::world::game_event::GameEventContext {
+                    source_entity: Some(player.as_ref() as &dyn EntityBase),
+                },
+            );
+            world.play_sound(
+                Sound::ItemLeadTied,
+                SoundCategory::Neutral,
+                &entity.pos.load(),
+            );
+        }
+        any_leashed
+    }
+
     fn interact_leash(
         &self,
         player: &Arc<Player>,
@@ -1333,23 +1375,21 @@ impl MobEntity {
                 .as_ref()
                 .is_none_or(|holder| holder.get_player().is_none())
         {
-            let diff = entity.pos.load() - player.get_entity().pos.load();
-            if diff.length_squared() <= Entity::LEASH_SNAP_DISTANCE * Entity::LEASH_SNAP_DISTANCE {
+            let world = entity.world.load();
+            if world
+                .get_entity_by_id(entity.entity_id)
+                .is_some_and(|this| {
+                    crate::entity::can_have_a_leash_attached_to(this.as_ref(), player.as_ref())
+                })
+            {
                 let new_holder: Arc<dyn EntityBase> = player.clone();
                 if !entity.fire_leash_event(&new_holder) {
                     return Some(false);
                 }
-                if holder.is_some() {
-                    if !entity.unleash() {
-                        return Some(false);
-                    }
-                    entity.spawn_at_location(ItemStack::new(1, &Item::LEAD));
+                if entity.has_leash_data() && !entity.drop_leash() {
+                    return Some(false);
                 }
-                entity.attach_leash(&new_holder);
-                if entity
-                    .get_leash_holder()
-                    .is_none_or(|holder| holder.get_entity().entity_id != player.entity_id())
-                {
+                if !entity.attach_leash_if_free(&new_holder) {
                     return Some(false);
                 }
                 if player.gamemode.load() != pumpkin_util::GameMode::Creative {
@@ -1822,6 +1862,16 @@ pub trait Mob: EntityBase + Send + Sync {
 
     fn mob_support_quad_leash_as_holder(&self) -> bool {
         false
+    }
+
+    /// Vanilla leash snap distance override for this mob.
+    fn mob_leash_snap_distance(&self) -> f64 {
+        Entity::LEASH_SNAP_DISTANCE
+    }
+
+    /// Vanilla leash elastic distance override for this mob.
+    fn mob_leash_elastic_distance(&self) -> f64 {
+        Entity::LEASH_ELASTIC_DISTANCE
     }
 
     /// Vanilla `Entity.notifyLeashHolder`, called on the holder when an entity leashes to it.
@@ -3210,6 +3260,14 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         self.mob_support_quad_leash_as_holder()
     }
 
+    fn leash_snap_distance(&self) -> f64 {
+        self.mob_leash_snap_distance()
+    }
+
+    fn leash_elastic_distance(&self) -> f64 {
+        self.mob_leash_elastic_distance()
+    }
+
     fn notify_leash_holder(&self, leashee: &dyn EntityBase) {
         self.mob_notify_leash_holder(leashee);
     }
@@ -3385,6 +3443,12 @@ impl<T: Mob + Send + 'static> EntityBase for T {
                 .get_pumpkin_item(item_stack.item.id)?
                 .use_on_entity(item_stack, player, target);
             emit_entity_interact(entity, player);
+            return Some(true);
+        }
+        if self
+            .get_mob_entity()
+            .transfer_player_leashes(player, self.can_be_leashed())
+        {
             return Some(true);
         }
         if let Some(handled) = super::interact_with_shears(self, player, item_stack, hand) {

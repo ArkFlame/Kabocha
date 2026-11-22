@@ -2,6 +2,7 @@ mod block_tuning_and_invert;
 mod commands_and_gamemode;
 mod disabled_dimensions;
 mod embedded_stop;
+mod leashed_bucket;
 mod login_and_movement;
 mod loot_tables;
 mod player_actions;
@@ -43,6 +44,7 @@ pub async fn run_bot_tests(
 
     world_interaction::run_world_interaction_tests(server, &mut bot1, summary_lines).await?;
 
+    leashed_bucket::run_leashed_bucket_pickup_test(server, summary_lines)?;
     sheep_shearing::run_sheep_shearing_test(server, summary_lines)?;
     snow_golem::run_snow_golem_shearing_test(server, summary_lines)?;
 
