@@ -19,7 +19,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 |---|---|---|
 | [#4605](https://github.com/Pumpkin-MC/Pumpkin/pull/4605) | fix(plugin): include players in get_nearby_entities | ALREADY-FIXED (#4294; v0_1 entity.rs:428, v0_2 entity.rs:388) |
 | [#4606](https://github.com/Pumpkin-MC/Pumpkin/pull/4606) | feat(plugin): add v0.2 guest SDK | ALREADY-FIXED (plugin-api-v0_2) |
-| [#4609](https://github.com/Pumpkin-MC/Pumpkin/pull/4609) | feat(wit): Redesign event to be a resource instead of a variant | PENDING |
+| [#4609](https://github.com/Pumpkin-MC/Pumpkin/pull/4609) | feat(wit): Redesign event to be a resource instead of a variant | ALREADY-FIXED (v0.2 event.wit:2318) |
 | [#4611](https://github.com/Pumpkin-MC/Pumpkin/pull/4611) | fix(entity): let boats pick up nearby mobs | LANDED (4a9ab77b9) |
 | [#4612](https://github.com/Pumpkin-MC/Pumpkin/pull/4612) | fix(util): always enable serde_json preserve_order | LANDED |
 | [#4613](https://github.com/Pumpkin-MC/Pumpkin/pull/4613) | fix(server): save whitelist on and off to pumpkin.toml | LANDED (1f84bbc37) |
