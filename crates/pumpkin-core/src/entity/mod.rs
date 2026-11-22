@@ -1763,7 +1763,7 @@ pub fn ride_tick_riders(vehicle: &dyn EntityBase) {
 }
 
 /// The movement the server knows about: a player's last reported step, otherwise velocity.
-fn known_movement(entity: &dyn EntityBase) -> Vector3<f64> {
+fn known_movement<E: EntityBase + ?Sized>(entity: &E) -> Vector3<f64> {
     let base = entity.get_entity();
     if let Some(controller) = entity.get_controlling_passenger()
         && controller.get_player().is_some()
