@@ -49,7 +49,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4655](https://github.com/Pumpkin-MC/Pumpkin/pull/4655) | feat(entity): implement happy ghast vanilla parity | PENDING |
 | [#4658](https://github.com/Pumpkin-MC/Pumpkin/pull/4658) | fix(plugin): separate PlayerCommandPreprocessEvent from PlayerCommandSendEvent | PENDING |
 | [#4661](https://github.com/Pumpkin-MC/Pumpkin/pull/4661) | feat(entity): vanilla parity for armadillo | PENDING |
-| [#4663](https://github.com/Pumpkin-MC/Pumpkin/pull/4663) | feat(entity): port copper golem behavior and item transport | PENDING |
+| [#4663](https://github.com/Pumpkin-MC/Pumpkin/pull/4663) | feat(entity): port copper golem behavior and item transport | ALREADY-FIXED |
 
 ### Issues
 
