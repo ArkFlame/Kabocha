@@ -11,11 +11,25 @@ const TIMEOUT_TO_GET_WITHIN_ATTACK_RANGE: i64 = 200;
 /// stayed out of reach for too long.
 #[must_use]
 pub fn create() -> OneShot {
-    create_with_callback(|_, _| {})
+    create_with(|_, _| false, |_, _| {})
 }
 
 #[must_use]
 pub fn create_with_callback(
+    on_target_erased: impl Fn(&BrainTick<'_>, &Arc<dyn EntityBase>) + Send + Sync + 'static,
+) -> OneShot {
+    create_with(|_, _| false, on_target_erased)
+}
+
+#[must_use]
+pub fn create_with_filter(
+    is_invalid_target: impl Fn(&BrainTick<'_>, &Arc<dyn EntityBase>) -> bool + Send + Sync + 'static,
+) -> OneShot {
+    create_with(is_invalid_target, |_, _| {})
+}
+
+fn create_with(
+    is_invalid_target: impl Fn(&BrainTick<'_>, &Arc<dyn EntityBase>) -> bool + Send + Sync + 'static,
     on_target_erased: impl Fn(&BrainTick<'_>, &Arc<dyn EntityBase>) + Send + Sync + 'static,
 ) -> OneShot {
     OneShot::new(
@@ -40,7 +54,8 @@ pub fn create_with_callback(
                 && target
                     .get_living_entity()
                     .is_some_and(crate::entity::living::LivingEntity::is_alive)
-                && Arc::ptr_eq(&target.get_entity().world.load_full(), tick.world);
+                && Arc::ptr_eq(&target.get_entity().world.load_full(), tick.world)
+                && !is_invalid_target(tick, &target);
             if !still_valid {
                 on_target_erased(tick, &target);
                 tick.state.erase(types::ATTACK_TARGET.id());

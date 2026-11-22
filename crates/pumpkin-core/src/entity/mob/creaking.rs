@@ -1,5 +1,7 @@
+mod ai;
+
 use std::sync::{
-    Arc, Weak,
+    Arc,
     atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
@@ -7,7 +9,6 @@ use crossbeam::atomic::AtomicCell;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::EquipmentSlot;
-use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
@@ -21,11 +22,7 @@ use crate::block::entities::creaking_heart::CreakingHeartBlockEntity;
 use crate::entity::{
     Entity, EntityBase,
     ai::{
-        goal::{
-            active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-            look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, swim::SwimGoal,
-            wander_around::WanderAroundGoal,
-        },
+        brain::{Brain, BrainTick, memory::PackedMemories},
         pathfinder::{node::PathType, walk_node_evaluator::HomeRestriction},
     },
     mob::{Mob, MobEntity},
@@ -169,47 +166,7 @@ impl CreakingEntity {
         }
         creaking.mob_entity.living_entity.health.store(MAX_HEALTH);
 
-        let mob_arc = Arc::new(creaking);
-        let mob_weak: Weak<dyn Mob> = {
-            let mob_arc: Arc<dyn Mob> = mob_arc.clone();
-            Arc::downgrade(&mob_arc)
-        };
-
-        {
-            let goal_selector = &mob_arc.mob_entity.goals_selector;
-
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            // Vanilla CreakingAi gates melee and stroll on canMove and idles at 0.3 speed.
-            goal_selector.add_goal(
-                4,
-                Box::new(
-                    MeleeAttackGoal::new(1.0, false)
-                        .with_attack_interval(ATTACK_INTERVAL)
-                        .gated_by(creaking_can_move),
-                ),
-            );
-            goal_selector.add_goal(
-                5,
-                Box::new(
-                    WanderAroundGoal::new(f64::from(SPEED_MULTIPLIER_WHEN_IDLING))
-                        .with_start_condition(creaking_can_move),
-                ),
-            );
-            goal_selector.add_goal(
-                6,
-                LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
-            );
-            goal_selector.add_goal(7, Box::new(RandomLookAroundGoal::default()));
-
-            let target_selector = &mob_arc.mob_entity.target_selector;
-            target_selector.add_goal(
-                1,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true)
-                    .gated_by(creaking_is_active),
-            );
-        };
-
-        mob_arc
+        Arc::new(creaking)
     }
 
     pub fn set_transient(&self, pos: BlockPos) {
@@ -597,6 +554,29 @@ impl Mob for CreakingEntity {
         &self.mob_entity
     }
 
+    fn make_brain(&self, packed: &PackedMemories) -> Brain {
+        ai::make_brain(self, packed)
+    }
+
+    fn custom_server_ai_step(&self, _caller: &dyn EntityBase) {
+        ai::tick(self);
+    }
+
+    fn after_brain_tick(&self, tick: &mut BrainTick<'_>) {
+        ai::after_brain_tick(self, tick);
+    }
+
+    fn tick_links(&self) -> Vec<i32> {
+        ai::tick_links(self)
+    }
+
+    fn apply_mob_target(&self, target: Option<Arc<dyn EntityBase>>) {
+        // A damage callback can fire while the brain lock is held during an attack.
+        if !self.get_entity().is_removed() {
+            self.mob_entity.set_target(target);
+        }
+    }
+
     fn mob_tick(&self, _caller: &dyn EntityBase) {
         let entity = &self.mob_entity.living_entity.entity;
 
@@ -748,6 +728,8 @@ impl Mob for CreakingEntity {
 
 #[cfg(test)]
 mod tests {
+    use pumpkin_data::entity::EntityType;
+
     use super::*;
     use crate::entity::ai::test_support::world;
 
