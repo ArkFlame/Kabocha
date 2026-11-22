@@ -827,3 +827,4 @@ issue	4657	https://github.com/Pumpkin-MC/Pumpkin/issues/4657	Nether Portal gener
 pr	4643	https://github.com/Pumpkin-MC/Pumpkin/pull/4643	fix(minecart)	DONE		9c0ecf0b9	fix(entity): minecart velocity exchange and step packet parity (#4643)	2026-11-22
 issue	4654	https://github.com/Pumpkin-MC/Pumpkin/issues/4654	Taming a horse grants unrelated advancements	DONE		402c0436a	fix(advancement): gate variant taming advancements on components (#4654) - codegen pending	2026-11-22
 pr	4630	https://github.com/Pumpkin-MC/Pumpkin/pull/4630	feat(entity): vanilla parity for Creaking	DONE		c5d6cdb24	feat(entity): Creaking explosion XP and AI hooks (#4630) - brain/home redesign needs absent APIs	2026-11-22
+pr	4636	https://github.com/Pumpkin-MC/Pumpkin/pull/4636	feat(entity): full vanilla parity for shulker	DONE		db6f4b83c	feat(entity): shulker snap, lid push and bullet reflection (#4636)	2026-11-22

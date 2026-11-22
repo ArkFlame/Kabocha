@@ -35,7 +35,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4632](https://github.com/Pumpkin-MC/Pumpkin/pull/4632) | fix(world): preserve imported structure data when saving chunks | LANDED (b3fe50c73) |
 | [#4634](https://github.com/Pumpkin-MC/Pumpkin/pull/4634) | Support deferred login admission | LANDED (cdcbdaca9) |
 | [#4635](https://github.com/Pumpkin-MC/Pumpkin/pull/4635) | fix(entity): close remaining panda, dolphin, mooshroom and bee parity gaps | LANDED (bb4624ae5, partial: panda only) |
-| [#4636](https://github.com/Pumpkin-MC/Pumpkin/pull/4636) | feat(entity): full vanilla parity for shulker | BLOCKED (stale-base redesign, needs build) |
+| [#4636](https://github.com/Pumpkin-MC/Pumpkin/pull/4636) | feat(entity): full vanilla parity for shulker | LANDED (db6f4b83c, proof test) |
 | [#4638](https://github.com/Pumpkin-MC/Pumpkin/pull/4638) | perf(world): batch packets per tick and send movement from the entity tracker | LANDED (18ed0b039, partial: stages 1-2) |
 | [#4639](https://github.com/Pumpkin-MC/Pumpkin/pull/4639) | fix(entity): despawn ineligible mobs on peaceful | ALREADY-FIXED core; remainder BLOCKED-DATA (codegen) |
 | [#4641](https://github.com/Pumpkin-MC/Pumpkin/pull/4641) | Avoid double deletion of guest-owned resources | LANDED (f033a0d53) |
