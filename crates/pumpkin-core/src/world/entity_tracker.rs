@@ -266,6 +266,7 @@ impl TrackedEntity {
         base.last_sent_yaw.store(rot[1], Relaxed);
         base.last_sent_head_yaw.store(rot[2], Relaxed);
         let last_section_pos = chunk_section_from_pos(&base.block_pos.load());
+        let bedrock_player_rot = [base.pitch.load(), base.yaw.load(), base.head_yaw.load()].map(f32::to_bits);
         Self {
             entity,
             entity_id,
@@ -283,9 +284,7 @@ impl TrackedEntity {
             was_riding: AtomicBool::new(false),
             bedrock_pos: AtomicCell::new(bedrock_pos),
             bedrock_rot: AtomicCell::new(rot),
-            bedrock_player_rot: AtomicCell::new(
-                [base.pitch.load(), base.yaw.load(), base.head_yaw.load()].map(f32::to_bits),
-            ),
+            bedrock_player_rot: AtomicCell::new(bedrock_player_rot),
         }
     }
 
@@ -448,7 +447,7 @@ impl TrackedEntity {
                     if let MovePacket::Sync(packet) = packet {
                         World::broadcast_java_players(
                             packet,
-                            std::slice::from_ref(&player).iter().copied(),
+                            std::slice::from_ref(&player).iter(),
                         );
                     }
                 },
@@ -457,7 +456,7 @@ impl TrackedEntity {
                 VarInt(self.entity_id),
                 entity.last_sent_head_yaw.load(Relaxed),
             );
-            World::broadcast_java_players(&head, std::slice::from_ref(&player).iter().copied());
+            World::broadcast_java_players(&head, std::slice::from_ref(&player).iter());
         }
     }
 

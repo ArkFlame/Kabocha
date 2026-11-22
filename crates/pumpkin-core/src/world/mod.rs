@@ -767,7 +767,7 @@ impl World {
             active_chunk_tracker: std::sync::Mutex::new(ActiveChunkTracker::default()),
             forced_chunks: std::sync::Mutex::new(FxHashSet::default()),
             force_change_task: std::sync::Mutex::new(None),
-            server,
+            server: server.clone(),
             block_entities: DashMap::new(),
             path_type_cache: DashMap::new(),
             floor_level_cache: DashMap::new(),
