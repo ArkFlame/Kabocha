@@ -322,3 +322,4 @@ pr	4639	blocked-data	skipped	master already despawns monster-class mobs on peace
 issue	4657	fixed	done	vanilla PortalForcer.java:139-140 accepts deltaY<=0 or >=3 while Pumpkin nether.rs:647 required air_height>=3; fixed with proof test surface_air_gap_selects_ground_level_portal_base	f4657
 pr	4669	already-fixed	skipped	effect give/clear already target living non-player entities via de429cf11 (#4362), effect.rs:350,365 and :90,185,239	p4669
 pr	4670	already-fixed	skipped	client_suggestions.rs:111-121 already filters non-root children by requirements().evaluate(source); root arm preserved	p4670
+issue	4668	already-fixed	skipped	snow stacking works: registry.rs:671 uses face.opposite(), snow.rs:28-31 increments and clamps layers 1-8	i4668
