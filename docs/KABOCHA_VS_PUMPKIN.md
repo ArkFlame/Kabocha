@@ -31,7 +31,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4626](https://github.com/Pumpkin-MC/Pumpkin/pull/4626) | fix(block): prevent opening a blocked shulker box | ALREADY-FIXED (shulker_box.rs:151) |
 | [#4627](https://github.com/Pumpkin-MC/Pumpkin/pull/4627) | perf(world): compress chunks with zrip instead of ruzstd | LANDED (b908e11a6) |
 | [#4628](https://github.com/Pumpkin-MC/Pumpkin/pull/4628) | feat(entity): vanilla parity for Breeze | BLOCKED (stale base, needs rewrite + codegen) |
-| [#4630](https://github.com/Pumpkin-MC/Pumpkin/pull/4630) | feat(entity): vanilla parity for Creaking | LANDED (8413bfd89, partial: gaze/comparator) |
+| [#4630](https://github.com/Pumpkin-MC/Pumpkin/pull/4630) | feat(entity): vanilla parity for Creaking | LANDED (+41d005e5: explosion XP + AI hooks; brain redesign needs absent APIs) |
 | [#4632](https://github.com/Pumpkin-MC/Pumpkin/pull/4632) | fix(world): preserve imported structure data when saving chunks | LANDED (b3fe50c73) |
 | [#4634](https://github.com/Pumpkin-MC/Pumpkin/pull/4634) | Support deferred login admission | LANDED (cdcbdaca9) |
 | [#4635](https://github.com/Pumpkin-MC/Pumpkin/pull/4635) | fix(entity): close remaining panda, dolphin, mooshroom and bee parity gaps | LANDED (bb4624ae5, partial: panda only) |
