@@ -90,4 +90,8 @@ Gate results on the final tree:
 
 Final disposition: 30 LANDED, 15 ALREADY-FIXED (file:line proof), 1 SKIPPED (proxy/client artifact), 0 BLOCKED, 0 PENDING (46 total).
 
-A few PRs remain partial where the upstream intent needs APIs absent from Kabocha (for example Breeze brain pose-veto and Creaking home redesign); the exact omissions are recorded per item in docs/QUEUE.md and docs/OUTCOMES.tsv.
+Follow-up pass (2026-11-22): the behaviours omitted from the earlier partial ports were finished against current Kabocha APIs: Breeze long-jump/slide and cancellable-pose veto, Creaking brain/home/combat plus legacy heart NBT migration and next-tick deferred melee (with a new get_block_entity_if_chunk_loaded helper), and minecart experimental lerp steps plus new-behavior rail slowdown.
+
+Final gate: cargo fmt --check 0, cargo check --workspace --all-targets --locked 0, cargo clippy --workspace --all-targets --locked -- -D warnings 0, 20 targeted proof tests passed 0 failed.
+
+Remaining upstream differences are equivalent implementations rather than missing behaviour (for example the Creaking deferral is per-entity instead of a global brain queue); where a PR intent truly cannot map to Kabocha APIs it is recorded in docs/QUEUE.md with the reason.
