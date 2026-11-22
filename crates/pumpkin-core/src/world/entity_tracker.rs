@@ -2,7 +2,7 @@ use std::sync::atomic::{
     AtomicBool, AtomicU32,
     Ordering::{self, Relaxed},
 };
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, PoisonError, RwLock};
 
 use crossbeam::atomic::AtomicCell;
 use dashmap::DashMap;
@@ -21,9 +21,9 @@ use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::codec::var_long::VarLong;
 use pumpkin_protocol::codec::var_ulong::VarULong;
 use pumpkin_protocol::java::client::play::{
-    CEntityPositionSync, CEntityVelocity, CHeadRot, CRemoveEntities, CSetEntityLink,
-    CSetEntityMetadata, CSetEquipment, CSetPassengers, CUpdateEntityPos, CUpdateEntityPosRot,
-    CUpdateEntityRot,
+    CEntityPositionSync, CEntityVelocity, CHeadRot, CMoveMinecartAlongTrack, CRemoveEntities,
+    CSetEntityLink, CSetEntityMetadata, CSetEquipment, CSetPassengers, CUpdateEntityPos,
+    CUpdateEntityPosRot, CUpdateEntityRot, MinecartStep,
 };
 use pumpkin_protocol::{BClientPacket, ClientPacket};
 use pumpkin_util::GameMode;
@@ -487,6 +487,10 @@ impl TrackedEntity {
                 entity.last_sent_pos.store(entity.pos.load());
                 entity.send_dirty_entity_data();
                 self.was_riding.store(true, Relaxed);
+            } else if let Some(steps) = self.entity.minecart_lerp_steps() {
+                self.send_minecart_steps(entity, steps, tick, rot_changed);
+                entity.last_sent_yaw.store(yaw, Relaxed);
+                entity.last_sent_pitch.store(pitch, Relaxed);
             } else {
                 let pos = entity.pos.load();
                 let sync = self.pick_move(entity, pos, tick, rot_changed);
@@ -573,6 +577,46 @@ impl TrackedEntity {
                 Some(MoveSync::Absolute(pos))
             }
         }
+    }
+
+    /// Takes the steps accumulated since the last send, preserving insertion order.
+    fn drain_minecart_steps(steps: &Mutex<Vec<MinecartStep>>) -> Vec<MinecartStep> {
+        std::mem::take(&mut *steps.lock().unwrap_or_else(PoisonError::into_inner))
+    }
+
+    /// Vanilla `handleMinecartPosRot`: experimental carts move along their track steps.
+    fn send_minecart_steps(
+        &self,
+        entity: &Entity,
+        steps: &Mutex<Vec<MinecartStep>>,
+        tick: u32,
+        rot_changed: bool,
+    ) {
+        entity.send_dirty_entity_data();
+        let pos = entity.pos.load();
+        let steps = Self::drain_minecart_steps(steps);
+        let id = VarInt(self.entity_id);
+        if steps.is_empty() {
+            let velocity = entity.velocity.load();
+            // Vanilla never updates `lastSentMovement` here.
+            let velocity_changed =
+                velocity.squared_distance_to_vec(&entity.last_sent_velocity.load()) > 1.0e-7;
+            let pos_changed = (pos - entity.last_sent_pos.load()).length_squared()
+                >= POSITION_TOLERANCE;
+            if pos_changed || tick.is_multiple_of(60) || rot_changed || velocity_changed {
+                let step = MinecartStep {
+                    position: pos,
+                    movement: velocity,
+                    yaw: entity.yaw.load(),
+                    pitch: entity.pitch.load(),
+                    weight: 1.0,
+                };
+                self.send_to_watchers(&CMoveMinecartAlongTrack::new(id, &[step]), false);
+            }
+        } else {
+            self.send_to_watchers(&CMoveMinecartAlongTrack::new(id, &steps), false);
+        }
+        entity.last_sent_pos.store(pos);
     }
 
     fn send_motion(&self, entity: &Entity, world: &World) {
@@ -1801,6 +1845,28 @@ mod tests {
     use crate::entity::living::LivingEntity;
     use crate::server::Server;
     use pumpkin_config::{AdvancedConfiguration, BasicConfiguration, TelemetryConfig};
+
+    /// The step buffer is drained in insertion order and empty for the next send.
+    #[test]
+    fn minecart_steps_drain_in_order() {
+        let steps = Mutex::new(Vec::new());
+        {
+            let mut guard = steps.lock().unwrap_or_else(PoisonError::into_inner);
+            for x in [1.0, 2.0, 3.0] {
+                guard.push(MinecartStep {
+                    position: Vector3::new(x, 64.0, 0.0),
+                    movement: Vector3::new(1.0, 0.0, 0.0),
+                    yaw: 0.0,
+                    pitch: 0.0,
+                    weight: 1.0,
+                });
+            }
+        }
+        let drained = TrackedEntity::drain_minecart_steps(&steps);
+        let xs: Vec<f64> = drained.iter().map(|step| step.position.x).collect();
+        assert_eq!(xs, vec![1.0, 2.0, 3.0]);
+        assert!(TrackedEntity::drain_minecart_steps(&steps).is_empty());
+    }
 
     /// Vanilla `ChunkMap` tracking is a box: the diagonal corner is inside the range.
     #[test]

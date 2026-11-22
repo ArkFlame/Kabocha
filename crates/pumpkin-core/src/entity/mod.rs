@@ -1454,6 +1454,13 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         None
     }
 
+    /// Vanilla `NewMinecartBehavior.lerpSteps`: steps the tracker sends instead of move packets.
+    fn minecart_lerp_steps(
+        &self,
+    ) -> Option<&std::sync::Mutex<Vec<pumpkin_protocol::java::client::play::MinecartStep>>> {
+        None
+    }
+
     /// Whether this entity takes damage from water.
     fn is_sensitive_to_water(&self) -> bool {
         self.get_mob().is_some_and(mob::Mob::is_sensitive_to_water)

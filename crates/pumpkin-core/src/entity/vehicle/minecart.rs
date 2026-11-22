@@ -7,11 +7,12 @@ mod rideable;
 mod spawner;
 mod tnt;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::{Arc, Mutex};
 
 use crossbeam::atomic::AtomicCell;
 use pumpkin_protocol::codec::var_int::VarInt;
+use pumpkin_protocol::java::client::play::MinecartStep;
 use pumpkin_protocol::java::server::play::SPlayerInput;
 use pumpkin_world::block::BlockStateCodec;
 use rand::RngExt;
@@ -251,6 +252,7 @@ pub struct MinecartEntity {
     pub vehicle: VehicleEntity,
     kind: MinecartKind,
     display: MinecartDisplay,
+    lerp_steps: Mutex<Vec<MinecartStep>>,
 }
 
 enum MinecartKind {
@@ -289,6 +291,7 @@ impl MinecartEntity {
             vehicle: VehicleEntity::new(entity),
             kind,
             display: MinecartDisplay::new(),
+            lerp_steps: Mutex::new(Vec::new()),
         }
     }
 
@@ -298,6 +301,22 @@ impl MinecartEntity {
             MinecartKind::CommandBlock(minecart) => Some(minecart),
             _ => None,
         }
+    }
+
+    /// Records the position reached by one hop of experimental movement for the client's
+    /// minecart interpolation, weighted by the distance covered in that hop.
+    fn record_lerp_step(&self, weight: f64) {
+        let entity = &self.vehicle.entity;
+        self.lerp_steps
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(MinecartStep {
+                position: entity.pos.load(),
+                movement: entity.velocity.load(),
+                yaw: entity.yaw.load(),
+                pitch: entity.pitch.load(),
+                weight: weight as f32,
+            });
     }
 
     const fn container(&self) -> Option<&Arc<MinecartInventory>> {
@@ -826,6 +845,11 @@ impl EntityBase for MinecartEntity {
         Some(&self.vehicle)
     }
 
+    fn minecart_lerp_steps(&self) -> Option<&Mutex<Vec<MinecartStep>>> {
+        let world = self.vehicle.entity.world.load();
+        minecart_improvements_enabled(world.as_ref()).then_some(&self.lerp_steps)
+    }
+
     fn has_container_inventory(&self) -> bool {
         self.container().is_some()
     }
@@ -1118,6 +1142,7 @@ impl EntityBase for MinecartEntity {
         // then replay any leftover distance after pushAndPickupEntities.
         let to_position = self.vehicle.entity.pos.load().add(&motion);
         self.vehicle.entity.move_entity(caller, motion);
+        self.record_lerp_step(motion.length());
         let entity_id = self.vehicle.entity.entity_id;
         if let Some(dyn_self) = world.get_entity_by_id(entity_id) {
             let should_continue = dyn_self.push_entities(caller);
@@ -1127,6 +1152,7 @@ impl EntityBase for MinecartEntity {
                 // Both moves use the base Entity::move_entity (vanilla super.move), never the
                 // EntityBase override, so the residual cannot re-run pushAndPickupEntities.
                 dyn_self.get_entity().move_entity(caller, back_motion);
+                self.record_lerp_step(back_motion.length());
             }
         }
     }
@@ -1170,6 +1196,39 @@ mod tests {
 
         cart.move_entity(&cart, Vector3::new(0.25, 0.0, 0.0));
         assert!((cart.vehicle.entity.pos.load().x - 0.75).abs() < 1.0e-9);
+        world.level.shutdown().await;
+        Ok(())
+    }
+
+    /// Experimental movement records a lerp step for the hop it just made.
+    #[tokio::test]
+    async fn experimental_move_records_lerp_steps() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        let mut info = (**world.level_info.load()).clone();
+        info.data_packs
+            .enabled
+            .push("minecart_improvements".to_owned());
+        world.level_info.store(Arc::new(info));
+        let cart = MinecartEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::MINECART,
+        ));
+        assert!(minecart_improvements_enabled(&world));
+        assert!(cart.minecart_lerp_steps().is_some());
+
+        cart.move_entity(&cart, Vector3::new(0.25, 0.0, 0.0));
+        let buffer = cart
+            .minecart_lerp_steps()
+            .ok_or_else(|| std::io::Error::other("experimental minecart had no lerp steps"))?;
+        let steps = buffer
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        assert_eq!(steps.len(), 1);
+        assert!((steps[0].position.x - 0.75).abs() < 1.0e-9);
+        assert_eq!(steps[0].weight, 0.25);
+        drop(steps);
         world.level.shutdown().await;
         Ok(())
     }
