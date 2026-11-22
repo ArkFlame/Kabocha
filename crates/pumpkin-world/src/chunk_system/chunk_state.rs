@@ -372,6 +372,9 @@ impl Chunk {
             crate::lighting::SkyLightHeightMigration::ensure_persisted(&chunk);
         }
 
+        if let Some(structures) = proto_chunk.vanilla_structures {
+            chunk.set_vanilla_structures(*structures);
+        }
         *self = Self::Level(Arc::new(chunk));
     }
 }
