@@ -32,7 +32,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4627](https://github.com/Pumpkin-MC/Pumpkin/pull/4627) | perf(world): compress chunks with zrip instead of ruzstd | PENDING |
 | [#4628](https://github.com/Pumpkin-MC/Pumpkin/pull/4628) | feat(entity): vanilla parity for Breeze | PENDING |
 | [#4630](https://github.com/Pumpkin-MC/Pumpkin/pull/4630) | feat(entity): vanilla parity for Creaking | PENDING |
-| [#4632](https://github.com/Pumpkin-MC/Pumpkin/pull/4632) | fix(world): preserve imported structure data when saving chunks | PENDING |
+| [#4632](https://github.com/Pumpkin-MC/Pumpkin/pull/4632) | fix(world): preserve imported structure data when saving chunks | LANDED (b3fe50c73) |
 | [#4634](https://github.com/Pumpkin-MC/Pumpkin/pull/4634) | Support deferred login admission | PENDING |
 | [#4635](https://github.com/Pumpkin-MC/Pumpkin/pull/4635) | fix(entity): close remaining panda, dolphin, mooshroom and bee parity gaps | PENDING |
 | [#4636](https://github.com/Pumpkin-MC/Pumpkin/pull/4636) | feat(entity): full vanilla parity for shulker | PENDING |
