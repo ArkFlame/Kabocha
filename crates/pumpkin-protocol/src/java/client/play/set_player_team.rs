@@ -85,12 +85,8 @@ impl ClientPacket for CSetPlayerTeam<'_> {
                 write
                     .write_var_int(&VarInt(nametag_visibility_to_id(params.nametag_visibility)))?;
                 write.write_var_int(&VarInt(collision_rule_to_id(params.collision_rule)))?;
-                if params.color >= 0 && params.color != 21 {
-                    write.write_bool(true)?;
-                    write.write_var_int(&VarInt(params.color))?;
-                } else {
-                    write.write_bool(false)?;
-                }
+                let color_id = if params.color < 0 { 21 } else { params.color };
+                write.write_var_int(&VarInt(color_id))?;
                 write.write_i8(params.options)?;
             } else if *version >= JavaMinecraftVersion::V_1_13 {
                 write.write_component(params.display_name, version)?;
@@ -154,6 +150,68 @@ impl ClientPacket for CSetPlayerTeam<'_> {
             }
         }
 
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_util::{text::TextComponent, version::JavaMinecraftVersion};
+
+    use super::{CSetPlayerTeam, TeamMethod, TeamParameters};
+    use crate::ClientPacket;
+
+    const VERSION: JavaMinecraftVersion = JavaMinecraftVersion::V_26_2;
+
+    fn write_with_color(color: i32) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let display_name = TextComponent::empty();
+        let player_prefix = TextComponent::empty();
+        let player_suffix = TextComponent::empty();
+        let packet = CSetPlayerTeam {
+            team_name: String::new(),
+            method: TeamMethod::Create,
+            parameters: Some(TeamParameters {
+                display_name: &display_name,
+                options: 0x01,
+                nametag_visibility: "always",
+                collision_rule: "always",
+                color,
+                player_prefix: &player_prefix,
+                player_suffix: &player_suffix,
+            }),
+            players: Vec::<String>::new().into_boxed_slice(),
+        };
+        let mut bytes = Vec::new();
+        packet.write_packet_data(&mut bytes, &VERSION)?;
+        Ok(bytes)
+    }
+
+    fn expected_prefix() -> Vec<u8> {
+        let encoded = TextComponent::empty().encode_for_version(&VERSION);
+        let mut expected = vec![0, 0]; // empty team name followed by Create method
+        for _ in 0..3 {
+            expected.extend_from_slice(&encoded);
+        }
+        expected.extend_from_slice(&[0, 0]); // nametag visibility and collision rule
+        expected
+    }
+
+    #[test]
+    fn v26_2_color_is_plain_var_int_without_bool_prefix() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let bytes = write_with_color(10)?;
+        let mut expected = expected_prefix();
+        expected.extend_from_slice(&[10, 0x01, 0]); // GREEN, options, empty player list
+        assert_eq!(bytes, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn v26_2_missing_color_is_encoded_as_var_int_21() -> Result<(), Box<dyn std::error::Error>> {
+        let bytes = write_with_color(-1)?;
+        let mut expected = expected_prefix();
+        expected.extend_from_slice(&[21, 0x01, 0]);
+        assert_eq!(bytes, expected);
         Ok(())
     }
 }
