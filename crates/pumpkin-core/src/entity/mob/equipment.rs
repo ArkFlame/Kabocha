@@ -166,6 +166,8 @@ pub enum WeaponConfig {
         /// Weighted item pool to select from.
         items: &'static [WeaponEntry],
     },
+    /// Select the weapon with a vanilla piglin-family spawn rule.
+    PiglinSpawn(PiglinFamily),
     /// No weapon.
     None,
 }
@@ -214,21 +216,6 @@ pub struct MobEquipmentDef {
 /// equipment tables).
 pub static EQUIPMENT_REGISTRY: LazyLock<HashMap<&'static str, MobEquipmentDef>> =
     LazyLock::new(|| {
-        static PIGLIN_WEAPONS: [WeaponEntry; 3] = [
-            WeaponEntry {
-                item: &Item::CROSSBOW,
-                weight: 5.0,
-            },
-            WeaponEntry {
-                item: &Item::GOLDEN_SWORD,
-                weight: 4.5,
-            },
-            WeaponEntry {
-                item: &Item::GOLDEN_SPEAR,
-                weight: 0.5,
-            },
-        ];
-
         static PIGLIN_ARMOR: [ArmorSlotEntry; 4] = [
             ArmorSlotEntry {
                 slot: &EquipmentSlot::HEAD,
@@ -305,9 +292,20 @@ pub static EQUIPMENT_REGISTRY: LazyLock<HashMap<&'static str, MobEquipmentDef>> 
         m.insert(
             "piglin",
             MobEquipmentDef {
-                weapon: WeaponConfig::AlwaysWeighted(&PIGLIN_WEAPONS),
+                weapon: WeaponConfig::PiglinSpawn(PiglinFamily::Piglin),
                 armor: ArmorConfig::CustomPerSlot(&PIGLIN_ARMOR),
                 enchanted: true,
+                can_pick_up_loot: false,
+            },
+        );
+
+        // ─── Piglin Brute ───
+        m.insert(
+            "piglin_brute",
+            MobEquipmentDef {
+                weapon: WeaponConfig::PiglinSpawn(PiglinFamily::Brute),
+                armor: ArmorConfig::None,
+                enchanted: false,
                 can_pick_up_loot: false,
             },
         );
@@ -570,6 +568,41 @@ fn weighted_select_item(items: &[WeaponEntry], rng: &mut impl RandomImpl) -> &'s
     items.last().map_or(&Item::AIR, |e| e.item)
 }
 
+/// Which vanilla piglin-family spawn weapon table to use.
+#[derive(Clone, Copy)]
+pub enum PiglinFamily {
+    /// Piglin: 50% crossbow, otherwise 1/10 spear and 9/10 sword.
+    Piglin,
+    /// Piglin brute: always a golden axe.
+    Brute,
+    /// Zombified piglin: 1/20 spear, otherwise a golden sword.
+    Zombified,
+}
+
+/// Selects the vanilla main-hand spawn weapon for a piglin-family mob.
+#[must_use]
+pub fn piglin_family_spawn_weapon(kind: PiglinFamily, rng: &mut impl RandomImpl) -> &'static Item {
+    match kind {
+        PiglinFamily::Piglin => {
+            if rng.next_f32() < 0.5 {
+                &Item::CROSSBOW
+            } else if rng.next_bounded_i32(10) == 0 {
+                &Item::GOLDEN_SPEAR
+            } else {
+                &Item::GOLDEN_SWORD
+            }
+        }
+        PiglinFamily::Brute => &Item::GOLDEN_AXE,
+        PiglinFamily::Zombified => {
+            if rng.next_bounded_i32(20) == 0 {
+                &Item::GOLDEN_SPEAR
+            } else {
+                &Item::GOLDEN_SWORD
+            }
+        }
+    }
+}
+
 /// Selects armor using the vanilla algorithm.
 ///
 /// 1. Random base tier (0-2) with up to 3 upgrade attempts at 10.87% each.
@@ -660,6 +693,17 @@ fn equip_mob_from_def(
         WeaponConfig::AlwaysWeighted(items) => {
             let item = weighted_select_item(items, rng);
             let mut stack = create_equipment_item(item);
+            if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE, rng) {
+                apply_vanilla_enchantments(&mut stack, difficulty.special_multiplier);
+            }
+            changes.push((
+                EquipmentSlot::MAIN_HAND,
+                stack,
+                DEFAULT_EQUIPMENT_DROP_CHANCE,
+            ));
+        }
+        WeaponConfig::PiglinSpawn(kind) => {
+            let mut stack = create_equipment_item(piglin_family_spawn_weapon(kind, rng));
             if def.enchanted && difficulty.should_happen(WEAPON_ENCHANT_CHANCE, rng) {
                 apply_vanilla_enchantments(&mut stack, difficulty.special_multiplier);
             }
@@ -1332,5 +1376,62 @@ mod tests {
         let mut stack6 = ItemStack::new(1, &Item::IRON_AXE);
         super::apply_vindicator_weapon_enchantments(&mut stack6, Some(6));
         assert_eq!(stack6.get_enchantment_level(&Enchantment::SHARPNESS), 2);
+    }
+
+    /// Vanilla spawn weapons: 50% crossbow, 5% spear and 45% sword for piglins,
+    /// always an axe for brutes, and a 1/20 spear for zombified piglins.
+    #[test]
+    fn piglin_family_spawn_weapons_match_vanilla() {
+        use super::{PiglinFamily, piglin_family_spawn_weapon};
+        use pumpkin_data::item::Item;
+        use pumpkin_util::random::xoroshiro128::Xoroshiro;
+
+        const SAMPLES: usize = 20_000;
+        let mut rng = Xoroshiro::from_seed(0x4676);
+        let mut crossbows = 0usize;
+        let mut spears = 0usize;
+        let mut swords = 0usize;
+        let mut unexpected = 0usize;
+        for _ in 0..SAMPLES {
+            match piglin_family_spawn_weapon(PiglinFamily::Piglin, &mut rng).id {
+                id if id == Item::CROSSBOW.id => crossbows += 1,
+                id if id == Item::GOLDEN_SPEAR.id => spears += 1,
+                id if id == Item::GOLDEN_SWORD.id => swords += 1,
+                _ => unexpected += 1,
+            }
+        }
+        assert!(unexpected == 0, "piglin spawned with a non-vanilla weapon");
+        let tolerance = (SAMPLES / 50) as f64;
+        assert!(
+            (crossbows as f64 - 10_000.0).abs() < tolerance,
+            "crossbow {crossbows}"
+        );
+        assert!(
+            (spears as f64 - 1_000.0).abs() < tolerance,
+            "spear {spears}"
+        );
+        assert!(
+            (swords as f64 - 9_000.0).abs() < tolerance,
+            "sword {swords}"
+        );
+
+        assert_eq!(
+            piglin_family_spawn_weapon(PiglinFamily::Brute, &mut rng).id,
+            Item::GOLDEN_AXE.id,
+            "brute must always spawn with a golden axe"
+        );
+
+        let mut zombified_spears = 0usize;
+        for _ in 0..SAMPLES {
+            if piglin_family_spawn_weapon(PiglinFamily::Zombified, &mut rng).id
+                == Item::GOLDEN_SPEAR.id
+            {
+                zombified_spears += 1;
+            }
+        }
+        assert!(
+            (zombified_spears as f64 - 1_000.0).abs() < tolerance,
+            "zombified spear {zombified_spears}"
+        );
     }
 }

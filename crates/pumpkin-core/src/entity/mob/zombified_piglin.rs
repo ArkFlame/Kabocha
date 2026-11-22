@@ -4,7 +4,6 @@ use std::sync::atomic::{AtomicI32, Ordering};
 use pumpkin_data::BlockState;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::data_component_impl::EquipmentSlot;
-use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
 use pumpkin_nbt::compound::NbtCompound;
@@ -22,7 +21,7 @@ use crate::entity::{
     ai::behavior::neutral::apply_targets,
     mob::{
         Mob, MobEntity,
-        equipment::RegionalDifficulty,
+        equipment::{PiglinFamily, RegionalDifficulty, piglin_family_spawn_weapon},
         neutral::{NeutralData, NeutralMob},
         spawn::{EntitySpawnReason, SpawnGroupData},
         zombie::ZombieEntityBase,
@@ -37,7 +36,6 @@ const SPEED_MODIFIER_ATTACKING: f64 = 0.05;
 const FIRST_ANGER_SOUND_DELAY: std::ops::RangeInclusive<i32> = 0..=20;
 const ALERT_INTERVAL: std::ops::RangeInclusive<i32> = 80..=120;
 const LAVA_MALUS: f32 = 8.0;
-const GOLDEN_SPEAR_ODDS: i32 = 20;
 
 pub struct ZombifiedPiglinEntity {
     entity: Arc<ZombieEntityBase>,
@@ -202,13 +200,15 @@ impl Mob for ZombifiedPiglinEntity {
 
     fn populate_default_equipment_slots(
         &self,
-        _world: &Arc<World>,
+        world: &Arc<World>,
         _difficulty: &RegionalDifficulty,
     ) {
-        let weapon = if rand::random_range(0..GOLDEN_SPEAR_ODDS) == 0 {
-            &Item::GOLDEN_SPEAR
-        } else {
-            &Item::GOLDEN_SWORD
+        let weapon = {
+            let mut rng = world
+                .loot_random
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            piglin_family_spawn_weapon(PiglinFamily::Zombified, &mut *rng)
         };
         self.get_mob_entity()
             .living_entity
