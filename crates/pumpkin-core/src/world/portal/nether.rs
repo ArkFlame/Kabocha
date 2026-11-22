@@ -721,7 +721,7 @@ impl NetherPortal {
     /// the top solid block), while Kabocha's heightmap stores the solid block y,
     /// so the scan must start one block higher.
     const fn create_portal_start_y(inclusive_surface_y: i32, top_y_limit: i32) -> i32 {
-        (inclusive_surface_y + 1).min(top_y_limit)
+        std::cmp::min(inclusive_surface_y + 1, top_y_limit)
     }
 
     /// Mirrors the per-column downward scan of vanilla `PortalForcer#createPortal`.
