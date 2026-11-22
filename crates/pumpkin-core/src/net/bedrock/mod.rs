@@ -1516,7 +1516,7 @@ impl BedrockClient {
         if let Some((player, world)) = admission_result {
             if !self.is_closed() {
                 // Sub-clients skip the resource-pack handshake, so spawn them here.
-                self.spawned.store(true, Ordering::AcqRel);
+                self.spawned.store(true, Ordering::Release);
                 world
                     .spawn_bedrock_player(&server.basic_config, player.clone(), &server)
                     .await;
