@@ -65,9 +65,9 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4653](https://github.com/Pumpkin-MC/Pumpkin/issues/4653) | Firework rocket flight_duration ignored with Elytra | ALREADY-FIXED (firework_rocket.rs:37-42) |
 | [#4654](https://github.com/Pumpkin-MC/Pumpkin/issues/4654) | Taming a horse grants unrelated advancements | IN FLIGHT |
 | [#4657](https://github.com/Pumpkin-MC/Pumpkin/issues/4657) | Nether Portal generates at wrong height | PENDING |
-| [#4662](https://github.com/Pumpkin-MC/Pumpkin/issues/4662) | Explosion Player Knockback | IN FLIGHT |
+| [#4662](https://github.com/Pumpkin-MC/Pumpkin/issues/4662) | Explosion Player Knockback | ALREADY-FIXED (b45b906cc) |
 | [#4664](https://github.com/Pumpkin-MC/Pumpkin/issues/4664) | Burnable blocks catch fire when fire_spread_radius_around_player is 0 | LANDED (86e47eb98, proof test) |
-| [#4665](https://github.com/Pumpkin-MC/Pumpkin/issues/4665) | WASM host v0.1 team color / play-sound / hide-player / gui.set-item bugs | IN FLIGHT |
+| [#4665](https://github.com/Pumpkin-MC/Pumpkin/issues/4665) | WASM host v0.1 team color / play-sound / hide-player / gui.set-item bugs | LANDED (b11ccc8e8, byte-layout proof tests) |
 
 ## Already-counted upstream work (historical)
 
