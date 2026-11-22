@@ -24,7 +24,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4612](https://github.com/Pumpkin-MC/Pumpkin/pull/4612) | fix(util): always enable serde_json preserve_order | LANDED |
 | [#4613](https://github.com/Pumpkin-MC/Pumpkin/pull/4613) | fix(server): save whitelist on and off to pumpkin.toml | PENDING |
 | [#4615](https://github.com/Pumpkin-MC/Pumpkin/pull/4615) | fix: keep text colors in bedrock translated system messages | LANDED |
-| [#4619](https://github.com/Pumpkin-MC/Pumpkin/pull/4619) | perf(world): batch dependency GC after level changes | PENDING |
+| [#4619](https://github.com/Pumpkin-MC/Pumpkin/pull/4619) | perf(world): batch dependency GC after level changes | LANDED (e8bcc51e1) |
 | [#4620](https://github.com/Pumpkin-MC/Pumpkin/pull/4620) | perf(world): send chunk level changes instead of the whole level map | PENDING |
 | [#4622](https://github.com/Pumpkin-MC/Pumpkin/pull/4622) | fix(entity): align boat physics and minecart behavior with vanilla | PENDING |
 | [#4625](https://github.com/Pumpkin-MC/Pumpkin/pull/4625) | fix: show players on the locator bar | PENDING |
@@ -57,13 +57,13 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 |---|---|---|
 | [#4603](https://github.com/Pumpkin-MC/Pumpkin/issues/4603) | TRACKER: Parity Integration Test | PENDING |
 | [#4623](https://github.com/Pumpkin-MC/Pumpkin/issues/4623) | Player Locator Bar does not show other players with locator_bar enabled | ALREADY-FIXED |
-| [#4629](https://github.com/Pumpkin-MC/Pumpkin/issues/4629) | Cannot place a regular rail on top of a hopper | IN FLIGHT |
+| [#4629](https://github.com/Pumpkin-MC/Pumpkin/issues/4629) | Cannot place a regular rail on top of a hopper | LANDED (e8a812cbb, proof test) |
 | [#4640](https://github.com/Pumpkin-MC/Pumpkin/issues/4640) | wardem cannot attack any entity | IN FLIGHT |
 | [#4646](https://github.com/Pumpkin-MC/Pumpkin/issues/4646) | Bed despawn without dropping anything | PENDING |
 | [#4649](https://github.com/Pumpkin-MC/Pumpkin/issues/4649) | Resistance 255 overflow crash on mob hit | LANDED (e7fea647f, proof test) |
 | [#4651](https://github.com/Pumpkin-MC/Pumpkin/issues/4651) | 1.8.9 client Unable to locate sign via Velocity/ViaRewind | PENDING |
 | [#4653](https://github.com/Pumpkin-MC/Pumpkin/issues/4653) | Firework rocket flight_duration ignored with Elytra | ALREADY-FIXED (firework_rocket.rs:37-42) |
-| [#4654](https://github.com/Pumpkin-MC/Pumpkin/issues/4654) | Taming a horse grants unrelated advancements | IN FLIGHT |
+| [#4654](https://github.com/Pumpkin-MC/Pumpkin/issues/4654) | Taming a horse grants unrelated advancements | BLOCKED-DATA (needs EntityCondition variant fields + codegen) |
 | [#4657](https://github.com/Pumpkin-MC/Pumpkin/issues/4657) | Nether Portal generates at wrong height | PENDING |
 | [#4662](https://github.com/Pumpkin-MC/Pumpkin/issues/4662) | Explosion Player Knockback | ALREADY-FIXED (b45b906cc) |
 | [#4664](https://github.com/Pumpkin-MC/Pumpkin/issues/4664) | Burnable blocks catch fire when fire_spread_radius_around_player is 0 | LANDED (86e47eb98, proof test) |
