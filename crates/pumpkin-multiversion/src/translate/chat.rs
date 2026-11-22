@@ -43,11 +43,7 @@ pub fn component_from_current(
 }
 
 /// Legacy `TITLE` action for `version`: 1.11+ inserts actionbar at 2 and shifts the rest.
-fn legacy_title_action(
-    version: JavaMinecraftVersion,
-    before_1_11: i32,
-    from_1_11: i32,
-) -> i32 {
+fn legacy_title_action(version: JavaMinecraftVersion, before_1_11: i32, from_1_11: i32) -> i32 {
     if version >= JavaMinecraftVersion::V_1_11 {
         from_1_11
     } else {

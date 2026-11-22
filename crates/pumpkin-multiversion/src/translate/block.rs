@@ -106,7 +106,8 @@ fn write_gzipped_nbt(nbt: &[u8], version: JavaMinecraftVersion, out: &mut Vec<u8
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     encoder.write_all(&named).ok()?;
     let compressed = encoder.finish().ok()?;
-    out.write_i16_be(i16::try_from(compressed.len()).ok()?).ok()?;
+    out.write_i16_be(i16::try_from(compressed.len()).ok()?)
+        .ok()?;
     out.extend_from_slice(&compressed);
     Some(())
 }

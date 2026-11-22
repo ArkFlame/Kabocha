@@ -1,5 +1,5 @@
-use pumpkin_data::packet::CURRENT_MC_VERSION;
 use super::JavaConnectionState;
+use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_protocol::java::client::login::CEncryptionRequest;
 use pumpkin_util::version::JavaMinecraftVersion;
 

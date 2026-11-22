@@ -17,8 +17,8 @@
 //! 3. Add the new `*_packets.json` to `assets/legacy_packets` and rerun `pumpkin-codegen`.
 //! 4. Add the version to `JavaMinecraftVersion`.
 
-pub mod ids;
 mod hover_ids;
+pub mod ids;
 pub mod packets;
 pub mod particle;
 pub mod removed;

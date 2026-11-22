@@ -423,7 +423,10 @@ mod tests {
         assert_eq!(slice.get_i16_be().unwrap(), 0);
         assert!(slice.is_empty());
         // A second remove has no name to write.
-        assert_eq!(player_info_remove_packet_from_current(&remove, version), None);
+        assert_eq!(
+            player_info_remove_packet_from_current(&remove, version),
+            None
+        );
     }
 
     #[test]

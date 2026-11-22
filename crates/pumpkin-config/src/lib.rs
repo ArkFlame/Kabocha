@@ -32,6 +32,7 @@ pub mod resource_pack;
 
 pub use chat::{AntiSpamConfig, ChatConfig};
 pub use commands::{CommandOverride, CommandsConfig};
+pub use multiversion::MultiversionConfig;
 pub use networking::auth::AuthenticationConfig;
 pub use networking::bedrock::BedrockConfig;
 pub use networking::book_size::BookSizeConfig;
@@ -41,7 +42,6 @@ pub use networking::lan_broadcast::LANBroadcastConfig;
 pub use networking::management::ManagementServerConfig;
 pub use networking::packet_limiter::PacketLimiterConfig;
 pub use plugins::{PluginOverride, PluginsConfig};
-pub use multiversion::MultiversionConfig;
 pub use pvp::PVPConfig;
 pub use server_links::ServerLinksConfig;
 pub use telemetry::TelemetryConfig;
@@ -63,8 +63,8 @@ pub mod lighting;
 pub mod op;
 
 mod advancement;
-mod player_data;
 mod multiversion;
+mod player_data;
 mod pvp;
 mod server_links;
 mod toml_adapters;

@@ -75,8 +75,8 @@ pub fn login_success_from_current(
 
 #[cfg(test)]
 mod tests {
-    use crate::reference::ReferenceWrite;
     use crate::packet::JavaConnectionState;
+    use crate::reference::ReferenceWrite;
     use pumpkin_protocol::ServerPacket;
     use pumpkin_protocol::{
         VarInt,

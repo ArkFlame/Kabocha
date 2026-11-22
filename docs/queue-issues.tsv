@@ -1,3 +1,16 @@
+4665	WASM host v0.1 / protocol 26.2+: team color encoded with extra bool (all teams DARK_BLUE), play-sound traps plugin, hide-player no-op, gui.set-item not synced	bug,protocol,Java Edition,plugin
+4664	Burnable blocks still catch fire and spread it when fire_spread_radius_around_player is 0.	bug,block,config
+4662	Explosion Player Knockback	bug,combat,player
+4657	Nether Portal generate in a higher height than normal	bug,Java Edition,worldgen
+4654	Taming a horse incorrectly grants "The Whole Pack" and "A Complete Catalogue" advancements	bug,Java Edition,entity,advancements
+4653	Firework rocket flight_duration component is ignored when boosting with Elytra	bug,Java Edition,item,player
+4651	1.8.9 client logs "Unable to locate sign" 3x on placement when connected via Velocity (`legacy` forwarding) + ViaRewind.	bug,protocol,Java Edition,block
+4649	When giving resistence 255 to player and then mob hits player server crashes (overflow)	bug,panic,combat,player
+4646	Bed despawn without dropping anything	bug,block
+4640	wardem cannot attack any entity	bug,mobai,entity
+4629	Cannot place a regular rail on top of a hopper	bug,Java Edition,block,redstone
+4623	Player Locator Bar does not show other players with locator_bar enabled	bug,protocol,Java Edition,player
+4603	TRACKER: Parity Integration Test	testing,entity
 4601	Bedrock player appears in a swimming pose	bug,Bedrock Edition,player
 4598	Worldborder transition broken	bug,protocol,Java Edition
 4596	Frozen ocean icebergs turn into grass/dirt in strips of chunks	bug,Java Edition,worldgen
@@ -12,7 +25,6 @@
 4558	At an extremely long render distance (64 chunks), the server may stop sending data packets.	bug,protocol,Java Edition,performance
 4550	When clicking on mob that has variants with spawn eggs, child is default variant instead of similar to parent.	bug,Java Edition,mobai,entity
 4547	Server never checks if the block rotation and position is possible from the players perspective.	bug,protocol,block,security
-4545	Lead doesn't drop after attached mob is killed	bug,good first issue,Java Edition,item,entity
 4537	Shulker box doesn't check for blocks on top	bug,good first issue,Java Edition,block,inventory
 4529	Book Ban Exploit fix?	enhancement,inventory,security,data
 4528	Shuker crafting grid bug	bug,Java Edition,inventory,recipe
@@ -38,9 +50,7 @@
 4466	Container block entities send full inventory in CBlockEntityData on chunk load, crashing Java client	bug,protocol,Java Edition,inventory
 4463	systemctl Unit File	documentation,good first issue,question
 4458	stone cutter bug	bug,block,inventory
-4457	smithing table bug	bug,Java Edition,item,inventory
 4456	riptide animation bug	bug,Java Edition,combat,enchantments
-4455	wither dispawns bug	bug,Java Edition,mobai,entity
 4454	lunge enchantment doesnt work on the spear	bug,Java Edition,combat,enchantments
 4452	copper golem crash	bug,protocol,panic,entity
 4451	The way the fire is spreading doesn't seem quite right.	bug,Java Edition,block
@@ -60,7 +70,6 @@
 4365	Scoreboard, bossbars, command storage and world border lost on restart	bug,world,data
 4364	Movement is not validated (speed and flying)	bug,protocol,player
 4362	/effect give and /effect clear reject non-player entities	bug,good first issue,command,entity
-4361	New teams have friendlyFire and seeFriendlyInvisibles off	bug,good first issue,command
 4360	/data modify ... insert <index> is unusable	bug,good first issue,command,data
 4359	New world saves SpawnY=200, console commands run at y=200	bug,command,world
 4358	Console /say and /msg are not written to the server log	bug,good first issue,Java Edition,command
@@ -119,7 +128,6 @@
 4251	[TRACKER] Mob Vanilla Parity: Creaking	good first issue,mobai,entity
 4250	[TRACKER] Mob Vanilla Parity: Bogged	good first issue,mobai,entity
 4249	[TRACKER] Mob Vanilla Parity: Breeze	good first issue,mobai,entity
-4247	Can't waterlog stairs or slabs	bug,Java Edition,block,fluid
 4246	[TRACKER] Mob Vanilla Parity: Blaze	good first issue,mobai,entity
 4244	[TRACKER] Mob Vanilla Parity: Zombie Nautilus	good first issue,mobai,entity
 4243	[TRACKER] Mob Vanilla Parity: Wolf	good first issue,mobai,entity
@@ -135,13 +143,11 @@
 4228	[TRACKER] Mob Vanilla Parity: Cave Spider	enhancement,good first issue,mobai,entity
 4227	[TRACKER] Mob Vanilla Parity: Bee	enhancement,good first issue,mobai,entity
 4219	[TRACKER] Mob Vanilla Parity: Strider	enhancement,good first issue,mobai,entity
-4217	[TRACKER] Mob Vanilla Parity: Snow Golem	enhancement,good first issue,mobai,entity
 4216	[TRACKER] Mob Vanilla Parity: Sniffer	enhancement,good first issue,mobai,entity
 4209	[TRACKER] Mob Vanilla Parity: Ocelot	good first issue,mobai,entity
 4207	[TRACKER] Mob Vanilla Parity: Mooshroom	good first issue,mobai,entity
 4206	[TRACKER] Mob Vanilla Parity: Happy Ghast	good first issue,mobai,entity
 4201	[TRACKER] Mob Vanilla Parity: Copper Golem	good first issue,mobai,entity
-4197	Entities that pass through nether portals don't appears at the other side	bug,protocol,entity
 4194	Can't turn off a nether portal with water	bug,block,fluid
 4192	[TRACKER] Mob Vanilla Parity: Axolotl	enhancement,good first issue,mobai,entity
 4191	[TRACKER] Mob Vanilla Parity: Armadillo	enhancement,good first issue,mobai,entity,data
@@ -212,7 +218,6 @@
 3867	Tracking: GameTest framework issues	bug,testing,entity,world
 3858	Indiscriminate use of `tokio::sync` throughout the codebase	enhancement,performance,refactor
 3855	Breaking block below snow carpet bugs out in random ways	bug,block,world
-3847	dupe with chiseled bookshelfs	bug,Java Edition,item,inventory
 3844	Crossbow Loading results in client kick	bug,panic,combat,item
 3841	Plugin API: Mutable (bedrock) resource pack configuration	enhancement,Bedrock Edition,api
 3838	Button noise fires twice	bug,good first issue,block,sound
@@ -220,9 +225,6 @@
 3836	When I teleport with /tp into not generated chunks i die in the void	bug,command,player,world
 3833	Pistons can be powered from the head when the head is facing down.	bug,block,redstone
 3831	In Bedrock edition, if try to move inside a 1 block whole you can Crawl	bug,Bedrock Edition,player
-3830	Fix shearing animation	bug,Java Edition,entity
-3822	Dispensers can only shear sheep and beehives	bug,Java Edition,block,item
-3818	Old Growth Spruce missing Blocks in 3rd layer	bug,Java Edition,worldgen,block
 3802	First time world join kicked for packet spam	bug,protocol,performance,player
 3782	Failed to decode packet 'clientbound/minecraft:container_set_content'	bug,protocol,Java Edition,inventory
 3779	/setblock returns syntax error when adding block data	bug,Java Edition,command,block
@@ -230,7 +232,6 @@
 3772	Fire propagation from natural lava source is infinite	bug,block,world
 3767	Item frames lack placement and survival validation	bug,block,entity
 3761	Villager trading	bug,mobai,inventory,player
-3760	/tick sprint shows completion message when starting	bug,good first issue,command
 3759	Recursive /function calls crash the server with a stack overflow	bug,Java Edition,panic,command
 3758	/execute store rejects valid vanilla commands	bug,Java Edition,command
 3742	Villagers move while sleeping	bug,Java Edition,mobai,entity
@@ -325,19 +326,15 @@
 3068	Boats cannot be broken by hand	bug,item,entity
 3065	Eyeblossom state changes send malformed Trail particle data and disconnect 26.2 clients	bug,protocol,particles
 3064	take damages when you get closer to a block	bug,Bedrock Edition,player
-3062	Sweeping attack effect appears in the wrong position	bug,good first issue,combat,particles
 3061	Incorrect boat placement. Boats do not drop boat item after breaking.	bug,item,entity
 3060	Mushrooms break unexpectedly	bug,block,world
-3053	Spectator mode interactions	bug,redstone,player
 3051	Fishing rod is broken	bug,item,entity
 3049	Windows Defender	documentation,enhancement
 3040	Seagrass floating on-top of water ravines	bug,worldgen,block
 3020	Campfire block cannot cook and cannot be extinguished by potion	bug,block,item
 3005	Stronghold ring placement samples biomes from the triggering chunk	bug,worldgen
-3004	Server logs interpolation	bug,good first issue,localization,command
 3002	Bell animation missing	bug,good first issue,block
 2981	Player not kicked on server stop	bug,Bedrock Edition,command
-2976	Bug: Furnace Interaction Restores Tool Durability in Survival Mode	bug,item,inventory
 2901	Advancements show up in unparsed form	bug,Bedrock Edition,advancements
 2885	Incorrect Glow Lichen generation (full blocks and surface level)	bug,worldgen,block
 2883	set-max-health allows values below 1	bug,good first issue,api,player
@@ -355,7 +352,6 @@
 2632	Add mutable enchanting-table events to the plugin API	enhancement,api,enchantments
 2626	Chunk writer drops block_entities, structures and PostProcessing when saving a vanilla 26.2 world	bug,world,data
 2601	Redstone is freaking out	bug,redstone
-2600	Spectator Mode / 2 Accounts	bug,player
 2592	execute if block ignores its predicate; blockstate args, forceload and CLightUpdate also broken	bug,command,block,world
 2573	Saturation effect tweaking	bug,player
 2552	Server crashes when testing	bug,panic,world
@@ -371,7 +367,6 @@
 2291	Bedrock entity spawn crashes during chunk generation on Gen-Pool threads (no Tokio runtime)	bug,Bedrock Edition,panic
 3484	plugin-wit: Not all interfaces are imported	bug,api
 2232	Mobs ignore hitbox after getting hit by player + ignore bamboo	bug,mobai,entity
-2222	No keyrepeat in text fields	bug,player
 2220	Ender Dragon collision bug	bug,combat,entity
 2211	Block IDs table for plugin developers	enhancement,api,block
 2194	mobs can walk in air/ground	bug,mobai,entity
@@ -393,17 +388,12 @@
 1800	attemping to attack an invalid entity	bug,combat,entity
 1781	Bot Connection Issue - Compression Protocol Incompatibility with mineflayer	enhancement,protocol,Java Edition
 1726	Tracking: Translations	enhancement,localization
-1679	Players in boats don't move	bug,player,entity
-1674	When spawning water based animals on land. The water based animals will not suffocate and despawn.	bug,entity,fluid
-1583	Dying in the Nether without setting a spawnpoint, respawns on top of nether roof.	bug,player,world
 1564	Flying machines bring unpredictable behavior	bug,block
 1555	Memory leak when loading void chunks	bug,performance,world
-1552	Riptide Tridents inconsistently work while it's raining	bug,combat,item,fluid
 1551	Elytra State & Using Fireworks with (and without) one equipped.	bug,item,player
 1482	Tracking: Codebase Docs	documentation,enhancement
 1404	Tracking: Combat	enhancement,good first issue,combat
 1336	Zombie path block detection broken	bug,mobai
-1330	When you Crit even tho the cooldown is fully charged (you can make a crit in normal minecraft) it makes you perform a sweep hit like if you hold space and crit same time it makes a sweep hit instead of a crit some times	bug,combat
 1300	Coral reef biome spawns broken coral patterns	bug,worldgen
 1280	Configurable API server endpoints	enhancement,api,config
 1274	Elytra Bug , Fire work 2&3 rocket crash the server , wind charge Not working ,Potions crash the server more idk	bug,panic

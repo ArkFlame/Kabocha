@@ -944,7 +944,12 @@ impl JavaClient {
                 self.version.load(),
                 packet.id,
                 &packet.payload,
-                || (player.living_entity.entity.yaw.load(), player.living_entity.entity.pitch.load()),
+                || {
+                    (
+                        player.living_entity.entity.yaw.load(),
+                        player.living_entity.entity.pitch.load(),
+                    )
+                },
             ) else {
                 return Ok(());
             };

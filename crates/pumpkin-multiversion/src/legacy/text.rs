@@ -463,7 +463,10 @@ mod tests {
 
     #[test]
     fn hover_ids_are_remapped_inside_snbt_before_1_16() -> TestResult {
-        let item = parsed(&item_hover("minecraft:poplar_planks"), JavaMinecraftVersion::V_1_15_2)?;
+        let item = parsed(
+            &item_hover("minecraft:poplar_planks"),
+            JavaMinecraftVersion::V_1_15_2,
+        )?;
         assert_eq!(
             item["hoverEvent"]["value"],
             r#"{id:"minecraft:birch_planks",Count:1b}"#
@@ -481,19 +484,28 @@ mod tests {
 
     #[test]
     fn stable_hover_ids_are_unchanged() -> TestResult {
-        let item = parsed(&item_hover("minecraft:diamond_sword"), JavaMinecraftVersion::V_1_21_4)?;
+        let item = parsed(
+            &item_hover("minecraft:diamond_sword"),
+            JavaMinecraftVersion::V_1_21_4,
+        )?;
         assert_eq!(
             item["hoverEvent"]["contents"]["id"],
             "minecraft:diamond_sword"
         );
-        let entity = parsed(&entity_hover("minecraft:pig"), JavaMinecraftVersion::V_1_21_4)?;
+        let entity = parsed(
+            &entity_hover("minecraft:pig"),
+            JavaMinecraftVersion::V_1_21_4,
+        )?;
         assert_eq!(entity["hoverEvent"]["contents"]["type"], "minecraft:pig");
         Ok(())
     }
 
     #[test]
     fn unknown_hover_ids_fall_back() -> TestResult {
-        let item = parsed(&item_hover("minecraft:does_not_exist"), JavaMinecraftVersion::V_26_2)?;
+        let item = parsed(
+            &item_hover("minecraft:does_not_exist"),
+            JavaMinecraftVersion::V_26_2,
+        )?;
         assert_eq!(item["hover_event"]["id"], "minecraft:barrier");
         let entity = parsed(
             &entity_hover("minecraft:does_not_exist"),

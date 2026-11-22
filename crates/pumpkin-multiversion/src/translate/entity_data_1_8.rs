@@ -94,9 +94,9 @@ fn write_value(
 
 /// Reads a 26.3 component and renders it as the plain string the old metadata uses.
 fn legacy_name(read: &mut &[u8], version: JavaMinecraftVersion) -> Option<String> {
-    let component =
-        read.get_component_borrowed(&pumpkin_data::packet::CURRENT_MC_VERSION)
-            .ok()?;
+    let component = read
+        .get_component_borrowed(&pumpkin_data::packet::CURRENT_MC_VERSION)
+        .ok()?;
     Some(text::to_legacy_string(&component, &version, Locale::EnUs))
 }
 
@@ -136,10 +136,7 @@ mod tests {
         expected.extend_from_slice(&[0x0a, 0x07]); // skin parts: byte 0, index 10
         expected.push(END_LEGACY);
 
-        for version in [
-            JavaMinecraftVersion::V_1_7_2,
-            JavaMinecraftVersion::V_1_8,
-        ] {
+        for version in [JavaMinecraftVersion::V_1_7_2, JavaMinecraftVersion::V_1_8] {
             assert_eq!(
                 entity_data_to_legacy_1_7_8(&current, version),
                 Some(expected.clone()),

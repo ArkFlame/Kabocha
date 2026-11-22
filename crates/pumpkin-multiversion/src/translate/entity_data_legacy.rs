@@ -2,11 +2,7 @@
 //! generated tables in `entity_data.rs`. Only the shared high-value fields are
 //! translated; unmappable entries are dropped one by one, not the whole packet.
 
-use pumpkin_data::{
-    entity::EntityType,
-    meta_data_type::MetaDataType,
-    packet::CURRENT_MC_VERSION,
-};
+use pumpkin_data::{entity::EntityType, meta_data_type::MetaDataType, packet::CURRENT_MC_VERSION};
 use pumpkin_protocol::{
     VarInt,
     codec::item_stack_seralizer::ItemStackSerializer,
@@ -16,10 +12,7 @@ use pumpkin_util::version::JavaMinecraftVersion;
 
 use crate::{
     legacy::LegacyWriteExt,
-    translate::{
-        nbt::split_network_nbt,
-        particle::skip_particle,
-    },
+    translate::{nbt::split_network_nbt, particle::skip_particle},
 };
 
 use super::entity_data::entity_type;
@@ -174,11 +167,12 @@ fn copy_effect_color(read: &mut &[u8]) -> Option<Vec<u8>> {
     Some(out)
 }
 
-fn skip_optional(
-    read: &mut &[u8],
-    value: impl FnOnce(&mut &[u8]) -> Option<()>,
-) -> Option<()> {
-    if read.get_bool().ok()? { value(read) } else { Some(()) }
+fn skip_optional(read: &mut &[u8], value: impl FnOnce(&mut &[u8]) -> Option<()>) -> Option<()> {
+    if read.get_bool().ok()? {
+        value(read)
+    } else {
+        Some(())
+    }
 }
 
 /// Consumes one 26.3 value so a later, mappable entry can still be translated.
@@ -202,15 +196,11 @@ fn skip_value(serializer: i32, read: &mut &[u8]) -> Option<()> {
             split_network_nbt(read)?;
             Some(())
         }
-        id if id == M::OPTIONAL_COMPONENT.id => {
-            skip_optional(read, |r| {
-                split_network_nbt(r)?;
-                Some(())
-            })
-        }
-        id if id == M::OPTIONAL_BLOCK_POS.id => {
-            skip_optional(read, |r| skip_bytes(r, 8))
-        }
+        id if id == M::OPTIONAL_COMPONENT.id => skip_optional(read, |r| {
+            split_network_nbt(r)?;
+            Some(())
+        }),
+        id if id == M::OPTIONAL_BLOCK_POS.id => skip_optional(read, |r| skip_bytes(r, 8)),
         id if id == M::OPTIONAL_LIVING_ENTITY_REFERENCE.id => {
             skip_optional(read, |r| skip_bytes(r, 16))
         }
@@ -271,8 +261,8 @@ fn convert_field(
     version: JavaMinecraftVersion,
     read: &mut &[u8],
 ) -> Option<(u8, i32, Vec<u8>)> {
-    use MetaDataType as M;
     use self::current as C;
+    use MetaDataType as M;
 
     let pose = era >= LegacyDataFormat::V1_14;
     let living = kind != EntityKind::Other;
@@ -283,9 +273,11 @@ fn convert_field(
     let field = match (index, serializer) {
         (C::FLAGS, id) if id == M::BYTE.id => (0, 0, copy_byte(read)?),
         (C::AIR, id) if id == M::INT.id => (1, 1, copy_var_int(read)?),
-        (C::CUSTOM_NAME, id) if id == M::OPTIONAL_COMPONENT.id => {
-            (2, custom_name_type(era), copy_custom_name(read, version, era)?)
-        }
+        (C::CUSTOM_NAME, id) if id == M::OPTIONAL_COMPONENT.id => (
+            2,
+            custom_name_type(era),
+            copy_custom_name(read, version, era)?,
+        ),
         (C::NAME_VISIBLE, id) if id == M::BOOLEAN.id => (3, boolean, copy_bool(read)?),
         (C::SILENT, id) if id == M::BOOLEAN.id => (4, boolean, copy_bool(read)?),
         (C::NO_GRAVITY, id) if id == M::BOOLEAN.id => (5, boolean, copy_bool(read)?),
@@ -394,10 +386,25 @@ mod tests {
         let mut current = Vec::new();
         current.write_var_int(&VarInt(-1)).unwrap();
         let float = 5.0f32.to_be_bytes();
-        entry(current::ABSORPTION, MetaDataType::FLOAT, &float, &mut current);
+        entry(
+            current::ABSORPTION,
+            MetaDataType::FLOAT,
+            &float,
+            &mut current,
+        );
         entry(current::SCORE, MetaDataType::INT, &var_int(7), &mut current);
-        entry(current::SKIN_PARTS, MetaDataType::BYTE, &[0x3f], &mut current);
-        entry(current::MAIN_HAND, MetaDataType::HUMANOID_ARM, &var_int(1), &mut current);
+        entry(
+            current::SKIN_PARTS,
+            MetaDataType::BYTE,
+            &[0x3f],
+            &mut current,
+        );
+        entry(
+            current::MAIN_HAND,
+            MetaDataType::HUMANOID_ARM,
+            &var_int(1),
+            &mut current,
+        );
         current.push(u8::MAX);
 
         let mut expected = Vec::new();
@@ -422,8 +429,18 @@ mod tests {
         let mut current = Vec::new();
         current.write_var_int(&VarInt(-2)).unwrap();
         entry(current::FLAGS, MetaDataType::BYTE, &[0x20], &mut current);
-        entry(current::HEALTH, MetaDataType::FLOAT, &10.0f32.to_be_bytes(), &mut current);
-        entry(current::ARROW_COUNT, MetaDataType::INT, &var_int(2), &mut current);
+        entry(
+            current::HEALTH,
+            MetaDataType::FLOAT,
+            &10.0f32.to_be_bytes(),
+            &mut current,
+        );
+        entry(
+            current::ARROW_COUNT,
+            MetaDataType::INT,
+            &var_int(2),
+            &mut current,
+        );
         entry(current::POSE, MetaDataType::POSE, &var_int(1), &mut current);
         current.push(u8::MAX);
 
@@ -451,7 +468,12 @@ mod tests {
         // A string entry (no shared field maps from it) must be skipped whole.
         entry(20, MetaDataType::STRING, &var_int(3), &mut current);
         current.extend_from_slice(b"abc");
-        entry(current::HEALTH, MetaDataType::FLOAT, &8.0f32.to_be_bytes(), &mut current);
+        entry(
+            current::HEALTH,
+            MetaDataType::FLOAT,
+            &8.0f32.to_be_bytes(),
+            &mut current,
+        );
         current.push(u8::MAX);
 
         let mut expected = Vec::new();
@@ -472,7 +494,12 @@ mod tests {
         join_viewer(23);
         let mut absent = Vec::new();
         absent.write_var_int(&VarInt(-4)).unwrap();
-        entry(current::CUSTOM_NAME, MetaDataType::OPTIONAL_COMPONENT, &[0], &mut absent);
+        entry(
+            current::CUSTOM_NAME,
+            MetaDataType::OPTIONAL_COMPONENT,
+            &[0],
+            &mut absent,
+        );
         absent.push(u8::MAX);
         for (version, type_id) in [
             (JavaMinecraftVersion::V_1_12_2, 4),
@@ -503,7 +530,12 @@ mod tests {
         let nbt = component_nbt("Bob");
         let mut present = Vec::new();
         present.write_var_int(&VarInt(-4)).unwrap();
-        entry(current::CUSTOM_NAME, MetaDataType::OPTIONAL_COMPONENT, &[1], &mut present);
+        entry(
+            current::CUSTOM_NAME,
+            MetaDataType::OPTIONAL_COMPONENT,
+            &[1],
+            &mut present,
+        );
         present.extend_from_slice(&nbt);
         present.push(u8::MAX);
         let modern = for_viewer(23, || {

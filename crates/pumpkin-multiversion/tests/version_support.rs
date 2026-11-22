@@ -33,12 +33,16 @@ fn read_rows() -> Result<Vec<Row>> {
     let mut rows = Vec::new();
     for line in text.lines().skip(1).filter(|line| !line.is_empty()) {
         let mut fields = line.split('\t');
-        let version = fields.next().ok_or_else(|| invalid_data("missing `version`"))?;
+        let version = fields
+            .next()
+            .ok_or_else(|| invalid_data("missing `version`"))?;
         let protocol = fields
             .next()
             .ok_or_else(|| invalid_data("missing `protocol`"))?;
         let _era = fields.next().ok_or_else(|| invalid_data("missing `era`"))?;
-        let status = fields.next().ok_or_else(|| invalid_data("missing `status`"))?;
+        let status = fields
+            .next()
+            .ok_or_else(|| invalid_data("missing `status`"))?;
         rows.push(Row {
             version: version.to_owned(),
             protocol: protocol.to_owned(),
