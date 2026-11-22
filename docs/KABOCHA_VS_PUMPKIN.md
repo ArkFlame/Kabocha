@@ -25,7 +25,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4613](https://github.com/Pumpkin-MC/Pumpkin/pull/4613) | fix(server): save whitelist on and off to pumpkin.toml | PENDING |
 | [#4615](https://github.com/Pumpkin-MC/Pumpkin/pull/4615) | fix: keep text colors in bedrock translated system messages | LANDED |
 | [#4619](https://github.com/Pumpkin-MC/Pumpkin/pull/4619) | perf(world): batch dependency GC after level changes | LANDED (e8bcc51e1) |
-| [#4620](https://github.com/Pumpkin-MC/Pumpkin/pull/4620) | perf(world): send chunk level changes instead of the whole level map | PENDING |
+| [#4620](https://github.com/Pumpkin-MC/Pumpkin/pull/4620) | perf(world): send chunk level changes instead of the whole level map | LANDED (fdcb8bd87) |
 | [#4622](https://github.com/Pumpkin-MC/Pumpkin/pull/4622) | fix(entity): align boat physics and minecart behavior with vanilla | PENDING |
 | [#4625](https://github.com/Pumpkin-MC/Pumpkin/pull/4625) | fix: show players on the locator bar | PENDING |
 | [#4626](https://github.com/Pumpkin-MC/Pumpkin/pull/4626) | fix(block): prevent opening a blocked shulker box | ALREADY-FIXED (shulker_box.rs:151) |
@@ -40,7 +40,7 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 | [#4639](https://github.com/Pumpkin-MC/Pumpkin/pull/4639) | fix(entity): despawn ineligible mobs on peaceful | PENDING |
 | [#4641](https://github.com/Pumpkin-MC/Pumpkin/pull/4641) | Avoid double deletion of guest-owned resources | LANDED (f033a0d53) |
 | [#4642](https://github.com/Pumpkin-MC/Pumpkin/pull/4642) | Expose transport latency through the v0.2 plugin API | PENDING |
-| [#4643](https://github.com/Pumpkin-MC/Pumpkin/pull/4643) | fix(minecart) | PENDING |
+| [#4643](https://github.com/Pumpkin-MC/Pumpkin/pull/4643) | fix(minecart) | BLOCKED (core fixes present, remainder needs generated APIs) |
 | [#4644](https://github.com/Pumpkin-MC/Pumpkin/pull/4644) | fix(respawn_anchor): notify clients and neighbors when breaking anchor on explosion | LANDED |
 | [#4647](https://github.com/Pumpkin-MC/Pumpkin/pull/4647) | fix(entity): bring leads closer to vanilla parity | PENDING |
 | [#4648](https://github.com/Pumpkin-MC/Pumpkin/pull/4648) | fix(entity): stop resistance from overflowing past level five | PENDING |
