@@ -7,9 +7,11 @@ use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::var_int::VarInt;
 use pumpkin_protocol::java::client::play::CEntityPositionSync;
+use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 
@@ -30,6 +32,8 @@ const DEFAULT_ATTACH_FACE: BlockDirection = BlockDirection::Down;
 const NO_COLOR: u8 = 16;
 const PEEK_PER_TICK: f32 = 0.05;
 const MAX_TELEPORT_DISTANCE: i32 = 8;
+const OTHER_SHULKER_SCAN_RADIUS: f64 = 8.0;
+const OTHER_SHULKER_LIMIT: f32 = 5.0;
 /// Vanilla `Shulker.MODIFIER_COVERED_ARMOR`: +20 armor while fully closed.
 const COVERED_ARMOR_MODIFIER_ID: &str = "covered";
 const COVERED_ARMOR: f64 = 20.0;
@@ -68,6 +72,7 @@ pub struct ShulkerEntity {
 
 impl ShulkerEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
+        entity.set_pos(Self::snap_position(entity.pos.load()));
         let mob_entity = MobEntity::new(entity);
         let shulker = Self {
             mob_entity,
@@ -218,6 +223,119 @@ impl ShulkerEntity {
         true
     }
 
+    pub(crate) fn snap_position(pos: Vector3<f64>) -> Vector3<f64> {
+        Vector3::new(
+            pos.x.floor() + 0.5,
+            (pos.y + 0.5).floor(),
+            pos.z.floor() + 0.5,
+        )
+    }
+
+    fn physical_peek(amount: f32) -> f32 {
+        0.5 - pumpkin_util::math::sin((0.5 + amount) * std::f32::consts::PI) * 0.5
+    }
+
+    fn progress_aabb(
+        size: f32,
+        direction: BlockDirection,
+        from: f32,
+        to: f32,
+        pos: Vector3<f64>,
+    ) -> BoundingBox {
+        let size = f64::from(size);
+        let offset = direction.to_offset();
+        let movement = Vector3::new(
+            f64::from(offset.x),
+            f64::from(offset.y),
+            f64::from(offset.z),
+        );
+        let mut bounds = BoundingBox {
+            min: Vector3::new(-size * 0.5, 0.0, -size * 0.5),
+            max: Vector3::new(size * 0.5, size, size * 0.5),
+        }
+        .expand_towards(
+            movement.x * f64::from(from.max(to)) * size,
+            movement.y * f64::from(from.max(to)) * size,
+            movement.z * f64::from(from.max(to)) * size,
+        );
+        let inset = (1.0 + f64::from(from.min(to))) * size;
+        match direction {
+            BlockDirection::Down => bounds.max.y -= inset,
+            BlockDirection::Up => bounds.min.y += inset,
+            BlockDirection::North => bounds.max.z -= inset,
+            BlockDirection::South => bounds.min.z += inset,
+            BlockDirection::West => bounds.max.x -= inset,
+            BlockDirection::East => bounds.min.x += inset,
+        }
+        bounds.shift(pos)
+    }
+
+    fn on_peek_amount_change(&self) {
+        let entity = &self.mob_entity.living_entity.entity;
+        entity.refresh_dimensions();
+        let old = Self::physical_peek(self.prev_peek_amount.load());
+        let current = Self::physical_peek(self.current_peek_amount.load());
+        let push = (current - old) * entity.scale.load();
+        if push <= 0.0 {
+            return;
+        }
+        let direction = self.get_attach_face().opposite();
+        let area = Self::progress_aabb(
+            entity.scale.load(),
+            direction,
+            old,
+            current,
+            entity.pos.load(),
+        );
+        let offset = direction.to_offset();
+        let motion = Vector3::new(
+            f64::from(offset.x) * f64::from(push),
+            f64::from(offset.y) * f64::from(push),
+            f64::from(offset.z) * f64::from(push),
+        );
+        for other in entity.world.load().get_all_at_box(&area) {
+            if !other.is_spectator()
+                && other.get_entity().entity_type != &EntityType::SHULKER
+                && !other.get_entity().no_physics.load(Ordering::Relaxed)
+                && !entity.is_passenger_of_same_vehicle(&other.get_entity())
+            {
+                other.move_by_shulker(other.as_ref(), motion);
+            }
+        }
+    }
+
+    fn hit_by_shulker_bullet(&self) {
+        let entity = &self.mob_entity.living_entity.entity;
+        let old_pos = entity.pos.load();
+        let old_box = entity.bounding_box.load();
+        if self.is_closed() || !self.teleport_somewhere() {
+            return;
+        }
+        let world = entity.world.load();
+        let count = world
+            .get_entities_of_type_at_box(&old_box.expand_all(OTHER_SHULKER_SCAN_RADIUS), |kind| {
+                kind == &EntityType::SHULKER
+            })
+            .iter()
+            .filter(|other| {
+                other
+                    .get_living_entity()
+                    .is_some_and(crate::entity::living::LivingEntity::is_alive)
+            })
+            .count();
+        if rand::rng().random::<f32>() < (count as f32 - 1.0) / OTHER_SHULKER_LIMIT {
+            return;
+        }
+        let clone = Self::new(Entity::from_uuid(
+            uuid::Uuid::new_v4(),
+            (*world).clone(),
+            old_pos,
+            &EntityType::SHULKER,
+        ));
+        clone.set_color(self.get_color());
+        world.spawn_entity(clone);
+    }
+
     fn find_attachable_face(&self, pos: &BlockPos) -> Option<BlockDirection> {
         let entity = &self.mob_entity.living_entity.entity;
         let world = entity.world.load();
@@ -322,14 +440,8 @@ impl ShulkerEntity {
         false
     }
 
-    pub fn on_shulker_damage(&self) {
-        let living = &self.mob_entity.living_entity;
-        let health = living.health.load();
-        let max = living.get_max_health();
-
-        if health < max * 0.5 && rand::rng().random_range(0..4) == 0 {
-            self.teleport_somewhere();
-        }
+    fn on_shulker_damage(&self) {
+        self.teleport_somewhere();
     }
 }
 
@@ -373,7 +485,9 @@ impl Mob for ShulkerEntity {
 
         entity.velocity.store(Vector3::new(0.0, 0.0, 0.0));
 
-        self.update_peek_amount();
+        if self.update_peek_amount() {
+            self.on_peek_amount_change();
+        }
 
         let pos = entity.block_pos.load();
         let face = self.get_attach_face();
@@ -382,8 +496,19 @@ impl Mob for ShulkerEntity {
         }
     }
 
-    fn on_damage(&self, _damage_type: DamageType, _source: Option<&dyn EntityBase>) {
-        self.on_shulker_damage();
+    fn on_damage(&self, damage_type: DamageType, source: Option<&dyn EntityBase>) {
+        let living = &self.mob_entity.living_entity;
+        if living.health.load() < living.get_max_health() * 0.5
+            && rand::rng().random_range(0..4) == 0
+        {
+            self.on_shulker_damage();
+        } else if damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE)
+            && source.is_some_and(|source| {
+                source.get_entity().entity_type == &EntityType::SHULKER_BULLET
+            })
+        {
+            self.hit_by_shulker_bullet();
+        }
     }
 
     fn pre_damage(&self, damage_type: DamageType, _source: Option<&dyn EntityBase>) -> bool {
@@ -565,5 +690,45 @@ impl BlockPosExt for BlockPos {
             self.0.y + offset.y,
             self.0.z + offset.z,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::entity::ai::test_support::world;
+    use crate::entity::passive::cow::CowEntity;
+    use pumpkin_util::math::vector2::Vector2;
+    use pumpkin_world::chunk::ChunkData;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[tokio::test]
+    async fn opening_lid_pushes_nearby_entity_upward() -> TestResult {
+        let folder = tempfile::tempdir()?;
+        let world = world(&folder);
+        world
+            .level
+            .loaded_chunks
+            .insert(Vector2::new(0, 0), ChunkData::empty_sync(0, 0));
+        let shulker = ShulkerEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 64.0, 0.5),
+            &EntityType::SHULKER,
+        ));
+        world.spawn_entity(shulker.clone());
+        shulker.set_attach_face(BlockDirection::Down);
+        let cow = CowEntity::new(Entity::new(
+            world.clone(),
+            Vector3::new(0.5, 65.2, 0.5),
+            &EntityType::COW,
+        ));
+        world.spawn_entity(cow.clone());
+        shulker.prev_peek_amount.store(0.0);
+        shulker.current_peek_amount.store(0.5);
+        shulker.on_peek_amount_change();
+        assert!(cow.get_entity().pos.load().y > 65.2);
+        world.level.shutdown().await;
+        Ok(())
     }
 }

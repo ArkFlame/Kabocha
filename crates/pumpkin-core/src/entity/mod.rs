@@ -1180,6 +1180,10 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         self.get_entity().move_entity(caller, motion);
     }
 
+    fn move_by_shulker(&self, caller: &dyn EntityBase, motion: Vector3<f64>) {
+        self.get_entity().move_by_shulker(caller, motion);
+    }
+
     fn is_pushable(&self) -> bool {
         false
     }
@@ -2664,6 +2668,11 @@ impl Entity {
     ///
     /// This function calculates the new position, block position, and chunk position based on the provided coordinates. If any of these values change, the corresponding fields are updated.
     pub fn set_pos(&self, new_position: Vector3<f64>) {
+        let new_position = if self.entity_type == &EntityType::SHULKER && !self.has_vehicle() {
+            mob::shulker::ShulkerEntity::snap_position(new_position)
+        } else {
+            new_position
+        };
         let pos = self.pos.load();
         if pos != new_position {
             self.pos.store(new_position);
@@ -3781,8 +3790,21 @@ impl Entity {
     // Move by a delta, adjust for collisions, and send
 
     // Does not send movement. That must be done separately
-    pub fn move_entity(&self, caller: &dyn EntityBase, mut motion: Vector3<f64>) {
-        if caller.get_player().is_some() {
+    pub fn move_entity(&self, caller: &dyn EntityBase, motion: Vector3<f64>) {
+        self.move_entity_internal(caller, motion, false);
+    }
+
+    pub(crate) fn move_by_shulker(&self, caller: &dyn EntityBase, motion: Vector3<f64>) {
+        self.move_entity_internal(caller, motion, true);
+    }
+
+    fn move_entity_internal(
+        &self,
+        caller: &dyn EntityBase,
+        mut motion: Vector3<f64>,
+        shulker_move: bool,
+    ) {
+        if caller.get_player().is_some() && !shulker_move {
             return;
         }
 
@@ -3835,6 +3857,10 @@ impl Entity {
 
         self.move_pos(final_move);
 
+        if shulker_move && self.entity_type == &EntityType::PLAYER {
+            self.refresh_support_after_external_move(caller);
+        }
+
         // Vanilla `Entity.move`: velocity is kept, a wall zeroes its axis, the speed factor only slows X/Z.
         let speed_factor = f64::from(caller.get_block_speed_factor());
         let mut velocity = self.velocity.load();
@@ -3871,6 +3897,15 @@ impl Entity {
             return;
         }
         self.emit_movement(caller, final_move, &effect_pos, effect_state);
+    }
+
+    /// Rechecks ground support after an external shulker push so players are not left
+    /// marked as grounded when the lid lifts them or moved off a ledge.
+    fn refresh_support_after_external_move(&self, caller: &dyn EntityBase) {
+        let motion = Vector3::new(0.0, -1.0E-5, 0.0);
+        let support = self.collide(motion, caller).supporting;
+        self.on_ground.store(support.is_some(), Ordering::Relaxed);
+        self.supporting_block_pos.store(support);
     }
 
     /// The emission part of vanilla `Entity.move` for movement the client already resolved,
