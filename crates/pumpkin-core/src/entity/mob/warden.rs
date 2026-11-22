@@ -614,7 +614,12 @@ mod tests {
             Vector3::new(0.5, 64.0, 0.5),
             &EntityType::WARDEN,
         ));
-        assert!(warden.mob_entity.target_selector.has_goal::<ActiveTargetGoal>());
+        assert!(
+            warden
+                .mob_entity
+                .target_selector
+                .has_goal::<ActiveTargetGoal>()
+        );
         Ok(())
     }
 }

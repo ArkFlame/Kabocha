@@ -248,7 +248,6 @@ pub struct BoatEntity {
 }
 
 impl BoatEntity {
-
     /// Boards nearby mobs and pushes others, matching vanilla AbstractBoat.tick.
     fn tick_pickup(&self) {
         let entity = &self.vehicle.entity;
@@ -328,7 +327,8 @@ impl BoatEntity {
                     self.push(other.as_ref());
                 }
             }
-        }    }
+        }
+    }
     #[must_use]
     pub fn new(mut entity: Entity) -> Self {
         entity.blocks_building = true;
