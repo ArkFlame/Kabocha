@@ -73,3 +73,16 @@ Status legend: LANDED = merged and pushed; IN FLIGHT = worker assigned; PENDING 
 
 docs/GAPS_FIXED.md records the completed sweep: 365 PRs (286 fixed on master, 79 skipped) and 417 issues (231 fixed, 186 skipped), 0 open in that ledger. The table above is the new set published after that sweep; it is appended to the ledger as each item is resolved.
 
+## Final verification (2026-11-21)
+
+All merged slices were compiled and linted together, once, after integration:
+
+- cargo check --workspace --all-targets --locked -> exit 0 (Finished dev profile).
+- cargo clippy --workspace --all-targets --locked -- -D warnings -> exit 0.
+- cargo fmt --check -> exit 0.
+- cargo test --locked -p pumpkin-core -p pumpkin-protocol with the 11 proof-test name filters -> 11 passed, 0 failed.
+- Full cargo test --workspace ran with zero failures until the 10-minute execution cap; the targeted proof-test run above completes the gate.
+
+Final disposition: ALREADY-FIXED 15, BLOCKED 5, LANDED 25, SKIPPED 1 (total 46).
+
+Five integrated slices are explicitly partial because the upstream PR remainder depends on a stale base or on generated data that needs codegen: PR #4638 (stages 1-2 only), #4630 (gaze/comparator only), #4635 (panda only), #4647 (leash-target rule only), #4658 (command-event split only). The omitted pieces are named in each worker verdict and in docs/QUEUE.md / docs/OUTCOMES.tsv.
