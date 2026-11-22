@@ -468,9 +468,9 @@ impl BedrockClient {
                     // there starves the Tokio workers that need those same locks.
                     let (translated, extras) = match packet.translate {
                         Some(observe) => {
-                            client.translate_outgoing_async(packet.data, observe).await
+                            client.translate_outgoing_async(packet.data.clone(), observe).await
                         }
-                        None => (Some(packet.data), Vec::new()),
+                        None => (Some(packet.data.clone()), Vec::new()),
                     };
                     // Extra packets a handler injected go out right after this one.
                     for extra in extras.into_iter().rev() {
