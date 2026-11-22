@@ -69,7 +69,9 @@ macro_rules! impl_block_entity_for_chest {
                 if let Some(key) = loot_table_key {
                     // Persist deferred loot: write the key and seed; skip items.
                     nbt.put_string("LootTable", key);
-                    let loot_table_seed = self.loot_table_seed.load(std::sync::atomic::Ordering::Relaxed);
+                    let loot_table_seed = self
+                        .loot_table_seed
+                        .load(std::sync::atomic::Ordering::Relaxed);
                     if loot_table_seed != 0 {
                         nbt.put_long("LootTableSeed", loot_table_seed);
                     }
@@ -155,7 +157,8 @@ macro_rules! impl_block_entity_for_chest {
             ) {
                 if $crate::world::loot::unpack_loot_into_slots(
                     &self.loot_table,
-                    self.loot_table_seed.load(std::sync::atomic::Ordering::Relaxed),
+                    self.loot_table_seed
+                        .load(std::sync::atomic::Ordering::Relaxed),
                     &self.items,
                     |key, seed| generate(key, seed),
                 )
@@ -189,7 +192,8 @@ macro_rules! impl_block_entity_for_chest {
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner) =
                         Some(loot.loot_table.clone());
-                    self.loot_table_seed.store(loot.seed, std::sync::atomic::Ordering::Relaxed);
+                    self.loot_table_seed
+                        .store(loot.seed, std::sync::atomic::Ordering::Relaxed);
                 }
                 let mut items = self
                     .items
@@ -212,7 +216,9 @@ macro_rules! impl_block_entity_for_chest {
                     stack.set_data_component(
                         pumpkin_data::data_component_impl::ContainerLootImpl {
                             loot_table,
-                            seed: self.loot_table_seed.load(std::sync::atomic::Ordering::Relaxed),
+                            seed: self
+                                .loot_table_seed
+                                .load(std::sync::atomic::Ordering::Relaxed),
                         },
                     );
                 }
@@ -638,7 +644,9 @@ mod tests {
             .loot_table
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(KEY.to_string());
-        chest.loot_table_seed.store(SEED, std::sync::atomic::Ordering::Relaxed);
+        chest
+            .loot_table_seed
+            .store(SEED, std::sync::atomic::Ordering::Relaxed);
 
         let mut dropped = ItemStack::new(1, &Item::CHEST);
         chest.collect_item_components(&mut dropped);
@@ -657,7 +665,12 @@ mod tests {
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
             Some(KEY.to_string())
         );
-        assert_eq!(placed.loot_table_seed.load(std::sync::atomic::Ordering::Relaxed), SEED);
+        assert_eq!(
+            placed
+                .loot_table_seed
+                .load(std::sync::atomic::Ordering::Relaxed),
+            SEED
+        );
 
         placed.unpack_loot_table_with(&mut |key, seed| {
             assert_eq!(key, KEY);

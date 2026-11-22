@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex as StdMutex, RwLock, atomic::{AtomicBool, AtomicI64}};
+use std::sync::{
+    Arc, Mutex as StdMutex, RwLock,
+    atomic::{AtomicBool, AtomicI64},
+};
 
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_util::math::position::BlockPos;
