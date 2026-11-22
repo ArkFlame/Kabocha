@@ -4,14 +4,17 @@ use serde::{Deserialize, Serialize};
 const PLAYER_UPDATE_INTERVAL: u32 = 2;
 
 /// How often the entity tracker sends player movement. Off by default, which is vanilla.
-#[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq, toml_spanner::Toml)]
 #[serde(default)]
+#[toml(ignore_unknown_fields, recoverable)]
 pub struct EntityTrackingConfig {
     /// Distance in blocks from which a player's movement is sent to another player only every
     /// `far_player_update_interval` ticks. `0` is off.
+    #[toml(default = Self::default().far_player_distance)]
     pub far_player_distance: u32,
     /// Ticks between movement updates of far players, up to 20. `2` is vanilla, e.g. `4`
     /// halves them. Values below 2 count as 2.
+    #[toml(default = Self::default().far_player_update_interval)]
     pub far_player_update_interval: u32,
 }
 
