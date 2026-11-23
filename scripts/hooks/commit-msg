@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Append the author trailer by agent kind: KAB_AGENT=opencode -> opencode (Co-Authored-By: opencode); anything else -> Claude.
+# Append the author trailer by agent kind: KAB_AGENT=opencode -> opencode (Co-Authored-By: opencode); claude -> Claude.
 f="$1"
-case "${KAB_AGENT:-claude}" in
+case "${KAB_AGENT:-opencode}" in
   opencode) t="Co-Authored-By: opencode-agent[bot] <219766164+opencode-agent[bot]@users.noreply.github.com>" ;;
   *)        t="Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>" ;;
 esac

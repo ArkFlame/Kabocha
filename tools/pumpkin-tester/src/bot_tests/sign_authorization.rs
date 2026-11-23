@@ -229,7 +229,9 @@ async fn run_out_of_range_case(
     set_editor(world, out_of_range, Some(player.gameprofile.id));
     send_update(bot, out_of_range, "OUT_OF_RANGE").await?;
     // The packet crosses a real socket; manual ticks alone can finish before it arrives.
-    for _ in 0..50 {
+    // Bound by wall time, not iterations: a loaded CI runner can stall the socket longer.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while std::time::Instant::now() < deadline {
         bot.drain(std::time::Duration::from_millis(20)).await;
         tick(server, 1).await;
         if sign_editor(world, out_of_range).is_none() {
