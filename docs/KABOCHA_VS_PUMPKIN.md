@@ -111,3 +111,20 @@ Full audit of the 25 issues in the reported open list against docs/LEDGER.tsv: 1
 - #4654 SKIPPED: already fixed by 402c0436a (advancement components codegen + predicate proof test).
 
 Final gate: cargo fmt --check 0, cargo check --workspace --all-targets --locked 0, cargo clippy --workspace --all-targets --locked -- -D warnings 0, 76 targeted proof tests passed 0 failed.
+
+## Issue #4685 / PR #4686 sweep (2026-11-23)
+
+Issue #4685 (RFC) audited section by section; PR #4686 reviewed (covers only 1.1/1.2):
+- 1.1 DONE: both Java and Bedrock disconnect paths deregister and save before the 5s packet flush (lib.rs deregister_before_flush), ported from PR 4686 intent; proof disconnect_deregisters_before_flushing.
+- 1.2 SKIPPED: both Velocity and regular logins call finish_login, which already evicts duplicate UUID/name sessions (encryption_response.rs:151 via duplicate_login.rs:60-98).
+- 1.3 SKIPPED: confirm_teleport.rs:8-10 ignores superseded teleport ids without kicking and keeps awaiting-teleport state.
+- 2.1 DONE: chunk format now reads TileTicks/LiquidTicks/TileEntities, section-root Palette and normalizes status; proof legacy_chunk_tags_and_section_palette_are_decoded.
+- 2.2 DONE: template property rotation is catch_unwind-guarded with default-state fallback; proof malformed_rotated_property_falls_back_to_default_state.
+- 3.1 SKIPPED with regression test: LoreImpl::read_data routes through TextComponent::from_nbt which handles raw strings and {text:...} compounds.
+- 3.2 DONE: legacy {tag:{map:id}} deserializes to MapId (unknown-component skip was already present); proof legacy_map_tag_reads_as_map_id_component.
+- 4.1 DONE: invisible item frames write DATA_SHARED_FLAGS_ID in spawn metadata; proof invisible_item_frame_spawn_metadata_carries_flags_4685.
+- 4.2 DONE: set_rotation refreshes last_sent yaw/head-yaw/pitch baselines; proof set_rotation_refreshes_last_sent_baselines_4685.
+- 5.1 SKIPPED: send-raw-packet already in v0.2; v0.1 is deprecated/frozen and adding it requires a breaking synchronized change.
+- PR #4684 (ocelot parity) SKIPPED: every rule already present and matching vanilla Ocelot.java.
+
+Final gate: fmt --check 0, cargo check --workspace --all-targets --locked 0, cargo clippy --workspace --all-targets --locked -- -D warnings 0, 84 targeted proof tests passed 0 failed.
