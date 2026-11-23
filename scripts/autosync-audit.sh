@@ -62,7 +62,7 @@ PY
 } > "$report"
 if ! git diff --quiet -- "$report"; then
   git add -- "$report"
-  git commit -q -m "chore(audit): refresh automatic upstream audit" -- "$report" || echo 'commit failed' >> "$LOG"
+  git commit -q -m "chore(audit): refresh automatic upstream audit [skip ci]" -- "$report" || echo 'commit failed' >> "$LOG"
   git push -q origin master || echo 'push failed (will retry next run)' >> "$LOG"
 fi
 printf '%s audit done: ahead=%s behind=%s\n' "$(date -u +%FT%TZ)" "$ahead" "$behind" >> "$LOG"

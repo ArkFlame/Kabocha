@@ -100,3 +100,4 @@ The Spelling workflow runs typos over the whole repo on every push. Prose in doc
 - Before pushing new prose (docs, doc comments, comments, audit text), run the spell checker locally if available, otherwise check the new words against the allowlists in typos.toml. Investigation notes may live in docs/investigations/, which is excluded.
 - Commit subjects: no em dashes, no truncated words, no invented spellings of game names. The commit hook appends the co-author trailer, so never type one.
 - After changing a generator, rerun it and confirm the rendered report contains no flagged words before pushing.
+- Automated report commits must carry `[skip ci]` in the subject: workflows use `cancel-in-progress`, so a docs-only audit push otherwise kills every in-flight test job.
