@@ -95,10 +95,8 @@ Changes land by fast-forwarding worker branches into master and pushing origin (
 ## Text, spelling, and generated-label correctness (CI gates)
 The Spelling workflow runs typos over the whole repo on every push. Prose in docs, comments, commit subjects and generated reports is checked, so one bad word fails CI.
 
-- Write complete words. Never build a plural by appending the letter s to an uppercased token: that produces a misspelled header. Emit the full label (ISSUES, PRs) in generators and reports. After editing a generator that prints headers or labels, re-read the rendered output, not just the template.
+- Write complete words. Never form a plural by uppercasing an ordinary word and appending the letter s: that produces a misspelled header. Emit the full label (ISSUES, PRs) in generators and reports. After editing a generator that prints headers or labels, re-read the rendered output, not just the template.
 - Vanilla and game identifiers whose spelling differs from standard English are exact upstream names. Add them to the allowlist sections of typos.toml; never correct them in source and never hand-edit generated files to satisfy the checker.
-
 - Before pushing new prose (docs, doc comments, comments, audit text), run the spell checker locally if available, otherwise check the new words against the allowlists in typos.toml. Investigation notes may live in docs/investigations/, which is excluded.
 - Commit subjects: no em dashes, no truncated words, no invented spellings of game names. The commit hook appends the co-author trailer, so never type one.
-
 - After changing a generator, rerun it and confirm the rendered report contains no flagged words before pushing.
