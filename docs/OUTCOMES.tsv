@@ -332,3 +332,4 @@ issue	4654	already-fixed	skipped	tame-animal component conditions generated and 
 pr	4648	already-fixed	skipped	resistance overflow fix already landed via issue #4649 (e7fea647f)	auto-audit
 pr	4625	already-fixed	skipped	locator bar player tracking already landed via issue #4623 (2b1bc82b4)	auto-audit
 pr	4684	already-fixed	skipped	full ocelot parity already in master (ocelot.rs/feline.rs/cat.rs); CodeRabbit ambient already fixed, early-return concern contradicts vanilla Ocelot.java:184	p4684
+pr	4686	already-fixed	skipped	Velocity/regular logins both call finish_login which evicts duplicates (encryption_response.rs:151); disconnect reorder ported from PR intent into lib.rs	s4685a
