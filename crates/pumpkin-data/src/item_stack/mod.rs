@@ -3,8 +3,8 @@ use crate::data_component::DataComponent;
 use crate::data_component_impl::{
     BlocksAttacksImpl, ConsumableImpl, CustomDataImpl, DamageImpl, DamageResistantImpl,
     DataComponentImpl, EnchantmentGlintOverrideImpl, EnchantmentsImpl, IDSet,
-    MAX_ENCHANTMENT_LEVEL, MaxDamageImpl, MaxStackSizeImpl, Rarity, RarityImpl, SwingAnimationImpl,
-    ToolImpl, UnbreakableImpl, UseCooldownImpl, get, get_mut, read_data,
+    MAX_ENCHANTMENT_LEVEL, MapIdImpl, MaxDamageImpl, MaxStackSizeImpl, Rarity, RarityImpl,
+    SwingAnimationImpl, ToolImpl, UnbreakableImpl, UseCooldownImpl, get, get_mut, read_data,
 };
 
 use crate::item::Item;
@@ -1029,6 +1029,17 @@ impl ItemStack {
             }
         }
 
+        // Legacy 1.20.4 maps stored their id as tag.map instead of the
+        // minecraft:map_id component. The modern component wins when both exist.
+        if let Some(tag) = compound.get_compound("tag")
+            && let Some(id) = tag.get_numeric_int("map")
+            && item_stack.get_data_component::<MapIdImpl>().is_none()
+        {
+            item_stack
+                .patch
+                .push((DataComponent::MapId, Some(MapIdImpl { id }.to_dyn())));
+        }
+
         Some(item_stack)
     }
 
@@ -1101,10 +1112,11 @@ mod tests {
     use crate::data_component_impl::{
         CustomDataImpl, CustomNameImpl, DataComponentImpl, EnchantmentGlintOverrideImpl,
         EnchantmentsImpl, ItemNameImpl, LodestoneTrackerImpl, LoreImpl, MapDecorationsImpl,
-        UnbreakableImpl,
+        MapIdImpl, UnbreakableImpl,
     };
     use pumpkin_nbt::Nbt;
     use pumpkin_nbt::deserializer::NbtReadHelperJava;
+    use pumpkin_util::text::TextContent;
     use std::io::Cursor;
 
     #[test]
@@ -1156,6 +1168,58 @@ mod tests {
         compound.put_compound("components", components);
         let stack = ItemStack::read_item_stack(&compound);
         assert!(stack.is_some_and(|stack| stack.item == &Item::FIREWORK_STAR));
+    }
+
+    /// Regression for #4685 3.1: lore NBT may mix plain string lines with
+    /// `{text: ...}` compounds; both must become lore lines.
+    #[test]
+    fn lore_reads_raw_strings_and_text_compounds() -> Result<(), &'static str> {
+        let mut text_compound = NbtCompound::new();
+        text_compound.put_string("text", "compound line".to_string());
+        let mut components = NbtCompound::new();
+        components.put(
+            "minecraft:lore",
+            NbtTag::List(vec![
+                NbtTag::String(r#"{"text":"string line"}"#.into()),
+                NbtTag::Compound(text_compound),
+            ]),
+        );
+        let mut compound = NbtCompound::new();
+        compound.put_string("id", "minecraft:stone".to_string());
+        compound.put_int("count", 1);
+        compound.put_compound("components", components);
+        let stack = ItemStack::read_item_stack(&compound).ok_or("stack must read")?;
+        let lore = stack
+            .get_data_component::<LoreImpl>()
+            .ok_or("lore component must be present")?;
+        assert_eq!(lore.lines.len(), 2, "both lore lines must survive reading");
+        let texts: Vec<&str> = lore
+            .lines
+            .iter()
+            .map(|line| match &*line.0.content {
+                TextContent::Text { text } => text.as_ref(),
+                _ => "",
+            })
+            .collect();
+        assert_eq!(texts, ["string line", "compound line"]);
+        Ok(())
+    }
+
+    /// Regression for #4685 3.2: legacy 1.20.4 `tag: {map: id}` must map to MapId.
+    #[test]
+    fn legacy_map_tag_reads_as_map_id_component() -> Result<(), &'static str> {
+        let mut tag = NbtCompound::new();
+        tag.put_int("map", 7);
+        let mut compound = NbtCompound::new();
+        compound.put_string("id", "minecraft:filled_map".to_string());
+        compound.put_int("count", 1);
+        compound.put_compound("tag", tag);
+        let stack = ItemStack::read_item_stack(&compound).ok_or("stack must read")?;
+        let map_id = stack
+            .get_data_component::<MapIdImpl>()
+            .ok_or("map id component must be present")?;
+        assert_eq!(map_id.id, 7);
+        Ok(())
     }
 
     /// Helper: creates a fresh Iron Sword (max_damage 250, damage 0).
