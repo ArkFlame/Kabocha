@@ -856,3 +856,7 @@ issue	4654	https://github.com/Pumpkin-MC/Pumpkin/issues/4654	Taming a horse inco
 issue	4677	https://github.com/Pumpkin-MC/Pumpkin/issues/4677	Nether Fortress chests drop no loot when broken without being opened	DONE		6525c0477	fix(block): preserve fortress chest loot when broken unopened (#4677)	2026-11-22
 issue	4676	https://github.com/Pumpkin-MC/Pumpkin/issues/4676	Piglins do not spawn with golden weapons	DONE		0f644a596	fix(mob): spawn piglins with vanilla golden weapons (#4676)	2026-11-22
 issue	4657	https://github.com/Pumpkin-MC/Pumpkin/issues/4657	Nether Portal generate in a higher height than normal	DONE		3390f8e71	fix(worldgen): generate nether portals clear of terrain like vanilla (#4657)	2026-11-22
+pr	4671	https://github.com/Pumpkin-MC/Pumpkin/pull/4671	feat(block): use extracted block set and wood type data	DONE		00b72743b	feat(block): use extracted block set and wood type data (#4671)	2026-11-22
+issue	4679	https://github.com/Pumpkin-MC/Pumpkin/issues/4679	Ancient Cities generate without Sculk blocks or their variants	DONE		3b229750b	fix(worldgen): generate sculk in ancient cities (#4679)	2026-11-22
+pr	4648	https://github.com/Pumpkin-MC/Pumpkin/pull/4648	fix(entity): stop resistance from overflowing past level five	SKIPPED			same fix as issue #4649 landed in e7fea647f (#4649): resistance capped before damage calc	2026-11-22
+pr	4625	https://github.com/Pumpkin-MC/Pumpkin/pull/4625	fix: show players on the locator bar	SKIPPED			same fix as issue #4623 landed in 2b1bc82b4: world/waypoint.rs player tracking with vanilla codec tests	2026-11-22

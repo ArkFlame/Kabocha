@@ -329,3 +329,5 @@ pr	4682	already-fixed	skipped	spider/cave spider wall climb, leap range and pass
 issue	4678	already-fixed	skipped	block entities already receive game events (game_event.rs:101-132) and sculk sensor detection/redstone has passing tests	i4678
 issue	4623	already-fixed	skipped	locator bar player tracking implemented in world/waypoint.rs with vanilla-byte codec tests; commit 2b1bc82b4	v4623
 issue	4654	already-fixed	skipped	tame-animal component conditions generated and evaluated; commit 402c0436a, proof test predicate.rs:4436	v4654
+pr	4648	already-fixed	skipped	resistance overflow fix already landed via issue #4649 (e7fea647f)	auto-audit
+pr	4625	already-fixed	skipped	locator bar player tracking already landed via issue #4623 (2b1bc82b4)	auto-audit
