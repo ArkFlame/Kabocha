@@ -36,7 +36,8 @@ const fn collision_rule(id: i32) -> &'static str {
 }
 
 /// Parameters since 26.2: display name, prefix, suffix, visibility and collision ids,
-/// optional color, options. Core's writer handles every older layout.
+/// a mandatory color VarInt (21 means no color), and options. Core's writer handles
+/// every older layout.
 pub fn set_player_team_from_current(
     mut payload: &[u8],
     version: JavaMinecraftVersion,
@@ -62,12 +63,11 @@ pub fn set_player_team_from_current(
     let rest = if has_parameters {
         let visibility = payload.get_var_int().ok()?.0;
         let collision = payload.get_var_int().ok()?.0;
-        // No color is written as reset (-1) for older clients
-        let color = if payload.get_bool().ok()? {
-            payload.get_var_int().ok()?.0
-        } else {
-            -1
-        };
+        // Current clients write the color unconditionally; 21 is the reset value.
+        // Normalize it back to -1 so older layouts (including the 26.2 optional
+        // bool form) encode the same "no color" state.
+        let color = payload.get_var_int().ok()?.0;
+        let color = if color == 21 { -1 } else { color };
         let options = payload.get_i8().ok()?;
         Some((visibility, collision, color, options))
     } else {
