@@ -4641,6 +4641,13 @@ impl Entity {
         // Bedrock `MovePlayer` / `MoveActorDelta` need this field, not only `yaw`.
         self.head_yaw.store(yaw);
         self.set_pitch(pitch);
+        // Vanilla ItemFrame.setDirection resets xRotO/yRotO after the rotation
+        // setters; these baselines drive Kabocha spawn and delta packets.
+        self.last_sent_yaw.store(pack_degrees(yaw), Relaxed);
+        self.last_sent_head_yaw
+            .store(pack_degrees(self.head_yaw.load()), Relaxed);
+        self.last_sent_pitch
+            .store(pack_degrees(self.pitch.load()), Relaxed);
     }
 
     /// Vanilla `Entity.turn`: rotate by already-scaled `x_delta`/`y_delta` degrees and fold the
@@ -7997,6 +8004,26 @@ mod tests {
             "minecraft:zombie_villager_v2"
         );
         assert_eq!(entity_type_to_bedrock_identifier(&EntityType::COW), "cow");
+    }
+
+    /// `set_rotation` must refresh the absolute spawn/delta baselines, matching
+    /// vanilla `ItemFrame.setDirection` which resets `xRotO`/`yRotO` (Pumpkin 4685 4.2).
+    #[tokio::test]
+    async fn set_rotation_refreshes_last_sent_baselines_4685()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = crate::entity::ai::test_support::world(&folder);
+        let entity = Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::ITEM_FRAME,
+        );
+        entity.set_rotation(90.0, -45.0);
+        assert_eq!(entity.last_sent_yaw.load(Relaxed), pack_degrees(90.0));
+        assert_eq!(entity.last_sent_head_yaw.load(Relaxed), pack_degrees(90.0));
+        assert_eq!(entity.last_sent_pitch.load(Relaxed), pack_degrees(-45.0));
+        world.level.shutdown().await;
+        Ok(())
     }
 }
 

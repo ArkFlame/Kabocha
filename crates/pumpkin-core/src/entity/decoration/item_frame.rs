@@ -24,6 +24,7 @@ use pumpkin_protocol::java::client::play::{CSetEntityMetadata, Metadata};
 use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
+use pumpkin_util::version::JavaMinecraftVersion;
 
 /// An item frame or glow item frame.
 ///
@@ -490,6 +491,39 @@ impl ItemFrameEntity {
             },
         );
     }
+
+    /// Builds the initial entity-metadata payload sent with the spawn packet.
+    fn spawn_metadata_bytes(&self, version: &JavaMinecraftVersion) -> Vec<u8> {
+        let item_serializer = ItemStackSerializer::from(
+            self.item_stack
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
+        );
+        let rotation = self.get_rotation() as i32;
+
+        let mut data = Vec::new();
+        let meta_item = Metadata::new(
+            pumpkin_data::tracked_data::item_frame::ITEM,
+            item_serializer,
+        );
+        let meta_rot = Metadata::new(pumpkin_data::tracked_data::item_frame::ROTATION, rotation);
+        if meta_item.write(&mut data, version).is_ok() && meta_rot.write(&mut data, version).is_ok()
+        {
+            // Vanilla includes DATA_SHARED_FLAGS_ID in spawn metadata when it differs
+            // from the default; invisibility is FLAG_INVISIBLE (bit 5) in that byte.
+            let shared_flags = self.entity.flags.load(Ordering::Relaxed);
+            if shared_flags != 0 {
+                let _ = Metadata::new(
+                    pumpkin_data::tracked_data::item_frame::DATA_SHARED_FLAGS_ID,
+                    shared_flags,
+                )
+                .write(&mut data, version);
+            }
+            data.push(255);
+        }
+        data
+    }
 }
 
 impl EntityBase for ItemFrameEntity {
@@ -586,6 +620,11 @@ impl EntityBase for ItemFrameEntity {
         );
         self.entity
             .set_synced_data(pumpkin_data::tracked_data::item_frame::ROTATION, rotation);
+        // Keep the shared flags (including invisibility) in the tracker metadata too.
+        self.entity.set_synced_data(
+            pumpkin_data::tracked_data::item_frame::DATA_SHARED_FLAGS_ID,
+            self.entity.flags.load(Ordering::Relaxed),
+        );
     }
 
     fn send_java_spawn_packet(&self, client: &crate::net::java::JavaClient) {
@@ -595,27 +634,10 @@ impl EntityBase for ItemFrameEntity {
         }
 
         let ver = pumpkin_data::packet::CURRENT_MC_VERSION;
-        let item_serializer = ItemStackSerializer::from(
-            self.item_stack
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .clone(),
-        );
-        let rotation = self.get_rotation() as i32;
-
-        let mut data = Vec::new();
-        let meta_item = Metadata::new(
-            pumpkin_data::tracked_data::item_frame::ITEM,
-            item_serializer,
-        );
-        let meta_rot = Metadata::new(pumpkin_data::tracked_data::item_frame::ROTATION, rotation);
-
-        if meta_item.write(&mut data, &ver).is_ok() && meta_rot.write(&mut data, &ver).is_ok() {
-            data.push(255);
-            let meta_packet = CSetEntityMetadata::new(self.entity.entity_id.into(), data.into());
-            if let Ok(meta_data) = client.serialize_packet(&meta_packet) {
-                client.try_enqueue_packet(meta_data);
-            }
+        let data = self.spawn_metadata_bytes(&ver);
+        let meta_packet = CSetEntityMetadata::new(self.entity.entity_id.into(), data.into());
+        if let Ok(meta_data) = client.serialize_packet(&meta_packet) {
+            client.try_enqueue_packet(meta_data);
         }
     }
 
@@ -711,5 +733,44 @@ impl EntityBase for ItemFrameEntity {
 
     fn cast_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_util::math::vector3::Vector3;
+    use pumpkin_util::version::JavaMinecraftVersion;
+
+    use super::*;
+    use crate::entity::Flag;
+
+    /// An invisible frame must pack `FLAG_INVISIBLE` into the shared flags
+    /// metadata at spawn (vanilla `Entity.DATA_SHARED_FLAGS_ID`), or the client
+    /// still draws the frame border (Pumpkin 4685 section 4.1).
+    #[tokio::test]
+    async fn invisible_item_frame_spawn_metadata_carries_flags_4685()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let world = crate::entity::ai::test_support::world(&folder);
+        let entity = Entity::new(
+            world.clone(),
+            Vector3::new(0.0, 64.0, 0.0),
+            &EntityType::ITEM_FRAME,
+        );
+        let frame = ItemFrameEntity::new(entity);
+        frame.set_invisible(true);
+        assert!(frame.is_invisible());
+
+        let bytes = frame.spawn_metadata_bytes(&JavaMinecraftVersion::V_26_3);
+        // Shared flags entry: tracked id 0, BYTE type id 0, value 1 << 5.
+        let invisible_flag = 1i8 << (Flag::Invisible as u8);
+        assert!(
+            bytes
+                .windows(3)
+                .any(|w| w[0] == 0 && w[1] == 0 && w[2] == invisible_flag as u8),
+            "spawn metadata is missing the invisibility shared flag: {bytes:?}"
+        );
+        world.level.shutdown().await;
+        Ok(())
     }
 }
