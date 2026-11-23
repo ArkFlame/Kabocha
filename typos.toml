@@ -9,9 +9,11 @@ fo = "fo"
 undescore = "undescore"
 replaceables = "replaceables"
 convertable = "convertable"
+clonable = "clonable"
 
 [default.extend-identifiers]
 # Vanilla method names
 areMergable = "areMergable"
 isMergable = "isMergable"
 combineWithNeigbour = "combineWithNeigbour"
+MINECRAFT_CLONABLE_MAPS = "MINECRAFT_CLONABLE_MAPS"

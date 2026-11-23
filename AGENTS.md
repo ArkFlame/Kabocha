@@ -86,8 +86,19 @@ Changes land by fast-forwarding worker branches into master and pushing origin (
 | Wrong API shape guessed (`Option` vs `Mutex` lock, `rand::random::<usize>`, `Vector3.to_centered_f64`) | Open the definition (`grep -n "pub fn name"`) and copy a nearby call. rand is 0.10: use `rand::random_range(..)` or `RngExt`. |
 | Trait method not in scope (`player.get_entity()` without `use crate::entity::EntityBase`) | Copy the `use` of a sibling file that calls the same method. |
 | Clippy pedantic misses: unused `self`, by-ref small `Copy` arg, `;` outside block, missing backticks in `///`, fn over 100 lines, `map_or(false, ..)`, `.clone()` into `&[x]`, `assert!(a == b)` | Write the clippy-clean form from the start: `is_some_and`, `std::slice::from_ref`, `assert_eq!`, backtick every code identifier, split long fns. |
-| Typos CI failures from prose (truncated words) | Spell-check prose you write in docs and comments; investigation notes live in `docs/investigations/` (excluded). |
+| Typos CI failures from prose (truncated words) | Spell-check prose you write in docs and comments; investigation notes live in `docs/investigations/` (excluded). See Text, spelling, and generated-label correctness below. |
 | Stray files in the repo root (`os`, ImageMagick output), stale `.git/index.lock` | Never write outside the files you edit; scratch goes to `/tmp`. Remove `index.lock` only when no git process runs. |
 | Full test run hangs on one deadlocked test while other pools load the machine | Run tests with a timeout and rerun a failing test alone before treating it as a bug. |
 | Wasm plugin tests fail with `can't find crate for std` | `rustup target add wasm32-wasip2 --toolchain nightly`. |
 | Marking a row STILL OPEN as cross-file | Edit the other file; mark BLOCKED-DATA only for a missing generated `pumpkin-data` field or a whole missing subsystem, naming it. |
+
+## Text, spelling, and generated-label correctness (CI gates)
+The Spelling workflow runs typos over the whole repo on every push. Prose in docs, comments, commit subjects and generated reports is checked, so one bad word fails CI.
+
+- Write complete words. Never build a plural by appending the letter s to an uppercased token: that produces a misspelled header. Emit the full label (ISSUES, PRs) in generators and reports. After editing a generator that prints headers or labels, re-read the rendered output, not just the template.
+- Vanilla and game identifiers whose spelling differs from standard English are exact upstream names. Add them to the allowlist sections of typos.toml; never correct them in source and never hand-edit generated files to satisfy the checker.
+
+- Before pushing new prose (docs, doc comments, comments, audit text), run the spell checker locally if available, otherwise check the new words against the allowlists in typos.toml. Investigation notes may live in docs/investigations/, which is excluded.
+- Commit subjects: no em dashes, no truncated words, no invented spellings of game names. The commit hook appends the co-author trailer, so never type one.
+
+- After changing a generator, rerun it and confirm the rendered report contains no flagged words before pushing.

@@ -53,7 +53,8 @@ for kind, args in (
         print(f'- ERROR listing {kind}s: {exc}')
         continue
     pending = [i for i in items if (kind, str(i['number'])) not in known]
-    print(f'### {kind.upper()}s: {len(pending)} untracked of {len(items)} open')
+    label = {'pr': 'PRs', 'issue': 'ISSUES'}[kind]
+    print(f'### {label}: {len(pending)} untracked of {len(items)} open')
     for i in sorted(pending, key=lambda x: -x['number']):
         print(f"- #{i['number']} {i['title']} (updated {i['updatedAt'][:10]})")
     print()
