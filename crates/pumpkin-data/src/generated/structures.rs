@@ -1209,7 +1209,7 @@ impl Structure {
         start_pool: None,
         start_jigsaw_name: None,
         size: None,
-        terrain_adaptation: TerrainAdaptation::None,
+        terrain_adaptation: TerrainAdaptation::BeardThin,
         start_height: None,
         project_start_to_heightmap: None,
         max_distance_from_center: None,

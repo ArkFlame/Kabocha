@@ -721,8 +721,13 @@ pub fn build() -> TokenStream {
         let path = entry.path();
         let stem = path.file_stem().unwrap().to_string_lossy().into_owned();
         let content = fs::read_to_string(&path).expect("Failed to read structure file");
-        let structure: StructureStruct =
+        let mut structure: StructureStruct =
             serde_json::from_str(&content).expect("Failed to parse structure JSON");
+        // Vanilla hardcodes BEARD_THIN for woodland mansions in the Java structure
+        // type; the datapack JSON has no terrain_adaptation field to extract.
+        if stem == "mansion" && structure.terrain_adaptation.is_none() {
+            structure.terrain_adaptation = Some("beard_thin".to_string());
+        }
         structures_json.insert(stem, structure);
     }
 
