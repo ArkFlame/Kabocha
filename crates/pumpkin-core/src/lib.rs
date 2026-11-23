@@ -276,18 +276,26 @@ pub async fn serve_java_connection(server: Arc<Server>, mut pending: PendingConn
 
                 if let ClientPlatform::Java(client) = player.client.as_ref() {
                     client.progress_player_packets(&player, &server).await;
-
                     client.close();
-                    client.await_tasks().await;
                 }
-                player.remove().await;
-                server.remove_player(&player);
-                if let Err(e) = server.player_data_storage.handle_player_leave(&player) {
-                    error!("Failed to save player data on disconnect: {e}");
-                }
-                if let Err(e) = server.advancement_manager.save_player(&player).await {
-                    error!("Failed to save player advancement on disconnect: {e}");
-                }
+                deregister_before_flush(
+                    async {
+                        player.remove().await;
+                        server.remove_player(&player);
+                        if let Err(e) = server.player_data_storage.handle_player_leave(&player) {
+                            error!("Failed to save player data on disconnect: {e}");
+                        }
+                        if let Err(e) = server.advancement_manager.save_player(&player).await {
+                            error!("Failed to save player advancement on disconnect: {e}");
+                        }
+                    },
+                    async {
+                        if let ClientPlatform::Java(client) = player.client.as_ref() {
+                            client.await_tasks().await;
+                        }
+                    },
+                )
+                .await;
             } else if let ClientPlatform::Java(client) = client.as_ref() {
                 client.close();
                 client.await_tasks().await;
@@ -305,6 +313,13 @@ fn resolve_some<T: Future, D, F: FnOnce(D) -> T>(
         || Either::Right(std::future::pending()),
         |val| Either::Left(func(val)),
     )
+}
+
+/// Runs disconnect deregistration before the packet flush, so a fast reconnect cannot find
+/// the dead session still registered while the writer spends up to five seconds flushing.
+async fn deregister_before_flush<D: Future, F: Future>(deregister: D, flush: F) {
+    deregister.await;
+    flush.await;
 }
 
 /// Why [`PumpkinServer::new`] failed, returned to the caller instead of exiting the process.
@@ -802,16 +817,24 @@ impl PumpkinServer {
                     {
                         client.progress_player_packets(&player).await;
                         client.close().await;
-                        client.await_tasks().await;
-                        player.remove().await;
-                        server.remove_player(&player);
-                        if let Err(error) = server.player_data_storage.handle_player_leave(&player)
-                        {
-                            error!("Failed to save player data on disconnect: {error}");
-                        }
-                        if let Err(e) = server.advancement_manager.save_player(&player).await {
-                            error!("Failed to save player advancement on disconnect: {e}");
-                        }
+                        deregister_before_flush(
+                            async {
+                                player.remove().await;
+                                server.remove_player(&player);
+                                if let Err(error) =
+                                    server.player_data_storage.handle_player_leave(&player)
+                                {
+                                    error!("Failed to save player data on disconnect: {error}");
+                                }
+                                if let Err(e) =
+                                    server.advancement_manager.save_player(&player).await
+                                {
+                                    error!("Failed to save player advancement on disconnect: {e}");
+                                }
+                            },
+                            client.await_tasks(),
+                        )
+                        .await;
                     } else {
                         client.close().await;
                         client.await_tasks().await;
@@ -1025,11 +1048,34 @@ fn adjust_file_descriptor_limit() {
 
 #[cfg(test)]
 mod tests {
-    use super::scrub_address;
+    use super::{deregister_before_flush, scrub_address};
 
     #[test]
     fn scrub_address_keeps_separators() {
         assert_eq!(scrub_address("192.168.0.1:25565"), "###.###.#.#:#####");
         assert_eq!(scrub_address("[::1]:25565"), "#::##:#####");
+    }
+
+    #[tokio::test]
+    async fn disconnect_deregisters_before_flushing() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        };
+
+        let flushed_early = Arc::new(AtomicBool::new(false));
+        let observed = flushed_early.clone();
+        deregister_before_flush(
+            async move {
+                assert!(
+                    !observed.load(Ordering::SeqCst),
+                    "packet flush started before the player was deregistered"
+                );
+            },
+            async move {
+                flushed_early.store(true, Ordering::SeqCst);
+            },
+        )
+        .await;
     }
 }
