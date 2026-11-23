@@ -46,3 +46,10 @@ Full table: `docs/CI_AUDIT.md`.
 | 22 | docker deploy-docker-image | startup failure with no jobs at sha 8901989 | infra or old sha | Current file gated and parses; re-check on next run |
 | 23 | Nix magic-nix-cache | FlakeHub unauthenticated (non-fatal) | fork-env | Noted, not gated |
 | 24 | WIT v0.2 `event.wit` | 836 lines removed vs upstream | plugin API, review | Open for orchestrator |
+
+| 25 | Spelling | audit report emitted a misspelled plural header; generated vanilla tag name | code | Fixed: label map in autosync-audit.sh, allowlists in typos.toml; CI run 45171758770 success |
+| 26 | Test (all platforms) | create_matches_direct_encode unwrap None: current writer emits mandatory color VarInt, translator read bool+optional | code | Fixed in 2f923ad66: read VarInt, normalize 21 to -1; proof test passes |
+| 27 | Test (Linux ARM64) | woodland mansion beard assertion failed after codegen reverted hand-edited generated data | code | Fixed in eeb70ab08: codegen hardcodes beard_thin for mansion; proof test passes |
+| 28 | GameTest and Bot Harness | sign editor wait was iteration-bounded and flaked under load | code | Fixed in dafc55d75: 5s wall-clock deadline; local full harness passed |
+| 29 | all Cargo jobs | auto-audit docs pushes triggered cancel-in-progress, killing in-flight tests | ops | Fixed in d96a853de: audit commits use skip-ci; verified no runs on later audit commits |
+| 30 | Test (Linux ARM64), Test (macOS), Test on Android AArch64 | runner shutdown signal exit 143, macOS cancelled, Android logs BlobNotFound or job stuck | infra | BLOCKED: reproduced on four separate runs including a fresh workflow_dispatch; not a code failure |
