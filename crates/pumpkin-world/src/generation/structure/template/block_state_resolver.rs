@@ -4,7 +4,7 @@
 //! to the runtime block state IDs used by the world, with support for rotation
 //! and mirroring transformations.
 
-use pumpkin_data::{Block, BlockState, Mirror, Rotation};
+use pumpkin_data::{Block, BlockState, BlockStateId, Mirror, Rotation};
 use tracing::warn;
 
 use super::PaletteEntry;
@@ -35,6 +35,31 @@ fn has_transformable_property(properties: &[pumpkin_data::Property]) -> bool {
                 | Property::Rotation(_)
         )
     })
+}
+
+/// Applies properties to a block, falling back to the default state when the generated
+/// property lookup rejects an unmapped rotation/mirror combination.
+fn state_from_properties(
+    block: &Block,
+    properties: &[pumpkin_data::Property],
+) -> Option<BlockStateId> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        block.from_properties(properties).to_state_id(block)
+    })) {
+        Ok(id) => Some(id),
+        Err(payload) => {
+            let message = payload
+                .downcast_ref::<&str>()
+                .copied()
+                .or_else(|| payload.downcast_ref::<String>().map(String::as_str));
+            if let Some(message) = message {
+                warn!("Invalid template properties for {}: {message}", block.name);
+            } else {
+                warn!("Invalid template properties for {}", block.name);
+            }
+            None
+        }
+    }
 }
 
 /// Resolves template palette entries to block state IDs.
@@ -68,7 +93,8 @@ impl BlockStateResolver {
                 rotation,
                 mirror,
             );
-            let rotated_id = block.from_properties(&transformed_props).to_state_id(block);
+            let rotated_id =
+                state_from_properties(block, &transformed_props).unwrap_or(block.default_state.id);
             return Some(BlockState::from_id(rotated_id));
         }
 
@@ -90,7 +116,7 @@ impl BlockStateResolver {
 
         // Transform properties for rotation/mirror using the unified vanilla logic
         let state_id = if rotation == Rotation::None && mirror == Mirror::None {
-            block.from_properties(&entry.properties).to_state_id(block)
+            state_from_properties(block, &entry.properties).unwrap_or(block.default_state.id)
         } else {
             let transformed_props = pumpkin_data::transform_block_properties(
                 &entry.name,
@@ -98,7 +124,7 @@ impl BlockStateResolver {
                 rotation,
                 mirror,
             );
-            block.from_properties(&transformed_props).to_state_id(block)
+            state_from_properties(block, &transformed_props).unwrap_or(block.default_state.id)
         };
 
         Some(BlockState::from_id(state_id))
@@ -118,6 +144,20 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn malformed_rotated_property_falls_back_to_default_state() {
+        let entry = PaletteEntry::with_properties(
+            "minecraft:stone".to_string(),
+            vec![Property::Facing(Facing::North)],
+        );
+
+        let resolved = BlockStateResolver::resolve(&entry, Rotation::Clockwise90, Mirror::None);
+        assert_eq!(
+            resolved.map(|state| state.id),
+            Some(Block::STONE.default_state.id)
+        );
+    }
 
     #[test]
     fn resolve_simple_block() {

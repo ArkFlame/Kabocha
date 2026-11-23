@@ -525,13 +525,17 @@ impl ChunkData {
                         .filter(|data| data.len() == LightContainer::ARRAY_SIZE)
                         .map_or(LightContainer::Empty(0), LightContainer::Full);
 
-                    if let Some(bs_compound) = section_compound.get_compound("block_states") {
+                    // Older chunks store the palette at the section root instead of inside
+                    // `block_states`; accept that shape without losing the modern path.
+                    let bs_compound = section_compound.get_compound("block_states");
+                    let palette_tag = bs_compound
+                        .and_then(|bs| bs.get("palette"))
+                        .or_else(|| section_compound.get("Palette"));
+                    if let Some(tag) = palette_tag {
                         let data = bs_compound
-                            .get_long_array("data")
+                            .and_then(|bs| bs.get_long_array("data"))
                             .map(|arr| arr.to_vec().into_boxed_slice());
-                        let palette = bs_compound
-                            .get("palette")
-                            .and_then(|tag| extract_block_palette(tag, &mut unresolved_blocks))
+                        let palette = extract_block_palette(tag, &mut unresolved_blocks)
                             .unwrap_or_else(|| vec![BlockStateId::AIR].into_boxed_slice());
 
                         block_palettes[index] =
@@ -626,7 +630,10 @@ impl ChunkData {
             },
         );
         let mut block_ticks = Vec::new();
-        if let Some(list) = root_tag.get_list("block_ticks") {
+        if let Some(list) = root_tag
+            .get_list("block_ticks")
+            .or_else(|| root_tag.get_list("TileTicks"))
+        {
             for tag in list {
                 if let pumpkin_nbt::tag::NbtTag::Compound(compound) = tag
                     && let Some(tick) = parse_scheduled_tick::<&'static Block>(compound)
@@ -637,7 +644,10 @@ impl ChunkData {
         }
 
         let mut fluid_ticks = Vec::new();
-        if let Some(list) = root_tag.get_list("fluid_ticks") {
+        if let Some(list) = root_tag
+            .get_list("fluid_ticks")
+            .or_else(|| root_tag.get_list("LiquidTicks"))
+        {
             for tag in list {
                 if let pumpkin_nbt::tag::NbtTag::Compound(compound) = tag
                     && let Some(tick) = parse_scheduled_tick::<&'static Fluid>(compound)
@@ -648,7 +658,10 @@ impl ChunkData {
         }
 
         let mut block_entities = FxHashMap::default();
-        if let Some(list) = root_tag.get_list("block_entities") {
+        if let Some(list) = root_tag
+            .get_list("block_entities")
+            .or_else(|| root_tag.get_list("TileEntities"))
+        {
             for tag in list {
                 if let pumpkin_nbt::tag::NbtTag::Compound(nbt) = tag
                     && let Some(x) = nbt.get_int("x")
@@ -662,19 +675,19 @@ impl ChunkData {
 
         let light_correct = root_tag.get_bool("isLightOn").unwrap_or(false);
 
+        // Imported chunks may omit the namespace or use the older postprocessed name,
+        // which is the final status of a fully generated chunk.
         let status_str = root_tag.get_string("Status").unwrap_or("minecraft:empty");
-        let status = match status_str {
-            "minecraft:structure_starts" => ChunkStatus::StructureStarts,
-            "minecraft:structure_references" => ChunkStatus::StructureReferences,
-            "minecraft:biomes" => ChunkStatus::Biomes,
-            "minecraft:terrain" | "minecraft:noise" | "minecraft:surface" | "minecraft:carvers" => {
-                ChunkStatus::Terrain
-            }
-            "minecraft:features" => ChunkStatus::Features,
-            "minecraft:initialize_light" => ChunkStatus::InitializeLight,
-            "minecraft:light" => ChunkStatus::Light,
-            "minecraft:spawn" => ChunkStatus::Spawn,
-            "minecraft:full" => ChunkStatus::Full,
+        let status = match status_str.strip_prefix("minecraft:").unwrap_or(status_str) {
+            "structure_starts" => ChunkStatus::StructureStarts,
+            "structure_references" => ChunkStatus::StructureReferences,
+            "biomes" => ChunkStatus::Biomes,
+            "terrain" | "noise" | "surface" | "carvers" => ChunkStatus::Terrain,
+            "features" => ChunkStatus::Features,
+            "initialize_light" => ChunkStatus::InitializeLight,
+            "light" => ChunkStatus::Light,
+            "spawn" => ChunkStatus::Spawn,
+            "full" | "postprocessed" => ChunkStatus::Full,
             _ => ChunkStatus::Empty,
         };
 
@@ -1840,6 +1853,103 @@ mod tests {
             NbtTag::List(sections.into_iter().map(NbtTag::Compound).collect()),
         );
         pumpkin_nbt::Nbt::new(String::new(), root)
+    }
+
+    #[test]
+    fn legacy_chunk_tags_and_section_palette_are_decoded() {
+        use crate::chunk::ChunkData;
+        use pumpkin_util::math::vector2::Vector2;
+
+        let tick = |name: &str| {
+            let mut nbt = NbtCompound::new();
+            nbt.put_int("x", 1);
+            nbt.put_int("y", 2);
+            nbt.put_int("z", 3);
+            nbt.put_int("t", 1);
+            nbt.put_int("p", 0);
+            nbt.put_string("i", name.to_string());
+            nbt
+        };
+        let mut entity = NbtCompound::new();
+        entity.put_int("x", 4);
+        entity.put_int("y", 5);
+        entity.put_int("z", 6);
+        entity.put_string("id", "minecraft:chest".to_string());
+
+        let mut stone = NbtCompound::new();
+        stone.put_string("Name", "minecraft:stone".to_string());
+        let mut legacy_section = NbtCompound::new();
+        legacy_section.put_int("Y", -4);
+        legacy_section.put("Palette", NbtTag::List(vec![NbtTag::Compound(stone)]));
+
+        let mut root = NbtCompound::new();
+        root.put_int("DataVersion", 5023);
+        root.put_int("xPos", 0);
+        root.put_int("zPos", 0);
+        root.put_int("yPos", -4);
+        root.put_string("Status", "postprocessed".to_string());
+        root.put(
+            "sections",
+            NbtTag::List(vec![NbtTag::Compound(legacy_section)]),
+        );
+        root.put(
+            "TileTicks",
+            NbtTag::List(vec![NbtTag::Compound(tick("minecraft:frogspawn"))]),
+        );
+        root.put(
+            "LiquidTicks",
+            NbtTag::List(vec![NbtTag::Compound(tick("minecraft:water"))]),
+        );
+        root.put("TileEntities", NbtTag::List(vec![NbtTag::Compound(entity)]));
+
+        let bytes = pumpkin_nbt::Nbt::new(String::new(), root).write();
+        let chunk = ChunkData::from_bytes(&bytes, Vector2::new(0, 0)).expect("chunk parses");
+
+        assert_eq!(chunk.status, ChunkStatus::Full);
+        let block_ticks = chunk.block_ticks.step_tick(true);
+        assert_eq!(block_ticks.len(), 1);
+        assert_eq!(block_ticks[0].position, BlockPos::new(1, 2, 3));
+        assert_eq!(block_ticks[0].value.name, "frogspawn");
+        let fluid_ticks = chunk.fluid_ticks.step_tick(true);
+        assert_eq!(fluid_ticks.len(), 1);
+        assert_eq!(fluid_ticks[0].value.name, "water");
+        let entities = chunk
+            .pending_block_entities
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        assert!(entities.contains_key(&BlockPos::new(4, 5, 6)));
+        let sections = chunk
+            .section
+            .block_sections
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        assert!(
+            sections[0]
+                .iter()
+                .any(|id| id == Block::STONE.default_state.id)
+        );
+    }
+
+    #[test]
+    fn status_without_namespace_is_normalized() {
+        use crate::chunk::ChunkData;
+        use pumpkin_util::math::vector2::Vector2;
+
+        for (status, expected) in [
+            ("full", ChunkStatus::Full),
+            ("minecraft:full", ChunkStatus::Full),
+            ("postprocessed", ChunkStatus::Full),
+            ("biomes", ChunkStatus::Biomes),
+        ] {
+            let mut root = NbtCompound::new();
+            root.put_int("xPos", 0);
+            root.put_int("zPos", 0);
+            root.put_int("yPos", 0);
+            root.put_string("Status", status.to_string());
+            let bytes = pumpkin_nbt::Nbt::new(String::new(), root).write();
+            let chunk = ChunkData::from_bytes(&bytes, Vector2::new(0, 0)).expect("chunk parses");
+            assert_eq!(chunk.status, expected, "status {status}");
+        }
     }
 
     #[test]
