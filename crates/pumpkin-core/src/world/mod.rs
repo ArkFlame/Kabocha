@@ -10434,6 +10434,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(clippy::too_many_lines)]
     async fn chunk_lifecycle_dispatches_ordered_notifications()
     -> Result<(), Box<dyn std::error::Error>> {
         use crate::{
