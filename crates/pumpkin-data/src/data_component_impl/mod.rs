@@ -932,6 +932,37 @@ mod tests {
     }
 
     #[test]
+    fn lore_round_trip() {
+        assert_round_trip(
+            LoreImpl {
+                lines: vec![TextComponent::text("Unbreakable")],
+            },
+            LoreImpl::read_data,
+        );
+
+        // Styled lines must survive as components instead of becoming a plain string.
+        let styled = LoreImpl {
+            lines: vec![
+                TextComponent::text("hello color!")
+                    .color_named(NamedColor::Red)
+                    .italic(),
+            ],
+        };
+
+        assert!(matches!(
+            styled.write_data(),
+            NbtTag::List(lines) if matches!(lines.as_slice(), [NbtTag::Compound(_)])
+        ));
+        assert_round_trip(styled, LoreImpl::read_data);
+    }
+
+    #[test]
+    fn lore_rejects_too_many_lines() {
+        let lines = vec![NbtTag::String("line".into()); LoreImpl::MAX_LINES + 1];
+        assert!(LoreImpl::read_data(&NbtTag::List(lines)).is_none());
+    }
+
+    #[test]
     fn enchantable_round_trip() {
         assert_round_trip(EnchantableImpl { value: 14 }, EnchantableImpl::read_data);
     }

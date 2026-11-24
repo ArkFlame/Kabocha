@@ -223,14 +223,28 @@ pub struct LoreImpl {
     pub lines: Vec<TextComponent>,
 }
 impl LoreImpl {
+    /// Maximum number of lore lines, matching vanilla's `ItemLore.MAX_LINES`.
+    pub const MAX_LINES: usize = 256;
+
     pub fn read_data(data: &NbtTag) -> Option<Self> {
         let NbtTag::List(lines) = data else {
             return None;
         };
+        if lines.len() > Self::MAX_LINES {
+            return None;
+        }
 
-        Some(Self {
-            lines: lines.iter().map(TextComponent::from_nbt).collect(),
-        })
+        let mut parsed = Vec::with_capacity(lines.len());
+        for line in lines {
+            match line {
+                NbtTag::String(_) | NbtTag::Compound(_) | NbtTag::List(_) => {
+                    parsed.push(TextComponent::from_nbt(line));
+                }
+                _ => return None,
+            }
+        }
+
+        Some(Self { lines: parsed })
     }
 }
 impl DataComponentImpl for LoreImpl {
