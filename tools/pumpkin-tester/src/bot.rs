@@ -4,7 +4,7 @@ use bytes::Bytes;
 use pumpkin_core::net::java::{JavaReadHalf, JavaWriteHalf};
 use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_protocol::{
-    ClientPacket, ConnectionState, RawPacket, ServerPacket,
+    ClientPacket, ConnectionState, PacketEncodeError, RawPacket, ServerPacket,
     codec::var_int::VarInt,
     java::{
         client::{
@@ -240,6 +240,15 @@ impl HeadlessBot {
     }
 }
 
+/// `PacketEncodeError` flattens the underlying I/O error into its message, so a peer closing
+/// the socket during shutdown can only be recognized from that message.
+fn is_connection_closed(err: &PacketEncodeError) -> bool {
+    let message = err.to_string();
+    message.contains("Broken pipe")
+        || message.contains("Connection reset")
+        || message.contains("Connection aborted")
+}
+
 pub async fn send_framed_packet<P: ClientPacket + MultiVersionJavaPacket, W: AsyncWrite + Unpin>(
     writer: &mut TCPNetworkEncoder<BufWriter<W>>,
     packet: &P,
@@ -254,12 +263,15 @@ pub async fn send_framed_packet<P: ClientPacket + MultiVersionJavaPacket, W: Asy
     let serialized =
         pumpkin_protocol::java::packet_encoder::SerializedPacket::try_from_bytes(Bytes::from(buf))
             .map_err(|err| format!("Failed to frame packet {packet_id}: {err}"))?;
-    writer
-        .write_packet(serialized.into_bytes())
-        .await
-        .map_err(|err| format!("Failed to write packet to socket: {err}"))?;
-    writer
-        .flush()
-        .await
-        .map_err(|err| format!("Failed to flush socket: {err}"))
+    if let Err(err) = writer.write_packet(serialized.into_bytes()).await {
+        if is_connection_closed(&err) {
+            return Ok(());
+        }
+        return Err(format!("Failed to write packet to socket: {err}"));
+    }
+    match writer.flush().await {
+        Ok(()) => Ok(()),
+        Err(err) if is_connection_closed(&err) => Ok(()),
+        Err(err) => Err(format!("Failed to flush socket: {err}")),
+    }
 }
