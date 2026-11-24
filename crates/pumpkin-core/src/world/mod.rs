@@ -10446,6 +10446,17 @@ mod tests {
     #[derive(Default)]
     struct Notifications(Mutex<Vec<(bool, Vector2<i32>)>>);
 
+    impl Notifications {
+        fn count_for(&self, pos: Vector2<i32>) -> usize {
+            self.0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .iter()
+                .filter(|(_, chunk_pos)| *chunk_pos == pos)
+                .count()
+        }
+    }
+
     impl EventHandler<ChunkLoad> for Notifications {
         fn handle<'a>(&'a self, _: &'a Arc<Server>, event: &'a ChunkLoad) -> BoxFuture<'a, ()> {
             Box::pin(async move {
@@ -10496,12 +10507,8 @@ mod tests {
         // Both transitions occurred before the tick: the load notification must survive removal.
         tokio::time::timeout(Duration::from_secs(10), async {
             loop {
-                let count = notifications
-                    .0
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .len();
-                if count >= expected {
+                // Spawn chunks notify too; wait only for the chunk under test.
+                if notifications.count_for(pos) >= expected {
                     break;
                 }
                 world.update_active_chunks();
@@ -10554,11 +10561,14 @@ mod tests {
         for expected in [2, 4] {
             generate_and_wait(&world, &notifications, expected).await?;
         }
-        let observed = notifications
+        let observed: Vec<_> = notifications
             .0
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
+            .iter()
+            .copied()
+            .filter(|(_, chunk_pos)| *chunk_pos == pos)
+            .collect();
         world.shutdown().await;
         assert_eq!(
             observed,
