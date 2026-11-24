@@ -340,3 +340,6 @@ Every upstream PR and issue is DONE or SKIPPED. The entries below are the annota
 - #4689 (PR) fix(text): accept vanilla ARGB int for shadow_color (already present: crates/pumpkin-util/src/text/color.rs:379, tests :614)
 - #4690 (PR) docs(install): clarify Alpine Linux binary compatibility [d7905655a]
 - #4693 (PR) fix(docker): reserve release tags for release builds [78931d718]
+- #4687 (PR) fix(item): keep custom name styling [5dfb0cd78]
+- #4688 (PR) fix(item): keep lore line styling in saved item data [5298ce9f2]
+- #4691 (PR) feat(plugin): fire chunk lifecycle notifications after tick [24a91e973]
