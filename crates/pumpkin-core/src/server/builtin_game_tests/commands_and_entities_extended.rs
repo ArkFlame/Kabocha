@@ -256,9 +256,16 @@ pub(super) async fn test_falling_anvil_lands_and_preserves_block(
         .start_sequence()
         .then_idle(14)
         .then_execute(move |helper| async move {
-            helper
-                .assert_block_present(&BlockPos::new(1, 1, 1), &Block::ANVIL)
-                .await
+            // A falling anvil may randomly degrade on impact, so any anvil-family
+            // block is a valid landing result.
+            let landed = helper.block_state_id(&BlockPos::new(1, 1, 1)).await;
+            let block = Block::from_state_id(landed);
+            helper.assert_true(
+                block == &Block::ANVIL
+                    || block == &Block::CHIPPED_ANVIL
+                    || block == &Block::DAMAGED_ANVIL,
+                format!("expected an anvil block at (1, 1, 1), found '{}'", block.name),
+            )
         })
         .then_succeed();
     Ok(())
