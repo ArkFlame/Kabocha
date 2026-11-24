@@ -5,7 +5,6 @@ use std::sync::{
 
 use super::BlockEntity;
 use crate::entity::player::Player;
-use crate::world::World;
 use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
 use pumpkin_util::math::position::BlockPos;
@@ -619,7 +618,7 @@ impl<'a> SignEntityRef<'a> {
     /// that registration from going stale in `SignBlockEntity#tick`; Pumpkin has no sign
     /// ticker, so `SignBlockEntity#playerIsTooFarAwayToEdit` is checked here instead.
     #[must_use]
-    pub fn may_update_text(&self, world: &World, player: &Player) -> bool {
+    pub fn may_update_text(&self, player: &Player) -> bool {
         if self.is_waxed() {
             return false;
         }
@@ -632,10 +631,9 @@ impl<'a> SignEntityRef<'a> {
             return false;
         }
 
+        // Deliberately independent of the loaded-chunk snapshot: an editor stays valid
+        // while its sign block entity is registered and the player remains in edit range.
         let pos = self.block_pos();
-        if !world.level.is_chunk_loaded(&pos.chunk_position()) {
-            return false;
-        }
         if !player.can_interact_with_block_at(&pos, SIGN_EDIT_RANGE_BUFFER) {
             // Vanilla clears this from `SignBlockEntity#tick`; without a sign ticker,
             // clear it when the registered editor is out of range.

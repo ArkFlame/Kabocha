@@ -184,7 +184,7 @@ impl BedrockClient {
         else {
             return;
         };
-        if !sign_entity.may_update_text(&world, player) {
+        if !sign_entity.may_update_text(player) {
             warn!(
                 "Player {} just tried to change non-editable sign",
                 player.gameprofile.name

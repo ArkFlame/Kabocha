@@ -11,18 +11,10 @@ impl JavaClient {
         player.update_last_action_time();
 
         let world = player.get_entity().world.load_full();
-        // Vanilla checks the chunk before looking up the block entity. The reusable
-        // `may_update_text` gate repeats this for the Bedrock path, which has no pre-check.
-        if !world
-            .level
-            .is_chunk_loaded(&sign_data.location.chunk_position())
-        {
-            // The chunk gate must not strand an editor opened for this player: a
-            // refused update must never leave the sign editor open.
-            clear_editor_for_player(&world, sign_data.location, player);
-            return;
-        }
-
+        // Do not gate on `is_chunk_loaded`: that is a transient snapshot of the loaded-chunk
+        // map and would reject (and, worse, clear the editor of) a legitimate edit to a sign
+        // whose block entity is still registered. Presence of the block entity plus the
+        // editor/range gate in `may_update_text` are the authoritative checks.
         let Some(block_entity) = world.get_block_entity(&sign_data.location) else {
             return;
         };
@@ -31,13 +23,13 @@ impl JavaClient {
         else {
             return;
         };
-        if !sign_entity.may_update_text(&world, player) {
+        if !sign_entity.may_update_text(player) {
             warn!(
                 "Player {} just tried to change non-editable sign",
                 player.gameprofile.name
             );
             // `may_update_text` clears the editor when the player moved out of
-            // range; cover the waxed and unloaded-chunk refusals as well.
+            // range; cover the waxed-sign refusal as well.
             clear_editor_for_player(&world, sign_data.location, player);
             return;
         }
