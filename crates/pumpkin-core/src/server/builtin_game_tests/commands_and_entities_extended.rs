@@ -264,7 +264,10 @@ pub(super) async fn test_falling_anvil_lands_and_preserves_block(
                 block == &Block::ANVIL
                     || block == &Block::CHIPPED_ANVIL
                     || block == &Block::DAMAGED_ANVIL,
-                format!("expected an anvil block at (1, 1, 1), found '{}'", block.name),
+                format!(
+                    "expected an anvil block at (1, 1, 1), found '{}'",
+                    block.name
+                ),
             )
         })
         .then_succeed();
