@@ -9991,7 +9991,17 @@ mod tests {
     use pumpkin_util::math::position::BlockPos;
     use pumpkin_util::math::vector2::Vector2;
     use pumpkin_world::chunk::{ChunkData, io::Dirtiable};
+    use std::{
+        sync::{Arc, Mutex},
+        time::Duration,
+    };
     use uuid::Uuid;
+
+    use crate::plugin::{
+        BoxFuture, EventHandler,
+        world::{ChunkLoad, ChunkUnloadEvent},
+    };
+    use crate::server::Server;
 
     use super::{
         NaturalSpawnChunkCache, World, accumulate_bonemeal_change, bedrock_block_breaking_rate,
@@ -10433,55 +10443,81 @@ mod tests {
         Ok(())
     }
 
+    #[derive(Default)]
+    struct Notifications(Mutex<Vec<(bool, Vector2<i32>)>>);
+
+    impl EventHandler<ChunkLoad> for Notifications {
+        fn handle<'a>(&'a self, _: &'a Arc<Server>, event: &'a ChunkLoad) -> BoxFuture<'a, ()> {
+            Box::pin(async move {
+                // Plugin callbacks must run after the active-chunk locks are released.
+                assert!(event.world.active_chunk_tracker.try_lock().is_ok());
+                assert!(event.world.active_chunks.try_write().is_ok());
+                self.0
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .push((true, Vector2::new(event.chunk.x, event.chunk.z)));
+            })
+        }
+    }
+
+    impl EventHandler<ChunkUnloadEvent> for Notifications {
+        fn handle<'a>(
+            &'a self,
+            _: &'a Arc<Server>,
+            event: &'a ChunkUnloadEvent,
+        ) -> BoxFuture<'a, ()> {
+            Box::pin(async move {
+                self.0
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .push((false, event.chunk_pos));
+            })
+        }
+    }
+
+    async fn generate_and_wait(
+        world: &Arc<World>,
+        notifications: &Notifications,
+        expected: usize,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let pos = Vector2::new(0, 0);
+        // First generate the chunk, then reload the saved copy on the second pass.
+        tokio::time::timeout(
+            Duration::from_secs(45),
+            world.level.get_or_fetch_chunk(pos, |_| ()),
+        )
+        .await?;
+        tokio::time::timeout(Duration::from_secs(10), async {
+            while world.level.is_chunk_loaded(&pos) {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await?;
+        // Both transitions occurred before the tick: the load notification must survive removal.
+        tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let count = notifications
+                    .0
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .len();
+                if count >= expected {
+                    break;
+                }
+                world.update_active_chunks();
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await?;
+        world.update_active_chunks();
+        Ok(())
+    }
+
     #[tokio::test(flavor = "multi_thread")]
-    #[allow(clippy::too_many_lines)]
     async fn chunk_lifecycle_dispatches_ordered_notifications()
     -> Result<(), Box<dyn std::error::Error>> {
-        use crate::{
-            data::VanillaData,
-            plugin::{
-                BoxFuture, EventHandler, EventPriority,
-                world::{ChunkLoad, ChunkUnloadEvent},
-            },
-            server::Server,
-        };
+        use crate::{data::VanillaData, plugin::EventPriority};
         use pumpkin_config::{AdvancedConfiguration, BasicConfiguration, TelemetryConfig};
-        use std::{
-            sync::{Arc, Mutex},
-            time::Duration,
-        };
-
-        #[derive(Default)]
-        struct Notifications(Mutex<Vec<(bool, Vector2<i32>)>>);
-
-        impl EventHandler<ChunkLoad> for Notifications {
-            fn handle<'a>(&'a self, _: &'a Arc<Server>, event: &'a ChunkLoad) -> BoxFuture<'a, ()> {
-                Box::pin(async move {
-                    // Plugin callbacks must run after the active-chunk locks are released.
-                    assert!(event.world.active_chunk_tracker.try_lock().is_ok());
-                    assert!(event.world.active_chunks.try_write().is_ok());
-                    self.0
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .push((true, Vector2::new(event.chunk.x, event.chunk.z)));
-                })
-            }
-        }
-
-        impl EventHandler<ChunkUnloadEvent> for Notifications {
-            fn handle<'a>(
-                &'a self,
-                _: &'a Arc<Server>,
-                event: &'a ChunkUnloadEvent,
-            ) -> BoxFuture<'a, ()> {
-                Box::pin(async move {
-                    self.0
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .push((false, event.chunk_pos));
-                })
-            }
-        }
 
         let directory = tempfile::tempdir()?;
         let basic = BasicConfiguration {
@@ -10516,35 +10552,7 @@ mod tests {
         );
         let pos = Vector2::new(0, 0);
         for expected in [2, 4] {
-            // First generate the chunk, then reload the saved copy on the second pass.
-            tokio::time::timeout(
-                Duration::from_secs(45),
-                world.level.get_or_fetch_chunk(pos, |_| ()),
-            )
-            .await?;
-            tokio::time::timeout(Duration::from_secs(10), async {
-                while world.level.is_chunk_loaded(&pos) {
-                    tokio::time::sleep(Duration::from_millis(10)).await;
-                }
-            })
-            .await?;
-            // Both transitions occurred before the tick: the load notification must survive removal.
-            tokio::time::timeout(Duration::from_secs(10), async {
-                loop {
-                    let count = notifications
-                        .0
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .len();
-                    if count >= expected {
-                        break;
-                    }
-                    world.update_active_chunks();
-                    tokio::time::sleep(Duration::from_millis(10)).await;
-                }
-            })
-            .await?;
-            world.update_active_chunks();
+            generate_and_wait(&world, &notifications, expected).await?;
         }
         let observed = notifications
             .0
