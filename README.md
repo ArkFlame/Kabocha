@@ -47,6 +47,8 @@ cargo run --release
 
 The upstream installer and downloads at pumpkinmc.org install the original Pumpkin, not Kabocha. Release binaries and a download page will come with [kabocha.arkflame.com](https://kabocha.arkflame.com) once it is published.
 
+Prebuilt Linux binaries require glibc. Alpine Linux uses musl, so the binaries do not run on a standard Alpine installation. On an Alpine host with Docker, use the [official Pumpkin container image](https://docs.pumpkinmc.org/#docker), which includes a glibc-based userspace.
+
 ## Goals
 
 - **Performance**: Leveraging multi-threading for maximum speed and efficiency.
