@@ -115,7 +115,7 @@ pub struct GenerationSchedule {
 impl GenerationSchedule {
     fn publish_chunk(&self, pos: ChunkPos, chunk: SyncChunk) -> Option<SyncChunk> {
         let has_scheduled_ticks = chunk.has_scheduled_ticks();
-        let previous = self.public_chunk_map.insert(pos, chunk);
+        let previous = self.public_chunk_map.insert(pos, chunk.clone());
         // Saved ticks only step while the chunk is in this set. Insert after publishing,
         // because the tick loop drops entries whose chunk is not loaded.
         if has_scheduled_ticks {
@@ -123,7 +123,7 @@ impl GenerationSchedule {
         }
         if previous.is_none() {
             self.loaded_chunk_changes
-                .push(LoadedChunkChange::Loaded(pos));
+                .push(LoadedChunkChange::Loaded(chunk));
         }
         previous
     }

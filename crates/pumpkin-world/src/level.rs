@@ -60,9 +60,10 @@ pub struct LevelMemoryCounters {
     cached_entity_regions: Option<usize>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone)]
 pub enum LoadedChunkChange {
-    Loaded(Vector2<i32>),
+    // Retain the chunk even if it unloads before the world tick consumes this change.
+    Loaded(SyncChunk),
     Unloaded(Vector2<i32>),
 }
 
@@ -712,8 +713,6 @@ impl Level {
             Entry::Occupied(entry) => entry.get().clone(),
             Entry::Vacant(entry) => {
                 entry.insert(fetched_chunk.clone());
-                self.loaded_chunk_changes
-                    .push(LoadedChunkChange::Loaded(pos));
                 fetched_chunk
             }
         };
