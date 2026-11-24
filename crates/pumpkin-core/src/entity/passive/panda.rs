@@ -1169,6 +1169,13 @@ mod tests {
         stone_floor(&world);
         let hit = spawn_panda(&world, 0.5, 0.5);
         let pricked = spawn_panda(&world, 6.5, 0.5);
+        // The panic goal picks a random escape target through the entity RNG. Seed it so
+        // the route length, and whether navigation is idle after sitting, is stable.
+        for panda in [&hit, &pricked] {
+            if let Ok(mut rng) = panda.get_entity().rng.lock() {
+                *rng = <rand::rngs::StdRng as rand::SeedableRng>::seed_from_u64(1);
+            }
+        }
         hit.damage(hit.as_ref(), 1.0, DamageType::MOB_ATTACK);
         pricked.damage(pricked.as_ref(), 1.0, DamageType::CACTUS);
 
