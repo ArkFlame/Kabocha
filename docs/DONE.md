@@ -337,3 +337,6 @@ Every upstream PR and issue is DONE or SKIPPED. The entries below are the annota
 - #4371 (PR, skipped: execute store score/bossbar/data already on master, crates/pumpkin-core/src/command/commands/execute.rs:843 and :2135)
 - #3428 (PR, skipped: village path terrain projection already on master via #4158 jigsaw gravity projection)
 - #3585 (PR, skipped: farmland-to-dirt entity move already identical on master, rebase yielded an empty commit)
+- #4689 (PR) fix(text): accept vanilla ARGB int for shadow_color (already present: crates/pumpkin-util/src/text/color.rs:379, tests :614)
+- #4690 (PR) docs(install): clarify Alpine Linux binary compatibility [d7905655a]
+- #4693 (PR) fix(docker): reserve release tags for release builds [78931d718]
