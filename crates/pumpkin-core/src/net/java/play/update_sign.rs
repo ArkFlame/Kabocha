@@ -17,6 +17,9 @@ impl JavaClient {
             .level
             .is_chunk_loaded(&sign_data.location.chunk_position())
         {
+            // The chunk gate must not strand an editor opened for this player: a
+            // refused update must never leave the sign editor open.
+            clear_editor_for_player(&world, sign_data.location, player);
             return;
         }
 
@@ -33,6 +36,9 @@ impl JavaClient {
                 "Player {} just tried to change non-editable sign",
                 player.gameprofile.name
             );
+            // `may_update_text` clears the editor when the player moved out of
+            // range; cover the waxed and unloaded-chunk refusals as well.
+            clear_editor_for_player(&world, sign_data.location, player);
             return;
         }
 
@@ -72,6 +78,27 @@ impl JavaClient {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         world.update_block_entity(&block_entity);
+    }
+}
+
+/// Clears the sign editor only when it was opened for `player`, so a different
+/// player's editor is never closed by a refused update.
+fn clear_editor_for_player(
+    world: &crate::world::World,
+    pos: pumpkin_util::math::position::BlockPos,
+    player: &Player,
+) {
+    if let Some(block_entity) = world.get_block_entity(&pos)
+        && let Some(sign) =
+            crate::block::entities::sign::SignEntityRef::from_block_entity(&*block_entity)
+    {
+        let mut editor = sign
+            .currently_editing_player()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if *editor == Some(player.gameprofile.id) {
+            *editor = None;
+        }
     }
 }
 
